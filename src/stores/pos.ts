@@ -1,0 +1,106 @@
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+interface CartItem {
+  id: string;
+  producto_id: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  mascota_id?: string;
+  subtotal: number;
+}
+
+interface POSStore {
+  items: CartItem[];
+  clienteId?: string;
+  mascotaId?: string;
+  metodoPago?: string;
+  descuento: number;
+
+  addItem: (item: Omit<CartItem, "id">) => void;
+  removeItem: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  clearCart: () => void;
+  setCliente: (clienteId: string, mascotaId?: string) => void;
+  clearCliente: () => void;
+  setMetodoPago: (metodo: string) => void;
+  setDescuento: (descuento: number) => void;
+
+  subtotal: () => number;
+  impuesto: () => number;
+  total: () => number;
+}
+
+export const usePOSStore = create<POSStore>()(
+  devtools(
+    (set, get) => ({
+      items: [],
+      descuento: 0,
+
+      addItem: (item) => {
+        const existing = get().items.find(
+          (i) => i.producto_id === item.producto_id && i.mascota_id === item.mascota_id
+        );
+        if (existing) {
+          set((state) => ({
+            items: state.items.map((i) =>
+              i.id === existing.id
+                ? { ...i, cantidad: i.cantidad + 1, subtotal: i.precio * (i.cantidad + 1) }
+                : i
+            ),
+          }));
+        } else {
+          set((state) => ({
+            items: [...state.items, { id: crypto.randomUUID(), ...item }],
+          }));
+        }
+      },
+
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((i) => i.id !== id),
+        })),
+
+      updateQuantity: (id, quantity) => {
+        if (quantity <= 0) {
+          get().removeItem(id);
+          return;
+        }
+        set((state) => ({
+          items: state.items.map((i) =>
+            i.id === id ? { ...i, cantidad: quantity, subtotal: i.precio * quantity } : i
+          ),
+        }));
+      },
+
+      clearCart: () =>
+        set({
+          items: [],
+          clienteId: undefined,
+          mascotaId: undefined,
+          metodoPago: undefined,
+          descuento: 0,
+        }),
+
+      setCliente: (clienteId, mascotaId) => set({ clienteId, mascotaId }),
+
+      clearCliente: () => set({ clienteId: undefined, mascotaId: undefined }),
+
+      setMetodoPago: (metodoPago) => set({ metodoPago }),
+
+      setDescuento: (descuento) => set({ descuento }),
+
+      subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
+
+      impuesto: () => get().subtotal() * 0.19,
+
+      total: () => {
+        const sub = get().subtotal();
+        const desc = (sub * get().descuento) / 100;
+        return (sub - desc) * 1.19;
+      },
+    }),
+    { name: "pos-store" }
+  )
+);
