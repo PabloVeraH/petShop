@@ -14,6 +14,7 @@ export default function POSPage() {
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [ventaExito, setVentaExito] = useState(false);
+  const [ventaError, setVentaError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const { items, clienteId, mascotaId, metodoPago, descuento, total, clearCart } = usePOSStore();
@@ -35,9 +36,13 @@ export default function POSPage() {
     onSuccess: () => {
       clearCart();
       setShowPagoModal(false);
+      setVentaError(null);
       setVentaExito(true);
       queryClient.invalidateQueries({ queryKey: ["productos"] });
       setTimeout(() => setVentaExito(false), 3000);
+    },
+    onError: (e: Error) => {
+      setVentaError(e.message);
     },
   });
 
@@ -48,6 +53,11 @@ export default function POSPage() {
         {ventaExito && (
           <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
             ✓ Venta registrada
+          </span>
+        )}
+        {ventaError && (
+          <span className="text-sm font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
+            Error: {ventaError}
           </span>
         )}
       </div>

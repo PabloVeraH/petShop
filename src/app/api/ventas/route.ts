@@ -2,6 +2,53 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
+export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = createServiceClient();
+  const { data: user } = await supabase
+    .from("clerk_users")
+    .select("store_id")
+    .eq("clerk_id", userId)
+    .single();
+
+  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
+
+  const search = req.nextUrl.searchParams.get("search") ?? "";
+  const metodo = req.nextUrl.searchParams.get("metodo") ?? "";
+  const desde = req.nextUrl.searchParams.get("desde") ?? "";
+  const hasta = req.nextUrl.searchParams.get("hasta") ?? "";
+  const offset = Number(req.nextUrl.searchParams.get("offset") ?? "0");
+  const LIMIT = 50;
+
+  let query = supabase
+    .from("ventas")
+    .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
+    .eq("store_id", user.store_id)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + LIMIT - 1);
+
+  if (metodo) query = query.eq("metodo_pago", metodo);
+  if (desde) query = query.gte("created_at", desde);
+  if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
+
+  const { data, error, count } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Filter by cliente nombre in JS (Supabase doesn't support ilike on joined tables easily)
+  let ventas = data ?? [];
+  if (search) {
+    const q = search.toLowerCase();
+    ventas = ventas.filter((v) => {
+      const cliente = v.clientes as unknown as { nombre: string } | null;
+      return cliente?.nombre.toLowerCase().includes(q);
+    });
+  }
+
+  return NextResponse.json({ data: ventas, count: count ?? 0 });
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -61,7 +108,6 @@ export async function POST(req: NextRequest) {
 
   if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
 
-  // Decrement stock and log movements
   for (const item of items as { producto_id: string; cantidad: number }[]) {
     await supabase.rpc("decrement_stock", {
       p_producto_id: item.producto_id,

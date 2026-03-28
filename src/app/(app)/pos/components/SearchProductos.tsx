@@ -11,7 +11,7 @@ export default function SearchProductos() {
   const [search, setSearch] = useState("");
   const { addItem, mascotaId } = usePOSStore();
 
-  const { data: productos, isLoading } = useQuery({
+  const { data: productos, isLoading, isError } = useQuery({
     queryKey: ["productos", search],
     queryFn: () => getProductos(search),
     staleTime: 30_000,
@@ -30,7 +30,11 @@ export default function SearchProductos() {
         <p className="text-sm text-gray-400 py-4 text-center">Cargando...</p>
       )}
 
-      {!isLoading && productos?.length === 0 && (
+      {isError && (
+        <p className="text-sm text-red-500 py-4 text-center">Error al cargar productos. Intenta de nuevo.</p>
+      )}
+
+      {!isLoading && !isError && productos?.length === 0 && (
         <p className="text-sm text-gray-400 py-4 text-center">Sin resultados</p>
       )}
 

@@ -9,6 +9,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/admin", label: "Admin", roles: ["systemAdmin"] },
 ];
 
