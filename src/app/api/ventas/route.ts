@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
 
-  for (const item of items as { producto_id: string; cantidad: number }[]) {
+  for (const item of items as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
     await supabase.rpc("decrement_stock", {
       p_producto_id: item.producto_id,
       p_cantidad: item.cantidad,
@@ -120,6 +120,41 @@ export async function POST(req: NextRequest) {
       referencia_id: venta.id,
       notas: `Venta ${venta.id}`,
     });
+
+    // Calcular alerta de consumo si hay mascota y config definida
+    if (item.mascota_id) {
+      const { data: config } = await supabase
+        .from("consumo_configs")
+        .select("id, cliente_id, gramos_porcion, veces_dia")
+        .eq("mascota_id", item.mascota_id)
+        .eq("producto_id", item.producto_id)
+        .single();
+
+      const { data: producto } = await supabase
+        .from("productos")
+        .select("peso_gramos")
+        .eq("id", item.producto_id)
+        .single();
+
+      if (config && producto?.peso_gramos && config.gramos_porcion > 0 && config.veces_dia > 0) {
+        const consumoDiario = config.gramos_porcion * config.veces_dia;
+        const diasEstimados = Math.round((item.cantidad * producto.peso_gramos) / consumoDiario);
+        const fechaTermino = new Date();
+        fechaTermino.setDate(fechaTermino.getDate() + diasEstimados);
+
+        await supabase.from("consumo_alertas").upsert(
+          {
+            cliente_id: config.cliente_id,
+            mascota_id: item.mascota_id,
+            producto_id: item.producto_id,
+            fecha_estimada_termino: fechaTermino.toISOString().split("T")[0],
+            dias_aviso: 7,
+            enviado: false,
+          },
+          { onConflict: "mascota_id,producto_id" }
+        );
+      }
+    }
   }
 
   return NextResponse.json(venta);

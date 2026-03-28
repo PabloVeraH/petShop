@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { formatRUT } from "@/lib/validation";
 import ModalMascotaCreate from "./ModalMascotaCreate";
+import ConsumoConfigSection from "./ConsumoConfigSection";
 import type { Cliente } from "@/types";
 
 type MascotaItem = {
@@ -82,6 +83,7 @@ export default function ClienteDetalle({
                   {m.raza ? ` · ${m.raza}` : ""}
                   {m.peso_kg ? ` · ${m.peso_kg}kg` : ""}
                 </span>
+                <ConsumoConfigSection mascotaId={m.id} />
               </div>
             ))}
           </div>
