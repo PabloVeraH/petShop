@@ -1,0 +1,108 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase";
+import { startOfDay, endOfDay } from "date-fns";
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = createServiceClient();
+  const { data: user } = await supabase
+    .from("clerk_users")
+    .select("store_id")
+    .eq("clerk_id", userId)
+    .single();
+
+  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
+
+  const now = new Date();
+  const dayStart = startOfDay(now).toISOString();
+  const dayEnd = endOfDay(now).toISOString();
+
+  const [ventasHoyResult, ultimasVentasResult, clientesResult] = await Promise.all([
+    supabase
+      .from("ventas")
+      .select("id, total, descuento, metodo_pago")
+      .eq("store_id", user.store_id)
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd),
+    supabase
+      .from("ventas")
+      .select("id, total, created_at, clientes(nombre)")
+      .eq("store_id", user.store_id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("clientes")
+      .select("id")
+      .eq("store_id", user.store_id),
+  ]);
+
+  const ventasHoy = ventasHoyResult.data ?? [];
+  const ultimasVentas = ultimasVentasResult.data ?? [];
+  const clienteIds = clientesResult.data?.map((c) => c.id) ?? [];
+
+  // Top productos del día
+  const ventaIds = ventasHoy.map((v) => v.id);
+  let topProductos: { producto_id: string; nombre: string; cantidad: number }[] = [];
+
+  if (ventaIds.length > 0) {
+    const { data: items } = await supabase
+      .from("venta_items")
+      .select("producto_id, cantidad, productos(nombre)")
+      .in("venta_id", ventaIds);
+
+    const counts: Record<string, { nombre: string; cantidad: number }> = {};
+    for (const item of items ?? []) {
+      const pid = item.producto_id;
+      if (!counts[pid]) {
+        const prod = item.productos as unknown as { nombre: string } | null;
+        counts[pid] = {
+          nombre: prod?.nombre ?? "",
+          cantidad: 0,
+        };
+      }
+      counts[pid].cantidad += item.cantidad;
+    }
+    topProductos = Object.entries(counts)
+      .sort((a, b) => b[1].cantidad - a[1].cantidad)
+      .slice(0, 5)
+      .map(([id, val]) => ({ producto_id: id, ...val }));
+  }
+
+  // Alertas consumo scoped a la tienda
+  let alertas: unknown[] = [];
+  if (clienteIds.length > 0) {
+    const { data } = await supabase
+      .from("consumo_alertas")
+      .select("id, fecha_estimada_termino, mascotas(nombre), productos(nombre), clientes(nombre)")
+      .in("cliente_id", clienteIds)
+      .eq("enviado", false)
+      .order("fecha_estimada_termino", { ascending: true })
+      .limit(10);
+    alertas = data ?? [];
+  }
+
+  // KPIs
+  const totalVentasHoy = ventasHoy.reduce((sum, v) => sum + Number(v.total), 0);
+  const transacciones = ventasHoy.length;
+  const ticketPromedio = transacciones > 0 ? Math.round(totalVentasHoy / transacciones) : 0;
+
+  const metodoCounts: Record<string, number> = {};
+  for (const v of ventasHoy) {
+    const m = v.metodo_pago ?? "efectivo";
+    metodoCounts[m] = (metodoCounts[m] ?? 0) + 1;
+  }
+  const topMetodo = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
+
+  return NextResponse.json({
+    ventasHoy: totalVentasHoy,
+    transacciones,
+    ticketPromedio,
+    topMetodo,
+    topProductos,
+    ultimasVentas,
+    alertas,
+  });
+}
