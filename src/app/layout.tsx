@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Providers } from "@/lib/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="es" className={`${inter.variable} h-full antialiased`}>
-        <body className="min-h-full bg-gray-50">{children}</body>
+        <body className="min-h-full bg-gray-50">
+          <Providers>{children}</Providers>
+        </body>
       </html>
     </ClerkProvider>
   );
