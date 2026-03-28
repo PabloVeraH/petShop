@@ -18,7 +18,7 @@ interface ModalPagoProps {
 }
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
-  const { subtotal, descuento, total, metodoPago, setMetodoPago, setDescuento } =
+  const { subtotal, descuento, total, metodoPago, setMetodoPago, setDescuento, fidelizacionDescuento } =
     usePOSStore();
 
   const sub = subtotal();
@@ -72,11 +72,20 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             </div>
           </div>
 
-          {/* Descuento manual */}
+          {/* Descuento */}
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Descuento manual (%)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-gray-700">Descuento (%)</label>
+              {fidelizacionDescuento > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDescuento(fidelizacionDescuento)}
+                  className="text-xs text-green-600 hover:underline"
+                >
+                  Aplicar fidelización ({fidelizacionDescuento}%)
+                </button>
+              )}
+            </div>
             <input
               type="number"
               min="0"

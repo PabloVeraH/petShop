@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -139,11 +140,12 @@ export default function SalesPage() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Método</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ventas.map((v) => {
-                const cliente = v.clientes as { nombre: string } | null;
+                const cliente = v.clientes as unknown as { nombre: string } | null;
                 return (
                   <TableRow key={v.id}>
                     <TableCell className="text-sm text-gray-500">
@@ -160,6 +162,11 @@ export default function SalesPage() {
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-700">
                       ${Math.round(Number(v.total)).toLocaleString("es-CL")}
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/sales/${v.id}`} className="text-xs text-blue-500 hover:underline">
+                        Ver ticket
+                      </Link>
                     </TableCell>
                   </TableRow>
                 );

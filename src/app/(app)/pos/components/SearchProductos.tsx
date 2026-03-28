@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { usePOSStore } from "@/stores/pos";
 import { getProductos } from "../api";
+import BarcodeScanner from "./BarcodeScanner";
 
 export default function SearchProductos() {
   const [search, setSearch] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
   const { addItem, mascotaId } = usePOSStore();
 
   const { data: productos, isLoading, isError } = useQuery({
@@ -19,12 +21,22 @@ export default function SearchProductos() {
 
   return (
     <div className="space-y-3 rounded-lg bg-white p-4 shadow-sm">
-      <Input
-        placeholder="Buscar por nombre o SKU..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        autoFocus
-      />
+      <div className="flex gap-2">
+        <Input
+          placeholder="Buscar por nombre o SKU..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
+          className="flex-1"
+        />
+        <button
+          onClick={() => setShowScanner(true)}
+          title="Escanear código de barras"
+          className="px-3 rounded-md border border-input hover:bg-gray-50 text-gray-500 text-lg"
+        >
+          ▦
+        </button>
+      </div>
 
       {isLoading && (
         <p className="text-sm text-gray-400 py-4 text-center">Cargando...</p>
@@ -36,6 +48,13 @@ export default function SearchProductos() {
 
       {!isLoading && !isError && productos?.length === 0 && (
         <p className="text-sm text-gray-400 py-4 text-center">Sin resultados</p>
+      )}
+
+      {showScanner && (
+        <BarcodeScanner
+          onDetected={(code) => { setSearch(code); setShowScanner(false); }}
+          onClose={() => setShowScanner(false)}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">

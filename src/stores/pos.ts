@@ -17,12 +17,13 @@ interface POSStore {
   mascotaId?: string;
   metodoPago?: string;
   descuento: number;
+  fidelizacionDescuento: number;
 
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  setCliente: (clienteId: string, mascotaId?: string) => void;
+  setCliente: (clienteId: string, mascotaId?: string, fidelizacionDescuento?: number) => void;
   clearCliente: () => void;
   setMetodoPago: (metodo: string) => void;
   setDescuento: (descuento: number) => void;
@@ -37,6 +38,7 @@ export const usePOSStore = create<POSStore>()(
     (set, get) => ({
       items: [],
       descuento: 0,
+      fidelizacionDescuento: 0,
 
       addItem: (item) => {
         const existing = get().items.find(
@@ -81,11 +83,13 @@ export const usePOSStore = create<POSStore>()(
           mascotaId: undefined,
           metodoPago: undefined,
           descuento: 0,
+          fidelizacionDescuento: 0,
         }),
 
-      setCliente: (clienteId, mascotaId) => set({ clienteId, mascotaId }),
+      setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0) =>
+        set({ clienteId, mascotaId, fidelizacionDescuento }),
 
-      clearCliente: () => set({ clienteId: undefined, mascotaId: undefined }),
+      clearCliente: () => set({ clienteId: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
 
       setMetodoPago: (metodoPago) => set({ metodoPago }),
 

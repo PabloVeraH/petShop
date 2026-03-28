@@ -9,6 +9,12 @@ import { usePOSStore } from "@/stores/pos";
 import { getClienteByRUT, getMascotasByCliente } from "../api";
 import { formatRUT, validateRUT } from "@/lib/validation";
 
+async function getFidelizacion(clienteId: string) {
+  const res = await fetch(`/api/fidelizacion?clienteId=${clienteId}`);
+  if (!res.ok) return null;
+  return res.json() as Promise<{ total_historico: number; frecuencia_compras: number; descuento_actual: number } | null>;
+}
+
 interface ModalClienteProps {
   onClose: () => void;
 }
@@ -33,9 +39,15 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     enabled: !!cliente?.id,
   });
 
+  const { data: fidelizacion } = useQuery({
+    queryKey: ["fidelizacion", cliente?.id],
+    queryFn: () => getFidelizacion(cliente!.id),
+    enabled: !!cliente?.id,
+  });
+
   const handleConfirm = () => {
     if (cliente) {
-      setCliente(cliente.id, selectedMascotaId);
+      setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0);
     }
     onClose();
   };
@@ -84,6 +96,14 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
               <p className="text-xs text-green-600">
                 RUT: {formatRUT(cliente.rut)}{cliente.email ? ` · ${cliente.email}` : ""}
               </p>
+              {fidelizacion && (
+                <p className="text-xs text-green-700 mt-1 font-medium">
+                  Fidelización: {fidelizacion.descuento_actual}% desc.
+                  <span className="font-normal text-green-600 ml-1">
+                    (${Math.round(Number(fidelizacion.total_historico)).toLocaleString("es-CL")} histórico · {fidelizacion.frecuencia_compras} compras)
+                  </span>
+                </p>
+              )}
 
               {mascotas && mascotas.length > 0 && (
                 <div className="mt-3">

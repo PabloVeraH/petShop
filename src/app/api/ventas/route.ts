@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
   const impuesto = (subtotal - descuento) * 0.19;
   const total = (subtotal - descuento) * 1.19;
 
+  const hoy = new Date();
+  const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
   const { data: venta, error: ventaError } = await supabase
     .from("ventas")
     .insert({
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
       total,
       metodo_pago: metodoPago,
       estado: "completada",
+      numero_comprobante,
     })
     .select()
     .single();
@@ -155,6 +159,33 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+  }
+
+  // Actualizar fidelización si hay cliente
+  if (clienteId) {
+    const { data: fid } = await supabase
+      .from("fidelizacion")
+      .select("id, total_historico, frecuencia_compras")
+      .eq("cliente_id", clienteId)
+      .single();
+
+    const nuevoTotal = Number(fid?.total_historico ?? 0) + total;
+    const nuevaFrecuencia = (fid?.frecuencia_compras ?? 0) + 1;
+    const nuevoDescuento =
+      nuevoTotal >= 300_000 ? 20 :
+      nuevoTotal >= 150_000 ? 10 :
+      nuevoTotal >= 50_000  ?  5 : 0;
+
+    await supabase.from("fidelizacion").upsert(
+      {
+        cliente_id: clienteId,
+        total_historico: nuevoTotal,
+        frecuencia_compras: nuevaFrecuencia,
+        descuento_actual: nuevoDescuento,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "cliente_id" }
+    );
   }
 
   return NextResponse.json(venta);
