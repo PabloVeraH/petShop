@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -22,6 +22,9 @@ interface ModalClienteProps {
 export default function ModalCliente({ onClose }: ModalClienteProps) {
   const [rut, setRut] = useState("");
   const [selectedMascotaId, setSelectedMascotaId] = useState<string | undefined>();
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerForm, setRegisterForm] = useState({ nombre: "", email: "", telefono: "" });
+  const [registerError, setRegisterError] = useState("");
   const { setCliente, clearCliente } = usePOSStore();
 
   const rutValido = validateRUT(rut);
@@ -39,10 +42,29 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     enabled: !!cliente?.id,
   });
 
-  const { data: fidelizacion } = useQuery({
+  const { data: fidelizacion, refetch: refetchFid } = useQuery({
     queryKey: ["fidelizacion", cliente?.id],
     queryFn: () => getFidelizacion(cliente!.id),
     enabled: !!cliente?.id,
+  });
+
+  const { mutate: registrarCliente, isPending: registrando } = useMutation({
+    mutationFn: async () => {
+      if (registerForm.nombre.trim().length < 3) throw new Error("Nombre mínimo 3 caracteres");
+      const res = await fetch("/api/clientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rut, ...registerForm }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Error al registrar");
+      return d;
+    },
+    onSuccess: (newCliente) => {
+      setCliente(newCliente.id, undefined, 0);
+      onClose();
+    },
+    onError: (e: Error) => setRegisterError(e.message),
   });
 
   const handleConfirm = () => {
@@ -84,10 +106,46 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
             <p className="text-sm text-red-500">Error al buscar cliente</p>
           )}
 
-          {rutValido && !loadingCliente && cliente === null && (
-            <p className="text-sm text-yellow-600">
-              Cliente no encontrado. Se registrará venta anónima.
-            </p>
+          {rutValido && !loadingCliente && cliente === null && !showRegister && (
+            <div className="rounded bg-yellow-50 border border-yellow-200 p-3 space-y-2">
+              <p className="text-sm text-yellow-700">Cliente no encontrado.</p>
+              <button
+                onClick={() => { setShowRegister(true); setRegisterError(""); }}
+                className="text-sm text-green-600 font-medium hover:underline"
+              >
+                + Registrar nuevo cliente
+              </button>
+            </div>
+          )}
+
+          {showRegister && !cliente && (
+            <div className="rounded bg-green-50 border border-green-200 p-3 space-y-2">
+              <p className="text-xs font-semibold text-green-700 mb-1">Nuevo cliente · {rut}</p>
+              {[
+                { label: "Nombre *", key: "nombre" as const, placeholder: "Juan Pérez" },
+                { label: "Teléfono", key: "telefono" as const, placeholder: "912345678" },
+                { label: "Email", key: "email" as const, placeholder: "juan@mail.com" },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key}>
+                  <label className="text-xs text-gray-600">{label}</label>
+                  <input
+                    value={registerForm[key]}
+                    onChange={(e) => setRegisterForm((f) => ({ ...f, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              ))}
+              {registerError && <p className="text-xs text-red-500">{registerError}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={() => registrarCliente()} disabled={registrando} className="flex-1">
+                  {registrando ? "Registrando..." : "Registrar y continuar"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowRegister(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           )}
 
           {cliente && (

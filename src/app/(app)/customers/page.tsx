@@ -37,9 +37,9 @@ export default function CustomersPage() {
   const total = data?.count ?? 0;
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 h-full">
       {/* Panel izquierdo: lista */}
-      <div className="w-2/5 flex flex-col gap-3">
+      <div className="w-full lg:w-2/5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Clientes</h1>
           <Button size="sm" onClick={() => setShowModal(true)}>

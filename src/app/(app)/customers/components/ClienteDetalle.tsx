@@ -93,6 +93,15 @@ export default function ClienteDetalle({
     },
   });
 
+  const { data: fidelizacion } = useQuery<{ total_historico: number; frecuencia_compras: number; descuento_actual: number } | null>({
+    queryKey: ["fidelizacion", cliente.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/fidelizacion?clienteId=${cliente.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
   if (isLoading) return <p className="text-sm text-gray-400">Cargando...</p>;
   if (!data) return null;
 
@@ -211,6 +220,40 @@ export default function ClienteDetalle({
           </div>
         )}
       </div>
+
+      {/* Fidelización */}
+      {fidelizacion && (
+        <div className="rounded-lg bg-green-50 border border-green-100 px-4 py-3">
+          <p className="text-xs font-semibold text-green-700 mb-1">Fidelización</p>
+          <div className="flex items-center justify-between text-sm">
+            <div className="space-y-0.5">
+              <p className="text-green-800 font-medium">
+                {fidelizacion.descuento_actual > 0
+                  ? `${fidelizacion.descuento_actual}% descuento`
+                  : "Sin descuento aún"}
+              </p>
+              <p className="text-xs text-green-600">
+                {fidelizacion.frecuencia_compras} compra{fidelizacion.frecuencia_compras !== 1 ? "s" : ""} ·{" "}
+                ${Math.round(Number(fidelizacion.total_historico)).toLocaleString("es-CL")} acumulados
+              </p>
+            </div>
+            <div className="text-right text-xs text-green-600 space-y-0.5">
+              {fidelizacion.total_historico < 50_000 && (
+                <p>Próximo nivel: ${(50_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 5%</p>
+              )}
+              {fidelizacion.total_historico >= 50_000 && fidelizacion.total_historico < 150_000 && (
+                <p>Próximo nivel: ${(150_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 10%</p>
+              )}
+              {fidelizacion.total_historico >= 150_000 && fidelizacion.total_historico < 300_000 && (
+                <p>Próximo nivel: ${(300_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 20%</p>
+              )}
+              {fidelizacion.total_historico >= 300_000 && (
+                <p className="font-medium">Nivel máximo ✓</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Historial compras */}
       <div>
