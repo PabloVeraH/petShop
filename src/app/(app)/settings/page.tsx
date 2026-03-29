@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface StoreSettings {
   id: string;
@@ -21,6 +21,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [sendingAlerts, setSendingAlerts] = useState(false);
+  const [alertsResult, setAlertsResult] = useState<{ sent: number; skipped: number } | null>(null);
+
+  const handleSendAlerts = useCallback(async () => {
+    setSendingAlerts(true);
+    setAlertsResult(null);
+    const res = await fetch("/api/whatsapp/send-alerts", { method: "POST" });
+    const data = await res.json();
+    setSendingAlerts(false);
+    if (res.ok) setAlertsResult(data);
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -201,6 +212,31 @@ export default function SettingsPage() {
           {saved && <span className="text-sm text-green-600 font-medium">Guardado</span>}
         </div>
       </form>
+
+      {/* WhatsApp Alerts section */}
+      <div className="max-w-2xl mt-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Alertas de consumo</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Envía recordatorios de reposición a clientes cuyos productos están próximos a agotarse, según las configuraciones de consumo registradas.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSendAlerts}
+              disabled={sendingAlerts}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {sendingAlerts ? "Enviando..." : "Enviar alertas pendientes"}
+            </button>
+            {alertsResult && (
+              <span className="text-sm text-gray-600">
+                {alertsResult.sent} enviadas · {alertsResult.skipped} omitidas
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

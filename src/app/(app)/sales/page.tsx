@@ -17,11 +17,17 @@ import {
 const LIMIT = 50;
 
 const METODOS = [
-  { value: "", label: "Todos" },
+  { value: "", label: "Todos los métodos" },
   { value: "efectivo", label: "Efectivo" },
   { value: "debito", label: "Débito" },
   { value: "credito", label: "Crédito" },
-  { value: "transferencia", label: "Transf." },
+  { value: "transferencia", label: "Transferencia" },
+];
+
+const ESTADOS = [
+  { value: "", label: "Todos los estados" },
+  { value: "completada", label: "Completadas" },
+  { value: "anulada", label: "Anuladas" },
 ];
 
 type VentaRow = {
@@ -55,25 +61,23 @@ async function getVentas(params: {
 export default function SalesPage() {
   const [search, setSearch] = useState("");
   const [metodo, setMetodo] = useState("");
+  const [estado, setEstado] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [offset, setOffset] = useState(0);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["ventas", search, metodo, desde, hasta, offset],
+    queryKey: ["ventas", search, metodo, estado, desde, hasta, offset],
     queryFn: () => getVentas({ search, metodo, desde, hasta, offset }),
   });
 
-  const ventas = data?.data ?? [];
   const total = data?.count ?? 0;
 
   const resetFiltros = () => {
-    setSearch("");
-    setMetodo("");
-    setDesde("");
-    setHasta("");
-    setOffset(0);
+    setSearch(""); setMetodo(""); setEstado(""); setDesde(""); setHasta(""); setOffset(0);
   };
+
+  const ventas = (data?.data ?? []).filter((v) => !estado || v.estado === estado);
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -96,6 +100,15 @@ export default function SalesPage() {
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
+        <select
+          value={estado}
+          onChange={(e) => { setEstado(e.target.value); setOffset(0); }}
+          className="rounded-md border border-input bg-transparent px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
+        >
+          {ESTADOS.map((e) => (
+            <option key={e.value} value={e.value}>{e.label}</option>
+          ))}
+        </select>
         <div className="flex items-center gap-1 text-sm text-gray-500">
           <span>Desde</span>
           <input
@@ -114,7 +127,7 @@ export default function SalesPage() {
             className="rounded-md border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
           />
         </div>
-        {(search || metodo || desde || hasta) && (
+        {(search || metodo || estado || desde || hasta) && (
           <Button variant="outline" size="sm" onClick={resetFiltros}>
             Limpiar
           </Button>
@@ -139,6 +152,7 @@ export default function SalesPage() {
                 <TableHead>Fecha</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Método</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -160,7 +174,13 @@ export default function SalesPage() {
                     <TableCell className="text-sm capitalize">
                       {v.metodo_pago ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-green-700">
+                    <TableCell>
+                      {v.estado === "anulada"
+                        ? <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Anulada</span>
+                        : <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Completada</span>
+                      }
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${v.estado === "anulada" ? "text-gray-400 line-through" : "text-green-700"}`}>
                       ${Math.round(Number(v.total)).toLocaleString("es-CL")}
                     </TableCell>
                     <TableCell>
