@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
@@ -6,18 +6,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const { id } = await params;
   const supabase = createServiceClient();
-
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   // Verify mascota belongs to this store via cliente
   const { data: mascota } = await supabase
@@ -32,7 +26,7 @@ export async function PATCH(
     .from("clientes")
     .select("id")
     .eq("id", mascota.cliente_id)
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .single();
 
   if (!cliente) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });

@@ -1,22 +1,19 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users").select("store_id").eq("clerk_id", userId).single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const estado = req.nextUrl.searchParams.get("estado") ?? "";
 
   let query = supabase
     .from("ordenes_compra")
     .select("id, numero, estado, total, fecha_estimada, fecha_recibida, created_at, proveedores(nombre)")
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .order("created_at", { ascending: false });
   if (estado) query = query.eq("estado", estado);
 
@@ -26,13 +23,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users").select("store_id").eq("clerk_id", userId).single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { proveedor_id, items, fecha_estimada, notas } = await req.json();
   if (!proveedor_id || !items?.length) return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
@@ -45,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { data: orden, error: ordenError } = await supabase
     .from("ordenes_compra")
-    .insert({ store_id: user.store_id, proveedor_id, numero, estado: "pendiente", subtotal, impuesto, total, fecha_estimada: fecha_estimada || null, notas: notas || null })
+    .insert({ store_id, proveedor_id, numero, estado: "pendiente", subtotal, impuesto, total, fecha_estimada: fecha_estimada || null, notas: notas || null })
     .select().single();
   if (ordenError) return NextResponse.json({ error: ordenError.message }, { status: 500 });
 

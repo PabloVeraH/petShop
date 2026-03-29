@@ -1,23 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
+  const supabase = createServiceClient();
 
   const mascotaId = req.nextUrl.searchParams.get("mascotaId");
   if (!mascotaId) return NextResponse.json({ error: "mascotaId requerido" }, { status: 400 });
-
-  const supabase = createServiceClient();
-
-  // Verify mascota belongs to user's store
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("consumo_configs")
@@ -30,16 +22,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const body = await req.json();
   const { mascota_id, producto_id, gramos_porcion, veces_dia } = body;
@@ -76,8 +61,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });

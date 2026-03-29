@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
@@ -6,18 +6,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const { id } = await params;
   const supabase = createServiceClient();
-
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { tipo, cantidad, notas } = await req.json();
 
@@ -32,7 +26,7 @@ export async function PATCH(
     .from("productos")
     .select("id, stock")
     .eq("id", id)
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .single();
 
   if (!prod) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });

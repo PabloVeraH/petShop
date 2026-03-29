@@ -1,20 +1,13 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { validateRUT, formatRUT } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const rut = req.nextUrl.searchParams.get("rut");
 
@@ -23,7 +16,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from("clientes")
       .select("id, store_id, rut, nombre, email, telefono")
-      .eq("store_id", user.store_id)
+      .eq("store_id", store_id)
       .eq("rut", rut)
       .single();
 
@@ -40,7 +33,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("clientes")
     .select("id, store_id, rut, nombre, email, telefono", { count: "exact" })
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .order("nombre", { ascending: true });
 
   if (search.trim()) {
@@ -53,17 +46,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { rut, nombre, email, telefono } = await req.json();
 
@@ -77,7 +63,7 @@ export async function POST(req: NextRequest) {
   const { data: cliente, error } = await supabase
     .from("clientes")
     .insert({
-      store_id: user.store_id,
+      store_id,
       rut: formatRUT(rut),
       nombre: nombre.trim(),
       email: email?.trim() || null,

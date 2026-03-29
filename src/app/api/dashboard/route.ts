@@ -1,20 +1,13 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { startOfDay, endOfDay } from "date-fns";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const now = new Date();
   const dayStart = startOfDay(now).toISOString();
@@ -24,20 +17,20 @@ export async function GET() {
     supabase
       .from("ventas")
       .select("id, total, descuento, metodo_pago")
-      .eq("store_id", user.store_id)
+      .eq("store_id", store_id)
       .neq("estado", "anulada")
       .gte("created_at", dayStart)
       .lte("created_at", dayEnd),
     supabase
       .from("ventas")
       .select("id, total, created_at, estado, clientes(nombre)")
-      .eq("store_id", user.store_id)
+      .eq("store_id", store_id)
       .order("created_at", { ascending: false })
       .limit(10),
     supabase
       .from("clientes")
       .select("id")
-      .eq("store_id", user.store_id),
+      .eq("store_id", store_id),
   ]);
 
   const ventasHoy = ventasHoyResult.data ?? [];

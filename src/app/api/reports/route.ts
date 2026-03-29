@@ -1,15 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users").select("store_id").eq("clerk_id", userId).single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const periodo = req.nextUrl.searchParams.get("periodo") ?? "30"; // days
   const desde = new Date();
@@ -18,7 +15,7 @@ export async function GET(req: NextRequest) {
   const { data: ventas } = await supabase
     .from("ventas")
     .select("id, total, subtotal, descuento, created_at, metodo_pago, clientes(nombre)")
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .neq("estado", "anulada")
     .gte("created_at", desde.toISOString())
     .order("created_at");

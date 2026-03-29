@@ -1,20 +1,13 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const search = req.nextUrl.searchParams.get("search") ?? "";
   const metodo = req.nextUrl.searchParams.get("metodo") ?? "";
@@ -27,7 +20,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("ventas")
     .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .order("created_at", { ascending: false })
     .range(offset, offset + LIMIT - 1);
 
@@ -53,17 +46,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { items, clienteId, vendedorId, metodoPago, descuentoPct } = await req.json();
 
@@ -81,7 +67,7 @@ export async function POST(req: NextRequest) {
   const { data: venta, error: ventaError } = await supabase
     .from("ventas")
     .insert({
-      store_id: user.store_id,
+      store_id,
       cliente_id: clienteId ?? null,
       vendedor_id: vendedorId ?? null,
       subtotal,
@@ -197,7 +183,7 @@ export async function POST(req: NextRequest) {
     const { data: store } = await supabase
       .from("stores")
       .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
-      .eq("id", user.store_id)
+      .eq("id", store_id)
       .single();
 
     if (store?.whatsapp_enabled && store.whatsapp_phone_number_id && store.whatsapp_access_token) {

@@ -1,15 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return new NextResponse("Unauthorized", { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return new NextResponse("Unauthorized", { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users").select("store_id").eq("clerk_id", userId).single();
-  if (!user?.store_id) return new NextResponse("Store not found", { status: 400 });
 
   const tipo = req.nextUrl.searchParams.get("tipo") ?? "ventas";
   const desde = req.nextUrl.searchParams.get("desde") ?? "";
@@ -21,7 +18,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from("ventas")
       .select("numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, estado, clientes(nombre, rut)")
-      .eq("store_id", user.store_id)
+      .eq("store_id", store_id)
       .order("created_at", { ascending: false });
     if (desde) query = query.gte("created_at", desde);
     if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
@@ -47,7 +44,7 @@ export async function GET(req: NextRequest) {
     const { data } = await supabase
       .from("productos")
       .select("sku, nombre, marca, precio, costo, stock, stock_minimo, activo")
-      .eq("store_id", user.store_id)
+      .eq("store_id", store_id)
       .order("nombre");
 
     csv = "SKU,Nombre,Marca,Precio,Costo,Stock,Stock Mínimo,Activo\n";

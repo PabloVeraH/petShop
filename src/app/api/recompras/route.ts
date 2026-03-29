@@ -1,21 +1,18 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
 // Motor de recompra inteligente: cruza consumo_alertas con proveedor_productos
 // para saber cuándo ordenar antes de que se acabe el stock
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users").select("store_id").eq("clerk_id", userId).single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   // Get consumo_alertas for this store's clients
   const { data: clientes } = await supabase
-    .from("clientes").select("id").eq("store_id", user.store_id);
+    .from("clientes").select("id").eq("store_id", store_id);
   const clienteIds = (clientes ?? []).map((c) => c.id);
   if (!clienteIds.length) return NextResponse.json([]);
 
@@ -38,7 +35,7 @@ export async function GET() {
     .from("productos")
     .select("id, nombre, sku, stock, stock_minimo")
     .in("id", productoIds)
-    .eq("store_id", user.store_id);
+    .eq("store_id", store_id);
 
   const hoy = new Date();
 

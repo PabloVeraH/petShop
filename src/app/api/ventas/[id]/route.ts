@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
@@ -6,24 +6,18 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const { id } = await params;
   const supabase = createServiceClient();
-
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { data: venta, error } = await supabase
     .from("ventas")
     .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, clientes(nombre, rut, telefono), vendedores(nombre)")
     .eq("id", id)
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .single();
 
   if (error || !venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
@@ -40,18 +34,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const { id } = await params;
   const supabase = createServiceClient();
-
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
   const { action } = await req.json();
 
@@ -63,7 +51,7 @@ export async function PATCH(
     .from("ventas")
     .select("id, estado, cliente_id")
     .eq("id", id)
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .single();
 
   if (!venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
