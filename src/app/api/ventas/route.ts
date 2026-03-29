@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
@@ -186,6 +187,50 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "cliente_id" }
     );
+  }
+
+  // Auto-send WhatsApp receipt if store has it enabled and cliente has phone
+  if (clienteId) {
+    const { data: store } = await supabase
+      .from("stores")
+      .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
+      .eq("id", user.store_id)
+      .single();
+
+    if (store?.whatsapp_enabled && store.whatsapp_phone_number_id && store.whatsapp_access_token) {
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("nombre, telefono")
+        .eq("id", clienteId)
+        .single();
+
+      if (cliente?.telefono) {
+        const { data: ventaItemsWA } = await supabase
+          .from("venta_items")
+          .select("cantidad, subtotal, productos(nombre)")
+          .eq("venta_id", venta.id);
+
+        const waItems = (ventaItemsWA ?? []).map((i) => {
+          const prod = i.productos as unknown as { nombre: string } | null;
+          return { nombre: prod?.nombre ?? "Producto", cantidad: i.cantidad, subtotal: Number(i.subtotal) };
+        });
+
+        const msg = buildReceiptMessage({
+          storeName: store.name,
+          numeroComprobante: numero_comprobante,
+          clienteNombre: cliente.nombre,
+          items: waItems,
+          total,
+          metodoPago: metodoPago,
+        });
+
+        await sendWhatsAppText(
+          { phoneNumberId: store.whatsapp_phone_number_id, accessToken: store.whatsapp_access_token },
+          cliente.telefono,
+          msg
+        );
+      }
+    }
   }
 
   return NextResponse.json(venta);

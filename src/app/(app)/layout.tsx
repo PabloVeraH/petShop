@@ -14,6 +14,8 @@ const navItems = [
   { href: "/suppliers", label: "Proveedores", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/purchases", label: "Compras", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/payables", label: "Cuentas x Pagar", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/reports", label: "Reportes", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/settings", label: "Configuración", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/admin", label: "Admin", roles: ["systemAdmin"] },
 ];
 
