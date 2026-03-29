@@ -86,8 +86,20 @@ export const usePOSStore = create<POSStore>()(
           fidelizacionDescuento: 0,
         }),
 
-      setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0) =>
-        set({ clienteId, mascotaId, fidelizacionDescuento }),
+      setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0) => {
+        const currentClienteId = get().clienteId;
+        if (currentClienteId && currentClienteId !== clienteId) {
+          // Cliente changed — clear stale mascota_id from all cart items
+          set((state) => ({
+            items: state.items.map((i) => ({ ...i, mascota_id: undefined })),
+            clienteId,
+            mascotaId,
+            fidelizacionDescuento,
+          }));
+        } else {
+          set({ clienteId, mascotaId, fidelizacionDescuento });
+        }
+      },
 
       clearCliente: () => set({ clienteId: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
 

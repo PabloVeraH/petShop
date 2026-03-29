@@ -62,14 +62,9 @@ export default function POSPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 flex-1">
-        {/* Búsqueda (izquierda) */}
-        <div className="col-span-2">
-          <SearchProductos />
-        </div>
-
-        {/* Carrito + acciones (derecha) */}
-        <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+        {/* Carrito + acciones — arriba en mobile, derecha en desktop */}
+        <div className="flex flex-col gap-3 lg:order-last lg:col-span-1">
           <Carrito />
 
           <Button
@@ -92,6 +87,11 @@ export default function POSPage() {
           >
             Cobrar ${Math.round(total()).toLocaleString("es-CL")}
           </Button>
+        </div>
+
+        {/* Búsqueda — abajo en mobile, izquierda (2 cols) en desktop */}
+        <div className="lg:col-span-2">
+          <SearchProductos />
         </div>
       </div>
 

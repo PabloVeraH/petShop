@@ -57,7 +57,7 @@ export default function SearchProductos() {
         />
       )}
 
-      <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[60vh] lg:max-h-96 overflow-y-auto">
         {productos?.map((prod) => (
           <button
             key={prod.id}
@@ -71,7 +71,7 @@ export default function SearchProductos() {
                 mascota_id: mascotaId,
               })
             }
-            className="text-left rounded border border-gray-200 p-3 hover:bg-green-50 hover:border-green-200 transition-colors"
+            className="text-left rounded border border-gray-200 p-4 hover:bg-green-50 hover:border-green-200 active:bg-green-100 transition-colors min-h-[72px]"
           >
             <p className="font-medium text-sm leading-tight">{prod.nombre}</p>
             <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
