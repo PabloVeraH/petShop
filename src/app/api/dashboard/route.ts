@@ -25,11 +25,12 @@ export async function GET() {
       .from("ventas")
       .select("id, total, descuento, metodo_pago")
       .eq("store_id", user.store_id)
+      .neq("estado", "anulada")
       .gte("created_at", dayStart)
       .lte("created_at", dayEnd),
     supabase
       .from("ventas")
-      .select("id, total, created_at, clientes(nombre)")
+      .select("id, total, created_at, estado, clientes(nombre)")
       .eq("store_id", user.store_id)
       .order("created_at", { ascending: false })
       .limit(10),

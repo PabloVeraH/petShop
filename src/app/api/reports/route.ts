@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     .from("ventas")
     .select("id, total, subtotal, descuento, created_at, metodo_pago, clientes(nombre)")
     .eq("store_id", user.store_id)
+    .neq("estado", "anulada")
     .gte("created_at", desde.toISOString())
     .order("created_at");
 

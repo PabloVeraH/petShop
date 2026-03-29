@@ -38,8 +38,49 @@ export async function GET(
     .select("id, total, metodo_pago, created_at")
     .eq("store_id", user.store_id)
     .eq("cliente_id", id)
+    .neq("estado", "anulada")
     .order("created_at", { ascending: false })
     .limit(10);
 
   return NextResponse.json({ ...cliente, ventas: ventas ?? [] });
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const supabase = createServiceClient();
+
+  const { data: user } = await supabase
+    .from("clerk_users")
+    .select("store_id")
+    .eq("clerk_id", userId)
+    .single();
+  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
+
+  const body = await req.json();
+  const { nombre, email, telefono } = body;
+
+  if (nombre !== undefined && !nombre?.trim())
+    return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
+
+  const updates: Record<string, unknown> = {};
+  if (nombre !== undefined) updates.nombre = nombre.trim();
+  if (email !== undefined) updates.email = email?.trim() || null;
+  if (telefono !== undefined) updates.telefono = telefono?.trim() || null;
+
+  const { data, error } = await supabase
+    .from("clientes")
+    .update(updates)
+    .eq("id", id)
+    .eq("store_id", user.store_id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
