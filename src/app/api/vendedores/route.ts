@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     .from("ventas")
     .select("vendedor_id, total")
     .eq("store_id", user.store_id)
+    .neq("estado", "anulada")
     .gte("created_at", startOfMonth.toISOString());
 
   const totalesMes: Record<string, number> = {};

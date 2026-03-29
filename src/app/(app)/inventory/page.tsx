@@ -24,6 +24,15 @@ type Producto = {
 };
 
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
+type HistorialModal = Producto | null;
+
+type StockMovement = {
+  id: string;
+  tipo: string;
+  cantidad: number;
+  notas: string | null;
+  created_at: string;
+};
 
 type ProductoForm = {
   nombre: string;
@@ -60,11 +69,18 @@ export default function InventoryPage() {
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM);
   const [formError, setFormError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Producto | null>(null);
+  const [historial, setHistorial] = useState<HistorialModal>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["inventario", search, soloAlertas],
     queryFn: () => getInventario(search, soloAlertas),
+  });
+
+  const { data: movimientos, isLoading: loadingMovimientos } = useQuery<StockMovement[]>({
+    queryKey: ["stock-movements", historial?.id],
+    queryFn: () => fetch(`/api/stock-movements?productoId=${historial!.id}`).then((r) => r.json()),
+    enabled: !!historial,
   });
 
   const { mutate: aplicarAjuste, isPending: guardandoAjuste } = useMutation({
@@ -223,6 +239,7 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         <button onClick={() => abrirEditar(p)} className="text-xs text-blue-500 hover:underline">Editar</button>
+                        <button onClick={() => setHistorial(p)} className="text-xs text-gray-500 hover:underline ml-1">Historial</button>
                         <button onClick={() => setConfirmDelete(p)} className="text-xs text-red-400 hover:underline ml-1">Desact.</button>
                       </div>
                     </TableCell>
@@ -304,6 +321,57 @@ export default function InventoryPage() {
                 className={`flex-1 ${ajuste.tipo === "salida" ? "bg-red-600 hover:bg-red-700" : ""}`}>
                 {guardandoAjuste ? "Guardando..." : ajuste.tipo === "entrada" ? "Agregar" : "Descontar"}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal historial de movimientos */}
+      {historial && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-800">Historial: {historial.nombre}</h3>
+              <button onClick={() => setHistorial(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {loadingMovimientos && <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>}
+              {!loadingMovimientos && (!movimientos || movimientos.length === 0) && (
+                <p className="text-sm text-gray-400 text-center py-4">Sin movimientos registrados</p>
+              )}
+              {movimientos && movimientos.length > 0 && (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-gray-500 border-b">
+                      <th className="text-left py-1">Fecha</th>
+                      <th className="text-left py-1">Tipo</th>
+                      <th className="text-right py-1">Cant.</th>
+                      <th className="text-left py-1 pl-3">Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movimientos.map((m) => (
+                      <tr key={m.id} className="border-b last:border-0">
+                        <td className="py-1.5 text-gray-500 text-xs">
+                          {new Date(m.created_at).toLocaleDateString("es-CL")}
+                        </td>
+                        <td className="py-1.5">
+                          <span className={`text-xs font-medium ${m.tipo === "entrada" ? "text-green-600" : "text-red-500"}`}>
+                            {m.tipo}
+                          </span>
+                        </td>
+                        <td className={`py-1.5 text-right font-medium ${m.cantidad > 0 ? "text-green-700" : "text-red-600"}`}>
+                          {m.cantidad > 0 ? `+${m.cantidad}` : m.cantidad}
+                        </td>
+                        <td className="py-1.5 pl-3 text-gray-500 text-xs">{m.notas ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="pt-4">
+              <Button variant="outline" onClick={() => setHistorial(null)} className="w-full">Cerrar</Button>
             </div>
           </div>
         </div>

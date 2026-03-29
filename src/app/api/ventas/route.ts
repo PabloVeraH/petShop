@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
 
-  const { items, clienteId, metodoPago, descuentoPct } = await req.json();
+  const { items, clienteId, vendedorId, metodoPago, descuentoPct } = await req.json();
 
   const subtotal: number = items.reduce(
     (sum: number, i: { subtotal: number }) => sum + i.subtotal,
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
     .insert({
       store_id: user.store_id,
       cliente_id: clienteId ?? null,
+      vendedor_id: vendedorId ?? null,
       subtotal,
       descuento,
       impuesto,

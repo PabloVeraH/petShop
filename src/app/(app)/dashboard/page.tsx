@@ -39,7 +39,7 @@ export default function DashboardPage() {
       <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           label="Ventas hoy"
           value={`$${Math.round(data?.ventasHoy ?? 0).toLocaleString("es-CL")}`}
@@ -53,7 +53,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Widgets */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold">Top 5 productos hoy</CardTitle>

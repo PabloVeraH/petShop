@@ -15,6 +15,7 @@ interface POSStore {
   items: CartItem[];
   clienteId?: string;
   mascotaId?: string;
+  vendedorId?: string;
   metodoPago?: string;
   descuento: number;
   fidelizacionDescuento: number;
@@ -25,6 +26,7 @@ interface POSStore {
   clearCart: () => void;
   setCliente: (clienteId: string, mascotaId?: string, fidelizacionDescuento?: number) => void;
   clearCliente: () => void;
+  setVendedor: (vendedorId: string | undefined) => void;
   setMetodoPago: (metodo: string) => void;
   setDescuento: (descuento: number) => void;
 
@@ -81,6 +83,7 @@ export const usePOSStore = create<POSStore>()(
           items: [],
           clienteId: undefined,
           mascotaId: undefined,
+          vendedorId: undefined,
           metodoPago: undefined,
           descuento: 0,
           fidelizacionDescuento: 0,
@@ -102,6 +105,8 @@ export const usePOSStore = create<POSStore>()(
       },
 
       clearCliente: () => set({ clienteId: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
+
+      setVendedor: (vendedorId) => set({ vendedorId }),
 
       setMetodoPago: (metodoPago) => set({ metodoPago }),
 

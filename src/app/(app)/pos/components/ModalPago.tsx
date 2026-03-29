@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { usePOSStore } from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -11,6 +12,8 @@ const METODOS_PAGO = [
   { value: "transferencia", label: "Transf." },
 ];
 
+type Vendedor = { id: string; nombre: string };
+
 interface ModalPagoProps {
   onConfirm: () => void;
   onCancel: () => void;
@@ -18,8 +21,13 @@ interface ModalPagoProps {
 }
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
-  const { subtotal, descuento, total, metodoPago, setMetodoPago, setDescuento, fidelizacionDescuento } =
+  const { subtotal, descuento, total, metodoPago, setMetodoPago, setDescuento, fidelizacionDescuento, vendedorId, setVendedor } =
     usePOSStore();
+
+  const { data: vendedores } = useQuery<Vendedor[]>({
+    queryKey: ["vendedores"],
+    queryFn: () => fetch("/api/vendedores").then((r) => r.json()),
+  });
 
   const sub = subtotal();
   const desc = (sub * descuento) / 100;
@@ -71,6 +79,25 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               ))}
             </div>
           </div>
+
+          {/* Vendedor */}
+          {vendedores && vendedores.length > 0 && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                Vendedor (opcional)
+              </label>
+              <select
+                value={vendedorId ?? ""}
+                onChange={(e) => setVendedor(e.target.value || undefined)}
+                className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Sin vendedor</option>
+                {vendedores.map((v) => (
+                  <option key={v.id} value={v.id}>{v.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Descuento */}
           <div>
