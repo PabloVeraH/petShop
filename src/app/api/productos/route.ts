@@ -1,26 +1,19 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getStoreId } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
-
   const search = req.nextUrl.searchParams.get("search") ?? "";
 
   let query = supabase
     .from("productos")
     .select("id, store_id, nombre, sku, precio, stock, stock_minimo")
-    .eq("store_id", user.store_id)
+    .eq("store_id", store_id)
     .eq("activo", true)
     .gt("stock", 0);
 
@@ -34,17 +27,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const supabase = createServiceClient();
-  const { data: user } = await supabase
-    .from("clerk_users")
-    .select("store_id")
-    .eq("clerk_id", userId)
-    .single();
-  if (!user?.store_id) return NextResponse.json({ error: "Store not found" }, { status: 400 });
-
   const body = await req.json();
   const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos } = body;
 
@@ -55,7 +42,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from("productos")
     .insert({
-      store_id: user.store_id,
+      store_id,
       nombre: nombre.trim(),
       sku: sku.trim().toUpperCase(),
       precio: Number(precio),
