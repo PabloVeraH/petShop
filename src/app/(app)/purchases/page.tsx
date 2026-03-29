@@ -47,8 +47,8 @@ export default function PurchasesPage() {
   });
 
   const { data: productos } = useQuery<ProductoOpt[]>({
-    queryKey: ["productos-all"],
-    queryFn: async () => { const res = await fetch("/api/productos?search="); return res.json(); },
+    queryKey: ["productos-activos"],
+    queryFn: async () => { const res = await fetch("/api/inventario?search="); return res.json(); },
     enabled: showCreate,
   });
 

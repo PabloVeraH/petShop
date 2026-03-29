@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { UserButton, useAuth } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
@@ -26,6 +27,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const { data: storeData } = useQuery<{ name: string }>({
+    queryKey: ["store-name"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const storeName = storeData?.name ?? "PetShop";
+
   const visibleNav = navItems.filter((item) =>
     item.roles.some((role) => meta?.[role])
   );
@@ -34,7 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full">
       <div className="px-4 py-5 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <span className="font-bold text-green-600 text-lg">PetShop</span>
+          <span className="font-bold text-green-600 text-lg">{storeName}</span>
           <span className="text-xs text-gray-400 block">POS System</span>
         </div>
         {/* Close button for mobile drawer */}
@@ -101,7 +109,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-bold text-green-600">PetShop</span>
+          <span className="font-bold text-green-600">{storeName}</span>
         </div>
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>

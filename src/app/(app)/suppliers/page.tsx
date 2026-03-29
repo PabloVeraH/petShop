@@ -40,9 +40,9 @@ export default function SuppliersPage() {
   });
 
   const { data: todosProductos } = useQuery<ProductoOpt[]>({
-    queryKey: ["productos-all"],
+    queryKey: ["productos-activos"],
     queryFn: async () => {
-      const res = await fetch("/api/productos?search=");
+      const res = await fetch("/api/inventario?search=");
       return res.json();
     },
     enabled: showAddProd,
