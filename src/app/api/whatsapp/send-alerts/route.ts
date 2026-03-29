@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getStoreId } from "@/lib/auth";
 import { sendWhatsAppText, buildConsumoAlertMessage } from "@/lib/whatsapp";
 
 // POST /api/whatsapp/send-alerts
 // Finds pending consumo alerts, sends WhatsApp notifications, marks as sent.
 // Call from cron or manually from the settings page.
 export async function POST() {
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId } = ctx;
+
   const supabase = createServiceClient();
 
   // Find alerts due within dias_aviso days, not yet sent
@@ -42,7 +47,7 @@ export async function POST() {
     const mascota = alerta.mascotas as unknown as { nombre: string } | null;
     const producto = alerta.productos as unknown as { nombre: string } | null;
 
-    if (!cliente?.telefono || !cliente.store_id) {
+    if (!cliente?.telefono || !cliente.store_id || cliente.store_id !== storeId) {
       skipped++;
       continue;
     }

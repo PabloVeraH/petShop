@@ -41,6 +41,13 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     queryFn: () => getVenta(id),
   });
 
+  const { data: storeData } = useQuery<{ name: string }>({
+    queryKey: ["store-name"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const storeName = storeData?.name ?? "PetShop";
+
   const { mutate: anularVenta, isPending: anulando } = useMutation({
     mutationFn: () =>
       fetch(`/api/ventas/${id}`, {
@@ -62,7 +69,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const fecha = new Date(data.created_at).toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
 
   const whatsappText = encodeURIComponent(
-    `*Comprobante PetShop*\n` +
+    `*Comprobante ${storeName}*\n` +
     `N°: ${data.numero_comprobante ?? data.id.slice(0, 8)}\n` +
     `Fecha: ${fecha}\n` +
     (cliente ? `Cliente: ${cliente.nombre}\n` : "") +
@@ -130,7 +137,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         )}
 
         <div className="text-center border-b pb-4">
-          <h1 className="text-lg font-bold">PetShop</h1>
+          <h1 className="text-lg font-bold">{storeName}</h1>
           <p className="text-xs text-gray-500">Comprobante de venta</p>
           <p className="text-sm font-medium mt-1">
             N° {data.numero_comprobante ?? data.id.slice(0, 8).toUpperCase()}
