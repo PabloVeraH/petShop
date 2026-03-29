@@ -26,6 +26,9 @@ export default function VendedoresPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nombre: "", rut: "", meta_ventas: "" });
   const [error, setError] = useState("");
+  const [editando, setEditando] = useState<Vendedor | null>(null);
+  const [editForm, setEditForm] = useState({ nombre: "", rut: "", meta_ventas: "" });
+  const [editError, setEditError] = useState("");
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
@@ -50,6 +53,24 @@ export default function VendedoresPage() {
       setError("");
     },
     onError: (e: Error) => setError(e.message),
+  });
+
+  const { mutate: updateVendedor, isPending: updating } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/vendedores/${editando!.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendedores"] });
+      setEditando(null);
+      setEditError("");
+    },
+    onError: (e: Error) => setEditError(e.message),
   });
 
   const { mutate: deleteVendedor } = useMutation({
@@ -121,32 +142,87 @@ export default function VendedoresPage() {
                 const avance = v.meta_ventas && v.meta_ventas > 0
                   ? Math.round((v.ventas_mes / v.meta_ventas) * 100)
                   : null;
+                const isEditing = editando?.id === v.id;
                 return (
                   <TableRow key={v.id}>
                     <TableCell className="font-bold text-gray-400 text-sm">#{i + 1}</TableCell>
-                    <TableCell className="font-medium">{v.nombre}</TableCell>
-                    <TableCell className="text-gray-500 text-sm">{v.rut ?? "—"}</TableCell>
-                    <TableCell className="text-right font-medium text-green-700">
-                      ${Math.round(v.ventas_mes).toLocaleString("es-CL")}
-                    </TableCell>
-                    <TableCell className="text-right text-gray-500 text-sm">
-                      {v.meta_ventas ? `$${Math.round(v.meta_ventas).toLocaleString("es-CL")}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {avance !== null ? (
-                        <span className={`text-sm font-medium ${avance >= 100 ? "text-green-600" : avance >= 50 ? "text-yellow-600" : "text-red-500"}`}>
-                          {avance}%
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => deleteVendedor(v.id)}
-                        className="text-xs text-red-400 hover:text-red-600"
-                      >
-                        Eliminar
-                      </button>
-                    </TableCell>
+                    {isEditing ? (
+                      <>
+                        <TableCell>
+                          <input
+                            value={editForm.nombre}
+                            onChange={(e) => setEditForm((f) => ({ ...f, nombre: e.target.value }))}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <input
+                            value={editForm.rut}
+                            onChange={(e) => setEditForm((f) => ({ ...f, rut: e.target.value }))}
+                            placeholder="12.345.678-9"
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-green-700">
+                          ${Math.round(v.ventas_mes).toLocaleString("es-CL")}
+                        </TableCell>
+                        <TableCell>
+                          <input
+                            type="number"
+                            value={editForm.meta_ventas}
+                            onChange={(e) => setEditForm((f) => ({ ...f, meta_ventas: e.target.value }))}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </TableCell>
+                        <TableCell colSpan={2}>
+                          {editError && <p className="text-xs text-red-500 mb-1">{editError}</p>}
+                          <div className="flex gap-1">
+                            <button onClick={() => updateVendedor()} disabled={updating}
+                              className="text-xs text-green-600 font-medium hover:underline">
+                              {updating ? "..." : "Guardar"}
+                            </button>
+                            <button onClick={() => { setEditando(null); setEditError(""); }}
+                              className="text-xs text-gray-400 hover:underline ml-1">
+                              Cancelar
+                            </button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="font-medium">{v.nombre}</TableCell>
+                        <TableCell className="text-gray-500 text-sm">{v.rut ?? "—"}</TableCell>
+                        <TableCell className="text-right font-medium text-green-700">
+                          ${Math.round(v.ventas_mes).toLocaleString("es-CL")}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-500 text-sm">
+                          {v.meta_ventas ? `$${Math.round(v.meta_ventas).toLocaleString("es-CL")}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {avance !== null ? (
+                            <span className={`text-sm font-medium ${avance >= 100 ? "text-green-600" : avance >= 50 ? "text-yellow-600" : "text-red-500"}`}>
+                              {avance}%
+                            </span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setEditando(v); setEditForm({ nombre: v.nombre, rut: v.rut ?? "", meta_ventas: v.meta_ventas ? String(v.meta_ventas) : "" }); setEditError(""); }}
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => deleteVendedor(v.id)}
+                              className="text-xs text-red-400 hover:text-red-600"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 );
               })}

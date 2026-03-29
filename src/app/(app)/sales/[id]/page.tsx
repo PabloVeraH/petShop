@@ -15,6 +15,7 @@ type VentaDetalle = {
   estado: string;
   created_at: string;
   clientes: { nombre: string; rut: string; telefono?: string } | null;
+  vendedores: { nombre: string } | null;
   items: Array<{
     id: string;
     cantidad: number;
@@ -57,6 +58,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   if (isError || !data) return <p className="p-8 text-red-500 text-sm">Venta no encontrada.</p>;
 
   const cliente = data.clientes as unknown as { nombre: string; rut: string; telefono?: string } | null;
+  const vendedor = data.vendedores as unknown as { nombre: string } | null;
   const fecha = new Date(data.created_at).toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
 
   const whatsappText = encodeURIComponent(
@@ -141,6 +143,9 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
             <p className="font-medium">{cliente.nombre}</p>
             <p className="text-gray-500 text-xs">RUT: {cliente.rut}</p>
           </div>
+        )}
+        {vendedor && (
+          <p className="text-xs text-gray-400">Atendido por: {vendedor.nombre}</p>
         )}
 
         <div className="space-y-1">

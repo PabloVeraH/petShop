@@ -42,6 +42,7 @@ type VentaRow = {
 async function getVentas(params: {
   search: string;
   metodo: string;
+  estado: string;
   desde: string;
   hasta: string;
   offset: number;
@@ -49,6 +50,7 @@ async function getVentas(params: {
   const p = new URLSearchParams({
     search: params.search,
     metodo: params.metodo,
+    estado: params.estado,
     desde: params.desde,
     hasta: params.hasta,
     offset: String(params.offset),
@@ -68,7 +70,7 @@ export default function SalesPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["ventas", search, metodo, estado, desde, hasta, offset],
-    queryFn: () => getVentas({ search, metodo, desde, hasta, offset }),
+    queryFn: () => getVentas({ search, metodo, estado, desde, hasta, offset }),
   });
 
   const total = data?.count ?? 0;
@@ -77,7 +79,7 @@ export default function SalesPage() {
     setSearch(""); setMetodo(""); setEstado(""); setDesde(""); setHasta(""); setOffset(0);
   };
 
-  const ventas = (data?.data ?? []).filter((v) => !estado || v.estado === estado);
+  const ventas = data?.data ?? [];
 
   return (
     <div className="flex flex-col gap-4 h-full">

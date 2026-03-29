@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   const search = req.nextUrl.searchParams.get("search") ?? "";
   const metodo = req.nextUrl.searchParams.get("metodo") ?? "";
+  const estado = req.nextUrl.searchParams.get("estado") ?? "";
   const desde = req.nextUrl.searchParams.get("desde") ?? "";
   const hasta = req.nextUrl.searchParams.get("hasta") ?? "";
   const offset = Number(req.nextUrl.searchParams.get("offset") ?? "0");
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     .range(offset, offset + LIMIT - 1);
 
   if (metodo) query = query.eq("metodo_pago", metodo);
+  if (estado) query = query.eq("estado", estado);
   if (desde) query = query.gte("created_at", desde);
   if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
 
