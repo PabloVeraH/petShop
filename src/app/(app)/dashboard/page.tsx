@@ -6,11 +6,17 @@ import KPICard from "./components/KPICard";
 import TopProductos from "./components/TopProductos";
 import UltimasVentas from "./components/UltimasVentas";
 import AlertasConsumo from "./components/AlertasConsumo";
+import SugerenciasRecompra from "./components/SugerenciasRecompra";
 
 async function getDashboardData() {
-  const res = await fetch("/api/dashboard");
-  if (!res.ok) throw new Error("Error al cargar dashboard");
-  return res.json();
+  const [dashRes, recomprasRes] = await Promise.all([
+    fetch("/api/dashboard"),
+    fetch("/api/recompras"),
+  ]);
+  if (!dashRes.ok) throw new Error("Error al cargar dashboard");
+  const dashboard = await dashRes.json();
+  const recompras = recomprasRes.ok ? await recomprasRes.json() : [];
+  return { ...dashboard, recompras };
 }
 
 export default function DashboardPage() {
@@ -67,15 +73,26 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Alertas consumo */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold">Alertas de consumo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AlertasConsumo data={data?.alertas ?? []} />
-        </CardContent>
-      </Card>
+      {/* Alertas + Recompras */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Alertas de consumo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AlertasConsumo data={data?.alertas ?? []} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Sugerencias de recompra</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SugerenciasRecompra data={data?.recompras ?? []} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
