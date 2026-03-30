@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 
@@ -25,9 +26,32 @@ export async function GET(req: NextRequest) {
 
 // Incoming messages (POST)
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  // Verify Meta's HMAC-SHA256 signature before processing
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    console.error("WHATSAPP_APP_SECRET not configured");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+
+  const signature = req.headers.get("x-hub-signature-256") ?? "";
+  const rawBody = await req.text();
+
+  const expected = "sha256=" + createHmac("sha256", appSecret).update(rawBody).digest("hex");
+
+  let signatureValid = false;
+  try {
+    signatureValid = timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    // timingSafeEqual throws if buffers have different lengths
+    signatureValid = false;
+  }
+
+  if (!signatureValid) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
   // Acknowledge receipt immediately (Meta requires 200 within 20s)
   // In production: process messages asynchronously
-  console.log("WhatsApp webhook:", JSON.stringify(body));
+  // NOTE: Do NOT log the body — it contains customer PII (phone numbers, message content)
   return NextResponse.json({ ok: true });
 }
