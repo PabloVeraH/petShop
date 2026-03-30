@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
     .order("nombre", { ascending: true });
 
   if (search.trim()) {
-    query = query.or(`nombre.ilike.%${search}%,rut.ilike.%${search}%`);
+    // Sanitize to prevent PostgREST filter string manipulation
+    const s = search.replace(/[()%,]/g, "");
+    query = query.or(`nombre.ilike.%${s}%,rut.ilike.%${s}%`);
   }
 
   const { data, error, count } = await query.range(offset, offset + limit - 1);

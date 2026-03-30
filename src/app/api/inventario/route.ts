@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
     .order("nombre");
 
   if (search) {
-    query = query.or(`nombre.ilike.%${search}%,sku.ilike.%${search}%`);
+    // Sanitize to prevent PostgREST filter string manipulation
+    const s = search.replace(/[()%,]/g, "");
+    query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%`);
   }
 
   const { data, error } = await query;
