@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface StoreSettings {
   id: string;
@@ -16,6 +17,7 @@ interface StoreSettings {
 }
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +56,7 @@ export default function SettingsPage() {
     if (res.ok) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      queryClient.invalidateQueries({ queryKey: ["store-name"] });
     } else {
       const d = await res.json();
       setError(d.error ?? "Error guardando");
