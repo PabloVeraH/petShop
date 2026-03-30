@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
 
         await supabase.from("consumo_alertas").upsert(
           {
+            store_id,
             cliente_id: config.cliente_id,
             mascota_id: item.mascota_id,
             producto_id: item.producto_id,

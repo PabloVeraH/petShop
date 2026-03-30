@@ -27,7 +27,7 @@ async function getConfigs(mascotaId: string): Promise<ConsumoConfig[]> {
 }
 
 async function getProductos(): Promise<ProductoOption[]> {
-  const res = await fetch("/api/productos?search=");
+  const res = await fetch("/api/inventario?search=");
   if (!res.ok) throw new Error("Error al cargar productos");
   return res.json();
 }
