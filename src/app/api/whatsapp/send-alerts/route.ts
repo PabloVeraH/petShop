@@ -40,6 +40,17 @@ export async function POST() {
     return NextResponse.json({ sent: 0, skipped: 0 });
   }
 
+  // Fetch store WhatsApp config once (not inside loop)
+  const { data: store } = await supabase
+    .from("stores")
+    .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
+    .eq("id", storeId)
+    .single();
+
+  if (!store?.whatsapp_enabled || !store.whatsapp_phone_number_id || !store.whatsapp_access_token) {
+    return NextResponse.json({ sent: 0, skipped: alertas.length });
+  }
+
   let sent = 0;
   let skipped = 0;
 
@@ -59,18 +70,6 @@ export async function POST() {
     );
 
     if (diasRestantes > alerta.dias_aviso) {
-      skipped++;
-      continue;
-    }
-
-    // Get store WhatsApp config
-    const { data: store } = await supabase
-      .from("stores")
-      .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
-      .eq("id", storeId)
-      .single();
-
-    if (!store?.whatsapp_enabled || !store.whatsapp_phone_number_id || !store.whatsapp_access_token) {
       skipped++;
       continue;
     }
