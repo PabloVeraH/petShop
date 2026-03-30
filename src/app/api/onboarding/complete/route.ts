@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (storeError) {
-    return NextResponse.json({ error: storeError.message }, { status: 500 });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
   const client = await clerkClient();

@@ -14,7 +14,7 @@ export async function GET() {
     .eq("id", store_id)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   // Mask access token for security
   return NextResponse.json({
@@ -65,6 +65,6 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }

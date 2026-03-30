@@ -40,7 +40,7 @@ export async function PATCH(
 
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
   return NextResponse.json(data);
 }
@@ -63,6 +63,6 @@ export async function DELETE(
     .eq("id", id)
     .eq("store_id", store_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return new NextResponse(null, { status: 204 });
 }

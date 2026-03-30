@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   if (estado) query = query.eq("estado", estado);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -44,6 +44,6 @@ export async function PATCH(req: NextRequest) {
     .eq("store_id", store_id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }

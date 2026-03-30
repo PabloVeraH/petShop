@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (error?.code === "PGRST116") return NextResponse.json(null);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
     return NextResponse.json(data);
   }
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error, count } = await query.range(offset, offset + limit - 1);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ data: data ?? [], count: count ?? 0 });
 }
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "Ya existe un cliente con ese RUT" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
   // Auto-create fidelizacion entry

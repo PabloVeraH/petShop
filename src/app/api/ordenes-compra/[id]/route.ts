@@ -75,7 +75,7 @@ export async function PATCH(
       .eq("id", id)
       .eq("store_id", store_id)
       .select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
     // Create cuenta por pagar if not exists
     const { data: existente } = await supabase
@@ -112,6 +112,6 @@ export async function PATCH(
     .eq("store_id", store_id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }

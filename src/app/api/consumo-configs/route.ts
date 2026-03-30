@@ -18,8 +18,13 @@ export async function GET(req: NextRequest) {
     .eq("id", mascotaId)
     .single();
 
-  const mascotaCliente = mascota?.clientes as { store_id: string } | null;
-  if (!mascota || mascotaCliente?.store_id !== store_id) {
+  // clientes is a joined object (single FK) — Supabase may return it as object or array
+  const clienteRaw = mascota?.clientes;
+  const clienteStoreId: string | undefined =
+    Array.isArray(clienteRaw)
+      ? (clienteRaw[0] as { store_id: string } | undefined)?.store_id
+      : (clienteRaw as { store_id: string } | null | undefined)?.store_id;
+  if (!mascota || clienteStoreId !== store_id) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
   }
 
@@ -28,7 +33,7 @@ export async function GET(req: NextRequest) {
     .select("id, mascota_id, producto_id, gramos_porcion, veces_dia, productos(nombre, peso_gramos)")
     .eq("mascota_id", mascotaId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json(data ?? []);
 }
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -99,7 +104,7 @@ export async function DELETE(req: NextRequest) {
   if (!cliente) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
 
   const { error } = await supabase.from("consumo_configs").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

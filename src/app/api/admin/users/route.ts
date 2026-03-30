@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     .eq("store_id", storeId)
     .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(users ?? []);
 }
 

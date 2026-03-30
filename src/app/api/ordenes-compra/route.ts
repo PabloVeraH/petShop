@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   if (estado) query = query.eq("estado", estado);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     .from("ordenes_compra")
     .insert({ store_id, proveedor_id, numero, estado: "pendiente", subtotal, impuesto, total, fecha_estimada: fecha_estimada || null, notas: notas || null })
     .select().single();
-  if (ordenError) return NextResponse.json({ error: ordenError.message }, { status: 500 });
+  if (ordenError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const { error: itemsError } = await supabase.from("ordenes_compra_items").insert(
     items.map((i: { producto_id: string; cantidad_solicitada: number; precio_unitario: number; subtotal: number }) => ({
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       subtotal: i.subtotal,
     }))
   );
-  if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+  if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json(orden);
 }

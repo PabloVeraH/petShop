@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (search) query = query.ilike("nombre", `%${search}%`);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     .from("proveedores")
     .insert({ store_id, nombre: nombre.trim(), rut: rut || null, contacto: contacto || null, telefono: telefono || null, email: email || null })
     .select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -48,6 +48,6 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("proveedores").delete().eq("id", id).eq("store_id", store_id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

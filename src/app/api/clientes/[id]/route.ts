@@ -24,7 +24,7 @@ export async function GET(
     .single();
 
   if (error?.code === "PGRST116") return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const { data: ventas } = await supabase
     .from("ventas")
@@ -68,6 +68,6 @@ export async function PATCH(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }

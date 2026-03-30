@@ -16,7 +16,7 @@ export async function GET() {
     .select("id, name, rut, email, phone, created_at, whatsapp_enabled")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   // Count users per store
   const { data: userCounts } = await supabase

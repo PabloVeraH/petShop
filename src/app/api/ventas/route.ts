@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     if (desde) query = query.gte("created_at", desde);
     if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
     const { data, error, count } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
     return NextResponse.json({ data: data ?? [], count: count ?? 0 });
   }
 
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
 
   const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json({ data: data ?? [], count: count ?? 0 });
 }
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (ventaError) return NextResponse.json({ error: ventaError.message }, { status: 500 });
+  if (ventaError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const { error: itemsError } = await supabase.from("venta_items").insert(
     itemsConPrecio.map((item: {
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
     }))
   );
 
-  if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+  if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   for (const item of itemsConPrecio as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
     await supabase.rpc("decrement_stock", {

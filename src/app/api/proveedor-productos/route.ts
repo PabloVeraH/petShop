@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       { onConflict: "proveedor_id,producto_id" }
     )
     .select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -45,6 +45,6 @@ export async function DELETE(req: NextRequest) {
   if (!prov) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
 
   const { error } = await supabase.from("proveedor_productos").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

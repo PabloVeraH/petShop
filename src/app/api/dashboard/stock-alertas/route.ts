@@ -15,7 +15,7 @@ export async function GET() {
     .eq("activo", true)
     .order("stock", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const alertas = (allProducts ?? []).filter(
     (p) => p.stock < (p.stock_minimo ?? 0)

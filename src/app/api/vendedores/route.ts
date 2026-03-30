@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     .select("id, nombre, rut, meta_ventas")
     .eq("store_id", store_id)
     .order("nombre");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   // Get monthly sales per vendedor
   const startOfMonth = new Date();
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -72,6 +72,6 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("vendedores").delete().eq("id", id).eq("store_id", store_id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

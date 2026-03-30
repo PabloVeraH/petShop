@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     .select("id, cliente_id, nombre, tipo, raza, peso_kg, alimento_habitual_id")
     .eq("cliente_id", clienteId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
@@ -68,6 +68,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(mascota, { status: 201 });
 }
