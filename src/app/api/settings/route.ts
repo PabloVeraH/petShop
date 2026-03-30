@@ -31,14 +31,36 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
 
+  // Allowlist of fields that store admins are permitted to update
+  const {
+    name,
+    rut,
+    address,
+    phone,
+    email,
+    whatsapp_enabled,
+    whatsapp_phone_number_id,
+    whatsapp_access_token,
+    whatsapp_webhook_verify_token,
+  } = body;
+
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (name !== undefined) updateData.name = name;
+  if (rut !== undefined) updateData.rut = rut;
+  if (address !== undefined) updateData.address = address;
+  if (phone !== undefined) updateData.phone = phone;
+  if (email !== undefined) updateData.email = email;
+  if (whatsapp_enabled !== undefined) updateData.whatsapp_enabled = whatsapp_enabled;
+  if (whatsapp_phone_number_id !== undefined) updateData.whatsapp_phone_number_id = whatsapp_phone_number_id;
+  if (whatsapp_webhook_verify_token !== undefined) updateData.whatsapp_webhook_verify_token = whatsapp_webhook_verify_token;
   // Don't overwrite token if placeholder sent
-  if (body.whatsapp_access_token === "••••••••") {
-    delete body.whatsapp_access_token;
+  if (whatsapp_access_token !== undefined && whatsapp_access_token !== "••••••••") {
+    updateData.whatsapp_access_token = whatsapp_access_token;
   }
 
   const { data, error } = await supabase
     .from("stores")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq("id", store_id)
     .select()
     .single();
