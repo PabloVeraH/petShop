@@ -12,6 +12,11 @@ export async function GET(req: NextRequest) {
   const desde = req.nextUrl.searchParams.get("desde") ?? "";
   const hasta = req.nextUrl.searchParams.get("hasta") ?? "";
 
+  const esc = (v: unknown) => {
+    const s = String(v ?? "");
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
   let csv = "";
 
   if (tipo === "ventas") {
@@ -28,16 +33,16 @@ export async function GET(req: NextRequest) {
     for (const v of data ?? []) {
       const cliente = v.clientes as unknown as { nombre: string; rut: string } | null;
       csv += [
-        v.numero_comprobante ?? "",
-        new Date(v.created_at).toLocaleString("es-CL"),
-        cliente?.nombre ?? "",
-        cliente?.rut ?? "",
+        esc(v.numero_comprobante),
+        esc(new Date(v.created_at).toLocaleString("es-CL")),
+        esc(cliente?.nombre),
+        esc(cliente?.rut),
         Math.round(Number(v.total)),
         Math.round(Number(v.subtotal)),
         Math.round(Number(v.descuento)),
         Math.round(Number(v.impuesto)),
-        v.metodo_pago ?? "",
-        v.estado,
+        esc(v.metodo_pago),
+        esc(v.estado),
       ].join(",") + "\n";
     }
   } else if (tipo === "inventario") {
@@ -49,7 +54,13 @@ export async function GET(req: NextRequest) {
 
     csv = "SKU,Nombre,Marca,Precio,Costo,Stock,Stock Mínimo,Activo\n";
     for (const p of data ?? []) {
-      csv += [p.sku, p.nombre, p.marca ?? "", Math.round(Number(p.precio)), p.costo ? Math.round(Number(p.costo)) : "", p.stock ?? 0, p.stock_minimo ?? 0, p.activo ? "Sí" : "No"].join(",") + "\n";
+      csv += [
+        esc(p.sku), esc(p.nombre), esc(p.marca),
+        Math.round(Number(p.precio)),
+        p.costo ? Math.round(Number(p.costo)) : "",
+        p.stock ?? 0, p.stock_minimo ?? 0,
+        p.activo ? "Sí" : "No",
+      ].join(",") + "\n";
     }
   }
 
