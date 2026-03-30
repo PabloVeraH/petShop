@@ -6,13 +6,29 @@ export interface WhatsAppConfig {
   accessToken: string;
 }
 
+/**
+ * Validates and normalizes a Chilean mobile phone number.
+ * Accepts formats: +56912345678, 56912345678, 912345678, 912345678
+ * Returns the E.164 international number (569XXXXXXXX) or null if invalid.
+ */
+export function normalizeChileanPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  // Normalize to local 9-digit number
+  let local = digits;
+  if (local.startsWith("569")) local = local.slice(2); // strip country code
+  else if (local.startsWith("56")) local = local.slice(2);
+  // Chilean mobile numbers start with 9 and are 9 digits
+  if (!/^9\d{8}$/.test(local)) return null;
+  return `56${local}`;
+}
+
 export async function sendWhatsAppText(
   config: WhatsAppConfig,
   to: string,
   body: string
 ): Promise<boolean> {
-  const phone = to.replace(/\D/g, "");
-  const intl = phone.startsWith("56") ? phone : `56${phone}`;
+  const intl = normalizeChileanPhone(to);
+  if (!intl) return false; // reject invalid/non-Chilean numbers silently
 
   try {
     const res = await fetch(`${WA_BASE_URL}/${config.phoneNumberId}/messages`, {
