@@ -25,14 +25,22 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
-  const body = await req.json();
+  const { estado } = await req.json();
+  if (!estado) return NextResponse.json({ error: "estado requerido" }, { status: 400 });
+
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from("cuentas_pagar").update(body).eq("id", id).select().single();
+    .from("cuentas_pagar")
+    .update({ estado })
+    .eq("id", id)
+    .eq("store_id", store_id)
+    .select()
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
