@@ -22,6 +22,20 @@ export async function POST(req: NextRequest) {
   const { storeName } = parsed.data;
   const supabase = createServiceClient();
 
+  // Prevent a user from creating multiple stores
+  const { data: existingUser } = await supabase
+    .from("clerk_users")
+    .select("store_id")
+    .eq("clerk_id", userId)
+    .single();
+
+  if (existingUser?.store_id) {
+    return NextResponse.json(
+      { error: "El usuario ya tiene una tienda asociada" },
+      { status: 409 }
+    );
+  }
+
   const { data: store, error: storeError } = await supabase
     .from("stores")
     .insert({ name: storeName })
