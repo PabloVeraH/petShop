@@ -24,10 +24,11 @@ export async function POST() {
       mascota_id,
       producto_id,
       cliente_id,
-      clientes(nombre, telefono, store_id),
+      clientes(nombre, telefono),
       mascotas(nombre),
       productos(nombre)
     `)
+    .eq("store_id", storeId)
     .eq("enviado", false)
     .lte("fecha_estimada_termino", (() => {
       const d = new Date();
@@ -43,11 +44,11 @@ export async function POST() {
   let skipped = 0;
 
   for (const alerta of alertas) {
-    const cliente = alerta.clientes as unknown as { nombre: string; telefono: string | null; store_id: string } | null;
+    const cliente = alerta.clientes as unknown as { nombre: string; telefono: string | null } | null;
     const mascota = alerta.mascotas as unknown as { nombre: string } | null;
     const producto = alerta.productos as unknown as { nombre: string } | null;
 
-    if (!cliente?.telefono || !cliente.store_id || cliente.store_id !== storeId) {
+    if (!cliente?.telefono) {
       skipped++;
       continue;
     }
@@ -66,7 +67,7 @@ export async function POST() {
     const { data: store } = await supabase
       .from("stores")
       .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
-      .eq("id", cliente.store_id)
+      .eq("id", storeId)
       .single();
 
     if (!store?.whatsapp_enabled || !store.whatsapp_phone_number_id || !store.whatsapp_access_token) {
