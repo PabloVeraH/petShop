@@ -11,6 +11,18 @@ export async function GET(req: NextRequest) {
   const mascotaId = req.nextUrl.searchParams.get("mascotaId");
   if (!mascotaId) return NextResponse.json({ error: "mascotaId requerido" }, { status: 400 });
 
+  // Verify the mascota belongs to the requesting store via mascota → cliente → store chain
+  const { data: mascota } = await supabase
+    .from("mascotas")
+    .select("id, clientes(store_id)")
+    .eq("id", mascotaId)
+    .single();
+
+  const mascotaCliente = mascota?.clientes as { store_id: string } | null;
+  if (!mascota || mascotaCliente?.store_id !== store_id) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("consumo_configs")
     .select("id, mascota_id, producto_id, gramos_porcion, veces_dia, productos(nombre, peso_gramos)")
