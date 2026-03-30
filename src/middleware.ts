@@ -5,6 +5,7 @@ const publicRoutes = createRouteMatcher([
   "/auth/(.*)",
   "/api/health",
   "/api/webhooks/(.*)",
+  "/api/whatsapp/webhook",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
