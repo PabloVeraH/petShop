@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("productos")
-    .select("id, nombre, sku, precio, stock, stock_minimo")
+    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos")
     .eq("store_id", store_id)
     .eq("activo", true)
     .order("nombre");

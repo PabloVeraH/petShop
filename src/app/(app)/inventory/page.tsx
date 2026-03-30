@@ -19,8 +19,11 @@ type Producto = {
   nombre: string;
   sku: string;
   precio: number;
+  costo: number | null;
   stock: number;
   stock_minimo: number;
+  marca: string | null;
+  peso_gramos: number | null;
 };
 
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
@@ -139,9 +142,9 @@ export default function InventoryPage() {
     setEditando(p);
     setForm({
       nombre: p.nombre, sku: p.sku,
-      precio: String(p.precio), costo: "",
+      precio: String(p.precio), costo: p.costo != null ? String(p.costo) : "",
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
-      marca: "", peso_gramos: "",
+      marca: p.marca ?? "", peso_gramos: p.peso_gramos != null ? String(p.peso_gramos) : "",
     });
     setFormError("");
     setShowForm(true);
