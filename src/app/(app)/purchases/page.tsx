@@ -233,20 +233,29 @@ export default function PurchasesPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-700 block mb-1">Fecha estimada entrega</label>
-                <input type="date" value={fechaEstimada} onChange={(e) => setFechaEstimada(e.target.value)} className="rounded border border-input px-2 py-1.5 text-sm" />
+                <input type="date" value={fechaEstimada} onChange={(e) => setFechaEstimada(e.target.value)} className="w-full rounded border border-input px-2 py-1.5 text-sm" />
               </div>
 
               {/* Add items */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-700">Productos</p>
-                <div className="flex gap-2">
-                  <select value={addingProd.producto_id} onChange={(e) => setAddingProd((f) => ({ ...f, producto_id: e.target.value }))} className="flex-1 rounded border border-input px-2 py-1 text-sm">
-                    <option value="">Producto...</option>
-                    {productos?.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                  </select>
-                  <Input type="number" placeholder="Cant." min="1" value={addingProd.cantidad} onChange={(e) => setAddingProd((f) => ({ ...f, cantidad: e.target.value }))} className="w-16 h-8 text-sm" />
-                  <Input type="number" placeholder="Precio" value={addingProd.precio} onChange={(e) => setAddingProd((f) => ({ ...f, precio: e.target.value }))} className="w-24 h-8 text-sm" />
-                  <Button size="sm" variant="outline" onClick={addItem} disabled={!addingProd.producto_id}>+</Button>
+                <p className="text-xs font-medium text-gray-700">Agregar productos</p>
+                <div className="grid grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-0.5 block">Producto</label>
+                    <select value={addingProd.producto_id} onChange={(e) => setAddingProd((f) => ({ ...f, producto_id: e.target.value }))} className="w-full rounded border border-input px-2 py-1.5 text-sm">
+                      <option value="">Seleccionar...</option>
+                      {productos?.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-0.5 block">Cant.</label>
+                    <Input type="number" min="1" value={addingProd.cantidad} onChange={(e) => setAddingProd((f) => ({ ...f, cantidad: e.target.value }))} className="text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-0.5 block">Precio unit.</label>
+                    <Input type="number" placeholder="Auto" value={addingProd.precio} onChange={(e) => setAddingProd((f) => ({ ...f, precio: e.target.value }))} className="text-sm" />
+                  </div>
+                  <Button variant="outline" onClick={addItem} disabled={!addingProd.producto_id} className="h-9">Agregar</Button>
                 </div>
                 {orderItems.map((item, i) => (
                   <div key={i} className="flex justify-between text-sm bg-gray-50 rounded px-3 py-1.5">
