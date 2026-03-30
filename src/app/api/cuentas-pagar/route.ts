@@ -31,7 +31,10 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
   const { estado } = await req.json();
-  if (!estado) return NextResponse.json({ error: "estado requerido" }, { status: 400 });
+  const ESTADOS_VALIDOS = ["pendiente", "pagada", "vencida"] as const;
+  if (!estado || !ESTADOS_VALIDOS.includes(estado)) {
+    return NextResponse.json({ error: "estado inválido" }, { status: 400 });
+  }
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
