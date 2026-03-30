@@ -8,6 +8,7 @@ export async function GET(
 ) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -15,7 +16,9 @@ export async function GET(
   const { data: orden, error } = await supabase
     .from("ordenes_compra")
     .select("id, numero, estado, subtotal, impuesto, total, fecha_estimada, fecha_recibida, notas, created_at, proveedores(nombre, telefono, email)")
-    .eq("id", id).single();
+    .eq("id", id)
+    .eq("store_id", store_id)
+    .single();
   if (error || !orden) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
   const { data: items } = await supabase
@@ -65,11 +68,13 @@ export async function PATCH(
       }
     }
 
-    // Mark order as received
+    // Mark order as received (also verifies store ownership)
     const { data: orden, error } = await supabase
       .from("ordenes_compra")
       .update({ estado: "recibida", fecha_recibida: new Date().toISOString().split("T")[0] })
-      .eq("id", id).select().single();
+      .eq("id", id)
+      .eq("store_id", store_id)
+      .select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Create cuenta por pagar if not exists
@@ -92,9 +97,21 @@ export async function PATCH(
     return NextResponse.json(orden);
   }
 
-  // Simple estado update
+  // Simple estado update — only allow estado field, always scope to store
+  const ESTADOS_VALIDOS = ["pendiente", "enviada", "recibida", "cancelada"] as const;
+  type EstadoOrden = typeof ESTADOS_VALIDOS[number];
+  const { estado } = body as { estado?: EstadoOrden };
+  if (!estado || !ESTADOS_VALIDOS.includes(estado)) {
+    return NextResponse.json({ error: "estado inválido" }, { status: 400 });
+  }
+
   const { data, error } = await supabase
-    .from("ordenes_compra").update(body).eq("id", id).select().single();
+    .from("ordenes_compra")
+    .update({ estado })
+    .eq("id", id)
+    .eq("store_id", store_id)
+    .select()
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
