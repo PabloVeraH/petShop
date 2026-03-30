@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type Store = {
@@ -165,9 +165,8 @@ export default function AdminPage() {
           </thead>
           <tbody>
             {storeList.map((s) => (
-              <>
+              <Fragment key={s.id}>
                 <tr
-                  key={s.id}
                   className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
                   onClick={() => setExpandedStore(expandedStore === s.id ? null : s.id)}
                 >
@@ -193,9 +192,9 @@ export default function AdminPage() {
                   </td>
                 </tr>
                 {expandedStore === s.id && (
-                  <StoreUsers key={`users-${s.id}`} storeId={s.id} onClose={() => setExpandedStore(null)} />
+                  <StoreUsers storeId={s.id} onClose={() => setExpandedStore(null)} />
                 )}
-              </>
+              </Fragment>
             ))}
             {storeList.length === 0 && (
               <tr>

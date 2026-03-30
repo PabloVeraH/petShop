@@ -17,6 +17,32 @@ export async function GET(req: NextRequest) {
   const offset = Number(req.nextUrl.searchParams.get("offset") ?? "0");
   const LIMIT = 50;
 
+  // If searching by client name, pre-filter to enable server-side search + correct pagination
+  if (search) {
+    const { data: matchingClientes } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("store_id", store_id)
+      .ilike("nombre", `%${search}%`);
+    const clienteIds = matchingClientes?.map((c) => c.id) ?? [];
+    if (clienteIds.length === 0) return NextResponse.json({ data: [], count: 0 });
+
+    let query = supabase
+      .from("ventas")
+      .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
+      .eq("store_id", store_id)
+      .in("cliente_id", clienteIds)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + LIMIT - 1);
+    if (metodo) query = query.eq("metodo_pago", metodo);
+    if (estado) query = query.eq("estado", estado);
+    if (desde) query = query.gte("created_at", desde);
+    if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
+    const { data, error, count } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [], count: count ?? 0 });
+  }
+
   let query = supabase
     .from("ventas")
     .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
@@ -32,17 +58,7 @@ export async function GET(req: NextRequest) {
   const { data, error, count } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Filter by cliente nombre in JS (Supabase doesn't support ilike on joined tables easily)
-  let ventas = data ?? [];
-  if (search) {
-    const q = search.toLowerCase();
-    ventas = ventas.filter((v) => {
-      const cliente = v.clientes as unknown as { nombre: string } | null;
-      return cliente?.nombre.toLowerCase().includes(q);
-    });
-  }
-
-  return NextResponse.json({ data: ventas, count: count ?? 0 });
+  return NextResponse.json({ data: data ?? [], count: count ?? 0 });
 }
 
 export async function POST(req: NextRequest) {

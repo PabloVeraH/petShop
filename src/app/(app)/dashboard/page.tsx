@@ -115,8 +115,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stock bajo mínimo */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">
             Stock bajo mínimo
             {alertasStock.length > 0 && (
@@ -139,7 +138,6 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
       </div>
     </div>
   );
