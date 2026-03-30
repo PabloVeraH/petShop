@@ -13,7 +13,7 @@ export async function GET() {
   const dayStart = startOfDay(now).toISOString();
   const dayEnd = endOfDay(now).toISOString();
 
-  const [ventasHoyResult, ultimasVentasResult, clientesResult] = await Promise.all([
+  const [ventasHoyResult, ultimasVentasResult] = await Promise.all([
     supabase
       .from("ventas")
       .select("id, total, descuento, metodo_pago")
@@ -27,15 +27,10 @@ export async function GET() {
       .eq("store_id", store_id)
       .order("created_at", { ascending: false })
       .limit(10),
-    supabase
-      .from("clientes")
-      .select("id")
-      .eq("store_id", store_id),
   ]);
 
   const ventasHoy = ventasHoyResult.data ?? [];
   const ultimasVentas = ultimasVentasResult.data ?? [];
-  const clienteIds = clientesResult.data?.map((c) => c.id) ?? [];
 
   // Top productos del día
   const ventaIds = ventasHoy.map((v) => v.id);
@@ -65,18 +60,15 @@ export async function GET() {
       .map(([id, val]) => ({ producto_id: id, ...val }));
   }
 
-  // Alertas consumo scoped a la tienda
-  let alertas: unknown[] = [];
-  if (clienteIds.length > 0) {
-    const { data } = await supabase
-      .from("consumo_alertas")
-      .select("id, fecha_estimada_termino, mascotas(nombre), productos(nombre), clientes(nombre)")
-      .in("cliente_id", clienteIds)
-      .eq("enviado", false)
-      .order("fecha_estimada_termino", { ascending: true })
-      .limit(10);
-    alertas = data ?? [];
-  }
+  // Alertas consumo scoped a la tienda (store_id directo desde migración 005)
+  const { data: alertasData } = await supabase
+    .from("consumo_alertas")
+    .select("id, fecha_estimada_termino, mascotas(nombre), productos(nombre), clientes(nombre)")
+    .eq("store_id", store_id)
+    .eq("enviado", false)
+    .order("fecha_estimada_termino", { ascending: true })
+    .limit(10);
+  const alertas = alertasData ?? [];
 
   // KPIs
   const totalVentasHoy = ventasHoy.reduce((sum, v) => sum + Number(v.total), 0);

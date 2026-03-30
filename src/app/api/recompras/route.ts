@@ -10,16 +10,10 @@ export async function GET() {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  // Get consumo_alertas for this store's clients
-  const { data: clientes } = await supabase
-    .from("clientes").select("id").eq("store_id", store_id);
-  const clienteIds = (clientes ?? []).map((c) => c.id);
-  if (!clienteIds.length) return NextResponse.json([]);
-
   const { data: alertas } = await supabase
     .from("consumo_alertas")
     .select("producto_id, fecha_estimada_termino, mascotas(nombre), clientes(nombre)")
-    .in("cliente_id", clienteIds)
+    .eq("store_id", store_id)
     .not("fecha_estimada_termino", "is", null);
 
   if (!alertas?.length) return NextResponse.json([]);
