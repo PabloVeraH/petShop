@@ -41,12 +41,13 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
   const supabase = createServiceClient();
-  const { error } = await supabase.from("proveedores").delete().eq("id", id);
+  const { error } = await supabase.from("proveedores").delete().eq("id", id).eq("store_id", store_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

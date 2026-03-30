@@ -63,11 +63,29 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId: store_id } = ctx;
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
   const supabase = createServiceClient();
+
+  // Verify ownership via cliente → store
+  const { data: config } = await supabase
+    .from("consumo_configs")
+    .select("id, cliente_id")
+    .eq("id", id)
+    .single();
+  if (!config) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const { data: cliente } = await supabase
+    .from("clientes")
+    .select("id")
+    .eq("id", config.cliente_id)
+    .eq("store_id", store_id)
+    .single();
+  if (!cliente) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+
   const { error } = await supabase.from("consumo_configs").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
