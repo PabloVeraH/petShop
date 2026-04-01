@@ -250,18 +250,19 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-77 | GET devuelve KPIs del store autenticado | 200 | ventasHoy, ticketPromedio, etc. |
-| I-78 | `GET /api/dashboard/stock-alertas` devuelve top 10 | 200 | Solo stock <= stock_minimo |
+| I-77 | GET devuelve KPIs del store autenticado | 200 | ventasHoy, ticketPromedio, etc. | ✅ |
+| I-77b | sin auth → 401 | 401 | ✅ |
+| I-78 | `GET /api/dashboard/stock-alertas` devuelve top 10 | 200 | Solo stock <= stock_minimo | ✅ |
 
 ### 5.21 Reports
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-79 | GET sin params usa últimos 30 días | 200 | — |
-| I-80 | `?periodo=7` filtra correctamente | 200 | — |
-| I-81 | `GET /api/reports/export?tipo=ventas` devuelve CSV | 200 | Content-Type: text/csv |
-| I-82 | CSV no contiene datos de otro store | 200 | Aislamiento |
-| I-83 | Campos CSV con comas escapados con comillas | 200 | RFC 4180 |
+| I-79 | GET sin params usa últimos 30 días | 200 | — | ✅ |
+| I-80 | `?periodo=7` filtra correctamente | 200 | — | ✅ |
+| I-81 | `GET /api/reports/export?tipo=ventas` devuelve CSV | 200 | Content-Type: text/csv | ✅ |
+| I-82 | CSV no contiene datos de otro store | 200 | Aislamiento | ✅ |
+| I-83 | Campos CSV con comas escapados con comillas | 200 | RFC 4180 | ✅ |
 
 ### 5.22 Cuentas-Pagar — `PATCH /api/cuentas-pagar`
 
@@ -299,11 +300,11 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-96 | GET con `hub.verify_token` correcto | 200 | Devuelve hub.challenge |
-| I-97 | GET con token incorrecto | 403 | — |
-| I-98 | POST sin firma HMAC | 401 | — |
-| I-99 | POST con firma HMAC válida | 200 | Siempre 200 (no bloquear Meta) |
-| I-100 | POST no loguea datos del usuario | — | Verificar ausencia de console.log con PII |
+| I-96 | GET con `hub.verify_token` correcto | 200 | Devuelve hub.challenge | ✅ |
+| I-97 | GET con token incorrecto | 403 | — | ✅ |
+| I-98 | POST sin firma HMAC | 403 | — | ✅ |
+| I-99 | POST con firma HMAC válida | 200 | Siempre 200 (no bloquear Meta) | ✅ |
+| I-100 | POST no loguea datos del usuario | — | Verificar ausencia de console.log con PII | ✅ |
 
 ### 5.27 WhatsApp send-alerts
 
