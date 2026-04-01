@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
+import { syncProductsToHub } from "@/lib/hub-sync";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -62,5 +63,15 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
+
+  syncProductsToHub([{
+    producto_id: data.id,
+    nombre_producto: data.nombre,
+    marca: data.marca ?? undefined,
+    precio: Number(data.precio),
+    stock: data.stock,
+    activo: true,
+  }]);
+
   return NextResponse.json(data, { status: 201 });
 }

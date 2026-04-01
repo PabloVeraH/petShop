@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { syncProductsToHub } from "@/lib/hub-sync";
 
 export async function PATCH(
   req: NextRequest,
@@ -38,10 +39,19 @@ export async function PATCH(
     .from("productos")
     .update({ stock: nuevoStock })
     .eq("id", id)
-    .select("id, nombre, stock")
+    .select("id, nombre, marca, precio, stock")
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  syncProductsToHub([{
+    producto_id: updated.id,
+    nombre_producto: updated.nombre,
+    marca: updated.marca ?? undefined,
+    precio: Number(updated.precio),
+    stock: updated.stock,
+    activo: true,
+  }]);
 
   await supabase.from("stock_movements").insert({
     producto_id: id,

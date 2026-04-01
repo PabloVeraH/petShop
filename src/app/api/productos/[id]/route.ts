@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { syncProductsToHub } from "@/lib/hub-sync";
 
 export async function PATCH(
   req: NextRequest,
@@ -42,6 +43,16 @@ export async function PATCH(
     if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
+
+  syncProductsToHub([{
+    producto_id: data.id,
+    nombre_producto: data.nombre,
+    marca: data.marca ?? undefined,
+    precio: Number(data.precio),
+    stock: data.stock,
+    activo: data.activo ?? true,
+  }]);
+
   return NextResponse.json(data);
 }
 
@@ -57,12 +68,26 @@ export async function DELETE(
   const { id } = await params;
 
   // Soft delete — keeps history intact
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("productos")
     .update({ activo: false })
     .eq("id", id)
-    .eq("store_id", store_id);
+    .eq("store_id", store_id)
+    .select("id, nombre, marca, precio, stock")
+    .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  if (data) {
+    syncProductsToHub([{
+      producto_id: data.id,
+      nombre_producto: data.nombre,
+      marca: data.marca ?? undefined,
+      precio: Number(data.precio),
+      stock: data.stock,
+      activo: false,
+    }]);
+  }
+
   return new NextResponse(null, { status: 204 });
 }

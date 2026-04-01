@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
+import { syncPurchaseToHub } from "@/lib/hub-sync";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -233,6 +234,16 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "cliente_id" }
     );
+  }
+
+  // Sync compra al hub (fire-and-forget) si el cliente tiene RUT
+  if (clienteId) {
+    const { data: clienteRut } = await supabase
+      .from("clientes")
+      .select("rut")
+      .eq("id", clienteId)
+      .single();
+    if (clienteRut?.rut) syncPurchaseToHub(clienteRut.rut, total);
   }
 
   // Auto-send WhatsApp receipt if store has it enabled and cliente has phone
