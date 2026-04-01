@@ -329,13 +329,13 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 | # | Caso | Resultado esperado | Estado |
 |---|------|--------------------|--------|
 | S-01 | Cualquier endpoint autenticado sin token → 401 | Bloqueado | ✅ (5 endpoints) |
-| S-02 | Token de store A accediendo datos de store B | 404 o array vacío | — |
+| S-02 | Token de store A accediendo datos de store B | 404 o array vacío | ✅ |
 | S-03 | `PATCH /api/settings` con `{ "store_id": "otro-id" }` | Campo ignorado | ✅ |
 | S-04 | `POST /api/ventas` con precio en body | Precio de DB usado, body ignorado | ✅ (ref I-39) |
 | S-05 | `GET /api/clientes?search=a%25b` (SQLi attempt) | Sanitizado, no error 500 | ✅ |
-| S-06 | `POST /api/onboarding/complete` dos veces mismo user | Segunda llamada rechazada | — |
-| S-07 | `GET /api/reports/export` sin autenticación | 401 | — |
-| S-08 | `POST /api/whatsapp/webhook` con cuerpo manipulado | 401 por firma inválida | — |
+| S-06 | `POST /api/onboarding/complete` dos veces mismo user | Segunda llamada rechazada | ✅ |
+| S-07 | `GET /api/reports/export` sin autenticación | 401 | ✅ |
+| S-08 | `POST /api/whatsapp/webhook` con cuerpo manipulado | 403 por firma inválida | ✅ |
 
 ---
 

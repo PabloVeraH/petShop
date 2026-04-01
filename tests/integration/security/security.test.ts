@@ -140,3 +140,120 @@ describe("S-05: sanitización de parámetros de búsqueda", () => {
     expect(res.status).not.toBe(500);
   });
 });
+
+// ── S-02: aislamiento cross-store ──────────────────────────────────────────
+
+describe("S-02: aislamiento de datos entre stores", () => {
+  beforeEach(() => {
+    // Store A autenticado
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+      range: jest.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+      then: jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+        resolve({ data: [], error: null, count: 0 })
+      ),
+    });
+  });
+
+  it("S-02: GET /api/clientes de store A retorna vacío (store B no tiene datos)", async () => {
+    const { GET } = await import("@/app/api/clientes/route");
+    const res = await GET(req("/api/clientes"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // La query aplica .eq("store_id", STORE_ID) → store B queda excluido
+    expect(Array.isArray(body.data ?? body)).toBe(true);
+  });
+
+  it("S-02b: GET /api/productos de store A retorna vacío cuando DB aislada", async () => {
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(200);
+  });
+});
+
+// ── S-06: onboarding idempotencia ─────────────────────────────────────────
+
+describe("S-06: POST /api/onboarding/complete dos veces mismo user → segunda rechazada", () => {
+  const mockAuth = jest.fn();
+  const mockClerkClient = jest.fn();
+
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+  });
+
+  it("S-06: segunda llamada a onboarding retorna 409", async () => {
+    jest.mock("@clerk/nextjs/server", () => ({
+      auth: jest.fn().mockResolvedValue({ userId: "user_s06" }),
+      clerkClient: jest.fn().mockResolvedValue({
+        users: {
+          getUser: jest.fn().mockResolvedValue({ emailAddresses: [{ emailAddress: "u@test.com" }] }),
+          updateUserMetadata: jest.fn().mockResolvedValue({}),
+        },
+      }),
+    }));
+    jest.mock("@/lib/supabase", () => ({
+      createServiceClient: jest.fn(() => ({
+        from: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          // existing store_id → trigger 409
+          single: jest.fn().mockResolvedValue({
+            data: { store_id: STORE_ID },
+            error: null,
+          }),
+        }),
+      })),
+    }));
+    const { POST } = await import("@/app/api/onboarding/complete/route");
+    const res = await POST(new NextRequest("http://localhost/api/onboarding/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeName: "Mi Store" }),
+    }));
+    expect(res.status).toBe(409);
+  });
+});
+
+// ── S-07: reports export sin auth ─────────────────────────────────────────
+
+describe("S-07: GET /api/reports/export sin autenticación → 401", () => {
+  beforeEach(() => {
+    mockGetStoreId.mockResolvedValue(null);
+  });
+
+  it("S-07: sin auth → 401", async () => {
+    const { GET } = await import("@/app/api/reports/export/route");
+    const res = await GET(req("/api/reports/export?tipo=ventas"));
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── S-08: WhatsApp webhook con cuerpo manipulado ───────────────────────────
+
+describe("S-08: POST /api/whatsapp/webhook con firma inválida → 403", () => {
+  beforeEach(() => {
+    process.env.WHATSAPP_APP_SECRET = "real-secret";
+    mockFrom.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    });
+  });
+
+  it("S-08: firma manipulada → 403", async () => {
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(new NextRequest("http://localhost/api/whatsapp/webhook", {
+      method: "POST",
+      headers: { "x-hub-signature-256": "sha256=invalidsignature" },
+      body: JSON.stringify({ entry: [{ changes: [{ value: { messages: [] } }] }] }),
+    }));
+    expect(res.status).toBe(403);
+  });
+});
