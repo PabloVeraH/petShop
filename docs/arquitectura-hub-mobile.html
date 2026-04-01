@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arquitectura Hub Central + App Móvil — PetShop</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fff;
+      line-height: 1.6;
+    }
+
+    /* ── PORTADA ── */
+    .cover {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+      color: #fff;
+      text-align: center;
+      padding: 60px 40px;
+      page-break-after: always;
+    }
+    .cover .logo { font-size: 56px; margin-bottom: 24px; }
+    .cover h1 { font-size: 32px; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; }
+    .cover h2 { font-size: 18px; font-weight: 400; color: #a8d8ea; margin-bottom: 40px; }
+    .cover .meta {
+      display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      padding-top: 30px; margin-top: 10px;
+    }
+    .cover .meta-item { text-align: center; }
+    .cover .meta-item .label { font-size: 11px; color: #a8d8ea; text-transform: uppercase; letter-spacing: 1px; }
+    .cover .meta-item .value { font-size: 15px; font-weight: 600; margin-top: 4px; }
+
+    /* ── CONTENIDO ── */
+    .content { max-width: 900px; margin: 0 auto; padding: 50px 50px 80px; }
+
+    h1.section-title {
+      font-size: 22px; font-weight: 700; color: #0f3460;
+      border-bottom: 3px solid #0f3460; padding-bottom: 8px;
+      margin: 48px 0 20px;
+    }
+    h2.sub-title {
+      font-size: 16px; font-weight: 700; color: #16213e;
+      margin: 32px 0 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    h2.sub-title::before {
+      content: ''; display: inline-block;
+      width: 4px; height: 18px; background: #e94560; border-radius: 2px;
+    }
+    h3.sub-sub { font-size: 13px; font-weight: 700; color: #0f3460; margin: 20px 0 8px; }
+
+    p { margin-bottom: 12px; color: #333; }
+
+    /* ── DIAGRAMA ASCII ── */
+    .diagram {
+      background: #0f1f3d;
+      color: #7fdbca;
+      font-family: 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.5;
+      padding: 24px 28px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 20px 0;
+      white-space: pre;
+      border-left: 4px solid #e94560;
+    }
+
+    /* ── CÓDIGO ── */
+    .code-block {
+      background: #f4f6f9;
+      border: 1px solid #dce3ee;
+      border-left: 4px solid #0f3460;
+      font-family: 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 18px 22px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 16px 0;
+      white-space: pre;
+      color: #1a1a2e;
+    }
+
+    /* ── SQL ── */
+    .sql-block {
+      background: #f0f4ff;
+      border: 1px solid #c5d2f0;
+      border-left: 4px solid #4361ee;
+      font-family: 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      padding: 18px 22px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 16px 0;
+      white-space: pre;
+      color: #1a1a2e;
+    }
+
+    /* ── TABLA ── */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+    thead tr { background: #0f3460; color: #fff; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e8ecf4; }
+    tr:nth-child(even) { background: #f7f9fc; }
+    tr:hover { background: #eef2ff; }
+
+    /* ── CARDS de piezas ── */
+    .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 20px 0; }
+    .card {
+      border: 2px solid #0f3460; border-radius: 10px; padding: 18px 16px;
+      text-align: center;
+    }
+    .card .num { font-size: 28px; font-weight: 800; color: #e94560; }
+    .card .name { font-size: 13px; font-weight: 700; color: #0f3460; margin: 6px 0 4px; }
+    .card .desc { font-size: 11px; color: #555; line-height: 1.4; }
+
+    /* ── FLUJO PASOS ── */
+    .flow { margin: 16px 0; }
+    .flow-step {
+      display: flex; align-items: flex-start; gap: 14px;
+      margin-bottom: 14px;
+    }
+    .flow-step .step-num {
+      min-width: 30px; height: 30px; border-radius: 50%;
+      background: #0f3460; color: #fff;
+      font-weight: 700; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .flow-step .step-body { padding-top: 4px; }
+    .flow-step .step-body strong { color: #0f3460; display: block; margin-bottom: 2px; }
+    .flow-step .step-body span { color: #444; font-size: 12px; }
+
+    /* ── ALERTA / NOTA ── */
+    .note {
+      background: #fff8e1; border-left: 4px solid #f0a500;
+      padding: 14px 18px; border-radius: 6px; margin: 16px 0;
+      font-size: 12px; color: #5a4000;
+    }
+    .note strong { display: block; margin-bottom: 4px; color: #c07000; }
+
+    .highlight {
+      background: #e8f5e9; border-left: 4px solid #2e7d32;
+      padding: 14px 18px; border-radius: 6px; margin: 16px 0;
+      font-size: 12px; color: #1b5e20;
+    }
+    .highlight strong { display: block; margin-bottom: 4px; }
+
+    /* ── RANKING VISUAL ── */
+    .rank-item {
+      border: 1px solid #dce3ee; border-radius: 8px;
+      padding: 14px 18px; margin: 10px 0;
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .rank-badge {
+      min-width: 36px; height: 36px; border-radius: 8px;
+      background: #0f3460; color: #fff;
+      font-weight: 800; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rank-badge.gold { background: #d4a017; }
+    .rank-badge.silver { background: #6b7280; }
+    .rank-badge.bronze { background: #92400e; }
+    .rank-body strong { color: #0f3460; font-size: 13px; }
+    .rank-body span { font-size: 12px; color: #555; display: block; margin-top: 2px; }
+
+    /* ── PRINT ── */
+    @media print {
+      body { font-size: 12px; }
+      .cover { min-height: auto; padding: 80px 40px; }
+      .diagram, .code-block, .sql-block { font-size: 10.5px; }
+      h1.section-title { margin-top: 36px; }
+      .cards { page-break-inside: avoid; }
+      .flow-step { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     PORTADA
+═══════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo">🐾</div>
+  <h1>PetShop — Plataforma Multi-Establecimiento</h1>
+  <h2>Arquitectura del Hub Central y Aplicación Móvil</h2>
+  <div class="meta">
+    <div class="meta-item">
+      <div class="label">Fecha</div>
+      <div class="value">Marzo 2026</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Versión</div>
+      <div class="value">1.0 — Diseño inicial</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Estado</div>
+      <div class="value">Propuesta arquitectónica</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CONTENIDO
+═══════════════════════════════════════════════════════════ -->
+<div class="content">
+
+
+<!-- ── 1. VISIÓN GENERAL ── -->
+<h1 class="section-title">1. Visión General del Problema</h1>
+
+<p>
+  El sistema actual opera como una instancia independiente por establecimiento: cada petshop
+  tiene su propia base de datos Supabase, su propio catálogo de productos y sus propios
+  clientes registrados. Esto es correcto para la operación interna, pero genera un problema
+  cuando se quiere ofrecer una experiencia unificada al cliente final a través de una
+  app móvil.
+</p>
+
+<p>
+  El objetivo es permitir que un cliente busque, por ejemplo, <em>"Royal Canin"</em> y
+  obtenga resultados de <strong>todos los establecimientos</strong> que utilizan el sistema,
+  ordenados según su historial de compras, cercanía y precio — sin que los stores tengan
+  que cambiar nada en su operación.
+</p>
+
+<div class="diagram">El problema sin Hub:
+
+Tienda A (Supabase A)     Tienda B (Supabase B)     Tienda C (Supabase C)
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│ clientes:       │       │ clientes:       │       │ clientes:       │
+│  - Juan 12.345  │       │  - Juan 12.345  │  ←──  │  - Pedro 98.765 │
+│  - María 67.890 │       │  - Pedro 98.765 │       │                 │
+│                 │       │                 │       │                 │
+│ productos:      │       │ productos:      │       │ productos:      │
+│  - Royal Canin  │       │  - Royal Canin  │       │  - Purina       │
+│    $25.000      │       │    $23.500      │       │    $18.000      │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+
+  ❌  Juan existe en A y B como registros distintos — no se conocen entre sí
+  ❌  Royal Canin existe en A y B — imposible buscar en ambas con un solo query
+  ❌  No hay forma de saber que Juan prefiere comprar en Tienda A</div>
+
+
+<!-- ── 2. ARQUITECTURA GENERAL ── -->
+<h1 class="section-title">2. Arquitectura General</h1>
+
+<p>
+  La solución se basa en un <strong>Hub Central</strong>: un servicio independiente
+  que actúa como agregador de información. Los stores empujan datos al hub mediante
+  webhooks; la app móvil solo habla con el hub. Los stores individuales no se modifican
+  en su lógica de negocio.
+</p>
+
+<div class="diagram">┌──────────────────────────────────────────────────────────────────┐
+│                        CENTRAL HUB                               │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐     │
+│  │  Registry DB     │    │  Catalog Index                  │     │
+│  │  - stores        │    │  (catálogo desnormalizado)      │     │
+│  │  - ubicaciones   │    │  - producto, marca              │     │
+│  │  - API URLs      │    │  - precio, stock                │     │
+│  └──────────────────┘    │  - store_id, store_name         │     │
+│                          │  - última sincronización        │     │
+│  ┌──────────────────┐    └─────────────────────────────────┘     │
+│  │  Customer        │                                            │
+│  │  Identity (RUT)  │    ┌─────────────────────────────────┐     │
+│  │  + historial     │    │  API Gateway                    │     │
+│  │    cross-store   │    │  /search  /stores  /me          │     │
+│  └──────────────────┘    └─────────────────────────────────┘     │
+└─────────────────────────────────────┬────────────────────────────┘
+                                      │ (solo lectura)
+                              ┌───────▼────────┐
+                              │  Mobile App     │
+                              │  (React Native) │
+                              └───────┬─────────┘
+                                      │ (sync unidireccional)
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+               ┌─────────┐      ┌─────────┐      ┌─────────┐
+               │ Store A │      │ Store B │      │ Store C │  ··· N stores
+               │ Supa A  │      │ Supa B  │      │ Supa C  │
+               │ + sync  │      │ + sync  │      │ + sync  │
+               └─────────┘      └─────────┘      └─────────┘
+
+  REGLA FUNDAMENTAL:
+  ✅  Cada store EMPUJA datos al hub (productos, ventas, clientes)
+  ✅  La app móvil SOLO LEE del hub
+  ✅  Los stores NO se hablan entre sí
+  ✅  La app NO habla directamente con los stores</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="num">1</div>
+    <div class="name">Central Hub</div>
+    <div class="desc">Nuevo proyecto Supabase independiente. Agrega datos de todos los stores.</div>
+  </div>
+  <div class="card">
+    <div class="num">2</div>
+    <div class="name">Sync por Store</div>
+    <div class="desc">Cada tienda envía actualizaciones al hub via webhooks o cron.</div>
+  </div>
+  <div class="card">
+    <div class="num">3</div>
+    <div class="name">Mobile App</div>
+    <div class="desc">React Native + Expo. Solo consulta el Hub. Nunca a los stores directamente.</div>
+  </div>
+</div>
+
+
+<!-- ── 3. PIEZA 1: HUB ── -->
+<h1 class="section-title">3. Pieza 1 — El Hub Central</h1>
+
+<p>
+  Un proyecto Supabase nuevo, completamente independiente de las bases de datos de los
+  establecimientos. Su única responsabilidad es consolidar información para servir a la
+  app móvil.
+</p>
+
+<h2 class="sub-title">Tabla: stores</h2>
+<p>El directorio de todos los establecimientos registrados.</p>
+
+<div class="sql-block">CREATE TABLE stores (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre      TEXT NOT NULL,
+  direccion   TEXT,
+  ciudad      TEXT,
+  lat         DECIMAL(10,7),        -- latitud para cálculo de distancia
+  lng         DECIMAL(10,7),        -- longitud para cálculo de distancia
+  api_url     TEXT NOT NULL,        -- URL del Supabase de esta tienda
+  activo      BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- Datos de ejemplo:
+-- id        | nombre            | ciudad    | lat      | lng       | activo
+-- tienda-A  | PetShop Ñuñoa     | Santiago  | -33.4569 | -70.5987  | true
+-- tienda-B  | Animal Planet     | Vitacura  | -33.3901 | -70.5734  | true
+-- tienda-C  | Pelitos Felices   | Maipú     | -33.5123 | -70.7456  | true</div>
+
+<h2 class="sub-title">Tabla: catalog_index</h2>
+<p>
+  Copia desnormalizada del inventario de <strong>todas</strong> las tiendas. Un mismo
+  producto puede aparecer N veces — una por cada tienda que lo vende, con su precio y
+  stock propios.
+</p>
+
+<div class="sql-block">CREATE TABLE catalog_index (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id         UUID REFERENCES stores(id),
+  producto_nombre  TEXT NOT NULL,
+  marca            TEXT,
+  precio           INTEGER,              -- precio en pesos CLP
+  stock_disponible INTEGER DEFAULT 0,
+  imagen_url       TEXT,
+  ultima_sync      TIMESTAMPTZ,          -- cuándo se actualizó por última vez
+  searchable       TSVECTOR              -- columna para Full Text Search
+);
+
+-- Índice para búsqueda full-text
+CREATE INDEX idx_catalog_fts ON catalog_index USING gin(searchable);
+
+-- Datos de ejemplo:
+-- store_id  | producto_nombre   | marca       | precio | stock | ultima_sync
+-- tienda-A  | Royal Canin Adult | Royal Canin | 25000  | 12    | 2026-03-30 14:00
+-- tienda-B  | Royal Canin Adult | Royal Canin | 23500  |  8    | 2026-03-30 13:45
+-- tienda-A  | Purina Pro Plan   | Purina      | 19000  |  5    | 2026-03-30 14:00
+-- tienda-C  | Purina Pro Plan   | Purina      | 18000  | 20    | 2026-03-30 12:30</div>
+
+<div class="note">
+  <strong>¿Por qué Royal Canin aparece dos veces?</strong>
+  Porque es un registro por tienda. No existe un catálogo "maestro" — cada tienda
+  nombra sus productos como quiere. El hub guarda copias independientes de cada store.
+  Esto es intencional: permite precios distintos, stocks distintos y nombres ligeramente
+  distintos por establecimiento.
+</div>
+
+<h2 class="sub-title">Tabla: customers</h2>
+<p>
+  Identidad global del cliente. Un RUT = un registro, independientemente de cuántas
+  tiendas haya visitado.
+</p>
+
+<div class="sql-block">CREATE TABLE customers (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rut         TEXT UNIQUE NOT NULL,     -- identificador universal
+  nombre      TEXT,
+  email       TEXT,
+  telefono    TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- id   | rut      | nombre  | email
+-- c-1  | 12.345-6 | Juan    | juan@gmail.com
+-- c-2  | 67.890-1 | María   | maria@gmail.com
+-- c-3  | 98.765-4 | Pedro   | pedro@gmail.com</div>
+
+<h2 class="sub-title">Tabla: customer_store_history</h2>
+<p>
+  Relación muchos-a-muchos entre clientes y tiendas. Es la clave para el ranking
+  personalizado: saber cuánto y cuándo compró cada cliente en cada establecimiento.
+</p>
+
+<div class="sql-block">CREATE TABLE customer_store_history (
+  customer_id      UUID REFERENCES customers(id),
+  store_id         UUID REFERENCES stores(id),
+  total_compras    INTEGER DEFAULT 0,
+  monto_historico  BIGINT DEFAULT 0,    -- en pesos CLP
+  ultima_compra    DATE,
+  PRIMARY KEY (customer_id, store_id)   -- un registro por par cliente-tienda
+);
+
+-- customer_id | store_id  | total_compras | monto_historico | ultima_compra
+-- c-1         | tienda-A  | 5             | 125.000         | 2026-03-28
+-- c-1         | tienda-B  | 2             | 48.500          | 2026-03-10
+-- c-2         | tienda-A  | 8             | 210.000         | 2026-03-30
+-- c-3         | tienda-B  | 1             | 23.500          | 2026-02-25
+-- c-3         | tienda-C  | 3             | 87.000          | 2026-03-20
+
+-- Juan (c-1) ha comprado en A y B → aparece 2 veces en esta tabla
+-- Pedro (c-3) ha comprado en B y C → aparece 2 veces</div>
+
+
+<!-- ── 4. PIEZA 2: SYNC ── -->
+<h1 class="section-title">4. Pieza 2 — Sincronización de cada Store al Hub</h1>
+
+<p>
+  Cada establecimiento necesita un mecanismo para notificar al hub cuando algo cambia:
+  un precio, el stock de un producto, una venta nueva, o un cliente nuevo.
+</p>
+
+<h2 class="sub-title">Opción A — Webhook en tiempo real (recomendada)</h2>
+<p>
+  Supabase permite configurar <em>Database Webhooks</em> que ejecutan una
+  Edge Function automáticamente cuando una fila cambia. La Edge Function envía
+  los datos al hub.
+</p>
+
+<div class="code-block">// Edge Function en el Supabase de cada tienda
+// Archivo: supabase/functions/sync-to-hub/index.ts
+// Se dispara automáticamente con trigger ON INSERT/UPDATE en tabla "productos"
+
+Deno.serve(async (req) => {
+  const payload = await req.json();        // datos del row que cambió
+  const { record } = payload;
+
+  await fetch(`${Deno.env.get("HUB_URL")}/api/sync/catalog`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${Deno.env.get("HUB_SYNC_SECRET")}`,
+    },
+    body: JSON.stringify({
+      store_id: Deno.env.get("STORE_ID"),
+      productos: [{
+        nombre: record.nombre,
+        marca:  record.marca,
+        precio: record.precio,
+        stock:  record.stock,
+      }]
+    }),
+  });
+
+  return new Response("ok");
+});</div>
+
+<h2 class="sub-title">Opción B — Cron periódico (más simple para comenzar)</h2>
+<p>
+  Un job programado (cada 15 minutos, por ejemplo) que lee el inventario completo
+  del store y lo envía al hub. Acepta un pequeño retraso en la información mostrada
+  en la app.
+</p>
+
+<div class="code-block">// Cron en la app web de cada tienda (Next.js route handler)
+// GET /api/hub-sync  →  llamado por Vercel Cron o GitHub Actions
+
+export async function GET() {
+  const supabase = createServiceClient();
+
+  const { data: productos } = await supabase
+    .from("productos")
+    .select("nombre, marca, precio, stock")
+    .eq("activo", true);
+
+  await fetch(`${process.env.HUB_URL}/api/sync/catalog`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${process.env.HUB_SYNC_SECRET}` },
+    body: JSON.stringify({
+      store_id: process.env.STORE_ID,
+      productos
+    }),
+  });
+
+  return Response.json({ ok: true });
+}</div>
+
+<h2 class="sub-title">Sincronización de ventas (para historial de clientes)</h2>
+<p>
+  Cuando se registra una venta en el store, también se notifica al hub para actualizar
+  el historial del cliente. Esto alimenta el ranking personalizado de la app.
+</p>
+
+<div class="code-block">// Al finalizar una venta en la app web (ya existe en /api/ventas/route.ts)
+// Se agrega al final del handler POST existente:
+
+await fetch(`${process.env.HUB_URL}/api/sync/purchase`, {
+  method: "POST",
+  headers: { "Authorization": `Bearer ${process.env.HUB_SYNC_SECRET}` },
+  body: JSON.stringify({
+    store_id:     process.env.STORE_ID,
+    customer_rut: clienteRut,      // RUT del cliente que compró
+    monto:        total,           // monto total de la venta
+    fecha:        new Date().toISOString().split("T")[0],
+  }),
+});
+
+// El hub recibe esto y actualiza customer_store_history:
+// - Si el cliente no existe → lo crea en customers
+// - Incrementa total_compras y monto_historico para este store</div>
+
+
+<!-- ── 5. CLIENTES CROSS-STORE ── -->
+<h1 class="section-title">5. ¿Cómo Nace un Cliente en el Hub?</h1>
+
+<p>
+  Esta es la pregunta central. Los clientes "nacen" en los stores individuales, pero
+  el hub los unifica por RUT. Hay dos caminos posibles, y pueden ocurrir en cualquier orden:
+</p>
+
+<h2 class="sub-title">Camino A — El cliente descarga la app móvil primero</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <strong>Cliente abre la app e ingresa su RUT</strong>
+      <span>La app envía el RUT al hub para verificación.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <strong>Hub busca si el RUT ya existe en la tabla customers</strong>
+      <span>Si no existe, lo crea con los datos básicos que ingresó.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <strong>Hub consulta en background a cada tienda registrada</strong>
+      <span>Pregunta: "¿tienen un cliente con RUT 12.345-6?" usando la api_url de cada store.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <strong>Consolida las respuestas</strong>
+      <span>Tienda A: "Sí, Juan, 5 compras" → Tienda B: "Sí, Juan, 2 compras" → Tienda C: "No"</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <strong>Guarda el historial en customer_store_history</strong>
+      <span>El cliente ya puede ver sus tiendas favoritas en la app.</span>
+    </div>
+  </div>
+</div>
+
+<h2 class="sub-title">Camino B — El cliente compra en una tienda antes de bajar la app</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <strong>Pedro compra en Tienda C</strong>
+      <span>El vendedor lo registra normalmente en la app web de la tienda.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <strong>La venta dispara el webhook de sincronización</strong>
+      <span>POST hub/api/sync/purchase con { rut: "98.765-4", store_id: "tienda-C", monto: 23500 }</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <strong>Hub verifica: ¿existe RUT 98.765-4?</strong>
+      <span>No existe → crea el registro en customers. Sí existe → solo actualiza el historial.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <strong>Cuando Pedro descarga la app e ingresa su RUT</strong>
+      <span>Ya tiene su historial precargado. La app lo reconoce inmediatamente.</span>
+    </div>
+  </div>
+</div>
+
+<div class="highlight">
+  <strong>Conclusión clave sobre clientes</strong>
+  Un RUT = un registro en el hub, siempre. No importa si el cliente existe en
+  1, 2 o 10 tiendas distintas. El hub es la fuente única de verdad de la identidad del cliente.
+  Las tiendas individuales mantienen sus propios registros locales sin modificar nada.
+</div>
+
+
+<!-- ── 6. APP MÓVIL ── -->
+<h1 class="section-title">6. Pieza 3 — Aplicación Móvil</h1>
+
+<h2 class="sub-title">Flujo de autenticación del cliente</h2>
+
+<div class="diagram">Cliente abre app → ingresa RUT
+        │
+        ▼
+Hub verifica:  ¿existe en customers?
+        │
+   ┌────┴────┐
+   NO        SÍ
+   │         │
+   ▼         ▼
+ Crea      Devuelve
+ perfil    customer_id
+   │       + historial
+   └────┬──┘
+        ▼
+  App genera JWT firmado por el hub
+  (el RUT va como claim, no como contraseña)
+        │
+        ▼
+  Cliente autenticado — la app sabe quién es</div>
+
+<h2 class="sub-title">Flujo de búsqueda de producto</h2>
+
+<div class="diagram">Juan escribe "Royal Canin" + activa GPS
+        │
+        ▼
+App  →  GET hub/api/search?q=Royal+Canin&lat=-33.45&lng=-70.60
+
+Hub ejecuta en catalog_index:
+  SELECT ci.*, s.nombre, s.lat, s.lng, s.direccion
+  FROM catalog_index ci
+  JOIN stores s ON s.id = ci.store_id
+  WHERE ci.searchable @@ plainto_tsquery('Royal Canin')
+    AND ci.stock_disponible > 0
+        │
+        ▼
+Resultado sin ordenar:
+  ┌───────────────────────────────────────────────────────┐
+  │ Royal Canin Adult │ Tienda A (3.2km) │ $25.000 │ 12u  │
+  │ Royal Canin Adult │ Tienda B (8.5km) │ $23.500 │  8u  │
+  └───────────────────────────────────────────────────────┘
+        │
+        ▼
+Hub consulta historial de Juan:
+  → tienda-A: 5 compras ← comprador frecuente
+  → tienda-B: 2 compras ← ha comprado antes
+  → tienda-C: 0 compras
+        │
+        ▼
+Aplica ranking y devuelve al app:
+
+  #1  Royal Canin Adult  |  PetShop Ñuñoa (Tienda A)
+      Compraste aquí 5 veces  |  3.2 km  |  $25.000
+
+  #2  Royal Canin Adult  |  Animal Planet (Tienda B)
+      Compraste aquí 2 veces  |  8.5 km  |  $23.500</div>
+
+<h2 class="sub-title">Lógica de Ranking</h2>
+
+<div class="rank-item">
+  <div class="rank-badge gold">#1</div>
+  <div class="rank-body">
+    <strong>Fidelidad — Historial de compras</strong>
+    <span>Primero aparecen las tiendas donde el cliente ha comprado más veces. Si hay empate, se pasa al siguiente criterio.</span>
+  </div>
+</div>
+<div class="rank-item">
+  <div class="rank-badge silver">#2</div>
+  <div class="rank-body">
+    <strong>Cercanía — Distancia GPS</strong>
+    <span>Entre tiendas con igual historial, se prefieren las más cercanas. Solo aplica si la diferencia es mayor a 1 km.</span>
+  </div>
+</div>
+<div class="rank-item">
+  <div class="rank-badge bronze">#3</div>
+  <div class="rank-body">
+    <strong>Precio — Menor precio primero</strong>
+    <span>Como criterio de desempate final. Favorece al cliente económicamente.</span>
+  </div>
+</div>
+
+<div class="code-block">// Implementación del ranking (TypeScript)
+function rankStores(
+  results: StoreResult[],
+  history: Record&lt;string, { total_compras: number }&gt;,
+  userLocation: { lat: number; lng: number }
+) {
+  return results.sort((a, b) =&gt; {
+    // 1. Fidelidad
+    const aFid = history[a.store_id]?.total_compras ?? 0;
+    const bFid = history[b.store_id]?.total_compras ?? 0;
+    if (aFid !== bFid) return bFid - aFid;
+
+    // 2. Distancia GPS (fórmula haversine)
+    const aDist = haversine(userLocation, { lat: a.lat, lng: a.lng });
+    const bDist = haversine(userLocation, { lat: b.lat, lng: b.lng });
+    if (Math.abs(aDist - bDist) &gt; 1) return aDist - bDist;
+
+    // 3. Precio
+    return a.precio - b.precio;
+  });
+}</div>
+
+
+<!-- ── 7. INCORPORAR NUEVO ESTABLECIMIENTO ── -->
+<h1 class="section-title">7. ¿Cómo se Incorpora un Nuevo Establecimiento?</h1>
+
+<p>
+  El proceso está diseñado para ser lo más simple posible. El nuevo dueño no necesita
+  saber nada sobre el hub — solo configurar 3 variables de entorno.
+</p>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <strong>El dueño se registra en el panel de administración del hub</strong>
+      <span>Ingresa nombre del establecimiento, dirección y datos de contacto.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <strong>El hub genera credenciales únicas</strong>
+      <span>Un STORE_ID (UUID) y un HUB_SYNC_SECRET (token seguro para autenticar el sync).</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <strong>El dueño configura 3 variables en su instancia de la app</strong>
+      <span>STORE_ID=xxx  |  HUB_SYNC_SECRET=xxx  |  HUB_URL=https://hub.tudominio.com</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <strong>Se activa el webhook de sincronización</strong>
+      <span>El catálogo de la nueva tienda comienza a aparecer en el hub en minutos.</span>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <strong>La tienda es visible en la app móvil</strong>
+      <span>Sin cambios en el código del store. Sin modificaciones a la base de datos. Solo 3 variables de entorno.</span>
+    </div>
+  </div>
+</div>
+
+<div class="highlight">
+  <strong>Lo que NO cambia en la app actual de cada tienda</strong>
+  La aplicación web de gestión interna queda exactamente igual. El vendedor sigue
+  usando el POS, registrando ventas, gestionando inventario exactamente como antes.
+  El único cambio es la adición del webhook de sync al hub — y esto se puede
+  configurar como una opción que se activa/desactiva desde el panel de settings.
+</div>
+
+
+<!-- ── 8. STACK TECNOLÓGICO ── -->
+<h1 class="section-title">8. Stack Tecnológico Recomendado</h1>
+
+<table>
+  <thead>
+    <tr><th>Capa</th><th>Tecnología</th><th>Justificación</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Hub — Base de datos</strong></td>
+      <td>Supabase (nuevo proyecto)</td>
+      <td>Mismo stack que los stores individuales. Familiar, escalable, con FTS nativo.</td>
+    </tr>
+    <tr>
+      <td><strong>Hub — API</strong></td>
+      <td>Next.js (App Router) o Hono</td>
+      <td>Mismo framework que la app actual. Endpoints /search, /sync, /stores, /me.</td>
+    </tr>
+    <tr>
+      <td><strong>Sincronización</strong></td>
+      <td>Supabase Database Webhooks + Edge Functions</td>
+      <td>Nativo en Supabase, sin infraestructura adicional. Alternativa: cron.</td>
+    </tr>
+    <tr>
+      <td><strong>App Móvil</strong></td>
+      <td>React Native + Expo</td>
+      <td>Un solo codebase para iOS y Android. Ecosistema maduro.</td>
+    </tr>
+    <tr>
+      <td><strong>Autenticación cliente</strong></td>
+      <td>JWT firmado por el hub (RUT como claim)</td>
+      <td>Sin contraseña. El RUT es el identificador universal.</td>
+    </tr>
+    <tr>
+      <td><strong>Búsqueda de productos</strong></td>
+      <td>Supabase Full Text Search → Algolia si escala</td>
+      <td>FTS nativo aguanta hasta ~500 tiendas sin infraestructura extra.</td>
+    </tr>
+    <tr>
+      <td><strong>Geolocalización</strong></td>
+      <td>expo-location + fórmula Haversine</td>
+      <td>Sin APIs de pago. Cálculo de distancia en el servidor con lat/lng.</td>
+    </tr>
+    <tr>
+      <td><strong>Notificaciones push</strong></td>
+      <td>Expo Push Notifications</td>
+      <td>Para alertas de stock (alimento por agotarse), integrable con consumo_alertas.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<!-- ── 9. RESILIENCIA ── -->
+<h1 class="section-title">9. ¿Qué pasa si una Tienda se Cae o Desconecta?</h1>
+
+<table>
+  <thead>
+    <tr><th>Escenario</th><th>Impacto en el Hub</th><th>Impacto en la App Móvil</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Tienda sin internet por 1 hora</td>
+      <td>catalog_index muestra el último snapshot conocido</td>
+      <td>El producto aparece con badge "info actualizada hace Xh"</td>
+    </tr>
+    <tr>
+      <td>Tienda cambia precio sin sync</td>
+      <td>Precio desactualizado hasta próxima sincronización</td>
+      <td>Precio puede diferir al llegar al local (aceptable)</td>
+    </tr>
+    <tr>
+      <td>Hub cae temporalmente</td>
+      <td>—</td>
+      <td>App móvil no funciona. Stores internos siguen operando normalmente.</td>
+    </tr>
+    <tr>
+      <td>Tienda se da de baja</td>
+      <td>Se marca como activo=false en stores</td>
+      <td>Desaparece de búsquedas automáticamente</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>El hub no es crítico para la operación interna de los stores</strong>
+  Si el hub cae, el POS de cada tienda sigue funcionando con normalidad.
+  Solo se ve afectada la app móvil de los clientes finales.
+</div>
+
+
+<!-- ── 10. ESCALABILIDAD ── -->
+<h1 class="section-title">10. Escalabilidad — ¿Cuándo Migrar?</h1>
+
+<table>
+  <thead>
+    <tr><th>Escenario</th><th>Solución actual (FTS Supabase)</th><th>Cuándo migrar</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1 – 50 tiendas</td>
+      <td>FTS nativo de Supabase</td>
+      <td>No es necesario migrar nada</td>
+    </tr>
+    <tr>
+      <td>50 – 500 tiendas</td>
+      <td>FTS + índices bien configurados</td>
+      <td>Monitorear tiempos de respuesta</td>
+    </tr>
+    <tr>
+      <td>500+ tiendas</td>
+      <td>Migrar catalog_index a Algolia o Typesense</td>
+      <td>El resto de la arquitectura no cambia</td>
+    </tr>
+    <tr>
+      <td>Miles de usuarios móviles simultáneos</td>
+      <td>Escalar el hub en Vercel/Railway</td>
+      <td>Solo el hub, los stores no se tocan</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="highlight">
+  <strong>La arquitectura está diseñada para escalar incrementalmente</strong>
+  Cada pieza puede ser reemplazada o mejorada de forma independiente.
+  Agregar una tienda nueva nunca requiere modificar el código del hub ni de otras tiendas.
+</div>
+
+
+<!-- ── PIE DE PÁGINA ── -->
+<div style="margin-top:60px; border-top: 1px solid #dce3ee; padding-top: 20px; color: #888; font-size: 11px; text-align: center;">
+  PetShop — Arquitectura Hub Central + App Móvil &nbsp;|&nbsp; Documento de diseño v1.0 &nbsp;|&nbsp; Marzo 2026<br/>
+  Generado como propuesta arquitectónica — sujeto a revisión técnica antes de implementación
+</div>
+
+</div><!-- /content -->
+</body>
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt — App Móvil PetShop Multi-Establecimiento</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; line-height: 1.65; }
+
+    /* PORTADA */
+    .cover {
+      min-height: 100vh; display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%);
+      color: #fff; text-align: center; padding: 60px 40px;
+      page-break-after: always;
+    }
+    .cover .icon { font-size: 64px; margin-bottom: 24px; }
+    .cover h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+    .cover h2 { font-size: 16px; font-weight: 400; color: #e9d5ff; margin-bottom: 12px; }
+    .cover .subtitle { font-size: 12px; color: #ddd6fe; margin-bottom: 40px; max-width: 600px; line-height: 1.6; }
+    .cover .meta { display: flex; gap: 48px; flex-wrap: wrap; justify-content: center;
+      border-top: 1px solid rgba(255,255,255,0.25); padding-top: 28px; }
+    .cover .meta-item .lbl { font-size: 10px; color: #e9d5ff; text-transform: uppercase; letter-spacing: 1px; }
+    .cover .meta-item .val { font-size: 14px; font-weight: 700; margin-top: 4px; }
+
+    /* CONTENIDO */
+    .content { max-width: 920px; margin: 0 auto; padding: 50px 50px 80px; }
+    h1.st { font-size: 20px; font-weight: 800; color: #7c3aed;
+      border-bottom: 3px solid #a855f7; padding-bottom: 8px; margin: 44px 0 18px; }
+    h2.sub { font-size: 14px; font-weight: 700; color: #4c1d95; margin: 24px 0 10px;
+      display: flex; align-items: center; gap: 8px; }
+    h2.sub::before { content: ''; display: inline-block; width: 4px; height: 16px;
+      background: #a855f7; border-radius: 2px; }
+    p { margin-bottom: 12px; color: #333; }
+
+    /* INTRO SKILLS */
+    .skill-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #f3e8ff; border: 1px solid #c084fc; border-radius: 20px;
+      padding: 6px 14px; font-size: 11px; font-weight: 600; color: #7c3aed;
+      margin: 4px 4px 4px 0;
+    }
+
+    /* PROMPT FINAL — el bloque copiable */
+    .prompt-container {
+      border: 2px solid #7c3aed; border-radius: 12px; overflow: hidden; margin: 20px 0;
+    }
+    .prompt-header {
+      background: #7c3aed; color: #fff; padding: 12px 20px;
+      font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;
+    }
+    .prompt-body {
+      background: #fafaf7; padding: 28px 28px; font-family: 'Courier New', monospace;
+      font-size: 11.5px; line-height: 1.75; white-space: pre-wrap; color: #1a1a2e;
+      max-height: none;
+    }
+
+    /* SECCIONES del proceso */
+    .process-step {
+      border: 1px solid #e9d5ff; border-radius: 10px;
+      margin: 16px 0; overflow: hidden;
+    }
+    .process-header {
+      background: #f3e8ff; padding: 12px 18px;
+      font-size: 13px; font-weight: 700; color: #7c3aed;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .process-num {
+      width: 26px; height: 26px; border-radius: 50%; background: #7c3aed;
+      color: #fff; font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .process-body { padding: 16px 18px; font-size: 12px; color: #333; }
+    .process-body pre {
+      background: #f0e6ff; border-radius: 6px; padding: 14px 16px;
+      font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.6;
+      white-space: pre-wrap; margin: 10px 0; border-left: 3px solid #a855f7;
+    }
+
+    /* TABLA */
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+    thead tr { background: #7c3aed; color: #fff; }
+    th { padding: 10px 14px; text-align: left; font-weight: 600; }
+    td { padding: 9px 14px; border-bottom: 1px solid #ede9fe; vertical-align: top; }
+    tr:nth-child(even) { background: #fdf4ff; }
+
+    /* NOTA */
+    .note { background: #fefce8; border-left: 4px solid #eab308; padding: 12px 16px;
+      border-radius: 6px; margin: 14px 0; font-size: 12px; color: #713f12; }
+    .ok { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px;
+      border-radius: 6px; margin: 14px 0; font-size: 12px; color: #14532d; }
+    .ok strong { display: block; margin-bottom: 3px; }
+
+    @media print {
+      .cover { min-height: auto; padding: 80px 40px; }
+      .prompt-body { font-size: 10.5px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="icon">✨</div>
+  <h1>Prompt — App Móvil PetShop</h1>
+  <h2>Multi-Establecimiento con Hub Central</h2>
+  <div class="subtitle">
+    Prompt de ingeniería experta generado mediante el pipeline de refinamiento iterativo
+    usando los skills <strong>enhance-prompt</strong> y <strong>prompt-enhancer</strong>.
+    Listo para usar con Claude, GPT-4o, Gemini o cualquier LLM de código.
+  </div>
+  <div class="meta">
+    <div class="meta-item"><div class="lbl">Versión</div><div class="val">3.0 — Refinado</div></div>
+    <div class="meta-item"><div class="lbl">Skills aplicados</div><div class="val">2 iteraciones</div></div>
+    <div class="meta-item"><div class="lbl">Fecha</div><div class="val">Marzo 2026</div></div>
+    <div class="meta-item"><div class="lbl">Target</div><div class="val">React Native + Expo</div></div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- CÓMO SE GENERÓ -->
+<h1 class="st">Proceso de Refinamiento Iterativo</h1>
+
+<p>El prompt final fue construido en <strong>3 capas de refinamiento</strong>, aplicando dos skills especializados de forma secuencial. Cada capa agrega una dimensión distinta de calidad:</p>
+
+<div class="process-step">
+  <div class="process-header"><div class="process-num">1</div> Capa Base — Contexto arquitectónico</div>
+  <div class="process-body">
+    <p>Descripción inicial del sistema: la arquitectura Hub + Stores + App Móvil, el contexto chileno, el stack tecnológico y los flujos principales.</p>
+    <div class="skill-badge">📝 Input raw del desarrollador</div>
+    <pre>React Native Expo mobile app para plataforma multi-store de mascotas en Chile.
+Cliente se identifica por RUT. Búsqueda federada entre N stores independientes,
+cada uno con su propio Supabase. Hub central en Next.js + Supabase.
+Resultados rankeados por historial + GPS + precio.</pre>
+  </div>
+</div>
+
+<div class="process-step">
+  <div class="process-header"><div class="process-num">2</div> Skill: enhance-prompt — Estructura visual y sistema de diseño</div>
+  <div class="process-body">
+    <p>El skill <strong>enhance-prompt</strong> añadió la dimensión de UX/UI: sistema de diseño con tokens específicos (colores, radios, tipografía), desglose de pantallas como secciones estructuradas, terminología precisa de componentes UI, y la paleta extraída de <code>globals.css</code> del proyecto web existente.</p>
+    <div class="skill-badge">🎨 enhance-prompt</div>
+    <p style="margin-top:8px;">Aportó: tokens de diseño, estructura de pantallas numerada, terminología componente-a-componente, coherencia visual con la web app.</p>
+  </div>
+</div>
+
+<div class="process-step">
+  <div class="process-header"><div class="process-num">3</div> Skill: prompt-enhancer — Framing de experto</div>
+  <div class="process-body">
+    <p>El skill <strong>prompt-enhancer</strong> transformó el prompt al registro que usaría un ingeniero senior: rol explícito, terminología de dominio precisa (federated search, CSPRNG, DV algorithm, fire-and-forget), restricciones explícitas, criterios de éxito medibles, y anticipación de fallos comunes.</p>
+    <div class="skill-badge">🧠 prompt-enhancer</div>
+    <p style="margin-top:8px;">Aportó: framing de rol experto, descomposición en componentes, constraints explícitos, success criteria, failure modes anticipados.</p>
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>Dimensión</th><th>Sin refinamiento</th><th>Con refinamiento</th></tr></thead>
+  <tbody>
+    <tr><td>Rol asignado</td><td>Ninguno</td><td>"Senior React Native engineer con experiencia en federated search"</td></tr>
+    <tr><td>Stack</td><td>"React Native"</td><td>"Expo SDK 52+, Expo Router, TanStack Query, Zustand, expo-secure-store"</td></tr>
+    <tr><td>Diseño</td><td>"limpio y moderno"</td><td>Tokens exactos: #FAFAF7 fondo, #F97316 acento, 12px border-radius</td></tr>
+    <tr><td>Autenticación</td><td>"login con RUT"</td><td>Validación DV con algoritmo módulo 11, JWT en SecureStore, refresh 30 días</td></tr>
+    <tr><td>Restricciones</td><td>Sin restricciones</td><td>No checkout, no chat, no comunicación directa con stores, precios en CLP</td></tr>
+    <tr><td>Éxito</td><td>Implícito</td><td>Búsqueda &lt; 2s en 4G, offline para contenido cacheado, ranking perceptible</td></tr>
+  </tbody>
+</table>
+
+
+<!-- EL PROMPT FINAL -->
+<h1 class="st">Prompt Final — Listo para Copiar y Usar</h1>
+
+<div class="note">
+  Copia el contenido del bloque a continuación íntegramente. Puedes usarlo directamente con Claude Code, Claude.ai, o cualquier IDE con asistente IA. Si necesitas ajustar el nombre de la app, busca el placeholder <strong>[NOMBRE_APP]</strong> y reemplázalo.
+</div>
+
+<div class="prompt-container">
+  <div class="prompt-header">
+    <span>🚀 PROMPT — App Móvil PetShop Multi-Establecimiento</span>
+    <span style="font-weight:400; opacity:0.8;">Copiar todo el contenido de abajo</span>
+  </div>
+  <div class="prompt-body">Eres un senior React Native engineer con experiencia en arquitecturas de búsqueda federada, aplicaciones de comercio móvil y el ecosistema Expo. Construye una aplicación producción-ready para iOS y Android llamada [NOMBRE_APP].
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONTEXTO ARQUITECTÓNICO (leer antes de escribir código)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+La app opera sobre una arquitectura de Hub Central + N Stores independientes:
+
+- CENTRAL HUB: API en Next.js + Supabase que agrega datos de todos los stores.
+  Expone los endpoints que la app móvil consume.
+  URL configurada en EXPO_PUBLIC_HUB_URL.
+
+- STORES INDIVIDUALES: Cada petshop tiene su propio Supabase independiente.
+  Sincronizan su catálogo al hub periódicamente (webhook o cron).
+  LA APP MÓVIL NUNCA SE COMUNICA DIRECTAMENTE CON LOS STORES.
+
+- CLIENTES: Identificados por RUT chileno (XX.XXX.XXX-X).
+  Un RUT = un perfil en el hub, sin importar cuántos stores haya visitado.
+  El historial cross-store alimenta el ranking personalizado de resultados.
+
+Endpoints del Hub que la app consume:
+  POST /api/auth/rut          → autenticación, devuelve JWT
+  GET  /api/search            → búsqueda federada rankeada
+  GET  /api/stores            → listado de establecimientos activos
+  GET  /api/stores/:id        → detalle de un store
+  GET  /api/me                → perfil + historial del cliente autenticado
+  GET  /api/me/pets           → mascotas del cliente con alertas de consumo
+  POST /api/me/push-token     → registrar Expo push token
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STACK TECNOLÓGICO (usar exactamente estos, sin alternativas)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Framework:        Expo SDK 52+, TypeScript estricto
+Navegación:       Expo Router v3 (file-based routing)
+Estado global:    Zustand (sesión del cliente, favoritos)
+Estado servidor:  TanStack Query v5 (cache, refetch, offline)
+Autenticación:    JWT almacenado en expo-secure-store
+Mapas:            react-native-maps
+Ubicación:        expo-location (permisos en foreground)
+Notificaciones:   expo-notifications (push + local)
+Persistencia:     @react-native-async-storage/async-storage
+Iconos:           @expo/vector-icons (Ionicons)
+HTTP:             fetch nativo con interceptor de auth
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SISTEMA DE DISEÑO (aplicar en TODOS los componentes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Plataforma:       React Native, mobile-first, iOS + Android
+Tema:             Claro, cálido, pet-friendly
+Personalidad:     Amigable pero profesional, sin infantilismo
+
+Paleta de colores:
+  Background:     #FAFAF7   ← blanco cálido (fondo de pantallas)
+  Surface:        #FFFFFF   ← blanco puro (tarjetas, modales)
+  Primary:        #F97316   ← ámbar cálido (CTAs, estados activos, highlights)
+  Primary Light:  #FED7AA   ← ámbar claro (backgrounds de badges primary)
+  Secondary:      #0D9488   ← teal (acciones secundarias, info badges)
+  Text Primary:   #1C1C1E   ← casi negro (headings, contenido principal)
+  Text Secondary: #6B7280   ← gris medio (subtítulos, metadata)
+  Text Disabled:  #D1D5DB   ← gris claro
+  Border:         #E5E7EB   ← gris borde de inputs y cards
+  Success:        #16A34A   ← verde (stock disponible, confirmaciones)
+  Danger:         #DC2626   ← rojo (stock bajo, errores)
+  Warning:        #D97706   ← ámbar oscuro (alertas, stock por agotarse)
+
+Tipografía:
+  Heading XL:     weight 800, size 28, lineHeight 34
+  Heading L:      weight 700, size 22, lineHeight 28
+  Heading M:      weight 700, size 17, lineHeight 24
+  Body:           weight 400, size 14, lineHeight 20
+  Caption:        weight 400, size 12, lineHeight 16
+  Label:          weight 600, size 12, lineHeight 16
+
+Espaciado (múltiplos de 4):
+  xs: 4  |  sm: 8  |  md: 16  |  lg: 24  |  xl: 32  |  xxl: 48
+
+Border radius:
+  Pequeño (chips, tags):  8px
+  Medio (inputs, items):  12px
+  Grande (cards):         16px
+  Pill (botones CTA):     28px
+
+Sombras (Shadow tokens):
+  Card:    elevation: 2, shadowColor: '#000', shadowOpacity: 0.06
+  Modal:   elevation: 8, shadowColor: '#000', shadowOpacity: 0.15
+
+Componentes base que DEBEN definirse en /components/ui/:
+  Button (variants: primary, secondary, ghost, danger)
+  Input (con label, error state, icon left/right)
+  Card (con press state, opcional badge)
+  Badge (variants: success, warning, danger, info, neutral)
+  Avatar (para mascotas y stores, con fallback initials)
+  SkeletonLoader (para estados de carga)
+  EmptyState (con ilustración, título, subtítulo, CTA opcional)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESTRUCTURA DE NAVEGACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+app/
+├── _layout.tsx                 ← Root: providers (Query, Zustand, theme)
+├── (auth)/
+│   ├── _layout.tsx
+│   └── rut.tsx                 ← Autenticación por RUT
+├── (tabs)/
+│   ├── _layout.tsx             ← Bottom tabs: Inicio | Buscar | Mascotas | Mapa | Perfil
+│   ├── index.tsx               ← Home / Discovery
+│   ├── search.tsx              ← Búsqueda federada
+│   ├── pets.tsx                ← Mis mascotas
+│   ├── map.tsx                 ← Mapa de tiendas
+│   └── profile.tsx             ← Perfil del cliente
+├── store/
+│   └── [id].tsx                ← Detalle de tienda
+└── product/
+    └── [id].tsx                ← Detalle de producto
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PANTALLAS — ESPECIFICACIÓN COMPLETA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── PANTALLA 1: Autenticación por RUT ─────────────────
+
+Propósito: Identificar al cliente y recuperar su perfil cross-store.
+
+Secciones:
+1. Header: Logo de la app centrado + tagline "Encuentra lo mejor para tu mascota"
+2. Cuerpo: Card centrado con:
+   - Input de RUT con formato automático XX.XXX.XXX-X mientras el usuario escribe
+   - Validación del dígito verificador (algoritmo módulo 11) en tiempo real
+   - Indicador visual: ✓ verde cuando el RUT es válido, ✗ rojo cuando es inválido
+   - Campos opcionales que aparecen solo si el RUT no existe en el hub:
+     * Nombre completo
+     * Email
+     * Checkbox de consentimiento para notificaciones push
+3. Botón CTA "Continuar" (primary, pill, full-width) — disabled mientras RUT inválido
+4. Footer: texto "Tu información está protegida y solo se usa para mostrarte
+   establecimientos y productos relevantes para ti."
+
+Lógica:
+- Al presionar Continuar: POST /api/auth/rut
+- Si el usuario ya existe: devuelve JWT + perfil completo → navegar a Home
+- Si es usuario nuevo: devuelve JWT + objeto vacío → completar perfil en Home
+- Guardar JWT en SecureStore con clave "auth_token"
+- Guardar customer_id en Zustand store
+
+── PANTALLA 2: Home / Discovery ──────────────────────
+
+Propósito: Panel personalizado que conecta al cliente con sus stores y mascotas.
+
+Secciones:
+1. Header sticky:
+   - Saludo: "Hola, {nombre}" o "Hola 👋" si no hay nombre
+   - Subtítulo con día de la semana en español
+   - Avatar del cliente (iniciales) a la derecha
+
+2. SearchBar prominente (no es decorativa — debe ser funcional):
+   - Placeholder: "Buscar alimento, accesorio, marca..."
+   - Al tocar: navegar a /search con foco en el input
+   - Ícono de búsqueda a la izquierda
+
+3. Sección "Tus mascotas" (solo si tiene mascotas registradas):
+   - Carrusel horizontal de Avatar cards con nombre y especie
+   - Tap en una mascota → filtrar búsqueda por productos de esa mascota
+   - Card "+" al final para agregar mascota nueva
+
+4. Sección "⚠️ Revisa el alimento de":
+   - Solo visible si hay alertas de consumo próximas (< 10 días)
+   - Cards horizontales: foto mascota + nombre producto + días restantes
+   - Badge de urgencia: rojo si ≤ 3 días, ámbar si ≤ 7 días
+   - CTA "Buscar este alimento" → ir a Search con query precargada
+
+5. Sección "Tus tiendas habituales":
+   - Solo visible si el cliente tiene historial de compras
+   - Cards de store con nombre, distancia, últimas compras
+   - Tap → navegar a store detail
+
+6. Sección "Tiendas cerca de ti":
+   - Requiere permiso de ubicación (pedir de forma contextual, nunca modal bloqueante)
+   - Lista de stores ordenados por distancia
+   - Mostrar solo si ubicación está disponible
+
+Pull-to-refresh: refresca toda la pantalla.
+
+── PANTALLA 3: Búsqueda Federada ─────────────────────
+
+Propósito: Encontrar un producto en todos los establecimientos activos.
+
+Secciones:
+1. Header:
+   - Input de búsqueda con foco automático al entrar a la pantalla
+   - Botón "Cancelar" a la derecha (vuelve a Home)
+
+2. Filtros horizontales (scrollable):
+   - Chips seleccionables: "Cerca de mí" | "Menor precio" | "En stock" | "Mis tiendas"
+   - Botón "Filtros" → bottom sheet con:
+     * Marca (selección múltiple desde lista de marcas disponibles)
+     * Precio: slider de rango (mín - máx en CLP)
+     * Distancia: 2km / 5km / 10km / Sin límite
+
+3. Resultados (FlatList con renderizado virtualizado):
+   - Cada resultado muestra:
+     * Imagen del producto (con placeholder 🐾 si no hay imagen)
+     * Nombre del producto
+     * Marca (en color texto secundario)
+     * Precio formateado en CLP: $XX.XXX (sin decimales)
+     * Nombre de la tienda
+     * Distancia en km (1 decimal)
+     * Badge de stock: "Disponible" (verde) / "Últimas X unidades" (ámbar) / "Sin stock" (rojo)
+     * Badge destacado "⭐ Tu tienda habitual" si el cliente compró allí antes
+
+4. Estado vacío: si no hay resultados, EmptyState con sugerencias de búsquedas populares.
+
+5. Estado cargando: SkeletonLoader de 4 cards.
+
+Comportamiento de ranking (calculado en el servidor, la app solo muestra):
+  Orden 1: Tiendas donde el cliente tiene historial de compras (más compras = antes)
+  Orden 2: Entre tiendas sin historial o con el mismo historial → por distancia GPS
+  Orden 3: Desempate final → menor precio
+
+── PANTALLA 4: Detalle de Tienda ─────────────────────
+
+Secciones:
+1. Header con imagen/foto de la tienda (o placeholder con inicial del nombre)
+2. Información básica: nombre, dirección, distancia actual, teléfono
+3. Mini-mapa estático que muestra la ubicación del store
+4. Botón "Cómo llegar" → abre app de mapas nativa
+5. Si el cliente tiene historial aquí:
+   - Card de resumen: "Compraste aquí X veces · $XX.XXX en total"
+6. Lista de productos disponibles en este store (filtrable por categoría/marca)
+
+── PANTALLA 5: Mis Mascotas ──────────────────────────
+
+Secciones:
+1. Lista de mascotas del cliente (datos vienen del hub vía GET /api/me/pets)
+2. Por cada mascota:
+   - Avatar (foto o emoji según especie: 🐶 🐱 🐰)
+   - Nombre, especie, raza, edad
+   - Sub-lista de alimentos vinculados:
+     * Nombre del producto
+     * Porción diaria configurada (gramos/día)
+     * Días estimados de alimento restante (barra de progreso)
+     * Badge de urgencia si está por agotarse
+     * Botón "Buscar este alimento" → navega a Search con query
+3. Botón flotante "+" para agregar mascota
+
+── PANTALLA 6: Mapa de Tiendas ───────────────────────
+
+Secciones:
+1. Mapa fullscreen (react-native-maps) con:
+   - Pin del usuario (azul)
+   - Pins de todos los stores activos (ámbar para stores con historial, gris para el resto)
+2. Al tocar un pin → card preview aparece desde abajo con nombre, distancia y CTA
+3. Botón "Ver lista" → cambia a vista de lista ordenada por distancia
+4. Filtro de radio: selector de distancia máxima
+
+── PANTALLA 7: Perfil del Cliente ────────────────────
+
+Secciones:
+1. Header: Avatar (iniciales o foto), nombre, RUT (últimos 4 dígitos visible: **.***.**X-X)
+2. Resumen de actividad:
+   - Total de tiendas visitadas
+   - Total gastado (suma cross-store)
+   - Mascota con más registros
+3. Historial de compras: timeline cronológico con store, fecha y monto
+4. Lealtad por tienda: lista con total compras y monto por cada store
+5. Configuración de notificaciones (toggles por tipo)
+6. Botón "Cerrar sesión" (borra JWT de SecureStore, limpia Zustand)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GESTIÓN DE ESTADO Y API CLIENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Crear /lib/api.ts con un cliente HTTP centralizado:
+- Lee el JWT de SecureStore automáticamente en cada request
+- Añade el header Authorization: Bearer {token}
+- Retry automático: 3 intentos con backoff exponencial en errores 5xx
+- En error 401: limpiar sesión y redirigir a pantalla de autenticación
+- Todos los errores de red se exponen como objetos tipados, nunca strings
+
+Crear /store/auth.ts con Zustand:
+  Estado: { customerId, rut, nombre, token, isAuthenticated }
+  Acciones: setSession(), clearSession(), updateProfile()
+
+Crear /store/cache.ts con Zustand + AsyncStorage:
+  Persistir: últimas búsquedas, stores favoritos, mascotas
+  TTL: 24 horas para búsquedas, sin TTL para mascotas y stores favoritos
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPORTAMIENTO OFFLINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Detectar conectividad con NetInfo
+- Si offline:
+  * Mostrar banner persistente en la parte superior: "Sin conexión — mostrando datos guardados"
+  * Servir datos desde AsyncStorage (TanStack Query con staleTime: Infinity)
+  * Deshabilitar acciones que requieren conexión (search, refresh)
+  * Mascotas y tiendas favoritas siempre disponibles offline
+- Al recuperar conexión: invalidar queries automáticamente y refrescar
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATO DE DATOS ESPECÍFICOS DE CHILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RUT:
+  - Formato de display: XX.XXX.XXX-X (con puntos y guión)
+  - Formato de storage: sin puntos, con guión: XXXXXXXX-X
+  - Validación: algoritmo módulo 11 (dígito verificador puede ser 0-9 o K)
+  - Enmascarado en perfil: **.***.**X-X (solo mostrar últimos caracteres)
+
+Precio (CLP):
+  - Sin decimales
+  - Separador de miles: punto (.) → $25.000
+  - Nunca mostrar $25000 ni $25,000
+  - Función helper: formatCLP(25000) → "$25.000"
+
+Distancia:
+  - < 1 km: mostrar en metros → "850 m"
+  - ≥ 1 km: mostrar con 1 decimal → "3.2 km"
+
+Fechas:
+  - Formato: "dd MMM yyyy" en español → "30 mar 2026"
+  - En timelines: "hace 2 días", "hace 1 semana"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESTRICCIONES EXPLÍCITAS — NO IMPLEMENTAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ No implementar checkout ni proceso de pago — la app es de discovery y fidelización
+❌ No implementar chat ni mensajería entre cliente y tienda
+❌ No comunicarse directamente con los Supabase de los stores individuales
+❌ No mostrar precios con decimales (CLP no usa centavos)
+❌ No usar el stack de autenticación Clerk — la auth es propia del hub via JWT
+❌ No asumir que el cliente tiene ubicación — todos los features de GPS son opcionales
+❌ No mostrar inventario interno del store (cantidades exactas en bodega)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITERIOS DE ÉXITO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+La implementación es correcta cuando:
+  ✓ La búsqueda devuelve resultados en < 2 segundos en conexión 4G
+  ✓ Un usuario con historial ve primero sus tiendas habituales, visiblemente diferenciadas
+  ✓ El app funciona en modo offline mostrando los últimos datos cacheados
+  ✓ El RUT inválido (DV incorrecto) es rechazado antes de hacer ningún request al servidor
+  ✓ Los precios siempre muestran el formato CLP correcto ($XX.XXX)
+  ✓ Las alertas de consumo de mascotas aparecen con urgencia visual correcta
+  ✓ El mapa carga los stores activos y permite navegar a cada uno
+  ✓ Al cerrar sesión, ningún dato del cliente queda en memoria ni en storage
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENTREGABLES ESPERADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Implementar en este orden (de más a menos crítico):
+  1. Sistema de diseño completo (/components/ui/ + /constants/theme.ts)
+  2. API client con auth (/lib/api.ts) y stores de Zustand
+  3. Pantalla de autenticación por RUT
+  4. Pantalla de búsqueda + resultados (el flujo más crítico)
+  5. Pantalla Home con personalización
+  6. Pantalla de mascotas con alertas
+  7. Pantalla de mapa
+  8. Pantalla de perfil + historial
+  9. Comportamiento offline
+  10. Push notifications
+
+Para cada pantalla entregar: el componente React Native, los tipos TypeScript
+correspondientes, y el hook de TanStack Query que gestiona los datos.
+No usar any. No usar estilos inline fuera de StyleSheet.create().
+</div>
+</div>
+
+<div class="ok">
+  <strong>Cómo usar este prompt</strong>
+  Pega el contenido del bloque anterior en tu sesión de Claude Code, Claude.ai, o el asistente de tu IDE.
+  El prompt está diseñado para ser usado como instrucción completa al inicio de un proyecto nuevo.
+  Si necesitas trabajar pantalla por pantalla, puedes extraer la sección "PANTALLA N" individualmente.
+</div>
+
+
+<!-- GUÍA DE USO -->
+<h1 class="st">Guía de Uso por Escenario</h1>
+
+<table>
+  <thead><tr><th>Escenario</th><th>Qué usar</th><th>Cómo</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Iniciar el proyecto desde cero</td>
+      <td>Prompt completo</td>
+      <td>Pegar íntegramente al inicio de la sesión. Pedir primero el sistema de diseño y la estructura de navegación.</td>
+    </tr>
+    <tr>
+      <td>Implementar solo la búsqueda</td>
+      <td>Secciones: Stack + Diseño + Pantalla 3 + API Client + Criterios</td>
+      <td>Extraer esas secciones y pegar como contexto.</td>
+    </tr>
+    <tr>
+      <td>Implementar solo las mascotas</td>
+      <td>Secciones: Stack + Diseño + Pantalla 5 + Formato Chile</td>
+      <td>Igual que arriba.</td>
+    </tr>
+    <tr>
+      <td>Revisar código existente</td>
+      <td>Secciones: Sistema de diseño + Restricciones + Criterios de éxito</td>
+      <td>Usar como checklist de revisión junto con el código generado.</td>
+    </tr>
+    <tr>
+      <td>Generar mocks/wireframes</td>
+      <td>Solo las secciones "PANTALLA N"</td>
+      <td>Pasar a Figma AI, v0.dev, o similar con cada pantalla por separado.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="margin-top:60px; border-top: 1px solid #ede9fe; padding-top: 20px;
+  color: #888; font-size: 11px; text-align: center;">
+  PetShop Multi-Establecimiento — Prompt App Móvil v3.0 · Generado con enhance-prompt + prompt-enhancer · Marzo 2026
+</div>
+
+</div>
+</body>
+</html>
