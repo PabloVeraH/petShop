@@ -310,17 +310,17 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-101 | Alertas pendientes → envía y marca enviado=true | 200 | — |
-| I-102 | Sin alertas pendientes | 200 | `{ enviados: 0 }` |
-| I-103 | Teléfono inválido → no envía pero continúa | 200 | No rompe el loop |
+| I-101 | Alertas pendientes → envía y marca enviado=true | 200 | — | ✅ |
+| I-102 | Sin alertas pendientes | 200 | `{ enviados: 0 }` | ✅ |
+| I-103 | Teléfono inválido → no envía pero continúa | 200 | No rompe el loop | ✅ |
 
 ### 5.28 Clerk Webhook
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-104 | Firma Svix inválida | 400 | — |
-| I-105 | `user.created` → upsert en clerk_users | 200 | — |
-| I-106 | `user.deleted` → elimina de clerk_users | 200 | — |
+| I-104 | Firma Svix inválida | 400 | — | ✅ |
+| I-105 | `user.created` → upsert en clerk_users | 200 | — | ✅ |
+| I-106 | `user.deleted` → elimina de clerk_users | 200 | — | ✅ |
 
 ---
 
