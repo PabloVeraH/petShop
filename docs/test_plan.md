@@ -93,13 +93,13 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ### 5.3 Clientes — `POST /api/clientes`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-07 | RUT inválido | 400 | `{ error: "RUT inválido" }` |
-| I-08 | Nombre < 3 chars | 400 | — |
-| I-09 | RUT duplicado en mismo store | 409 | — |
-| I-10 | Datos válidos | 201 | Devuelve cliente creado |
-| I-11 | POST válido crea registro en `fidelizacion` | 201 | fidelizacion.insert llamado |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-07 | RUT inválido | 400 | `{ error: "RUT inválido" }` | ✅ |
+| I-08 | Nombre < 3 chars | 400 | — | ✅ |
+| I-09 | RUT duplicado en mismo store | 409 | — | ✅ |
+| I-10 | Datos válidos | 201 | Devuelve cliente creado | ✅ |
+| I-11 | POST válido crea registro en `fidelizacion` | 201 | fidelizacion.insert llamado | ✅ |
 
 ### 5.4 Clientes — `GET /api/clientes/[id]`
 
@@ -165,21 +165,21 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ### 5.12 Ventas — `POST /api/ventas`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-34 | Sin items | 400 | — |
-| I-35 | metodoPago inválido | 400 | — |
-| I-36 | descuentoPct fuera de [0,100] | 400 | — |
-| I-37 | cantidad no entero positivo | 400 | — |
-| I-38 | Producto de otro store en items | 400 | Validación ownership |
-| I-39 | Precio tomado de DB (no del body) | 201 | precioMap correcto |
-| I-40 | Venta exitosa decrementa stock | 201 | `decrement_stock` RPC llamado |
-| I-41 | Venta exitosa crea `venta_items` | 201 | Filas en venta_items |
-| I-42 | Venta con cliente actualiza fidelización | 201 | fidelizacion.upsert llamado |
-| I-43 | Venta con cliente + RUT llama `syncPurchaseToHub` | 201 | hub-sync invocado |
-| I-44 | WhatsApp deshabilitado → no envía mensaje | 201 | sendWhatsAppText no llamado |
-| I-45 | WhatsApp habilitado + teléfono válido → envía | 201 | sendWhatsAppText llamado |
-| I-46 | Mascota con consumo_config → crea consumo_alerta | 201 | consumo_alertas.upsert llamado |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-34 | Sin items | 400 | — | ✅ |
+| I-35 | metodoPago inválido | 400 | — | ✅ |
+| I-36 | descuentoPct fuera de [0,100] | 400 | — | ✅ |
+| I-37 | cantidad no entero positivo | 400 | — | ✅ |
+| I-38 | Producto de otro store en items | 400 | Validación ownership | ✅ |
+| I-39 | Precio tomado de DB (no del body) | 200 | precioMap correcto | ✅ |
+| I-40 | Venta exitosa decrementa stock | 200 | `decrement_stock` RPC llamado | ✅ |
+| I-41 | Venta exitosa crea `venta_items` | 200 | Filas en venta_items | ✅ |
+| I-42 | Venta con cliente actualiza fidelización | 200 | fidelizacion.upsert llamado | ✅ |
+| I-43 | Venta con cliente + RUT llama `syncPurchaseToHub` | 200 | hub-sync invocado | ✅ |
+| I-44 | WhatsApp deshabilitado → no envía mensaje | 200 | sendWhatsAppText no llamado | ✅ |
+| I-45 | WhatsApp habilitado + teléfono válido → envía | 200 | sendWhatsAppText llamado | ✅ |
+| I-46 | Mascota con consumo_config → crea consumo_alerta | 200 | consumo_alertas.upsert llamado | — |
 
 ### 5.13 Ventas — `PATCH /api/ventas/[id]` (anulación)
 
