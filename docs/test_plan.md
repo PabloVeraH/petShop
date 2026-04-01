@@ -117,36 +117,36 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ### 5.6 Productos — `GET /api/productos`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-16 | Lista productos activos con stock | 200 | Solo activo=true, stock>0 |
-| I-17 | `?search=royal` filtra | 200 | — |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-16 | Lista productos activos con stock | 200 | Solo activo=true, stock>0 | ✅ |
+| I-17 | `?search=royal` filtra | 200 | — | ✅ |
 
 ### 5.7 Productos — `POST /api/productos`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-18 | Nombre faltante | 400 | — |
-| I-19 | SKU duplicado | 409 | — |
-| I-20 | Precio ≤ 0 | 400 | — |
-| I-21 | Datos válidos | 201 | SKU en mayúsculas |
-| I-22 | POST válido llama `syncProductsToHub` | 201 | hub-sync invocado |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-18 | Nombre faltante | 400 | — | ✅ |
+| I-19 | SKU duplicado | 409 | — | ✅ |
+| I-20 | Precio ≤ 0 | 400 | — | ✅ |
+| I-21 | Datos válidos | 201 | SKU en mayúsculas | ✅ |
+| I-22 | POST válido llama `syncProductsToHub` | 201 | hub-sync invocado | ✅ |
 
 ### 5.8 Productos — `PATCH /api/productos/[id]`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-23 | Nombre vacío | 400 | — |
-| I-24 | Producto de otro store | 404/0 rows | Aislamiento |
-| I-25 | Precio válido actualizado | 200 | Llama hub-sync |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-23 | Nombre vacío | 400 | — | ✅ |
+| I-24 | Producto de otro store | 404/0 rows | Aislamiento | ✅ |
+| I-25 | Precio válido actualizado | 200 | Llama hub-sync | ✅ |
 
 ### 5.9 Productos — `DELETE /api/productos/[id]`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-26 | Soft delete → activo=false | 204 | No elimina fila |
-| I-27 | Producto de otro store → no afecta | 204 | stock_movements intacto |
-| I-28 | Llama `syncProductsToHub` con activo=false | 204 | Hub actualizado |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-26 | Soft delete → activo=false | 204 | No elimina fila | ✅ |
+| I-27 | Producto de otro store → no afecta | 204 | stock_movements intacto | — |
+| I-28 | Llama `syncProductsToHub` con activo=false | 204 | Hub actualizado | ✅ |
 
 ### 5.10 Mascotas — `GET /api/mascotas`
 
@@ -191,15 +191,15 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ### 5.14 Inventario — `PATCH /api/inventario/[id]`
 
-| # | Caso | Status | Notas |
-|---|------|--------|-------|
-| I-50 | tipo inválido | 400 | Solo "entrada"/"salida" |
-| I-51 | cantidad no entero positivo | 400 | — |
-| I-52 | Producto de otro store | 404 | Aislamiento |
-| I-53 | Entrada aumenta stock correctamente | 200 | nuevoStock = actual + cantidad |
-| I-54 | Salida no baja de 0 (Math.max) | 200 | stock >= 0 |
-| I-55 | Ajuste crea `stock_movements` | 200 | insert llamado |
-| I-56 | Ajuste llama `syncProductsToHub` | 200 | hub-sync invocado |
+| # | Caso | Status | Notas | Estado |
+|---|------|--------|-------|--------|
+| I-50 | tipo inválido | 400 | Solo "entrada"/"salida" | ✅ |
+| I-51 | cantidad no entero positivo | 400 | — | ✅ |
+| I-52 | Producto de otro store | 404 | Aislamiento | ✅ |
+| I-53 | Entrada aumenta stock correctamente | 200 | nuevoStock = actual + cantidad | ✅ |
+| I-54 | Salida no baja de 0 (Math.max) | 200 | stock >= 0 | ✅ |
+| I-55 | Ajuste crea `stock_movements` | 200 | insert llamado | ✅ |
+| I-56 | Ajuste llama `syncProductsToHub` | 200 | hub-sync invocado | ✅ |
 
 ### 5.15 Consumo-Configs
 
@@ -340,13 +340,13 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ## 7. Pruebas de integración hub-sync
 
-| # | Caso | Resultado esperado |
-|---|------|--------------------|
-| H-01 | `POST /api/productos` → hub recibe producto en catalog | catalog_index del hub actualizado |
-| H-02 | `PATCH /api/inventario/[id]` → hub refleja nuevo stock | stock en hub actualizado |
-| H-03 | `DELETE /api/productos/[id]` → hub marca activo=false | producto inactivo en hub |
-| H-04 | `POST /api/ventas` con cliente con RUT → hub registra compra | customer_store_history incrementado |
-| H-05 | Hub inaccesible (HUB_URL caído) → venta igual se crea | No falla la venta, solo log de error |
+| # | Caso | Resultado esperado | Estado |
+|---|------|--------------------|--------|
+| H-01 | `POST /api/productos` → hub recibe producto en catalog | catalog_index del hub actualizado | ✅ |
+| H-02 | `PATCH /api/inventario/[id]` → hub refleja nuevo stock | stock en hub actualizado | ✅ |
+| H-03 | `DELETE /api/productos/[id]` → hub marca activo=false | producto inactivo en hub | ✅ |
+| H-04 | `POST /api/ventas` con cliente con RUT → hub registra compra | customer_store_history incrementado | ✅ |
+| H-05 | Hub inaccesible (HUB_URL caído) → venta igual se crea | No falla la venta, solo log de error | ✅ |
 
 ---
 
