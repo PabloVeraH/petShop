@@ -268,33 +268,33 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-84 | estado inválido | 400 | Enum validado |
-| I-85 | Cuenta de otro store | 404 | Aislamiento |
-| I-86 | Estado válido actualizado | 200 | — |
+| I-84 | estado inválido | 400 | Enum validado | ✅ |
+| I-85 | Cuenta de otro store | 404 | Aislamiento | ✅ |
+| I-86 | Estado válido actualizado | 200 | — | ✅ |
 
 ### 5.23 Settings
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-87 | GET enmascara `whatsapp_access_token` | 200 | Token no visible en respuesta |
-| I-88 | PATCH con campo no permitido ignorado | 200 | Mass assignment prevenido |
-| I-89 | PATCH placeholder de token no actualiza DB | 200 | Token anterior preservado |
+| I-87 | GET enmascara `whatsapp_access_token` | 200 | Token no visible en respuesta | ✅ |
+| I-88 | PATCH con campo no permitido ignorado | 200 | Mass assignment prevenido | ✅ |
+| I-89 | PATCH placeholder de token no actualiza DB | 200 | Token anterior preservado | ✅ |
 
 ### 5.24 Onboarding — `POST /api/onboarding/complete`
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-90 | Usuario ya tiene store → error | 400 | Previene múltiples stores |
-| I-91 | Primera vez → crea store y actualiza Clerk | 200 | — |
+| I-90 | Usuario ya tiene store → error | 409 | Previene múltiples stores | ✅ |
+| I-91 | Primera vez → crea store y actualiza Clerk | 200 | — | ✅ |
 
 ### 5.25 Admin
 
 | # | Caso | Status | Notas |
 |---|------|--------|-------|
-| I-92 | `GET /api/admin/stores` sin rol systemAdmin | 403 | — |
-| I-93 | `GET /api/admin/stores` con systemAdmin | 200 | Lista todas las stores |
-| I-94 | `POST /api/admin/users` con rol inválido | 400 | Solo storeAdmin/storeWorker |
-| I-95 | `POST /api/admin/users` asigna correctamente | 200 | Clerk metadata actualizado |
+| I-92 | `GET /api/admin/stores` sin rol systemAdmin | 403 | — | ✅ |
+| I-93 | `GET /api/admin/stores` con systemAdmin | 200 | Lista todas las stores | ✅ |
+| I-94 | `POST /api/admin/users` con rol inválido | 400 | Solo storeAdmin/storeWorker | ✅ |
+| I-95 | `POST /api/admin/users` asigna correctamente | 200 | Clerk metadata actualizado | ✅ |
 
 ### 5.26 WhatsApp Webhook
 
