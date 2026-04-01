@@ -52,22 +52,22 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 
 ### 4.2 `lib/whatsapp.ts`
 
-| # | Caso | Resultado esperado |
-|---|------|--------------------|
-| U-10 | `normalizeChileanPhone("9 1234 5678")` | `"56912345678"` |
-| U-11 | `normalizeChileanPhone("+56912345678")` | `"56912345678"` |
-| U-12 | `normalizeChileanPhone("12345")` | `null` (formato inválido) |
-| U-13 | `buildReceiptMessage(...)` contiene número de comprobante | string incluye comprobante |
-| U-14 | `buildConsumoAlertMessage(...)` contiene nombre producto | string incluye producto |
+| # | Caso | Resultado esperado | Estado |
+|---|------|--------------------|--------|
+| U-10 | `normalizeChileanPhone("9 1234 5678")` | `"56912345678"` | ✅ |
+| U-11 | `normalizeChileanPhone("+56912345678")` | `"56912345678"` | ✅ |
+| U-12 | `normalizeChileanPhone("12345")` | `null` (formato inválido) | ✅ |
+| U-13 | `buildReceiptMessage(...)` contiene número de comprobante | string incluye comprobante | ✅ |
+| U-14 | `buildConsumoAlertMessage(...)` contiene nombre producto | string incluye producto | ✅ |
 
 ### 4.3 `lib/hub-sync.ts`
 
-| # | Caso | Resultado esperado |
-|---|------|--------------------|
-| U-15 | Sin `HUB_URL` configurado → `syncProductsToHub` no hace fetch | `fetch` no llamado |
-| U-16 | Con `HUB_URL` → `syncProductsToHub` hace POST a `/api/sync/catalog` | fetch llamado con URL correcta |
-| U-17 | Error de red en fetch → no lanza excepción (fire-and-forget) | no throw |
-| U-18 | `syncPurchaseToHub` envía RUT y monto correctos en body | body JSON correcto |
+| # | Caso | Resultado esperado | Estado |
+|---|------|--------------------|--------|
+| U-15 | Sin `HUB_URL` configurado → `syncProductsToHub` no hace fetch | `fetch` no llamado | ✅ |
+| U-16 | Con `HUB_URL` → `syncProductsToHub` hace POST a `/api/sync/catalog` | fetch llamado con URL correcta | ✅ |
+| U-17 | Error de red en fetch → no lanza excepción (fire-and-forget) | no throw | ✅ |
+| U-18 | `syncPurchaseToHub` envía RUT y monto correctos en body | body JSON correcto | ✅ |
 
 ---
 
