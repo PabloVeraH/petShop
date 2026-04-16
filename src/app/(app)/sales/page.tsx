@@ -36,6 +36,7 @@ type VentaRow = {
   metodo_pago: string | null;
   estado: string;
   created_at: string;
+  numero_comprobante: string | null;
   clientes: { nombre: string } | null;
 };
 
@@ -88,10 +89,10 @@ export default function SalesPage() {
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 items-end">
         <Input
-          placeholder="Buscar por cliente..."
+          placeholder="Buscar por cliente o nº de venta..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
-          className="w-48"
+          className="w-56"
         />
         <select
           value={metodo}
@@ -152,6 +153,7 @@ export default function SalesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Fecha</TableHead>
+                <TableHead>Nº Venta</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Método</TableHead>
                 <TableHead>Estado</TableHead>
@@ -169,6 +171,9 @@ export default function SalesPage() {
                         dateStyle: "short",
                         timeStyle: "short",
                       })}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono text-gray-700">
+                      {v.numero_comprobante ?? "—"}
                     </TableCell>
                     <TableCell className="text-sm">
                       {cliente?.nombre ?? <span className="text-gray-400">Sin cliente</span>}

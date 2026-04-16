@@ -20,21 +20,29 @@ export async function GET(req: NextRequest) {
 
   // If searching by client name, pre-filter to enable server-side search + correct pagination
   if (search) {
-    const { data: matchingClientes } = await supabase
-      .from("clientes")
-      .select("id")
-      .eq("store_id", store_id)
-      .ilike("nombre", `%${search}%`);
-    const clienteIds = matchingClientes?.map((c) => c.id) ?? [];
-    if (clienteIds.length === 0) return NextResponse.json({ data: [], count: 0 });
-
+    // Try searching by sale number first
     let query = supabase
       .from("ventas")
-      .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
+      .select("id, total, metodo_pago, estado, created_at, numero_comprobante, clientes(nombre)", { count: "exact" })
       .eq("store_id", store_id)
-      .in("cliente_id", clienteIds)
       .order("created_at", { ascending: false })
       .range(offset, offset + LIMIT - 1);
+
+    // Check if search looks like a sale number (contains -)
+    if (search.includes("-")) {
+      query = query.ilike("numero_comprobante", `%${search}%`);
+    } else {
+      // Search by client name
+      const { data: matchingClientes } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("store_id", store_id)
+        .ilike("nombre", `%${search}%`);
+      const clienteIds = matchingClientes?.map((c) => c.id) ?? [];
+      if (clienteIds.length === 0) return NextResponse.json({ data: [], count: 0 });
+      query = query.in("cliente_id", clienteIds);
+    }
+
     if (metodo) query = query.eq("metodo_pago", metodo);
     if (estado) query = query.eq("estado", estado);
     if (desde) query = query.gte("created_at", desde);
@@ -46,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("ventas")
-    .select("id, total, metodo_pago, estado, created_at, clientes(nombre)", { count: "exact" })
+    .select("id, total, metodo_pago, estado, created_at, numero_comprobante, clientes(nombre)", { count: "exact" })
     .eq("store_id", store_id)
     .order("created_at", { ascending: false })
     .range(offset, offset + LIMIT - 1);
