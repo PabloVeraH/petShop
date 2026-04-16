@@ -15,7 +15,7 @@ export async function GET(
 
   const { data: venta, error } = await supabase
     .from("ventas")
-    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, clientes(nombre, rut, telefono), vendedores(nombre)")
+    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, clientes(id, nombre, rut, telefono), vendedores(nombre)")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
@@ -49,7 +49,7 @@ export async function PATCH(
 
   const { data: venta } = await supabase
     .from("ventas")
-    .select("id, estado, cliente_id")
+    .select("id, estado, cliente_id, total")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
@@ -83,6 +83,30 @@ export async function PATCH(
         referencia_id: id,
         notas: `Anulación venta ${id.slice(0, 8)}`,
       });
+    }
+  }
+
+  if (venta.cliente_id) {
+    const { data: fid } = await supabase
+      .from("fidelizacion")
+      .select("id, total_historico, frecuencia_compras")
+      .eq("cliente_id", venta.cliente_id)
+      .single();
+
+    if (fid) {
+      const nuevoTotal = Math.max(0, Number(fid.total_historico) - Number(venta.total ?? 0));
+      const nuevaFrecuencia = Math.max(0, fid.frecuencia_compras - 1);
+      const nuevoDescuento =
+        nuevoTotal >= 300_000 ? 20 :
+        nuevoTotal >= 150_000 ? 10 :
+        nuevoTotal >= 50_000 ? 5 : 0;
+
+      await supabase.from("fidelizacion").update({
+        total_historico: nuevoTotal,
+        frecuencia_compras: nuevaFrecuencia,
+        descuento_actual: nuevoDescuento,
+        updated_at: new Date().toISOString(),
+      }).eq("cliente_id", venta.cliente_id);
     }
   }
 
