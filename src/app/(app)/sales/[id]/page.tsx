@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DevolucionModal } from "@/components/sales/DevolucionModal";
 
 type VentaDetalle = {
   id: string;
@@ -14,7 +15,7 @@ type VentaDetalle = {
   metodo_pago: string | null;
   estado: string;
   created_at: string;
-  clientes: { nombre: string; rut: string; telefono?: string } | null;
+  clientes: { id: string; nombre: string; rut: string; telefono?: string } | null;
   vendedores: { nombre: string } | null;
   items: Array<{
     id: string;
@@ -35,6 +36,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const queryClient = useQueryClient();
   const [confirmAnular, setConfirmAnular] = useState(false);
+  const [showDevolucionModal, setShowDevolucionModal] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["venta", id],
@@ -47,6 +49,23 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     staleTime: 5 * 60 * 1000,
   });
   const storeName = storeData?.name ?? "PetShop";
+
+  const { data: notasCredito } = useQuery({
+    queryKey: ["notas-credito", id],
+    queryFn: () =>
+      fetch(`/api/notas-credito?ventaId=${id}`)
+        .then((r) => r.json())
+        .catch(() => ({ data: [] })),
+  });
+
+  const { data: saldoFavor } = useQuery({
+    queryKey: ["saldo", data?.clientes?.id],
+    queryFn: () => {
+      if (!data?.clientes?.id) return Promise.resolve({ saldo_disponible: 0 });
+      return fetch(`/api/saldos-a-favor?clienteId=${data.clientes.id}`).then((r) => r.json());
+    },
+    enabled: !!data?.clientes?.id,
+  });
 
   const { mutate: anularVenta, isPending: anulando } = useMutation({
     mutationFn: () =>
@@ -64,7 +83,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   if (isLoading) return <p className="p-8 text-gray-400 text-sm">Cargando...</p>;
   if (isError || !data) return <p className="p-8 text-red-500 text-sm">Venta no encontrada.</p>;
 
-  const cliente = data.clientes as unknown as { nombre: string; rut: string; telefono?: string } | null;
+  const cliente = data.clientes as unknown as { id: string; nombre: string; rut: string; telefono?: string } | null;
   const vendedor = data.vendedores as unknown as { nombre: string } | null;
   const fecha = new Date(data.created_at).toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
 
@@ -90,7 +109,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     : `https://wa.me/?text=${whatsappText}`;
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto space-y-4">
       {/* Acciones (no se imprimen) */}
       <div className="flex gap-2 mb-4 print:hidden flex-wrap">
         <Button variant="outline" onClick={() => window.history.back()}>
@@ -105,28 +124,47 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           </Button>
         </a>
         {data.estado !== "anulada" && (
-          confirmAnular ? (
-            <div className="flex gap-2 items-center">
-              <span className="text-sm text-red-600">¿Confirmar anulación?</span>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => anularVenta()}
-                disabled={anulando}
-              >
-                {anulando ? "Anulando..." : "Sí, anular"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setConfirmAnular(false)}>
-                No
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" onClick={() => setConfirmAnular(true)} className="text-red-600 border-red-200 hover:bg-red-50">
-              Anular venta
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setShowDevolucionModal(true)}
+              className="text-amber-600 border-amber-200 hover:bg-amber-50"
+            >
+              Devolución parcial
             </Button>
-          )
+            {confirmAnular ? (
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-red-600">¿Confirmar anulación?</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => anularVenta()}
+                  disabled={anulando}
+                >
+                  {anulando ? "Anulando..." : "Sí, anular"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmAnular(false)}>
+                  No
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" onClick={() => setConfirmAnular(true)} className="text-red-600 border-red-200 hover:bg-red-50">
+                Anular venta
+              </Button>
+            )}
+          </>
         )}
       </div>
+
+      {/* Saldo a favor del cliente */}
+      {data?.clientes && saldoFavor?.saldo_disponible > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 print:hidden">
+          <p className="text-xs text-blue-600 font-medium">Saldo a favor disponible</p>
+          <p className="text-lg font-bold text-blue-700">
+            ${Math.round(Number(saldoFavor.saldo_disponible)).toLocaleString("es-CL")}
+          </p>
+        </div>
+      )}
 
       {/* Ticket */}
       <div className="bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none print:p-0">
@@ -199,6 +237,49 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           ¡Gracias por su compra!
         </p>
       </div>
+
+      {/* Devoluciones registradas */}
+      {notasCredito?.data && notasCredito.data.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-4 print:hidden space-y-3">
+          <h3 className="font-bold text-sm">Devoluciones registradas</h3>
+          <div className="space-y-2">
+            {notasCredito.data.map((nc: any) => (
+              <div key={nc.id} className="border rounded-lg p-3 bg-gray-50">
+                <div className="flex justify-between items-start gap-2 mb-1">
+                  <p className="font-mono text-xs text-gray-600">{nc.numero_nc}</p>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    nc.tipo_reembolso === "saldo_a_favor"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {nc.tipo_reembolso === "saldo_a_favor" ? "Saldo a favor" : "Reembolso directo"}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-700">
+                  ${Math.round(Number(nc.monto_total)).toLocaleString("es-CL")}
+                </p>
+                {nc.motivo && (
+                  <p className="text-xs text-gray-500 mt-1">{nc.motivo}</p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  {new Date(nc.created_at).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de devolución */}
+      <DevolucionModal
+        isOpen={showDevolucionModal}
+        ventaId={id}
+        ventaTotal={data?.total ?? 0}
+        items={data?.items ?? []}
+        clienteId={data?.clientes?.id ?? null}
+        onClose={() => setShowDevolucionModal(false)}
+        onSuccess={() => setShowDevolucionModal(false)}
+      />
     </div>
   );
 }
