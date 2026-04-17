@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
 
   const search = req.nextUrl.searchParams.get("search") ?? "";
   const soloAlertas = req.nextUrl.searchParams.get("alertas") === "1";
+  const soloVencimientos = req.nextUrl.searchParams.get("vencimiento") === "1";
 
   let query = supabase
     .from("productos")
-    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos")
+    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta")
     .eq("store_id", store_id)
     .eq("activo", true)
     .order("nombre");
@@ -28,9 +29,15 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const productos = data ?? [];
-  const result = soloAlertas
-    ? productos.filter((p) => p.stock <= p.stock_minimo)
-    : productos;
+  let result = productos;
+
+  if (soloAlertas) {
+    result = result.filter((p) => p.stock <= p.stock_minimo);
+  }
+
+  if (soloVencimientos) {
+    result = result.filter((p) => p.fecha_vencimiento !== null);
+  }
 
   return NextResponse.json(result);
 }

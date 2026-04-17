@@ -78,6 +78,25 @@ export async function GET(req: NextRequest) {
   const totalPeriodo = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0);
   const totalTransacciones = ventas?.length ?? 0;
 
+  // Vencimientos
+  const hoy = new Date().toISOString().split("T")[0];
+  const { data: productosConVencimiento } = await supabase
+    .from("productos")
+    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta")
+    .eq("store_id", store_id)
+    .eq("activo", true)
+    .not("fecha_vencimiento", "is", null);
+
+  const productoData = productosConVencimiento ?? [];
+  const vencidosReport = productoData.filter((p) => p.fecha_vencimiento < hoy && p.stock > 0);
+  const proximosReport = productoData.filter((p) => {
+    if (p.fecha_vencimiento < hoy) return false;
+    const diasRestantes = Math.ceil(
+      (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+    );
+    return diasRestantes <= p.dias_alerta;
+  });
+
   return NextResponse.json({
     periodo: Number(periodo),
     totalPeriodo,
@@ -89,5 +108,10 @@ export async function GET(req: NextRequest) {
     metodos,
     prediccion7dias,
     promedioDiario: Math.round(promedioDiario),
+    vencimientos: {
+      vencidos: vencidosReport,
+      proximos: proximosReport,
+      totalUnidadesVencidas: vencidosReport.reduce((sum, p) => sum + p.stock, 0),
+    },
   });
 }

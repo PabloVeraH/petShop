@@ -15,7 +15,7 @@ export async function PATCH(
   const { id } = await params;
 
   const body = await req.json();
-  const { nombre, sku, precio, costo, stock_minimo, marca, peso_gramos } = body;
+  const { nombre, sku, precio, costo, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = body;
 
   if (nombre !== undefined && !nombre?.trim())
     return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
@@ -30,6 +30,10 @@ export async function PATCH(
   if (stock_minimo !== undefined) updates.stock_minimo = Number(stock_minimo);
   if (marca !== undefined) updates.marca = marca?.trim() || null;
   if (peso_gramos !== undefined) updates.peso_gramos = peso_gramos ? Number(peso_gramos) : null;
+  if (fecha_vencimiento !== undefined) updates.fecha_vencimiento = fecha_vencimiento || null;
+  if (dias_alerta !== undefined) updates.dias_alerta = Number(dias_alerta) || 30;
+  if (precio_oferta !== undefined) updates.precio_oferta = precio_oferta ? Number(precio_oferta) : null;
+  if (en_oferta !== undefined) updates.en_oferta = en_oferta === true;
 
   const { data, error } = await supabase
     .from("productos")

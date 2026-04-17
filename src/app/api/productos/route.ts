@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
   const body = await req.json();
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos } = body;
+  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = body;
 
   if (!nombre?.trim()) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
   if (!sku?.trim()) return NextResponse.json({ error: "SKU requerido" }, { status: 400 });
@@ -54,6 +54,10 @@ export async function POST(req: NextRequest) {
       stock_minimo: Number(stock_minimo ?? 0),
       marca: marca?.trim() || null,
       peso_gramos: peso_gramos ? Number(peso_gramos) : null,
+      fecha_vencimiento: fecha_vencimiento || null,
+      dias_alerta: dias_alerta ? Number(dias_alerta) : 30,
+      precio_oferta: precio_oferta ? Number(precio_oferta) : null,
+      en_oferta: en_oferta === true,
       activo: true,
     })
     .select()
