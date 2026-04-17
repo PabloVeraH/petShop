@@ -6,6 +6,10 @@ export interface Producto {
   precio: number;
   stock: number;
   stock_minimo: number;
+  fecha_vencimiento?: string | null;
+  dias_alerta?: number;
+  precio_oferta?: number | null;
+  en_oferta?: boolean;
 }
 
 export interface Cliente {

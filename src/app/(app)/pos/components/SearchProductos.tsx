@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import type { Producto } from "@/types";
 import { usePOSStore } from "@/stores/pos";
 import { getProductos } from "../api";
 import BarcodeScanner from "./BarcodeScanner";
@@ -18,6 +19,17 @@ export default function SearchProductos() {
     queryFn: () => getProductos(search),
     staleTime: 30_000,
   });
+
+  const getVencimientoStatus = (prod: Producto | undefined) => {
+    if (!prod?.fecha_vencimiento) return null;
+    const hoy = new Date().toISOString().split("T")[0];
+    if (prod.fecha_vencimiento < hoy) return "vencido";
+    const diasRestantes = Math.ceil(
+      (new Date(prod.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+    );
+    if (diasRestantes <= (prod.dias_alerta ?? 30)) return "proximo";
+    return null;
+  };
 
   return (
     <div className="space-y-3 rounded-lg bg-white p-4 shadow-sm">
@@ -58,33 +70,72 @@ export default function SearchProductos() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[60vh] lg:max-h-96 overflow-y-auto">
-        {productos?.map((prod) => (
-          <button
-            key={prod.id}
-            onClick={() =>
-              addItem({
-                producto_id: prod.id,
-                nombre: prod.nombre,
-                precio: prod.precio,
-                cantidad: 1,
-                subtotal: prod.precio,
-                mascota_id: mascotaId,
-              })
-            }
-            className="text-left rounded border border-gray-200 p-4 hover:bg-green-50 hover:border-green-200 active:bg-green-100 transition-colors min-h-[72px]"
-          >
-            <p className="font-medium text-sm leading-tight">{prod.nombre}</p>
-            <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-sm font-bold text-green-700">
-                ${prod.precio.toLocaleString("es-CL")}
-              </span>
-              <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                Stock: {prod.stock}
-              </Badge>
-            </div>
-          </button>
-        ))}
+        {productos?.map((prod) => {
+          const vencStatus = getVencimientoStatus(prod);
+          const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
+          
+          return (
+            <button
+              key={prod.id}
+              onClick={() =>
+                addItem({
+                  producto_id: prod.id,
+                  nombre: prod.nombre,
+                  precio: precioFinal,
+                  cantidad: 1,
+                  subtotal: precioFinal,
+                  mascota_id: mascotaId,
+                  fecha_vencimiento: prod.fecha_vencimiento,
+                  precio_oferta: prod.precio_oferta,
+                  en_oferta: prod.en_oferta,
+                })
+              }
+              className={`text-left rounded border p-4 hover:border-green-200 active:bg-green-100 transition-colors min-h-[72px] ${
+                vencStatus === "vencido"
+                  ? "bg-red-50 border-red-200 hover:bg-red-100"
+                  : vencStatus === "proximo"
+                  ? "bg-amber-50 border-amber-200 hover:bg-amber-100"
+                  : "border-gray-200 hover:bg-green-50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
+                {vencStatus === "vencido" && (
+                  <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">
+                    ✕ Vencido
+                  </span>
+                )}
+                {vencStatus === "proximo" && (
+                  <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
+                    ⚠ Próximo
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex flex-col">
+                  {prod.en_oferta && prod.precio_oferta ? (
+                    <>
+                      <span className="text-xs text-gray-500 line-through">
+                        ${prod.precio.toLocaleString("es-CL")}
+                      </span>
+                      <span className="text-sm font-bold text-green-700">
+                        ${precioFinal.toLocaleString("es-CL")}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm font-bold text-green-700">
+                      ${precioFinal.toLocaleString("es-CL")}
+                    </span>
+                  )}
+                </div>
+                <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
+                  Stock: {prod.stock}
+                </Badge>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

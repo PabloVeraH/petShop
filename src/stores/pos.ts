@@ -9,6 +9,9 @@ interface CartItem {
   cantidad: number;
   mascota_id?: string;
   subtotal: number;
+  fecha_vencimiento?: string | null;
+  precio_oferta?: number | null;
+  en_oferta?: boolean;
 }
 
 interface POSStore {

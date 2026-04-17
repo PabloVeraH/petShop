@@ -8,6 +8,16 @@ export default function Carrito() {
   const { items, removeItem, updateQuantity, subtotal, impuesto, total, descuento } =
     usePOSStore();
 
+  const isVencido = (item: typeof items[0]) => {
+    if (!item.fecha_vencimiento) return false;
+    const hoy = new Date().toISOString().split("T")[0];
+    return item.fecha_vencimiento < hoy;
+  };
+
+  const getPrecioDisplay = (item: typeof items[0]) => {
+    return item.en_oferta && item.precio_oferta ? item.precio_oferta : item.precio;
+  };
+
   if (items.length === 0) {
     return (
       <Card className="flex-1">
@@ -35,13 +45,32 @@ export default function Carrito() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between rounded bg-gray-50 p-2 gap-2"
+            className={`flex items-center justify-between rounded p-2 gap-2 ${
+              isVencido(item) ? "bg-red-50 border border-red-200" : "bg-gray-50"
+            }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{item.nombre}</p>
-              <p className="text-xs text-gray-500">
-                ${item.precio.toLocaleString("es-CL")} c/u
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium truncate">{item.nombre}</p>
+                {isVencido(item) && (
+                  <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    ✕ Vencido
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                {item.en_oferta && item.precio_oferta ? (
+                  <>
+                    <span className="line-through">${item.precio.toLocaleString("es-CL")}</span>
+                    {" → "}
+                    <span className="font-bold text-green-600">
+                      ${getPrecioDisplay(item).toLocaleString("es-CL")} c/u
+                    </span>
+                  </>
+                ) : (
+                  <span>${item.precio.toLocaleString("es-CL")} c/u</span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
