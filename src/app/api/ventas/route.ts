@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const { items, clienteId, vendedorId, metodoPago, descuentoPct } = body;
+  const { items, clienteId, vendedorId, metodoPago, descuentoPct, numeroTransaccion } = body;
 
   // Server-side input validation
   const METODOS_PAGO_VALIDOS = ["efectivo", "debito", "credito", "transferencia"] as const;
@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
   }
   if (!metodoPago || !METODOS_PAGO_VALIDOS.includes(metodoPago)) {
     return NextResponse.json({ error: "Método de pago inválido" }, { status: 400 });
+  }
+  // Validar que tarjeta/débito/transferencia tienen numero_transaccion
+  if ((metodoPago === "debito" || metodoPago === "credito" || metodoPago === "transferencia") && !numeroTransaccion) {
+    return NextResponse.json(
+      { error: `número de transacción requerido para ${metodoPago}` },
+      { status: 400 }
+    );
   }
   const descuento_pct = Number(descuentoPct ?? 0);
   if (descuento_pct < 0 || descuento_pct > 100) {
@@ -166,6 +173,20 @@ export async function POST(req: NextRequest) {
   );
 
   if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  // Registrar pago
+  const { error: pagoError } = await supabase.from("pagos").insert({
+    store_id,
+    venta_id: venta.id,
+    metodo: metodoPago,
+    monto: total,
+    numero_transaccion: numeroTransaccion ?? null,
+  });
+
+  if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+
+  // Actualizar estado de venta a pagada
+  await supabase.from("ventas").update({ estado: "pagada" }).eq("id", venta.id);
 
   for (const item of itemsConPrecio as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
     await supabase.rpc("decrement_stock", {
