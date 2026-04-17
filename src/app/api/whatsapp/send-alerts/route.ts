@@ -40,10 +40,10 @@ export async function POST() {
     return NextResponse.json({ sent: 0, skipped: 0 });
   }
 
-  // Fetch store WhatsApp config once (not inside loop)
+  // Fetch store WhatsApp config once (includes phone for vencimientos alerts)
   const { data: store } = await supabase
     .from("stores")
-    .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
+    .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_phone_number")
     .eq("id", storeId)
     .single();
 
@@ -104,14 +104,7 @@ export async function POST() {
   // ========================================
   const hoy = new Date().toISOString().split("T")[0];
 
-  // Obtener store phone para alertas de vencimientos
-  const { data: storePhone } = await supabase
-    .from("stores")
-    .select("whatsapp_phone_number")
-    .eq("id", storeId)
-    .single();
-
-  if (store?.whatsapp_enabled && storePhone?.whatsapp_phone_number) {
+  if (store?.whatsapp_enabled && store?.whatsapp_phone_number) {
     // Traer productos próximos a vencer (dentro del umbral dias_alerta)
     const { data: productos } = await supabase
       .from("productos")
@@ -169,7 +162,7 @@ export async function POST() {
 
       const ok = await sendWhatsAppText(
         { phoneNumberId: store!.whatsapp_phone_number_id!, accessToken: store!.whatsapp_access_token! },
-        storePhone.whatsapp_phone_number,
+        store.whatsapp_phone_number,
         msgVencimientos
       );
 

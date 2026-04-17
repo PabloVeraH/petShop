@@ -12,6 +12,12 @@ const config: Config = {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react" } }],
   },
   clearMocks: true,
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.stories.{ts,tsx}",
+  ],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/"],
 };
 
 export default config;
