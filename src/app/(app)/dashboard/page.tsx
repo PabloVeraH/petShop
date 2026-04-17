@@ -16,6 +16,15 @@ type StockAlerta = {
   stock_minimo: number;
 };
 
+type Vencimiento = {
+  id: string;
+  nombre: string;
+  sku: string;
+  stock: number;
+  fecha_vencimiento: string;
+  diasRestantes?: number;
+};
+
 async function getDashboardData() {
   const [dashRes, recomprasRes] = await Promise.all([
     fetch("/api/dashboard"),
@@ -33,6 +42,12 @@ async function getStockAlertas(): Promise<StockAlerta[]> {
   return res.json();
 }
 
+async function getVencimientos() {
+  const res = await fetch("/api/dashboard/vencimientos");
+  if (!res.ok) return { vencidos: [], proximos: [], totalUnidadesVencidas: 0 };
+  return res.json();
+}
+
 export default function DashboardPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
@@ -43,6 +58,12 @@ export default function DashboardPage() {
   const { data: alertasStock = [] } = useQuery({
     queryKey: ["stock-alertas"],
     queryFn: getStockAlertas,
+    refetchInterval: 60_000,
+  });
+
+  const { data: vencimientos } = useQuery({
+    queryKey: ["vencimientos"],
+    queryFn: getVencimientos,
     refetchInterval: 60_000,
   });
 
@@ -139,6 +160,47 @@ export default function DashboardPage() {
             </div>
           )}
       </div>
+
+      {/* Vencimientos */}
+      {(vencimientos?.vencidos?.length || 0) > 0 || (vencimientos?.proximos?.length || 0) > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {(vencimientos?.vencidos?.length || 0) > 0 && (
+            <div className="bg-red-50 rounded-lg border border-red-200 p-5">
+              <h2 className="text-sm font-semibold text-red-800 mb-3">
+                ✕ Productos vencidos ({vencimientos?.vencidos?.length || 0})
+              </h2>
+              <div className="space-y-2">
+                {vencimientos?.vencidos?.map((p: Vencimiento) => (
+                  <div key={p.id} className="flex justify-between items-center text-sm">
+                    <span className="truncate flex-1 mr-2 text-red-900">{p.nombre}</span>
+                    <span className="text-red-600 font-medium whitespace-nowrap">
+                      {p.stock} ud
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(vencimientos?.proximos?.length || 0) > 0 && (
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-5">
+              <h2 className="text-sm font-semibold text-amber-800 mb-3">
+                ⚠ Próximos a vencer ({vencimientos?.proximos?.length || 0})
+              </h2>
+              <div className="space-y-2">
+                {vencimientos?.proximos?.map((p: Vencimiento) => (
+                  <div key={p.id} className="flex justify-between items-center text-sm">
+                    <span className="truncate flex-1 mr-2 text-amber-900">{p.nombre}</span>
+                    <span className="text-amber-600 font-medium whitespace-nowrap">
+                      {p.diasRestantes}d
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

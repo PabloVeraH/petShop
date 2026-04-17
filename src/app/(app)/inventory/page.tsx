@@ -24,6 +24,10 @@ type Producto = {
   stock_minimo: number;
   marca: string | null;
   peso_gramos: number | null;
+  fecha_vencimiento: string | null;
+  dias_alerta: number;
+  precio_oferta: number | null;
+  en_oferta: boolean;
 };
 
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
@@ -46,24 +50,40 @@ type ProductoForm = {
   stock_minimo: string;
   marca: string;
   peso_gramos: string;
+  fecha_vencimiento: string;
+  dias_alerta: string;
+  precio_oferta: string;
+  en_oferta: boolean;
 };
 
 const EMPTY_FORM: ProductoForm = {
   nombre: "", sku: "", precio: "", costo: "",
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
+  fecha_vencimiento: "", dias_alerta: "30", precio_oferta: "", en_oferta: false,
 };
 
-async function getInventario(search: string, soloAlertas: boolean): Promise<Producto[]> {
+async function getInventario(search: string, soloAlertas: boolean, soloVencimientos: boolean): Promise<Producto[]> {
   const params = new URLSearchParams({ search });
   if (soloAlertas) params.set("alertas", "1");
+  if (soloVencimientos) params.set("vencimiento", "1");
   const res = await fetch(`/api/inventario?${params}`);
   if (!res.ok) throw new Error("Error al cargar inventario");
   return res.json();
 }
 
+function getVencimientoStatus(p: Producto): { label: string; color: string; diasRestantes?: number } {
+  if (!p.fecha_vencimiento) return { label: "—", color: "text-gray-400" };
+  const hoy = new Date().toISOString().split("T")[0];
+  if (p.fecha_vencimiento < hoy) return { label: "✕ Vencido", color: "text-red-600" };
+  const diasRestantes = Math.ceil((new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000);
+  if (diasRestantes <= p.dias_alerta) return { label: `⚠ ${diasRestantes}d`, color: "text-amber-600", diasRestantes };
+  return { label: `✓ ${diasRestantes}d`, color: "text-green-600" };
+}
+
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [soloAlertas, setSoloAlertas] = useState(false);
+  const [soloVencimientos, setSoloVencimientos] = useState(false);
   const [ajuste, setAjuste] = useState<AjusteModal>(null);
   const [ajusteCantidad, setAjusteCantidad] = useState("1");
   const [ajusteNotas, setAjusteNotas] = useState("");
@@ -76,8 +96,8 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["inventario", search, soloAlertas],
-    queryFn: () => getInventario(search, soloAlertas),
+    queryKey: ["inventario", search, soloAlertas, soloVencimientos],
+    queryFn: () => getInventario(search, soloAlertas, soloVencimientos),
   });
 
   const { data: movimientos, isLoading: loadingMovimientos } = useQuery<StockMovement[]>({
@@ -115,6 +135,10 @@ export default function InventoryPage() {
           stock_minimo: form.stock_minimo,
           marca: form.marca || undefined,
           peso_gramos: form.peso_gramos || undefined,
+          fecha_vencimiento: form.fecha_vencimiento || undefined,
+          dias_alerta: form.fecha_vencimiento ? Number(form.dias_alerta) : undefined,
+          precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
+          en_oferta: form.en_oferta,
         }),
       });
       const data = await res.json();
@@ -145,6 +169,10 @@ export default function InventoryPage() {
       precio: String(p.precio), costo: p.costo != null ? String(p.costo) : "",
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
       marca: p.marca ?? "", peso_gramos: p.peso_gramos != null ? String(p.peso_gramos) : "",
+      fecha_vencimiento: p.fecha_vencimiento ?? "",
+      dias_alerta: String(p.dias_alerta ?? 30),
+      precio_oferta: p.precio_oferta != null ? String(p.precio_oferta) : "",
+      en_oferta: p.en_oferta ?? false,
     });
     setFormError("");
     setShowForm(true);
@@ -157,8 +185,13 @@ export default function InventoryPage() {
   const productos = data ?? [];
   const totalAlertas = data?.filter((p) => p.stock <= p.stock_minimo).length ?? 0;
 
-  const setF = (k: keyof ProductoForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setF = (k: keyof ProductoForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (k === "en_oferta") {
+      setForm((f) => ({ ...f, [k]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setForm((f) => ({ ...f, [k]: e.target.value }));
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -188,6 +221,13 @@ export default function InventoryPage() {
         >
           Solo alertas
         </Button>
+        <Button
+          variant={soloVencimientos ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSoloVencimientos((v) => !v)}
+        >
+          Solo vencimientos
+        </Button>
       </div>
 
       <div className="flex-1 overflow-auto rounded-lg bg-white shadow-sm">
@@ -195,7 +235,7 @@ export default function InventoryPage() {
         {isError && <p className="text-sm text-red-500 p-4 text-center">Error al cargar inventario.</p>}
         {!isLoading && !isError && productos.length === 0 && (
           <p className="text-sm text-gray-400 p-4 text-center">
-            {soloAlertas ? "Sin productos en alerta" : "Sin productos"}
+            {soloAlertas ? "Sin productos en alerta" : soloVencimientos ? "Sin productos con vencimiento" : "Sin productos"}
           </p>
         )}
         {!isLoading && !isError && productos.length > 0 && (
@@ -207,6 +247,7 @@ export default function InventoryPage() {
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Mín.</TableHead>
+                <TableHead>Vencimiento</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Ajustar</TableHead>
                 <TableHead></TableHead>
@@ -215,13 +256,17 @@ export default function InventoryPage() {
             <TableBody>
               {productos.map((p) => {
                 const enAlerta = p.stock <= p.stock_minimo;
+                const vencStatus = getVencimientoStatus(p);
                 return (
-                  <TableRow key={p.id} className={enAlerta ? "bg-red-50" : undefined}>
+                  <TableRow key={p.id} className={enAlerta || vencStatus.label.includes("Vencido") ? "bg-red-50" : vencStatus.label.includes("⚠") ? "bg-amber-50" : undefined}>
                     <TableCell className="font-medium">{p.nombre}</TableCell>
                     <TableCell className="text-gray-500 text-sm">{p.sku}</TableCell>
-                    <TableCell className="text-right">${p.precio.toLocaleString("es-CL")}</TableCell>
+                    <TableCell className="text-right">${p.precio.toLocaleString("es-CL")}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
                     <TableCell className="text-right font-medium">{p.stock}</TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
+                    <TableCell>
+                      <span className={`text-sm font-medium ${vencStatus.color}`}>{vencStatus.label}</span>
+                    </TableCell>
                     <TableCell>
                       {enAlerta
                         ? <Badge variant="destructive">Bajo stock</Badge>
@@ -261,7 +306,7 @@ export default function InventoryPage() {
             <h3 className="text-base font-semibold text-gray-800 mb-4">
               {editando ? `Editar: ${editando.nombre}` : "Nuevo producto"}
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               {[
                 { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg" },
                 { label: "SKU *", key: "sku" as const, placeholder: "PRD-001" },
@@ -271,6 +316,7 @@ export default function InventoryPage() {
                 { label: "Stock mínimo", key: "stock_minimo" as const, placeholder: "5", type: "number" },
                 { label: "Marca", key: "marca" as const, placeholder: "ProCan" },
                 { label: "Peso (gramos)", key: "peso_gramos" as const, placeholder: "15000", type: "number" },
+                { label: "Fecha vencimiento (opcional)", key: "fecha_vencimiento" as const, type: "date" },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -283,6 +329,26 @@ export default function InventoryPage() {
                   />
                 </div>
               ))}
+              {form.fecha_vencimiento && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Días de alerta</label>
+                    <input type="number" min={1} value={form.dias_alerta} onChange={(e) => setForm(f => ({ ...f, dias_alerta: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta (opcional)</label>
+                    <input type="number" value={form.precio_oferta} onChange={(e) => setForm(f => ({ ...f, precio_oferta: e.target.value }))}
+                      placeholder="Ej: 15990"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={form.en_oferta} onChange={(e) => setForm(f => ({ ...f, en_oferta: e.target.checked }))}
+                      id="en-oferta" className="rounded border-gray-300" />
+                    <label htmlFor="en-oferta" className="text-sm font-medium text-gray-700 cursor-pointer">Activar oferta</label>
+                  </div>
+                </>
+              )}
             </div>
             {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
             <div className="flex gap-2 mt-5">
