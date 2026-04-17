@@ -71,13 +71,19 @@ async function getInventario(search: string, soloAlertas: boolean, soloVencimien
   return res.json();
 }
 
-function getVencimientoStatus(p: Producto): { label: string; color: string; diasRestantes?: number } {
-  if (!p.fecha_vencimiento) return { label: "—", color: "text-gray-400" };
-  const hoy = new Date().toISOString().split("T")[0];
-  if (p.fecha_vencimiento < hoy) return { label: "✕ Vencido", color: "text-red-600" };
-  const diasRestantes = Math.ceil((new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000);
-  if (diasRestantes <= p.dias_alerta) return { label: `⚠ ${diasRestantes}d`, color: "text-amber-600", diasRestantes };
-  return { label: `✓ ${diasRestantes}d`, color: "text-green-600" };
+type VencimientoStatus = 'sin-fecha' | 'vigente' | 'proximo' | 'vencido';
+
+function getVencimientoStatus(producto: Producto): VencimientoStatus {
+  if (!producto.fecha_vencimiento) return 'sin-fecha';
+  const diasRestantes = Math.ceil((new Date(producto.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000);
+  if (diasRestantes < 0) return 'vencido';
+  if (diasRestantes <= (producto.dias_alerta ?? 30)) return 'proximo';
+  return 'vigente';
+}
+
+function formatShortDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year.slice(2)}`;
 }
 
 export default function InventoryPage() {
@@ -257,15 +263,38 @@ export default function InventoryPage() {
               {productos.map((p) => {
                 const enAlerta = p.stock <= p.stock_minimo;
                 const vencStatus = getVencimientoStatus(p);
+                const diasRestantes = p.fecha_vencimiento
+                  ? Math.ceil((new Date(p.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000)
+                  : null;
                 return (
-                  <TableRow key={p.id} className={enAlerta || vencStatus.label.includes("Vencido") ? "bg-red-50" : vencStatus.label.includes("⚠") ? "bg-amber-50" : undefined}>
+                  <TableRow key={p.id} className={enAlerta || vencStatus === 'vencido' ? "bg-red-50" : vencStatus === 'proximo' ? "bg-amber-50" : undefined}>
                     <TableCell className="font-medium">{p.nombre}</TableCell>
                     <TableCell className="text-gray-500 text-sm">{p.sku}</TableCell>
                     <TableCell className="text-right">${p.precio.toLocaleString("es-CL")}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
                     <TableCell className="text-right font-medium">{p.stock}</TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
                     <TableCell>
-                      <span className={`text-sm font-medium ${vencStatus.color}`}>{vencStatus.label}</span>
+                      {vencStatus === 'sin-fecha' && (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                      {vencStatus === 'vigente' && (
+                        <span className="text-sm font-medium text-green-600">
+                          vence {formatShortDate(p.fecha_vencimiento!)}
+                        </span>
+                      )}
+                      {vencStatus === 'proximo' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                          ⚠ {diasRestantes} dias
+                        </span>
+                      )}
+                      {vencStatus === 'vencido' && p.stock > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                          ✕ Vencido
+                        </span>
+                      )}
+                      {vencStatus === 'vencido' && p.stock === 0 && (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {enAlerta
@@ -330,25 +359,31 @@ export default function InventoryPage() {
                 </div>
               ))}
               {form.fecha_vencimiento && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Días de alerta</label>
-                    <input type="number" min={1} value={form.dias_alerta} onChange={(e) => setForm(f => ({ ...f, dias_alerta: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta (opcional)</label>
-                    <input type="number" value={form.precio_oferta} onChange={(e) => setForm(f => ({ ...f, precio_oferta: e.target.value }))}
-                      placeholder="Ej: 15990"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={form.en_oferta} onChange={(e) => setForm(f => ({ ...f, en_oferta: e.target.checked }))}
-                      id="en-oferta" className="rounded border-gray-300" />
-                    <label htmlFor="en-oferta" className="text-sm font-medium text-gray-700 cursor-pointer">Activar oferta</label>
-                  </div>
-                </>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Días de alerta</label>
+                  <input type="number" min={1} value={form.dias_alerta} onChange={(e) => setForm(f => ({ ...f, dias_alerta: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
               )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta (opcional)</label>
+                <input type="number" step="0.01" value={form.precio_oferta} onChange={(e) => setForm(f => ({ ...f, precio_oferta: e.target.value }))}
+                  placeholder="Precio rebajado"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.en_oferta}
+                  onChange={(e) => setForm(f => ({ ...f, en_oferta: e.target.checked }))}
+                  id="en-oferta"
+                  disabled={!form.precio_oferta || Number(form.precio_oferta) <= 0}
+                  className="rounded border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                />
+                <label htmlFor="en-oferta" className={`text-sm font-medium cursor-pointer ${!form.precio_oferta || Number(form.precio_oferta) <= 0 ? 'text-gray-400' : 'text-gray-700'}`}>
+                  Activar oferta
+                </label>
+              </div>
             </div>
             {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
             <div className="flex gap-2 mt-5">

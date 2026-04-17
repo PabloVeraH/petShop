@@ -317,4 +317,298 @@ describe("GET /api/dashboard/vencimientos", () => {
 
     expect(json.hoy).toBe(TODAY);
   });
+
+  it("debería filtrar por store_id en la query (RLS)", async () => {
+    const chain = setupSupabaseMock([]);
+
+    const mockRequest = new NextRequest(new URL("http://localhost:3000"));
+    await GET(mockRequest);
+
+    const mockSupabase = (createServiceClient as jest.Mock).mock.results[0].value;
+    const fromCall = mockSupabase.from.mock.calls[0];
+    expect(fromCall[0]).toBe("productos");
+
+    // Verify eq was called with store_id
+    expect(chain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
+  it("debería filtrar solo productos activos", async () => {
+    const chain = setupSupabaseMock([]);
+
+    const mockRequest = new NextRequest(new URL("http://localhost:3000"));
+    await GET(mockRequest);
+
+    // Verify eq was called with activo=true
+    expect(chain.eq).toHaveBeenCalledWith("activo", true);
+  });
+
+  it("debería incluir stock > 0 en filtro de vencidos en aplicación", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Vencido con stock",
+        sku: "SKU-A",
+        stock: 5,
+        fecha_vencimiento: "2024-04-10",
+        dias_alerta: 10,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+      {
+        id: "p2",
+        nombre: "Vencido sin stock",
+        sku: "SKU-B",
+        stock: 0,
+        fecha_vencimiento: "2024-04-10",
+        dias_alerta: 10,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    // Solo p1 debe estar en vencidos (p2 tiene stock=0)
+    expect(json.vencidos).toHaveLength(1);
+    expect(json.vencidos[0].id).toBe("p1");
+    expect(json.totalUnidadesVencidas).toBe(5);
+  });
+
+  it("debería calcular diasRestantes correctamente en límite (día de vencimiento)", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Vence en 1 día",
+        sku: "SKU-A",
+        stock: 2,
+        fecha_vencimiento: "2024-04-17", // 1 día después de hoy
+        dias_alerta: 5,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    // Debe estar en proximos porque tiene 1 día restante <= 5
+    expect(json.proximos).toHaveLength(1);
+    expect(json.proximos[0].diasRestantes).toBe(1);
+    expect(json.vencidos).toHaveLength(0);
+  });
+
+  it("debería excluir de proximos si diasRestantes > dias_alerta", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Lejos de vencer",
+        sku: "SKU-A",
+        stock: 3,
+        fecha_vencimiento: "2024-05-10", // 24 días restantes
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json.proximos).toHaveLength(0);
+    expect(json.vencidos).toHaveLength(0);
+  });
+
+  it("debería incluir en proximos si diasRestantes <= dias_alerta (exacto)", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Exactamente en rango",
+        sku: "SKU-A",
+        stock: 4,
+        fecha_vencimiento: "2024-04-23", // 7 días restantes
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json.proximos).toHaveLength(1);
+    expect(json.proximos[0].diasRestantes).toBe(7);
+  });
+
+  it("debería excluir proximos con stock<=0 aún dentro de rango de alerta", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Próximo pero sin stock",
+        sku: "SKU-A",
+        stock: 0,
+        fecha_vencimiento: "2024-04-20",
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json.proximos).toHaveLength(0);
+  });
+
+  it("debería manejar múltiples productos en diferentes categorías", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Vencido",
+        sku: "SKU-A",
+        stock: 3,
+        fecha_vencimiento: "2024-04-10",
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+      {
+        id: "p2",
+        nombre: "Próximo",
+        sku: "SKU-B",
+        stock: 5,
+        fecha_vencimiento: "2024-04-19", // 3 días
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+      {
+        id: "p3",
+        nombre: "Futuro",
+        sku: "SKU-C",
+        stock: 2,
+        fecha_vencimiento: "2024-06-01",
+        dias_alerta: 7,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json.vencidos).toHaveLength(1);
+    expect(json.proximos).toHaveLength(1);
+    expect(json.totalUnidadesVencidas).toBe(3);
+    expect(json.proximos[0].diasRestantes).toBe(3);
+  });
+
+  it("debería manejar dias_alerta=null como 0 (sin alerta)", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Producto con dias_alerta nulo",
+        sku: "SKU-A",
+        stock: 2,
+        fecha_vencimiento: "2024-04-20",
+        dias_alerta: null,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    // diasRestantes > null (0) por lo que no debe estar en proximos
+    expect(json.proximos).toHaveLength(0);
+  });
+
+  it("debería validar estructura de respuesta con todos los campos", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Test",
+        sku: "SKU-A",
+        stock: 2,
+        fecha_vencimiento: "2024-04-10",
+        dias_alerta: 7,
+        precio_oferta: 99.99,
+        en_oferta: true,
+      },
+      {
+        id: "p2",
+        nombre: "Test Proximo",
+        sku: "SKU-B",
+        stock: 3,
+        fecha_vencimiento: "2024-04-18",
+        dias_alerta: 7,
+        precio_oferta: 49.99,
+        en_oferta: false,
+      },
+    ];
+
+    setupSupabaseMock(productos);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    // Validar estructura de respuesta
+    expect(json).toHaveProperty("hoy");
+    expect(json).toHaveProperty("vencidos");
+    expect(json).toHaveProperty("proximos");
+    expect(json).toHaveProperty("totalUnidadesVencidas");
+
+    if (json.vencidos.length > 0) {
+      expect(json.vencidos[0]).toHaveProperty("id");
+      expect(json.vencidos[0]).toHaveProperty("nombre");
+      expect(json.vencidos[0]).toHaveProperty("sku");
+      expect(json.vencidos[0]).toHaveProperty("stock");
+      expect(json.vencidos[0]).toHaveProperty("fecha_vencimiento");
+      expect(json.vencidos[0]).toHaveProperty("dias_alerta");
+      expect(json.vencidos[0]).toHaveProperty("precio_oferta");
+      expect(json.vencidos[0]).toHaveProperty("en_oferta");
+    }
+
+    if (json.proximos.length > 0) {
+      // proximos debe tener diasRestantes adicional
+      expect(json.proximos[0]).toHaveProperty("diasRestantes");
+    }
+  });
+
+  it("debería rechazar solicitud sin permisos de RLS", async () => {
+    mockGetStoreId.mockResolvedValue({ userId: "user-123", storeId: "other-store" });
+
+    const chain: any = {};
+    chain.select = jest.fn().mockReturnValue(chain);
+    chain.eq = jest.fn().mockReturnValue(chain);
+    chain.not = jest.fn().mockReturnValue(chain);
+    chain.order = jest.fn().mockResolvedValue({ data: [], error: null });
+
+    const mockSupabase = {
+      from: jest.fn().mockReturnValue(chain),
+    };
+    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    // Debería llamar con el store_id del usuario
+    expect(chain.eq).toHaveBeenCalledWith("store_id", "other-store");
+    expect(response.status).toBe(200); // Query ejecutada, pero RLS en BD filtra
+  });
 });

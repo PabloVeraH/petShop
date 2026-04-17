@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
   if (!nombre?.trim()) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
   if (!sku?.trim()) return NextResponse.json({ error: "SKU requerido" }, { status: 400 });
   if (!precio || Number(precio) <= 0) return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
+  if (fecha_vencimiento && dias_alerta && Number(dias_alerta) < 1)
+    return NextResponse.json({ error: "dias_alerta debe ser >= 1 si fecha_vencimiento está establecida" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("productos")

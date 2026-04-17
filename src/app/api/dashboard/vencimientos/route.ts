@@ -28,10 +28,11 @@ export async function GET(req: NextRequest) {
   const proximos = productos
     .filter((p) => {
       if (p.fecha_vencimiento < hoy) return false;
+      if (p.stock <= 0) return false;
       const diasRestantes = Math.ceil(
         (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
       );
-      return diasRestantes <= p.dias_alerta;
+      return diasRestantes <= (p.dias_alerta ?? 0);
     })
     .map((p) => ({
       ...p,

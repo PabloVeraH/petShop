@@ -61,7 +61,11 @@ export default function DashboardPage() {
     refetchInterval: 60_000,
   });
 
-  const { data: vencimientos } = useQuery({
+  const {
+    data: vencimientos,
+    isLoading: vencimientosLoading,
+    isError: vencimientosError,
+  } = useQuery({
     queryKey: ["vencimientos"],
     queryFn: getVencimientos,
     refetchInterval: 60_000,
@@ -162,45 +166,81 @@ export default function DashboardPage() {
       </div>
 
       {/* Vencimientos */}
-      {(vencimientos?.vencidos?.length || 0) > 0 || (vencimientos?.proximos?.length || 0) > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">
+          Vencimientos
           {(vencimientos?.vencidos?.length || 0) > 0 && (
-            <div className="bg-red-50 rounded-lg border border-red-200 p-5">
-              <h2 className="text-sm font-semibold text-red-800 mb-3">
-                ✕ Productos vencidos ({vencimientos?.vencidos?.length || 0})
-              </h2>
-              <div className="space-y-2">
-                {vencimientos?.vencidos?.map((p: Vencimiento) => (
-                  <div key={p.id} className="flex justify-between items-center text-sm">
-                    <span className="truncate flex-1 mr-2 text-red-900">{p.nombre}</span>
-                    <span className="text-red-600 font-medium whitespace-nowrap">
-                      {p.stock} ud
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+              {vencimientos!.vencidos.length} vencido{vencimientos!.vencidos.length !== 1 ? "s" : ""}
+            </span>
           )}
-
           {(vencimientos?.proximos?.length || 0) > 0 && (
-            <div className="bg-amber-50 rounded-lg border border-amber-200 p-5">
-              <h2 className="text-sm font-semibold text-amber-800 mb-3">
-                ⚠ Próximos a vencer ({vencimientos?.proximos?.length || 0})
-              </h2>
-              <div className="space-y-2">
-                {vencimientos?.proximos?.map((p: Vencimiento) => (
-                  <div key={p.id} className="flex justify-between items-center text-sm">
-                    <span className="truncate flex-1 mr-2 text-amber-900">{p.nombre}</span>
-                    <span className="text-amber-600 font-medium whitespace-nowrap">
-                      {p.diasRestantes}d
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <span className="ml-2 text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
+              {vencimientos!.proximos.length} próximo{vencimientos!.proximos.length !== 1 ? "s" : ""}
+            </span>
           )}
-        </div>
-      ) : null}
+        </h2>
+
+        {vencimientosLoading && (
+          <p className="text-sm text-gray-400">Cargando...</p>
+        )}
+
+        {vencimientosError && (
+          <p className="text-sm text-red-500">Error al cargar vencimientos</p>
+        )}
+
+        {!vencimientosLoading && !vencimientosError && (vencimientos?.vencidos?.length || 0) === 0 && (vencimientos?.proximos?.length || 0) === 0 && (
+          <p className="text-sm text-gray-400">Sin vencimientos próximos</p>
+        )}
+
+        {!vencimientosLoading && !vencimientosError && (
+          <div className="space-y-4">
+            {(vencimientos?.vencidos?.length || 0) > 0 && (
+              <div>
+                <span className="inline-block mb-2 text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                  Vencidos
+                </span>
+                <div className="space-y-2">
+                  {vencimientos!.vencidos.map((p: Vencimiento) => (
+                    <div key={p.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1 mr-2 text-gray-700">{p.nombre}</span>
+                      <span className="text-gray-400 mr-2 whitespace-nowrap">{p.sku}</span>
+                      <span className="text-red-600 font-medium whitespace-nowrap mr-2">
+                        {p.stock} ud
+                      </span>
+                      <span className="text-red-600 whitespace-nowrap">
+                        vence {new Date(p.fecha_vencimiento).toLocaleDateString("es-CL")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(vencimientos?.proximos?.length || 0) > 0 && (
+              <div>
+                <span className="inline-block mb-2 text-xs font-semibold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
+                  Proximos
+                </span>
+                <div className="space-y-2">
+                  {vencimientos!.proximos.map((p: Vencimiento) => (
+                    <div key={p.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1 mr-2 text-gray-700">{p.nombre}</span>
+                      <span className="text-gray-400 mr-2 whitespace-nowrap">{p.sku}</span>
+                      <span className="text-amber-600 font-medium whitespace-nowrap mr-2">
+                        {p.stock} ud
+                      </span>
+                      <span className="text-amber-600 whitespace-nowrap">
+                        vence en {p.diasRestantes} día{p.diasRestantes !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

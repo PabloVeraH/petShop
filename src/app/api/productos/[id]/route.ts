@@ -21,6 +21,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
   if (precio !== undefined && Number(precio) <= 0)
     return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
+  if (fecha_vencimiento !== undefined && fecha_vencimiento && dias_alerta !== undefined && Number(dias_alerta) < 1)
+    return NextResponse.json({ error: "dias_alerta debe ser >= 1 si fecha_vencimiento está establecida" }, { status: 400 });
 
   const updates: Record<string, unknown> = {};
   if (nombre !== undefined) updates.nombre = nombre.trim();
