@@ -1,0 +1,8 @@
+- [Arquitectura](arquitectura.md) — Rutas API, BD, componentes, flujos
+- [Decisiones](decisiones.md) — Log de decisiones técnicas con contexto
+- [Convenciones](convenciones.md) — Patrones React, TanStack Query, Zod
+- [Lineamiento](lineamiento.md) — Brief producto, MVP scope, roles
+- [Vencimientos](vencimientos.md) — Sistema control fechas vencimiento, alertas, UI (40 tests ✅)
+- [Pendientes](pendientes.md) — Roadmap fases 2-4, deuda técnica
+- [CLAUDE.md](CLAUDE.md) — Instrucciones proyecto V3, swarm config
+- [Tests](tests.md) — Suite de testing (151 tests, 151 ✅ 100%, TDD London School)
