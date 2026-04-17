@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 
 // GET /api/admin/users?storeId=xxx  — lista usuarios de una tienda
 export async function GET(req: NextRequest) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-  if (!meta?.systemAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  
+  try {
+    requireSystemAdmin(admin);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const storeId = req.nextUrl.searchParams.get("storeId");
   if (!storeId) return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
@@ -26,10 +31,14 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/users  — asigna un usuario existente a una tienda con un rol
 // Body: { email: string, storeId: string, role: "storeAdmin" | "storeWorker" }
 export async function POST(req: NextRequest) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-  if (!meta?.systemAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  
+  try {
+    requireSystemAdmin(admin);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { email, storeId, role } = await req.json();
   if (!email || !storeId || !["storeAdmin", "storeWorker"].includes(role)) {

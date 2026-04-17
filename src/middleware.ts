@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { apiGeneralLimit } from "@/middleware/rateLimit";
 
 const publicRoutes = createRouteMatcher([
   "/auth/(.*)",
@@ -9,6 +10,12 @@ const publicRoutes = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Apply rate limiting to all /api routes
+  if (req.nextUrl.pathname.startsWith("/api")) {
+    const rateLimitResponse = await apiGeneralLimit(req);
+    if (rateLimitResponse) return rateLimitResponse;
+  }
+
   if (!publicRoutes(req)) {
     await auth.protect();
   }

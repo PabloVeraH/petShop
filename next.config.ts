@@ -17,8 +17,8 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.accounts.dev https://*.clerk.accounts.dev",
-      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' https://clerk.accounts.dev https://*.clerk.accounts.dev",
+      "style-src 'self'",
       "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.clerk.com https://*.clerk.accounts.dev https://graph.facebook.com",

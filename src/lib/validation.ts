@@ -54,6 +54,6 @@ export const MascotaCreateSchema = z.object({
   nombre: z.string().min(2).max(50),
   tipo: z.enum(["perro", "gato", "otro"]),
   raza: z.string().max(50).optional(),
-  peso_kg: z.number().positive().optional(),
+  peso_kg: z.number().positive().max(100).optional(), // Reasonable max weight for pets in kg
   alimento_habitual_id: UUIDSchema.optional(),
 });

@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { syncProductsToHub } from "@/lib/hub-sync";
+import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
-
   const supabase = createServiceClient();
-  const search = req.nextUrl.searchParams.get("search") ?? "";
+
+  const searchSchema = z.string().max(100); // Limit search length
+  const searchResult = searchSchema.safeParse(req.nextUrl.searchParams.get("search"));
+  const search = searchResult.success ? searchResult.data : "";
 
   let query = supabase
     .from("productos")
@@ -23,6 +26,11 @@ export async function GET(req: NextRequest) {
     const s = search.replace(/[()%,]/g, "");
     query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%`);
   }
+
+  const { data, error } = await query.limit(50);
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  return NextResponse.json(data ?? []);
+}
 
   const { data, error } = await query.limit(50);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

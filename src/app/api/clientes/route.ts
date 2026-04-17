@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { validateRUT, formatRUT } from "@/lib/validation";
+import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -26,7 +27,9 @@ export async function GET(req: NextRequest) {
   }
 
   // List with optional search + pagination
-  const search = req.nextUrl.searchParams.get("search") ?? "";
+  const searchSchema = z.string().max(100); // Limit search length
+  const searchResult = searchSchema.safeParse(req.nextUrl.searchParams.get("search"));
+  const search = searchResult.success ? searchResult.data : "";
   const offset = Number(req.nextUrl.searchParams.get("offset") ?? "0");
   const limit = 50;
 

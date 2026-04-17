@@ -1,13 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 
 export async function GET() {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
-  if (!meta?.systemAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  
+  try {
+    requireSystemAdmin(admin);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const supabase = createServiceClient();
 

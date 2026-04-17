@@ -3,11 +3,14 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-  if (!meta?.systemAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  
+  try {
+    requireSystemAdmin(admin);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { email, password, firstName, lastName, storeId, role } = await req.json();
 

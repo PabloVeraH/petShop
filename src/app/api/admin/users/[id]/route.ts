@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-  if (!meta?.systemAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  
+  try {
+    requireSystemAdmin(admin);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id: clerkId } = await params;
 
