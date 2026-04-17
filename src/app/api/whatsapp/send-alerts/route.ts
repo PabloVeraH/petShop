@@ -99,5 +99,87 @@ export async function POST() {
     }
   }
 
+  // ========================================
+  // VENCIMIENTOS — Alert tienda sobre productos próximos a vencer
+  // ========================================
+  const hoy = new Date().toISOString().split("T")[0];
+
+  // Obtener store phone para alertas de vencimientos
+  const { data: storePhone } = await supabase
+    .from("stores")
+    .select("whatsapp_phone_number")
+    .eq("id", storeId)
+    .single();
+
+  if (store?.whatsapp_enabled && storePhone?.whatsapp_phone_number) {
+    // Traer productos próximos a vencer (dentro del umbral dias_alerta)
+    const { data: productos } = await supabase
+      .from("productos")
+      .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta")
+      .eq("store_id", storeId)
+      .eq("activo", true)
+      .not("fecha_vencimiento", "is", null)
+      .order("fecha_vencimiento");
+
+    const vencidos: typeof productos = [];
+    const proximos: typeof productos = [];
+
+    (productos ?? []).forEach((p) => {
+      if (p.fecha_vencimiento < hoy && p.stock > 0) {
+        vencidos.push(p);
+      } else if (p.fecha_vencimiento >= hoy) {
+        const diasRestantes = Math.ceil(
+          (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+        );
+        if (diasRestantes <= p.dias_alerta) {
+          proximos.push(p);
+        }
+      }
+    });
+
+    const hayVencimientos = vencidos.length > 0 || proximos.length > 0;
+
+    if (hayVencimientos) {
+      let msgVencimientos = `*${store!.name}* ⏰\n\nAlerta de Vencimientos:\n`;
+
+      if (vencidos.length > 0) {
+        msgVencimientos += `\n🔴 *VENCIDOS* (${vencidos.length} productos):\n`;
+        vencidos.slice(0, 5).forEach((p) => {
+          msgVencimientos += `• ${p.nombre} (SKU: ${p.sku}) - ${p.stock} ud.\n`;
+        });
+        if (vencidos.length > 5) {
+          msgVencimientos += `... y ${vencidos.length - 5} más\n`;
+        }
+      }
+
+      if (proximos.length > 0) {
+        msgVencimientos += `\n🟡 *PRÓXIMOS A VENCER* (${proximos.length} productos):\n`;
+        proximos.slice(0, 5).forEach((p) => {
+          const diasRestantes = Math.ceil(
+            (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+          );
+          msgVencimientos += `• ${p.nombre} (SKU: ${p.sku}) - vence en ${diasRestantes}d\n`;
+        });
+        if (proximos.length > 5) {
+          msgVencimientos += `... y ${proximos.length - 5} más\n`;
+        }
+      }
+
+      msgVencimientos += `\nRevisa el dashboard para más detalles.`;
+
+      const ok = await sendWhatsAppText(
+        { phoneNumberId: store!.whatsapp_phone_number_id!, accessToken: store!.whatsapp_access_token! },
+        storePhone.whatsapp_phone_number,
+        msgVencimientos
+      );
+
+      if (ok) {
+        sent++;
+      } else {
+        skipped++;
+      }
+    }
+  }
+
   return NextResponse.json({ sent, skipped });
 }
