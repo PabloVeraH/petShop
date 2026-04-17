@@ -89,13 +89,17 @@ export async function GET(req: NextRequest) {
 
   const productoData = productosConVencimiento ?? [];
   const vencidosReport = productoData.filter((p) => p.fecha_vencimiento < hoy && p.stock > 0);
-  const proximosReport = productoData.filter((p) => {
-    if (p.fecha_vencimiento < hoy) return false;
-    const diasRestantes = Math.ceil(
-      (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
-    );
-    return diasRestantes <= p.dias_alerta;
-  });
+  const proximosReport = productoData
+    .map((p) => {
+      const diasRestantes = Math.ceil(
+        (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+      );
+      return { ...p, diasRestantes };
+    })
+    .filter((p) => {
+      if (p.fecha_vencimiento < hoy) return false;
+      return p.diasRestantes <= p.dias_alerta && p.stock > 0;
+    });
 
   return NextResponse.json({
     periodo: Number(periodo),
