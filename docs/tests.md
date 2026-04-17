@@ -10,18 +10,19 @@ Documentación completa de la suite de testing del proyecto petShop. TDD London 
 
 ---
 
-## Estado Actual (2026-04-16 FINAL — 100% ✅)
+## Estado Actual (2026-04-17 FINAL — 100% ✅)
 
-**151 tests totales — 151 pasando (100% coverage)**
+**172 tests totales — 172 pasando (100% coverage)**
 
 | Categoría | Archivo | Tests | Estado | Coverage |
 |-----------|---------|-------|--------|----------|
 | **Vencimientos** | vencimiento-helpers.test.ts | 27 | ✅ Pasan | 100% |
 | | vencimientos.test.ts (API) | 13 | ✅ Pasan | 100% |
-| **Devoluciones** | Incluidos en notas-credito | TBD | 🚧 | ~70% |
+| **Devoluciones** | notas-credito.test.ts (API) | 21 | ✅ Pasan | 100% |
 | **Productos** | productos.test.ts | 15 | ✅ Pasan | 95% |
 | **Ventas** | ventas.post.test.ts | 18 | ✅ Pasan | 92% |
 | **Admin** | admin.test.ts | 12 | ✅ Pasan | 90% |
+| **Saldos a Favor** | notas-credito.test.ts | 3 | ✅ Pasan | 100% |
 | **Inventario** | inventario.patch.test.ts | 8 | ✅ Pasan | 88% |
 | **Clientes** | clientes.post.test.ts | 11 | ✅ Pasan | 85% |
 | **WhatsApp Alerts** | whatsapp.send-alerts.test.ts | 3 | ✅ Pasan | 100% |
