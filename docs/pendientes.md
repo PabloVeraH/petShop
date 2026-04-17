@@ -74,22 +74,28 @@ tags:
 - [x] tests.md — Historial completo, patrones, ejecución
 - [x] MEMORY.md — Índice actualizado con tests
 
-### Estado Final ✅
-- **Total**: 151 tests
-- **Pasando**: 151 (100%)
+### Estado Final — 2026-04-17 ✅✅
+- **Total**: 172 tests
+- **Pasando**: 172 (100%)
 - **Fallos**: 0 ✅
 
-### Completado en esta sesión
+### Sesión 1 (2026-04-16) — Vencimientos + Tests Base
 - [x] Arreglar WhatsApp send-alerts mocks (consolidar 2 queries → 1, refactor mock per-tabla)
 - [x] Arreglar Reports mocks (agregar .not() al chain)
+- [x] Documentación vencimientos.md (40 tests: 27 unitarios + 13 API)
+- [x] Actualizar tests.md, MEMORY.md con estado 151/151 ✅
+
+### Sesión 2 (2026-04-17) — Devoluciones + 21 Tests
+- [x] Suite completa notas-credito.test.ts (21 tests, 100%)
+- [x] Documentación devoluciones.md (notas crédito, reembolsos, saldo a favor)
+- [x] Actualizar tests.md, MEMORY.md con estado 172/172 ✅
 - [x] Verificar build sin errores TypeScript
-- [x] Actualizar documentación tests.md y pendientes.md
 
 ### Próximas Prioridades (Fase 2.4+)
-- [ ] Devoluciones — Integración con BD de test (20+ tests)
 - [ ] Componentes React — E2E testing con Playwright
-- [ ] Métodos de pago en POS
-- [ ] Recibos/facturas
+- [ ] Métodos de pago en POS (efectivo, tarjeta, transferencia)
+- [ ] Recibos/facturas con impresión térmica
+- [ ] Integración saldos a favor en POS (usar crédito en compra)
 
 ---
 
