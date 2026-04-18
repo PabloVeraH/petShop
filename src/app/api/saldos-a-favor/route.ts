@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { SaldosFavorUsageSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -31,11 +32,13 @@ export async function POST(req: NextRequest) {
   const { storeId: store_id } = ctx;
 
   const body = await req.json();
-  const { clienteId, ventaId, monto } = body;
+  const parsed = SaldosFavorUsageSchema.safeParse(body);
 
-  if (!clienteId) return NextResponse.json({ error: "clienteId required" }, { status: 400 });
-  if (!ventaId) return NextResponse.json({ error: "ventaId required" }, { status: 400 });
-  if (!monto || monto <= 0) return NextResponse.json({ error: "monto must be > 0" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { clienteId, ventaId, monto } = parsed.data;
 
   const supabase = createServiceClient();
 

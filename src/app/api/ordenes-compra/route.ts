@@ -1,6 +1,8 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { z } from "zod";
+import { UUIDSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -28,8 +30,25 @@ export async function POST(req: NextRequest) {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  const { proveedor_id, items, fecha_estimada, notas } = await req.json();
-  if (!proveedor_id || !items?.length) return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
+  const body = await req.json();
+  const schema = z.object({
+    proveedor_id: UUIDSchema,
+    items: z.array(z.object({
+      producto_id: UUIDSchema,
+      cantidad_solicitada: z.number().int().positive(),
+      precio_unitario: z.number().positive(),
+      subtotal: z.number().positive(),
+    })).min(1),
+    fecha_estimada: z.string().datetime().optional(),
+    notas: z.string().max(500).optional(),
+  });
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { proveedor_id, items, fecha_estimada, notas } = parsed.data;
 
   const subtotal: number = items.reduce((s: number, i: { subtotal: number }) => s + i.subtotal, 0);
   const impuesto = subtotal * 0.19;

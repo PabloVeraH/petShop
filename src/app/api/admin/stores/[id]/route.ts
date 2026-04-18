@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { AdminStoreUpdateSchema } from "@/lib/validation";
 
 export async function PATCH(
   req: NextRequest,
@@ -9,7 +10,7 @@ export async function PATCH(
 ) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
-  
+
   try {
     requireSystemAdmin(admin);
   } catch {
@@ -17,10 +18,17 @@ export async function PATCH(
   }
 
   const { id: storeId } = await params;
-  const { name, rut, email, phone, whatsapp_enabled } = await req.json();
+  const body = await req.json();
+  const parsed = AdminStoreUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
 
   try {
     const supabase = createServiceClient();
+    const { name, rut, email, phone, whatsapp_enabled } = parsed.data;
+
     const { error } = await supabase
       .from("stores")
       .update({

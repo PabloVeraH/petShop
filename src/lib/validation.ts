@@ -234,3 +234,98 @@ export const CuentasPagarSchema = z.object({
   fechaVencimiento: z.string().datetime(),
   notas: z.string().max(500).optional(),
 });
+
+export const CuentasPagarUpdateSchema = z.object({
+  estado: z.enum(["pendiente", "pagada", "vencida"]),
+});
+
+export const ConsumoConfigSchema = z.object({
+  mascota_id: UUIDSchema,
+  producto_id: UUIDSchema,
+  gramos_porcion: z.number().positive(),
+  veces_dia: z.number().int().positive(),
+});
+
+export const MascotaGetSchema = z.object({
+  id: UUIDSchema,
+});
+
+export const VendedorGetSchema = z.object({
+  id: UUIDSchema,
+});
+
+export const ReciboGetSchema = z.object({
+  ventaId: UUIDSchema,
+});
+
+export const DashboardQuerySchema = z.object({
+  filtro: z.enum(["diario", "semanal", "mensual"]).optional(),
+});
+
+export const AdminUserAssignSchema = z.object({
+  email: z.string().email(),
+  storeId: UUIDSchema,
+  role: z.enum(["storeAdmin", "storeWorker"]),
+});
+
+export const AdminStoreCreateSchema = z.object({
+  name: z.string().min(3).max(100),
+  rut: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(20).optional(),
+});
+
+export const AdminStoreUpdateSchema = z.object({
+  name: z.string().min(3).max(100).optional(),
+  rut: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(20).optional(),
+  whatsapp_enabled: z.boolean().optional(),
+});
+
+export const AdminUserCreateFullSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(2).max(100),
+  lastName: z.string().min(2).max(100),
+  storeId: UUIDSchema.optional(),
+  role: z.enum(["storeAdmin", "storeWorker", "systemAdmin"]),
+});
+
+export const SaldosFavorUsageSchema = z.object({
+  clienteId: UUIDSchema,
+  ventaId: UUIDSchema,
+  monto: z.number().positive(),
+});
+
+export const ProveedorProductoCreateSchema = z.object({
+  proveedor_id: UUIDSchema,
+  producto_id: UUIDSchema,
+  costo: z.number().positive().optional(),
+  tiempo_entrega_dias: z.number().int().positive().optional(),
+});
+
+export const NotaCreditoPostSchema = z.object({
+  ventaId: UUIDSchema,
+  items: z.array(z.object({
+    ventaItemId: UUIDSchema,
+    cantidadDevuelta: z.number().int().positive(),
+    restituirStock: z.boolean().optional(),
+  })).min(1),
+  tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),
+  metodoReembolso: z.string().max(100).optional(),
+  motivo: z.string().max(500).optional(),
+});
+
+export const OrdenCompraReceiveSchema = z.object({
+  action: z.literal("recibir"),
+  items: z.array(z.object({
+    id: UUIDSchema,
+    cantidad_recibida: z.number().int().positive(),
+    producto_id: UUIDSchema,
+  })).min(1),
+});
+
+export const OrdenCompraEstadoSchema = z.object({
+  estado: z.enum(["pendiente", "enviada", "recibida", "cancelada"]),
+});

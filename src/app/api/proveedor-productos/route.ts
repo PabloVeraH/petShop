@@ -1,14 +1,21 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { ProveedorProductoCreateSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
 
-  const { proveedor_id, producto_id, costo, tiempo_entrega_dias } = await req.json();
-  if (!proveedor_id || !producto_id) return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
+  const body = await req.json();
+  const parsed = ProveedorProductoCreateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { proveedor_id, producto_id, costo, tiempo_entrega_dias } = parsed.data;
 
   const supabase = createServiceClient();
 

@@ -1,7 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { z } from "zod";
+import { ConsumoConfigSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -45,11 +45,13 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const { mascota_id, producto_id, gramos_porcion, veces_dia } = body;
+  const parsed = ConsumoConfigSchema.safeParse(body);
 
-  if (!mascota_id || !producto_id || !gramos_porcion || !veces_dia) {
-    return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { mascota_id, producto_id, gramos_porcion, veces_dia } = parsed.data;
 
   // Get cliente_id from mascota
   const { data: mascota } = await supabase

@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { OrdenCompraReceiveSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
 
 export async function GET(
   _req: NextRequest,
@@ -44,7 +45,12 @@ export async function PATCH(
 
   // Receiving order: estado = "recibida", items with cantidad_recibida
   if (body.action === "recibir") {
-    const { items } = body as { items: Array<{ id: string; cantidad_recibida: number; producto_id: string }> };
+    const parsed = OrdenCompraReceiveSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { items } = parsed.data;
 
     // Update each item and increment stock
     for (const item of items) {
@@ -98,12 +104,12 @@ export async function PATCH(
   }
 
   // Simple estado update — only allow estado field, always scope to store
-  const ESTADOS_VALIDOS = ["pendiente", "enviada", "recibida", "cancelada"] as const;
-  type EstadoOrden = typeof ESTADOS_VALIDOS[number];
-  const { estado } = body as { estado?: EstadoOrden };
-  if (!estado || !ESTADOS_VALIDOS.includes(estado)) {
-    return NextResponse.json({ error: "estado inválido" }, { status: 400 });
+  const parsed = OrdenCompraEstadoSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { estado } = parsed.data;
 
   const { data, error } = await supabase
     .from("ordenes_compra")

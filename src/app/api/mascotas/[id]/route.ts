@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { MascotaUpdateSchema } from "@/lib/validation";
 
 export async function PATCH(
   req: NextRequest,
@@ -32,10 +33,13 @@ export async function PATCH(
   if (!cliente) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
 
   const body = await req.json();
-  const { nombre, tipo, raza, peso_kg } = body;
+  const parsed = MascotaUpdateSchema.safeParse(body);
 
-  if (nombre !== undefined && !nombre?.trim())
-    return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { nombre, tipo, raza, peso_kg } = parsed.data;
 
   const updates: Record<string, unknown> = {};
   if (nombre !== undefined) updates.nombre = nombre.trim();

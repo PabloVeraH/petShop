@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { NotaCreditoPostSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -29,14 +30,13 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const { ventaId, items, tipoReembolso, metodoReembolso, motivo } = body;
+  const parsed = NotaCreditoPostSchema.safeParse(body);
 
-  if (!ventaId || !items || items.length === 0) {
-    return NextResponse.json({ error: "ventaId e items requeridos" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  if (!["reembolso_directo", "saldo_a_favor"].includes(tipoReembolso)) {
-    return NextResponse.json({ error: "tipoReembolso inválido" }, { status: 400 });
-  }
+
+  const { ventaId, items, tipoReembolso, metodoReembolso, motivo } = parsed.data;
 
   const { data: venta } = await supabase
     .from("ventas")

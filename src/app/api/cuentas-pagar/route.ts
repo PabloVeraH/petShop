@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { CuentasPagarUpdateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -30,11 +31,14 @@ export async function PATCH(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
-  const { estado } = await req.json();
-  const ESTADOS_VALIDOS = ["pendiente", "pagada", "vencida"] as const;
-  if (!estado || !ESTADOS_VALIDOS.includes(estado)) {
-    return NextResponse.json({ error: "estado inválido" }, { status: 400 });
+  const body = await req.json();
+  const parsed = CuentasPagarUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { estado } = parsed.data;
 
   const supabase = createServiceClient();
   const { data, error } = await supabase

@@ -2,26 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { AdminUserCreateFullSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
-  
+
   try {
     requireSystemAdmin(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { email, password, firstName, lastName, storeId, role } = await req.json();
+  const body = await req.json();
+  const parsed = AdminUserCreateFullSchema.safeParse(body);
 
-  if (!email || !password || !firstName || !lastName || !role) {
-    return NextResponse.json({ error: "Parámetros requeridos: email, password, firstName, lastName, role" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  if (!["storeAdmin", "storeWorker", "systemAdmin"].includes(role)) {
-    return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
-  }
+  const { email, password, firstName, lastName, storeId, role } = parsed.data;
 
   if (role !== "systemAdmin" && !storeId) {
     return NextResponse.json({ error: "storeId requerido para roles de tienda" }, { status: 400 });

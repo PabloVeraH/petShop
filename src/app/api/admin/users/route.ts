@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { AdminUserAssignSchema } from "@/lib/validation";
 
 // GET /api/admin/users?storeId=xxx  — lista usuarios de una tienda
 export async function GET(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
-  
+
   try {
     requireSystemAdmin(admin);
   } catch {
@@ -33,17 +34,21 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
-  
+
   try {
     requireSystemAdmin(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { email, storeId, role } = await req.json();
-  if (!email || !storeId || !["storeAdmin", "storeWorker"].includes(role)) {
-    return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
+  const body = await req.json();
+  const parsed = AdminUserAssignSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
+
+  const { email, storeId, role } = parsed.data;
 
   const client = await clerkClient();
   const result = await client.users.getUserList({ emailAddress: [email], limit: 1 });
