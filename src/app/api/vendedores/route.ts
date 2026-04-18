@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { VendedorCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -49,12 +50,20 @@ export async function POST(req: NextRequest) {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  const { nombre, rut, meta_ventas } = await req.json();
-  if (!nombre?.trim()) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
+  const body = await req.json();
+  const parsed = VendedorCreateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { nombre, telefono, activo } = parsed.data;
+  const rut = body.rut;
+  const meta_ventas = body.meta_ventas;
 
   const { data, error } = await supabase
     .from("vendedores")
-    .insert({ store_id, nombre: nombre.trim(), rut: rut?.trim() || null, meta_ventas: meta_ventas ? Number(meta_ventas) : null })
+    .insert({ store_id, nombre: nombre.trim(), rut: rut?.trim() || null, meta_ventas: meta_ventas ? Number(meta_ventas) : null, telefono, activo })
     .select()
     .single();
 

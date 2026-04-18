@@ -163,3 +163,74 @@ export const SettingsUpdateSchema = z.object({
 export const ClienteDeleteSchema = z.object({
   confirm: z.literal("DELETE"),
 });
+
+export const VendedorUpdateSchema = z.object({
+  nombre: z.string().min(3).max(100).optional(),
+  email: z.string().email().optional(),
+  telefono: z.string().max(20).optional(),
+  activo: z.boolean().optional(),
+});
+
+export const OrdenesCompraCreateSchema = z.object({
+  proveedorId: UUIDSchema,
+  items: z.array(z.object({
+    productoId: UUIDSchema,
+    cantidad: z.number().int().positive(),
+    precioUnitario: z.number().positive(),
+  })).min(1),
+  notas: z.string().max(500).optional(),
+});
+
+export const NotasCreditoCreateSchema = z.object({
+  ventaId: UUIDSchema,
+  motivo: z.string().min(5).max(200),
+  monto: z.number().positive(),
+});
+
+export const SaldosFavorCreateSchema = z.object({
+  clienteId: UUIDSchema,
+  monto: z.number().positive(),
+  motivo: z.string().max(200).optional(),
+});
+
+export const RecomprasSchema = z.object({
+  clienteId: UUIDSchema,
+  productoId: UUIDSchema,
+  cantidad: z.number().int().positive(),
+});
+
+export const StockMovementsSchema = z.object({
+  productoId: UUIDSchema,
+  tipo: z.enum(["entrada", "salida", "ajuste"]),
+  cantidad: z.number().int(),
+  notas: z.string().max(500).optional(),
+});
+
+export const FidelizacionSchema = z.object({
+  clienteId: UUIDSchema,
+  accion: z.enum(["acumular", "canjear"]),
+  puntos: z.number().int().positive(),
+  description: z.string().max(200).optional(),
+});
+
+export const ProveedorUpdateSchema = z.object({
+  nombre: z.string().min(2).max(100).optional(),
+  rut: z.string().max(20).optional(),
+  contacto: z.string().max(100).optional(),
+  telefono: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+});
+
+export const ProveedorProductoSchema = z.object({
+  proveedorId: UUIDSchema,
+  productoId: UUIDSchema,
+  precioCosto: z.number().positive(),
+  activo: z.boolean().optional(),
+});
+
+export const CuentasPagarSchema = z.object({
+  proveedorId: UUIDSchema,
+  monto: z.number().positive(),
+  fechaVencimiento: z.string().datetime(),
+  notas: z.string().max(500).optional(),
+});
