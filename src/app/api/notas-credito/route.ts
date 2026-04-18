@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
+import { crearAsiento, lineasNotaCredito } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -183,6 +184,17 @@ export async function POST(req: NextRequest) {
       }).eq("cliente_id", venta.cliente_id);
     }
   }
+
+  crearAsiento({
+    storeId: store_id,
+    fecha: new Date().toISOString().split("T")[0],
+    tipoMovimiento: "NOTA_CREDITO",
+    referenciaId: nc.id,
+    referenciaNomero: numero_nc,
+    descripcion: `Nota de Crédito ${numero_nc}`,
+    lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso }),
+    usuarioId: ctx.userId ?? undefined,
+  }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
 
   return NextResponse.json({ ok: true, notaCreditoId: nc.id, numeroNc: numero_nc });
 }

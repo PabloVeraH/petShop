@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { UUIDSchema } from "@/lib/validation";
+import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -72,6 +73,17 @@ export async function POST(req: NextRequest) {
     }))
   );
   if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  crearAsiento({
+    storeId: store_id,
+    fecha: new Date().toISOString().split("T")[0],
+    tipoMovimiento: "COMPRA",
+    referenciaId: orden.id,
+    referenciaNomero: orden.numero,
+    descripcion: `Compra a proveedor - ${orden.numero}`,
+    lineas: lineasCompra({ montoNeto: subtotal, iva: impuesto, total }),
+    usuarioId: ctx.userId ?? undefined,
+  }).catch((e) => console.error("[contabilidad] Error asiento compra:", e));
 
   return NextResponse.json(orden);
 }

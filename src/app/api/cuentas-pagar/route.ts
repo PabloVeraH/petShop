@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { CuentasPagarUpdateSchema } from "@/lib/validation";
+import { crearAsiento, lineasPagoProveedor } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -49,5 +50,18 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  if (estado === "pagada" && data) {
+    crearAsiento({
+      storeId: store_id,
+      fecha: new Date().toISOString().split("T")[0],
+      tipoMovimiento: "PAGO_PROVEEDOR",
+      referenciaId: data.id,
+      descripcion: `Pago proveedor - Cuenta ${id}`,
+      lineas: lineasPagoProveedor(Number(data.monto)),
+      usuarioId: ctx.userId ?? undefined,
+    }).catch((e) => console.error("[contabilidad] Error asiento pago proveedor:", e));
+  }
+
   return NextResponse.json(data);
 }

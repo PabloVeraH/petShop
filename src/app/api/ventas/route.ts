@@ -5,6 +5,7 @@ import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
+import { crearAsiento, lineasVenta } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -336,6 +337,20 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+
+  // Generar asiento contable (fire-and-forget — no bloquea la respuesta)
+  const montoNeto = Math.round((total / 1.19) * 100) / 100;
+  const ivaCalc = Math.round((total - montoNeto) * 100) / 100;
+  crearAsiento({
+    storeId: store_id,
+    fecha: new Date().toISOString().split("T")[0],
+    tipoMovimiento: "VENTA",
+    referenciaId: venta.id,
+    referenciaNomero: venta.numero_comprobante,
+    descripcion: `Venta ${metodoPago} - ${venta.numero_comprobante}`,
+    lineas: lineasVenta({ metodoPago, montoNeto, iva: ivaCalc, total }),
+    usuarioId: ctx.userId ?? undefined,
+  }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 
   return NextResponse.json(venta);
 }
