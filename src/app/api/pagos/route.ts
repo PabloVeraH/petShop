@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -51,23 +52,48 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Registrar pago
-  const { data: pago, error: pagoError } = await supabase
-    .from("pagos")
-    .insert({
-      store_id,
-      venta_id: ventaId,
-      metodo,
-      monto,
-      numero_transaccion: numeroTransaccion ?? null,
-      comprobante: comprobante ?? null,
-    })
-    .select()
-    .single();
+   // Registrar pago
+   const { data: pago, error: pagoError } = await supabase
+     .from("pagos")
+     .insert({
+       store_id,
+       venta_id: ventaId,
+       metodo,
+       monto,
+       numero_transaccion: numeroTransaccion ?? null,
+       comprobante: comprobante ?? null,
+     })
+     .select()
+     .single();
 
-  if (pagoError) {
-    return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
-  }
+    if (pagoError) {
+      await logAudit({
+        storeId: store_id,
+        userId: ctx.userId || "unknown",
+        action: "CREATE",
+        entityType: "pago",
+        newValues: { ventaId, metodo, monto, numeroTransaccion, comprobante },
+        ipAddress: (await getRequestMetadata(req)).ipAddress,
+        userAgent: (await getRequestMetadata(req)).userAgent,
+        result: "failure",
+        errorMessage: pagoError.message,
+      });
+      return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+    }
+
+    // Log successful pago creation
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId || "unknown",
+      action: "CREATE",
+      entityType: "pago",
+      entityId: pago.id,
+      newValues: pago,
+      changeDescription: `Pago registrado para venta ${ventaId} por $${monto} via ${metodo}`,
+      ipAddress: (await getRequestMetadata(req)).ipAddress,
+      userAgent: (await getRequestMetadata(req)).userAgent,
+      result: "success",
+    });
 
   // Actualizar estado de venta a "pagada" si el monto cubre el total
   const { data: pagosVenta } = await supabase

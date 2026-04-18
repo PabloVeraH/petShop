@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET() {
   const ctx = await getStoreId();
@@ -16,7 +17,6 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
-  // Mask access token for security
   return NextResponse.json({
     ...data,
     whatsapp_access_token: data?.whatsapp_access_token ? "••••••••" : "",
@@ -31,7 +31,6 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
 
-  // Allowlist of fields that store admins are permitted to update
   const {
     name,
     rut,
@@ -53,10 +52,19 @@ export async function PATCH(req: NextRequest) {
   if (whatsapp_enabled !== undefined) updateData.whatsapp_enabled = whatsapp_enabled;
   if (whatsapp_phone_number_id !== undefined) updateData.whatsapp_phone_number_id = whatsapp_phone_number_id;
   if (whatsapp_webhook_verify_token !== undefined) updateData.whatsapp_webhook_verify_token = whatsapp_webhook_verify_token;
-  // Don't overwrite token if placeholder sent
   if (whatsapp_access_token !== undefined && whatsapp_access_token !== "••••••••") {
     updateData.whatsapp_access_token = whatsapp_access_token;
   }
+
+  const { data: originalStore } = await supabase
+    .from("stores")
+    .select("*")
+    .eq("id", store_id)
+    .single();
+
+  const auditOldValues = originalStore ?? {};
+
+  const { ipAddress, userAgent } = await getRequestMetadata(req);
 
   const { data, error } = await supabase
     .from("stores")
@@ -65,6 +73,36 @@ export async function PATCH(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (error) {
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "settings",
+      entityId: store_id,
+      oldValues: auditOldValues,
+      newValues: updateData,
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: error.message,
+    });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "settings",
+    entityId: store_id,
+    oldValues: auditOldValues,
+    newValues: data,
+    changeDescription: "Configuración de tienda actualizada",
+    ipAddress,
+    userAgent,
+    result: "success",
+  });
+
   return NextResponse.json(data);
 }

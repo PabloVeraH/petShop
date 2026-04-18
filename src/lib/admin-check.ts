@@ -1,6 +1,3 @@
-// src/lib/admin-check.ts
-import { SessionClaims } from "@clerk/types";
-
 export interface AdminContext {
   userId: string;
   storeId: string;
@@ -8,7 +5,7 @@ export interface AdminContext {
   isSystemAdmin: boolean;
 }
 
-export function getAdminStatus(sessionClaims: SessionClaims | undefined): AdminContext | null {
+export function getAdminStatus(sessionClaims: any): AdminContext | null {
   if (!sessionClaims?.publicMetadata) return null;
 
   const meta = sessionClaims.publicMetadata as any;

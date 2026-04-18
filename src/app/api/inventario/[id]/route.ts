@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -32,6 +33,9 @@ export async function PATCH(
 
   if (!prod) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
 
+  const { ipAddress, userAgent } = await getRequestMetadata(req);
+  const auditOldValues = { stock: prod.stock };
+
   const delta = tipo === "entrada" ? cantidad : -cantidad;
   const nuevoStock = Math.max(0, prod.stock + delta);
 
@@ -42,7 +46,36 @@ export async function PATCH(
     .select("id, nombre, marca, precio, stock")
     .single();
 
-  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (error) {
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "inventario",
+      entityId: id,
+      oldValues: auditOldValues,
+      newValues: { stock: nuevoStock },
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: error.message,
+    });
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "inventario",
+    entityId: id,
+    oldValues: auditOldValues,
+    newValues: updated,
+    changeDescription: `Stock ajustado de ${prod.stock} a ${updated.stock} (${tipo}: ${Math.abs(delta)})`,
+    ipAddress,
+    userAgent,
+    result: "success",
+  });
 
   syncProductsToHub([{
     producto_id: updated.id,

@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { MascotaCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
@@ -69,5 +70,21 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  const { ipAddress, userAgent } = await getRequestMetadata(req);
+
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "mascota",
+    entityId: mascota.id,
+    newValues: mascota,
+    changeDescription: `Mascota registrada: ${nombre} (${tipo})`,
+    ipAddress,
+    userAgent,
+    result: "success",
+  });
+
   return NextResponse.json(mascota, { status: 201 });
 }

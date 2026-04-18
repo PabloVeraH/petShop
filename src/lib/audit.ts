@@ -11,8 +11,8 @@ export interface AuditLogInput {
   oldValues?: Record<string, unknown>;
   newValues?: Record<string, unknown>;
   changeDescription?: string;
-  ipAddress?: string;
-  userAgent?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   result?: "success" | "failure" | "partial";
   errorMessage?: string;
 }
@@ -44,8 +44,8 @@ export async function logAudit(input: AuditLogInput) {
 // Helper para extraer IP y UA
 export function getRequestMetadata(req: NextRequest) {
   return {
-    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip"),
-    userAgent: req.headers.get("user-agent"),
+    ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
+    userAgent: req.headers.get("user-agent") || null,
   };
 }
 

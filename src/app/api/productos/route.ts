@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { syncProductsToHub } from "@/lib/hub-sync";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -26,11 +27,6 @@ export async function GET(req: NextRequest) {
     const s = search.replace(/[()%,]/g, "");
     query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%`);
   }
-
-  const { data, error } = await query.limit(50);
-  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json(data ?? []);
-}
 
   const { data, error } = await query.limit(50);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -77,6 +73,21 @@ export async function POST(req: NextRequest) {
     if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
+
+  const { ipAddress, userAgent } = await getRequestMetadata(req);
+
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "producto",
+    entityId: data.id,
+    newValues: data,
+    changeDescription: `Producto creado: ${nombre} (SKU: ${sku})`,
+    ipAddress,
+    userAgent,
+    result: "success",
+  });
 
   syncProductsToHub([{
     producto_id: data.id,

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -136,24 +137,51 @@ export async function POST(req: NextRequest) {
   const hoy = new Date();
   const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
-  const { data: venta, error: ventaError } = await supabase
-    .from("ventas")
-    .insert({
-      store_id,
-      cliente_id: clienteId ?? null,
-      vendedor_id: vendedorId ?? null,
-      subtotal,
-      descuento,
-      impuesto,
-      total,
-      metodo_pago: metodoPago,
-      estado: "completada",
-      numero_comprobante,
-    })
-    .select()
-    .single();
+   const { data: venta, error: ventaError } = await supabase
+     .from("ventas")
+     .insert({
+       store_id,
+       cliente_id: clienteId ?? null,
+       vendedor_id: vendedorId ?? null,
+       subtotal,
+       descuento,
+       impuesto,
+       total,
+       metodo_pago: metodoPago,
+       estado: "completada",
+       numero_comprobante,
+     })
+     .select()
+     .single();
 
-  if (ventaError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+   if (ventaError) {
+     await logAudit({
+       storeId: store_id,
+       userId: ctx.userId || "unknown",
+       action: "CREATE",
+       entityType: "venta",
+       newValues: { items, clienteId, vendedorId, metodoPago, descuentoPct, numeroTransaccion },
+       ipAddress: (await getRequestMetadata(req)).ipAddress,
+       userAgent: (await getRequestMetadata(req)).userAgent,
+       result: "failure",
+       errorMessage: ventaError.message,
+     });
+     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+   }
+
+   // Log successful venta creation
+   await logAudit({
+     storeId: store_id,
+     userId: ctx.userId || "unknown",
+     action: "CREATE",
+     entityType: "venta",
+     entityId: venta.id,
+     newValues: venta,
+     changeDescription: `Venta creada por $${venta.total} con ${items.length} items`,
+     ipAddress: (await getRequestMetadata(req)).ipAddress,
+     userAgent: (await getRequestMetadata(req)).userAgent,
+     result: "success",
+   });
 
   const { error: itemsError } = await supabase.from("venta_items").insert(
     itemsConPrecio.map((item: {

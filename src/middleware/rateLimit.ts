@@ -19,7 +19,7 @@ const defaultConfig: RateLimitConfig = {
   windowMs: 900000,      // 15 minutes
   maxRequests: 100,
   keyGenerator: (req) => {
-    return req.headers.get("x-forwarded-for") || req.ip || "unknown";
+    return req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
   },
 };
 
