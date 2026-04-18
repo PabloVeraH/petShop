@@ -1,5 +1,6 @@
 // src/middleware/rateLimit.ts
 import { NextRequest, NextResponse } from "next/server";
+import { logSecurityAlert } from "@/lib/security-alerts";
 
 interface RateLimitStore {
   [key: string]: { count: number; resetTime: number };
@@ -44,6 +45,13 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
 
     // Excedió límite
     if (store[key].count > finalConfig.maxRequests) {
+      logSecurityAlert({
+        type: "rate_limit_exceeded",
+        severity: "MEDIUM",
+        message: `Rate limit exceeded for IP ${key}: ${store[key].count} requests`,
+        metadata: { ip: key, count: store[key].count, limit: finalConfig.maxRequests },
+      });
+
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
         {

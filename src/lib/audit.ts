@@ -1,6 +1,7 @@
 // src/lib/audit.ts
 import { createServiceClient } from "./supabase";
 import { NextRequest } from "next/server";
+import { logSecurityAlert } from "./security-alerts";
 
 export interface AuditLogInput {
   storeId: string;
@@ -37,7 +38,12 @@ export async function logAudit(input: AuditLogInput) {
 
   if (error) {
     console.error("Failed to log audit:", error);
-    // No lanzar error - auditoría no debe bloquear operación
+    logSecurityAlert({
+      type: "audit_log_failure",
+      severity: "HIGH",
+      message: `Failed to log audit: ${error.message}`,
+      metadata: { entityType: input.entityType, entityId: input.entityId },
+    });
   }
 }
 
