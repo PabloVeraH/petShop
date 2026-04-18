@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 
 export async function POST(req: NextRequest) {
   const { sessionClaims } = await auth();
