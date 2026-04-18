@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
 
   crearAsiento({
     storeId: store_id,
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: nc.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
     tipoMovimiento: "NOTA_CREDITO",
     referenciaId: nc.id,
     referenciaNomero: numero_nc,

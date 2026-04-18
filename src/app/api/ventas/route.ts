@@ -343,7 +343,7 @@ export async function POST(req: NextRequest) {
   const ivaCalc = Math.round((total - montoNeto) * 100) / 100;
   crearAsiento({
     storeId: store_id,
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: venta.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
     tipoMovimiento: "VENTA",
     referenciaId: venta.id,
     referenciaNomero: venta.numero_comprobante,

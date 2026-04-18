@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest) {
   if (estado === "pagada" && data) {
     crearAsiento({
       storeId: store_id,
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
       tipoMovimiento: "PAGO_PROVEEDOR",
       referenciaId: data.id,
       descripcion: `Pago proveedor - Cuenta ${id}`,
