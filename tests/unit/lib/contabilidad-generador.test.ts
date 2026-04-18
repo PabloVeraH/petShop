@@ -130,17 +130,26 @@ describe("Generador de Asientos Contables", () => {
       expect(creditos).toBe(5950);
     });
 
-    it("debe registrar IVA como crédito fiscal", () => {
+    it("debe registrar IVA como crédito fiscal (cuenta ACTIVO, no PASIVO)", () => {
       const lineas = lineasCompra({
         montoNeto: 10000,
         iva: 1900,
         total: 11900,
       });
 
+      // IVA en compras → cuenta de activo (crédito fiscal recuperable del SII)
       const lineaIVA = lineas.find(
+        (l) => l.cuentaCodigo === CUENTAS.IVA_CREDITO_FISCAL.codigo
+      );
+      expect(lineaIVA).toBeDefined();
+      expect(lineaIVA?.debito).toBe(1900);
+      expect(lineaIVA?.credito).toBe(0);
+
+      // NO debe usar la cuenta de IVA por Pagar (pasivo de ventas)
+      const lineaIVAPagar = lineas.find(
         (l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo
       );
-      expect(lineaIVA?.debito).toBe(1900);
+      expect(lineaIVAPagar).toBeUndefined();
     });
 
     it("debe registrar cuenta por pagar a proveedor", () => {

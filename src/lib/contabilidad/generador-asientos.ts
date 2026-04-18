@@ -163,9 +163,9 @@ export function lineasCompra(params: {
       descripcionLinea: "Compra inventario",
     },
     {
-      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
-      cuentaNombre: "IVA Crédito Fiscal",
-      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      cuentaCodigo: CUENTAS.IVA_CREDITO_FISCAL.codigo,
+      cuentaNombre: CUENTAS.IVA_CREDITO_FISCAL.nombre,
+      cuentaTipo: CUENTAS.IVA_CREDITO_FISCAL.tipo,
       debito: params.iva,
       credito: 0,
       descripcionLinea: "IVA crédito fiscal compra",

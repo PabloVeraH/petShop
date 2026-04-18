@@ -75,8 +75,11 @@ export const CUENTAS = {
   CAJA: { codigo: '110101', nombre: 'Caja Operacional', tipo: 'ACTIVO' as TipoCuenta },
   BANCO: { codigo: '110201', nombre: 'Banco Operacional', tipo: 'ACTIVO' as TipoCuenta },
   SALDOS_FAVOR: { codigo: '110502', nombre: 'Saldos a Favor Clientes', tipo: 'ACTIVO' as TipoCuenta },
+  // IVA crédito fiscal (activo): se recupera en compras (Dr al comprar)
+  IVA_CREDITO_FISCAL: { codigo: '110601', nombre: 'IVA Crédito Fiscal', tipo: 'ACTIVO' as TipoCuenta },
   INVENTARIO: { codigo: '111001', nombre: 'Inventario de Productos', tipo: 'ACTIVO' as TipoCuenta },
   PROVEEDORES: { codigo: '210101', nombre: 'Proveedores', tipo: 'PASIVO' as TipoCuenta },
+  // IVA débito fiscal (pasivo): se debe al SII por ventas (Cr al vender)
   IVA_PAGAR: { codigo: '210501', nombre: 'IVA por Pagar', tipo: 'PASIVO' as TipoCuenta },
   VENTAS: { codigo: '410101', nombre: 'Venta de Productos', tipo: 'INGRESO' as TipoCuenta },
   DEVOLUCIONES: { codigo: '410102', nombre: 'Devoluciones en Ventas', tipo: 'INGRESO' as TipoCuenta },

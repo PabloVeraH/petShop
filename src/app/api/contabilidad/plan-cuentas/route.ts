@@ -22,6 +22,7 @@ const PLAN_BASE = [
   { codigo: "110202", nombre: "Banco Secundario", tipo: "ACTIVO", subtipo: "CIRCULANTE", requiere_conciliacion: true },
   { codigo: "110501", nombre: "Clientes por Cobrar", tipo: "ACTIVO", subtipo: "CIRCULANTE" },
   { codigo: "110502", nombre: "Saldos a Favor Clientes", tipo: "ACTIVO", subtipo: "CIRCULANTE" },
+  { codigo: "110601", nombre: "IVA Crédito Fiscal", tipo: "ACTIVO", subtipo: "CIRCULANTE" },
   { codigo: "111001", nombre: "Inventario de Productos", tipo: "ACTIVO", subtipo: "CIRCULANTE" },
   { codigo: "111002", nombre: "Existencias en Tránsito", tipo: "ACTIVO", subtipo: "CIRCULANTE" },
   { codigo: "120501", nombre: "Muebles y Enseres", tipo: "ACTIVO", subtipo: "NO_CIRCULANTE" },
