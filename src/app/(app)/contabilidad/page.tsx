@@ -140,6 +140,27 @@ export default function ContabilidadPage() {
           >
             {cerrandoMes ? "Cerrando..." : "Cierre de Mes"}
           </Button>
+          {tab === "libro" && (
+            <>
+              <a
+                href={`/api/contabilidad/libro-diario/pdf?mes=${Number(mes)}&año=${año}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">PDF</Button>
+              </a>
+              <a href={`/api/contabilidad/libro-diario/excel?mes=${Number(mes)}&año=${año}`}>
+                <Button variant="outline" size="sm">Excel</Button>
+              </a>
+            </>
+          )}
+          {tab === "balance" && (
+            <a
+              href={`/api/contabilidad/balance-prueba/excel?mes=${Number(mes)}&año=${año}&fecha=${año}-${mes}-${new Date(Number(año), Number(mes), 0).getDate()}`}
+            >
+              <Button variant="outline" size="sm">Excel</Button>
+            </a>
+          )}
         </div>
       </div>
 
