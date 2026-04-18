@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
+import { ProductoUpdateSchema } from "@/lib/validation";
 
 export async function PATCH(
   req: NextRequest,
@@ -15,27 +16,24 @@ export async function PATCH(
   const { id } = await params;
 
   const body = await req.json();
-  const { nombre, sku, precio, costo, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = body;
+  const parsed = ProductoUpdateSchema.safeParse(body);
 
-  if (nombre !== undefined && !nombre?.trim())
-    return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
-  if (precio !== undefined && Number(precio) <= 0)
-    return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
-  if (fecha_vencimiento !== undefined && fecha_vencimiento && dias_alerta !== undefined && Number(dias_alerta) < 1)
-    return NextResponse.json({ error: "dias_alerta debe ser >= 1 si fecha_vencimiento está establecida" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
 
   const updates: Record<string, unknown> = {};
-  if (nombre !== undefined) updates.nombre = nombre.trim();
-  if (sku !== undefined) updates.sku = sku.trim().toUpperCase();
-  if (precio !== undefined) updates.precio = Number(precio);
-  if (costo !== undefined) updates.costo = costo ? Number(costo) : null;
-  if (stock_minimo !== undefined) updates.stock_minimo = Number(stock_minimo);
-  if (marca !== undefined) updates.marca = marca?.trim() || null;
-  if (peso_gramos !== undefined) updates.peso_gramos = peso_gramos ? Number(peso_gramos) : null;
-  if (fecha_vencimiento !== undefined) updates.fecha_vencimiento = fecha_vencimiento || null;
-  if (dias_alerta !== undefined) updates.dias_alerta = Number(dias_alerta) || 30;
-  if (precio_oferta !== undefined) updates.precio_oferta = precio_oferta ? Number(precio_oferta) : null;
-  if (en_oferta !== undefined) updates.en_oferta = en_oferta === true;
+  if (parsed.data.nombre !== undefined) updates.nombre = parsed.data.nombre.trim();
+  if (parsed.data.sku !== undefined) updates.sku = parsed.data.sku.trim().toUpperCase();
+  if (parsed.data.precio !== undefined) updates.precio = parsed.data.precio;
+  if (parsed.data.costo !== undefined) updates.costo = parsed.data.costo;
+  if (parsed.data.stock_minimo !== undefined) updates.stock_minimo = parsed.data.stock_minimo;
+  if (parsed.data.marca !== undefined) updates.marca = parsed.data.marca?.trim() || null;
+  if (parsed.data.peso_gramos !== undefined) updates.peso_gramos = parsed.data.peso_gramos;
+  if (parsed.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = parsed.data.fecha_vencimiento || null;
+  if (parsed.data.dias_alerta !== undefined) updates.dias_alerta = parsed.data.dias_alerta || 30;
+  if (parsed.data.precio_oferta !== undefined) updates.precio_oferta = parsed.data.precio_oferta;
+  if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
 
   const { data, error } = await supabase
     .from("productos")

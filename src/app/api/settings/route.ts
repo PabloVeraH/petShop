@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { SettingsUpdateSchema } from "@/lib/validation";
 
 export async function GET() {
   const ctx = await getStoreId();
@@ -30,6 +31,11 @@ export async function PATCH(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
+  const parsed = SettingsUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
 
   const {
     name,
@@ -41,7 +47,7 @@ export async function PATCH(req: NextRequest) {
     whatsapp_phone_number_id,
     whatsapp_access_token,
     whatsapp_webhook_verify_token,
-  } = body;
+  } = parsed.data;
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (name !== undefined) updateData.name = name;

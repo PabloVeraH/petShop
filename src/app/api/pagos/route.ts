@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { PagoSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -10,27 +11,16 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const { ventaId, metodo, monto, numeroTransaccion, comprobante } = body;
+  const parsed = PagoSchema.safeParse(body);
 
-  // Validación de entrada
-  const METODOS_VALIDOS = ["efectivo", "debito", "credito", "transferencia"] as const;
-  if (!ventaId || typeof ventaId !== "string") {
-    return NextResponse.json({ error: "ventaId requerido" }, { status: 400 });
-  }
-  if (!metodo || !METODOS_VALIDOS.includes(metodo)) {
-    return NextResponse.json({ error: "Método de pago inválido" }, { status: 400 });
-  }
-  if (typeof monto !== "number" || monto <= 0) {
-    return NextResponse.json({ error: "Monto debe ser mayor a 0" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  // Validar que tarjeta y transferencia tienen numero_transaccion
-  if ((metodo === "debito" || metodo === "credito" || metodo === "transferencia") && !numeroTransaccion) {
-    return NextResponse.json(
-      { error: `número de transacción requerido para ${metodo}` },
-      { status: 400 }
-    );
-  }
+  const { ventaId, monto, metodoPago } = parsed.data;
+  const metodo = metodoPago;
+  const numeroTransaccion = body.numeroTransaccion;
+  const comprobante = body.comprobante;
 
   // Verificar que la venta existe y pertenece a esta tienda
   const { data: venta, error: ventaError } = await supabase

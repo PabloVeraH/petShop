@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { VentaCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -78,34 +79,23 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const { items, clienteId, vendedorId, metodoPago, descuentoPct, numeroTransaccion } = body;
+  const parsed = VentaCreateSchema.safeParse(body);
 
-  // Server-side input validation
-  const METODOS_PAGO_VALIDOS = ["efectivo", "debito", "credito", "transferencia"] as const;
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "Se requiere al menos un producto" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  if (!metodoPago || !METODOS_PAGO_VALIDOS.includes(metodoPago)) {
-    return NextResponse.json({ error: "Método de pago inválido" }, { status: 400 });
-  }
-  // Validar que tarjeta/débito/transferencia tienen numero_transaccion
-  if ((metodoPago === "debito" || metodoPago === "credito" || metodoPago === "transferencia") && !numeroTransaccion) {
+
+  const { items, clienteId, metodoPago, descuento } = parsed.data;
+  const numeroTransaccion = body.numeroTransaccion;
+  const vendedorId = body.vendedorId;
+  const descuento_pct = descuento ?? 0;
+
+  // Additional validation for transaction numbers
+  if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion) {
     return NextResponse.json(
       { error: `número de transacción requerido para ${metodoPago}` },
       { status: 400 }
     );
-  }
-  const descuento_pct = Number(descuentoPct ?? 0);
-  if (descuento_pct < 0 || descuento_pct > 100) {
-    return NextResponse.json({ error: "Descuento debe estar entre 0 y 100" }, { status: 400 });
-  }
-  for (const item of items) {
-    if (!item.producto_id || typeof item.producto_id !== "string") {
-      return NextResponse.json({ error: "producto_id inválido en items" }, { status: 400 });
-    }
-    if (!Number.isInteger(item.cantidad) || item.cantidad <= 0) {
-      return NextResponse.json({ error: "cantidad debe ser un entero positivo" }, { status: 400 });
-    }
   }
 
   // Retrieve prices from DB — do not trust client-supplied prices
@@ -130,9 +120,9 @@ export async function POST(req: NextRequest) {
     (sum: number, i: { subtotal: number }) => sum + i.subtotal,
     0
   );
-  const descuento = (subtotal * descuento_pct) / 100;
-  const impuesto = (subtotal - descuento) * 0.19;
-  const total = (subtotal - descuento) * 1.19;
+  const descuentoMonto = (subtotal * descuento_pct) / 100;
+  const impuesto = (subtotal - descuentoMonto) * 0.19;
+  const total = (subtotal - descuentoMonto) * 1.19;
 
   const hoy = new Date();
   const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -160,7 +150,7 @@ export async function POST(req: NextRequest) {
        userId: ctx.userId || "unknown",
        action: "CREATE",
        entityType: "venta",
-       newValues: { items, clienteId, vendedorId, metodoPago, descuentoPct, numeroTransaccion },
+       newValues: { items, clienteId, vendedorId, metodoPago, descuento: descuento_pct, numeroTransaccion },
        ipAddress: (await getRequestMetadata(req)).ipAddress,
        userAgent: (await getRequestMetadata(req)).userAgent,
        result: "failure",

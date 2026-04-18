@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { ProductoCreateSchema } from "@/lib/validation";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -40,13 +41,13 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
   const body = await req.json();
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = body;
+  const parsed = ProductoCreateSchema.safeParse(body);
 
-  if (!nombre?.trim()) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
-  if (!sku?.trim()) return NextResponse.json({ error: "SKU requerido" }, { status: 400 });
-  if (!precio || Number(precio) <= 0) return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
-  if (fecha_vencimiento && dias_alerta && Number(dias_alerta) < 1)
-    return NextResponse.json({ error: "dias_alerta debe ser >= 1 si fecha_vencimiento está establecida" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = parsed.data;
 
   const { data, error } = await supabase
     .from("productos")

@@ -77,3 +77,89 @@ export const ProveedorCreateSchema = z.object({
   telefono: z.string().max(20).optional(),
   email: z.string().email().optional(),
 });
+
+export const ProductoCreateSchema = z.object({
+  nombre: z.string().min(2).max(100),
+  sku: z.string().min(1).max(50),
+  precio: z.number().positive(),
+  costo: z.number().nonnegative().optional(),
+  stock: z.number().int().nonnegative().optional(),
+  stock_minimo: z.number().int().nonnegative().optional(),
+  marca: z.string().max(50).optional(),
+  peso_gramos: z.number().int().positive().optional(),
+  fecha_vencimiento: z.string().datetime().optional(),
+  dias_alerta: z.number().int().positive().max(365).optional(),
+  precio_oferta: z.number().nonnegative().optional(),
+  en_oferta: z.boolean().optional(),
+});
+
+export const ProductoUpdateSchema = z.object({
+  nombre: z.string().min(2).max(100).optional(),
+  sku: z.string().min(1).max(50).optional(),
+  precio: z.number().positive().optional(),
+  costo: z.number().nonnegative().optional(),
+  stock: z.number().int().nonnegative().optional(),
+  stock_minimo: z.number().int().nonnegative().optional(),
+  marca: z.string().max(50).optional(),
+  peso_gramos: z.number().int().positive().optional(),
+  fecha_vencimiento: z.string().datetime().optional(),
+  dias_alerta: z.number().int().positive().max(365).optional(),
+  precio_oferta: z.number().nonnegative().optional(),
+  en_oferta: z.boolean().optional(),
+});
+
+export const MascotaUpdateSchema = z.object({
+  nombre: z.string().min(2).max(50).optional(),
+  tipo: z.enum(["perro", "gato", "otro"]).optional(),
+  raza: z.string().max(50).optional(),
+  peso_kg: z.number().positive().max(100).optional(),
+  alimento_habitual_id: UUIDSchema.optional(),
+});
+
+export const VendedorCreateSchema = z.object({
+  nombre: z.string().min(3).max(100),
+  email: z.string().email(),
+  telefono: z.string().max(20).optional(),
+  activo: z.boolean().optional(),
+});
+
+export const VentaItemSchema = z.object({
+  producto_id: UUIDSchema,
+  cantidad: z.number().int().positive(),
+  precioUnitario: z.number().positive().optional(),
+  mascota_id: UUIDSchema.optional(),
+});
+
+export const VentaCreateSchema = z.object({
+  clienteId: UUIDSchema,
+  items: z.array(VentaItemSchema).min(1),
+  descuento: z.number().nonnegative().max(100).optional(),
+  metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor"]),
+  notas: z.string().max(500).optional(),
+  numeroTransaccion: z.string().optional(),
+});
+
+export const PagoSchema = z.object({
+  ventaId: UUIDSchema,
+  monto: z.number().positive(),
+  metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia"]),
+  referencia: z.string().max(100).optional(),
+  numeroTransaccion: z.string().optional(),
+  comprobante: z.string().optional(),
+});
+
+export const SettingsUpdateSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  rut: z.string().max(20).optional(),
+  address: z.string().max(200).optional(),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+  whatsapp_enabled: z.boolean().optional(),
+  whatsapp_phone_number_id: z.string().max(50).optional(),
+  whatsapp_access_token: z.string().max(200).optional(),
+  whatsapp_webhook_verify_token: z.string().max(100).optional(),
+});
+
+export const ClienteDeleteSchema = z.object({
+  confirm: z.literal("DELETE"),
+});
