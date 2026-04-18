@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { ProveedorCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -28,8 +29,14 @@ export async function POST(req: NextRequest) {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  const { nombre, rut, contacto, telefono, email } = await req.json();
-  if (!nombre?.trim()) return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
+  const body = await req.json();
+  const parsed = ProveedorCreateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { nombre, rut, contacto, telefono, email } = parsed.data;
 
   const { data, error } = await supabase
     .from("proveedores")

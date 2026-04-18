@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { ClienteUpdateSchema } from "@/lib/validation";
 
 export async function GET(
   _req: NextRequest,
@@ -51,10 +52,13 @@ export async function PATCH(
   const { id } = await params;
 
   const body = await req.json();
-  const { nombre, email, telefono } = body;
+  const parsed = ClienteUpdateSchema.safeParse(body);
 
-  if (nombre !== undefined && !nombre?.trim())
-    return NextResponse.json({ error: "Nombre no puede estar vacío" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { nombre, email, telefono } = parsed.data;
 
   const { data: originalCliente } = await supabase
     .from("clientes")

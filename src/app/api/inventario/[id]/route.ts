@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { InventarioUpdateSchema } from "@/lib/validation";
 
 export async function PATCH(
   req: NextRequest,
@@ -15,14 +16,14 @@ export async function PATCH(
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const { tipo, cantidad, notas } = await req.json();
+  const body = await req.json();
+  const parsed = InventarioUpdateSchema.safeParse(body);
 
-  if (!["entrada", "salida"].includes(tipo)) {
-    return NextResponse.json({ error: "tipo debe ser entrada o salida" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  if (!Number.isInteger(cantidad) || cantidad <= 0) {
-    return NextResponse.json({ error: "cantidad debe ser un entero positivo" }, { status: 400 });
-  }
+
+  const { tipo, cantidad, notas } = parsed.data;
 
   const { data: prod } = await supabase
     .from("productos")

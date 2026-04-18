@@ -54,6 +54,26 @@ export const MascotaCreateSchema = z.object({
   nombre: z.string().min(2).max(50),
   tipo: z.enum(["perro", "gato", "otro"]),
   raza: z.string().max(50).optional(),
-  peso_kg: z.number().positive().max(100).optional(), // Reasonable max weight for pets in kg
+  peso_kg: z.number().positive().max(100).optional(),
   alimento_habitual_id: UUIDSchema.optional(),
+});
+
+export const ClienteUpdateSchema = z.object({
+  nombre: z.string().min(3).max(100).optional(),
+  email: z.string().email().optional(),
+  telefono: z.string().max(20).optional(),
+});
+
+export const InventarioUpdateSchema = z.object({
+  tipo: z.enum(["entrada", "salida"]),
+  cantidad: z.number().int().positive(),
+  notas: z.string().max(500).optional(),
+});
+
+export const ProveedorCreateSchema = z.object({
+  nombre: z.string().min(2).max(100),
+  rut: z.string().max(20).optional(),
+  contacto: z.string().max(100).optional(),
+  telefono: z.string().max(20).optional(),
+  email: z.string().email().optional(),
 });
