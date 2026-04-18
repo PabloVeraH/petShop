@@ -20,6 +20,7 @@ interface POSStore {
   mascotaId?: string;
   vendedorId?: string;
   metodoPago?: string;
+  numeroTransaccion?: string;
   descuento: number;
   fidelizacionDescuento: number;
 
@@ -31,6 +32,7 @@ interface POSStore {
   clearCliente: () => void;
   setVendedor: (vendedorId: string | undefined) => void;
   setMetodoPago: (metodo: string) => void;
+  setNumeroTransaccion: (numero: string | undefined) => void;
   setDescuento: (descuento: number) => void;
 
   subtotal: () => number;
@@ -88,6 +90,7 @@ export const usePOSStore = create<POSStore>()(
           mascotaId: undefined,
           vendedorId: undefined,
           metodoPago: undefined,
+          numeroTransaccion: undefined,
           descuento: 0,
           fidelizacionDescuento: 0,
         }),
@@ -112,6 +115,8 @@ export const usePOSStore = create<POSStore>()(
       setVendedor: (vendedorId) => set({ vendedorId }),
 
       setMetodoPago: (metodoPago) => set({ metodoPago }),
+
+      setNumeroTransaccion: (numeroTransaccion) => set({ numeroTransaccion }),
 
       setDescuento: (descuento) => set({ descuento }),
 

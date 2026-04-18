@@ -21,7 +21,7 @@ interface ModalPagoProps {
 }
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
-  const { subtotal, descuento, total, metodoPago, setMetodoPago, setDescuento, fidelizacionDescuento, vendedorId, setVendedor } =
+  const { subtotal, descuento, total, metodoPago, setMetodoPago, numeroTransaccion, setNumeroTransaccion, setDescuento, fidelizacionDescuento, vendedorId, setVendedor } =
     usePOSStore();
 
   const { data: vendedores } = useQuery<Vendedor[]>({
@@ -71,7 +71,10 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
                 <Button
                   key={m.value}
                   variant={metodoPago === m.value ? "default" : "outline"}
-                  onClick={() => setMetodoPago(m.value)}
+                  onClick={() => {
+                    setMetodoPago(m.value);
+                    if (m.value === "efectivo") setNumeroTransaccion(undefined);
+                  }}
                   size="sm"
                 >
                   {m.label}
@@ -79,6 +82,22 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               ))}
             </div>
           </div>
+
+          {/* Número de transacción — solo para débito, crédito, transferencia */}
+          {["debito", "credito", "transferencia"].includes(metodoPago ?? "") && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                Número de transacción
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: TRX123456789"
+                value={numeroTransaccion ?? ""}
+                onChange={(e) => setNumeroTransaccion(e.target.value)}
+                className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          )}
 
           {/* Vendedor */}
           {vendedores && vendedores.length > 0 && (
@@ -130,7 +149,10 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             </Button>
             <Button
               onClick={onConfirm}
-              disabled={!metodoPago || isLoading}
+              disabled={
+                !metodoPago || isLoading ||
+                (["debito", "credito", "transferencia"].includes(metodoPago ?? "") && !numeroTransaccion)
+              }
               className="flex-1"
             >
               {isLoading ? "Procesando..." : `Cobrar $${tot.toLocaleString("es-CL")}`}
