@@ -114,3 +114,43 @@ export class TokenExpiredError extends ChannelError {
     this.name = "TokenExpiredError";
   }
 }
+
+// ============================================================
+// Constantes
+// ============================================================
+
+export const CANAL_DEFAULT = "pos" as const;
+
+export const ESTADOS_ORDEN_VALIDOS: EstadoOrdenCanal[] = [
+  "pending",
+  "reserved",
+  "accepted",
+  "ready",
+  "picked_up",
+  "delivered",
+  "rejected",
+  "cancelled",
+  "expired",
+];
+
+// Ventana de aceptación por canal (en minutos)
+export const VENTANA_ACEPTACION: Record<CanalId, number> = {
+  pos: 0,        // inmediato
+  rappi: 5,      // 5 minutos
+  pedidosya: 5,  // ~5 minutos
+  ubereats: 8,   // 8 minutos
+};
+
+// Cuentas contables por canal
+export const CUENTAS_POR_COBRAR: Record<CanalId, string> = {
+  pos: "110101",         // Caja (no aplica realmente)
+  rappi: "110401",
+  pedidosya: "110402",
+  ubereats: "110403",
+};
+
+export const CUENTAS_COMISION: Record<CanalId, string> = {
+  rappi: "510101",
+  pedidosya: "510102",
+  ubereats: "510103",
+};
