@@ -2,10 +2,10 @@ import type {
   CanalConfig,
   CanalOrden,
   CanalProducto,
-  ChannelError,
   EstadoOrdenCanal,
   IExternalChannel,
 } from "../types";
+import { ChannelError } from "../types";
 import { verifyWebhookSignature } from "../webhook";
 import { getPedidosYaToken, isPedidosYaTokenExpired, clearPedidosYaToken } from "./auth";
 import { confirmPedidosYaOrder, rejectPedidosYaOrder, updatePedidosYaOrderStatus } from "./orders";
@@ -145,12 +145,12 @@ export class PedidosYaChannel implements IExternalChannel {
       accepted: "confirmed",
       ready: "preparing",
       picked_up: "ready",
-      delivered: "delivered",
-      rejected: "cancelled",
-      cancelled: "cancelled",
+      delivered: "ready",
+      rejected: "confirmed",
+      cancelled: "confirmed",
       pending: "confirmed",
       reserved: "confirmed",
-      expired: "cancelled",
+      expired: "confirmed",
     };
 
     const pyStatus = statusMap[status];
