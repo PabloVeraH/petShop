@@ -1,8 +1,8 @@
 # FASE 0: Refactor Base — Canal como Concepto Central
 
 **Fecha inicio:** 2026-04-18  
-**Última actualización:** 2026-04-18 (14:50)  
-**Estado:** En progreso (30% — BD + Core Library completado)  
+**Última actualización:** 2026-04-18 (16:25)  
+**Estado:** En progreso (55% — BD + Core + APIs completado)  
 **Objetivo:** Reemplazar `productos.precio`, agregar `canal` a `ventas`, actualizar UI. Base de todo lo demás.  
 **Rama:** develop
 
@@ -61,17 +61,17 @@
 - [x] `src/lib/canales/pos/adapter.ts` — PosChannel mínimo
 - **Commit:** ✅ `5479381` — feat: core channel library
 
-#### APIs
-- [ ] `src/app/api/ventas/route.ts` — actualizar para leer precio de canal_producto_config
-- [ ] `src/app/api/productos/route.ts` — guardar precio en canal_producto_config
-- [ ] `src/app/api/canales/config/route.ts` — GET/POST/PATCH credenciales
-- **Commit:** `feat: update APIs for canal_producto_config`
+#### APIs ✅
+- [x] `src/app/api/ventas/route.ts` — actualizar para leer precio de canal_producto_config
+- [x] `src/app/api/productos/route.ts` — guardar precio en canal_producto_config
+- [x] `src/app/api/canales/config/route.ts` — GET/POST/PATCH credenciales
+- **Commit:** ✅ `498de6b` — feat: update APIs for canal_producto_config
 
 #### Contabilidad
-- [ ] `src/lib/contabilidad/generador-asientos.ts` — agregar canal, lineasVentaCanal, lineasLiquidacionCanal
+- [x] `src/lib/contabilidad/generador-asientos.ts` — agregado lineasVentaCanal con cuentas por canal
 - [ ] `src/app/api/contabilidad/libro-diario/route.ts` — filtro ?canal=
 - [ ] `src/app/api/notas-credito/route.ts` — metodo_reembolso='plataforma'
-- **Commit:** `feat: multi-channel accounting`
+- **Commit:** ✅ `498de6b` (parcial — tipos y lineasVentaCanal)
 
 #### Cron Jobs
 - [ ] Expiración automática de stock_reservas (cada 2 min)
@@ -113,8 +113,8 @@
 |---------|--------|----------|-------|
 | BD — Pasos 1-6 | ✅ COMPLETADO | — | 4 migraciones creadas |
 | Backend Core | ✅ COMPLETADO | — | types, encryption, registry, hub, pos adapter |
-| Backend APIs | 🔄 EN PROGRESO | Core ✅ | Próximos: ventas, productos, contabilidad |
-| Contabilidad | ⬜ Pendiente | APIs | asientos + filtros |
+| Backend APIs | ✅ COMPLETADO | — | ventas, productos, canales/config |
+| Contabilidad | 🔄 EN PROGRESO | — | lineasVentaCanal ✅, pendiente: libro-diario, notas-credito |
 | Frontend | ⬜ Pendiente | APIs | deps en esquema BD |
 | Tests | ⬜ Pendiente | Backend | — |
 
