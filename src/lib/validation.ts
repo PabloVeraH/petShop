@@ -78,6 +78,17 @@ export const ProveedorCreateSchema = z.object({
   email: z.string().email().optional(),
 });
 
+export const CategoriaCreateSchema = z.object({
+  nombre: z.string().min(2).max(100),
+  descripcion: z.string().max(500).optional(),
+});
+
+export const CategoriaUpdateSchema = z.object({
+  nombre: z.string().min(2).max(100).optional(),
+  descripcion: z.string().max(500).optional(),
+  activo: z.boolean().optional(),
+});
+
 export const ProductoCreateSchema = z.object({
   nombre: z.string().min(2).max(100),
   sku: z.string().min(1).max(50),
@@ -91,6 +102,7 @@ export const ProductoCreateSchema = z.object({
   dias_alerta: z.number().int().positive().max(365).optional(),
   precio_oferta: z.number().nonnegative().optional(),
   en_oferta: z.boolean().optional(),
+  categoria_id: UUIDSchema.nullable().optional(),
 });
 
 export const ProductoUpdateSchema = z.object({
@@ -106,6 +118,7 @@ export const ProductoUpdateSchema = z.object({
   dias_alerta: z.number().int().positive().max(365).optional(),
   precio_oferta: z.number().nonnegative().optional(),
   en_oferta: z.boolean().optional(),
+  categoria_id: UUIDSchema.nullable().optional(),
 });
 
 export const MascotaUpdateSchema = z.object({

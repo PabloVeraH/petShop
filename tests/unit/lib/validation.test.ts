@@ -3,6 +3,9 @@ import {
   formatRUT,
   ClienteCreateSchema,
   MascotaCreateSchema,
+  CategoriaCreateSchema,
+  CategoriaUpdateSchema,
+  ProductoCreateSchema,
 } from "@/lib/validation";
 
 const VALID_UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -81,6 +84,87 @@ describe("lib/validation", () => {
       cliente_id: VALID_UUID,
       nombre: "Firulais",
       tipo: "hamster",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("CategoriaCreateSchema", () => {
+  it("U-CAT-01: acepta nombre válido", () => {
+    expect(CategoriaCreateSchema.safeParse({ nombre: "Alimentos" }).success).toBe(true);
+  });
+
+  it("U-CAT-02: acepta nombre + descripción", () => {
+    expect(CategoriaCreateSchema.safeParse({ nombre: "Accesorios", descripcion: "Collares, correas, etc." }).success).toBe(true);
+  });
+
+  it("U-CAT-03: nombre < 2 chars → inválido", () => {
+    expect(CategoriaCreateSchema.safeParse({ nombre: "A" }).success).toBe(false);
+  });
+
+  it("U-CAT-04: nombre > 100 chars → inválido", () => {
+    expect(CategoriaCreateSchema.safeParse({ nombre: "A".repeat(101) }).success).toBe(false);
+  });
+
+  it("U-CAT-05: nombre faltante → inválido", () => {
+    expect(CategoriaCreateSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("U-CAT-06: descripción > 500 chars → inválido", () => {
+    expect(CategoriaCreateSchema.safeParse({ nombre: "Test", descripcion: "A".repeat(501) }).success).toBe(false);
+  });
+});
+
+describe("CategoriaUpdateSchema", () => {
+  it("U-CAT-07: todos los campos opcionales → objeto vacío es válido", () => {
+    expect(CategoriaUpdateSchema.safeParse({}).success).toBe(true);
+  });
+
+  it("U-CAT-08: activo:false válido", () => {
+    expect(CategoriaUpdateSchema.safeParse({ activo: false }).success).toBe(true);
+  });
+
+  it("U-CAT-09: nombre + descripcion parcial → válido", () => {
+    expect(CategoriaUpdateSchema.safeParse({ nombre: "Medicamentos" }).success).toBe(true);
+  });
+});
+
+describe("ProductoCreateSchema con categoria_id", () => {
+  it("U-CAT-10: acepta categoria_id UUID válido", () => {
+    const result = ProductoCreateSchema.safeParse({
+      nombre: "Alimento Premium",
+      sku: "ALI-001",
+      precio: 15000,
+      categoria_id: VALID_UUID,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("U-CAT-11: acepta sin categoria_id (campo opcional)", () => {
+    const result = ProductoCreateSchema.safeParse({
+      nombre: "Alimento Premium",
+      sku: "ALI-001",
+      precio: 15000,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("U-CAT-12: acepta categoria_id null", () => {
+    const result = ProductoCreateSchema.safeParse({
+      nombre: "Alimento Premium",
+      sku: "ALI-001",
+      precio: 15000,
+      categoria_id: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("U-CAT-13: rechaza categoria_id no-UUID", () => {
+    const result = ProductoCreateSchema.safeParse({
+      nombre: "Alimento Premium",
+      sku: "ALI-001",
+      precio: 15000,
+      categoria_id: "no-es-uuid",
     });
     expect(result.success).toBe(false);
   });

@@ -34,6 +34,7 @@ export async function PATCH(
   if (parsed.data.dias_alerta !== undefined) updates.dias_alerta = parsed.data.dias_alerta || 30;
   if (parsed.data.precio_oferta !== undefined) updates.precio_oferta = parsed.data.precio_oferta;
   if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
+  if (parsed.data.categoria_id !== undefined) updates.categoria_id = parsed.data.categoria_id;
 
   const { data, error } = await supabase
     .from("productos")

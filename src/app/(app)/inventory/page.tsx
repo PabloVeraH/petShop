@@ -28,6 +28,12 @@ type Producto = {
   dias_alerta: number;
   precio_oferta: number | null;
   en_oferta: boolean;
+  categoria_id: string | null;
+};
+
+type Categoria = {
+  id: string;
+  nombre: string;
 };
 
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
@@ -54,12 +60,14 @@ type ProductoForm = {
   dias_alerta: string;
   precio_oferta: string;
   en_oferta: boolean;
+  categoria_id: string;
 };
 
 const EMPTY_FORM: ProductoForm = {
   nombre: "", sku: "", precio: "", costo: "",
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
   fecha_vencimiento: "", dias_alerta: "30", precio_oferta: "", en_oferta: false,
+  categoria_id: "",
 };
 
 async function getInventario(search: string, soloAlertas: boolean, soloVencimientos: boolean): Promise<Producto[]> {
@@ -86,6 +94,12 @@ function formatShortDate(isoDate: string): string {
   return `${day}/${month}/${year.slice(2)}`;
 }
 
+async function getCategorias(): Promise<Categoria[]> {
+  const res = await fetch("/api/categorias");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [soloAlertas, setSoloAlertas] = useState(false);
@@ -104,6 +118,12 @@ export default function InventoryPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["inventario", search, soloAlertas, soloVencimientos],
     queryFn: () => getInventario(search, soloAlertas, soloVencimientos),
+  });
+
+  const { data: categorias = [] } = useQuery<Categoria[]>({
+    queryKey: ["categorias"],
+    queryFn: getCategorias,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: movimientos, isLoading: loadingMovimientos } = useQuery<StockMovement[]>({
@@ -145,6 +165,7 @@ export default function InventoryPage() {
           dias_alerta: form.fecha_vencimiento ? Number(form.dias_alerta) : undefined,
           precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
           en_oferta: form.en_oferta,
+          categoria_id: form.categoria_id || null,
         }),
       });
       const data = await res.json();
@@ -179,6 +200,7 @@ export default function InventoryPage() {
       dias_alerta: String(p.dias_alerta ?? 30),
       precio_oferta: p.precio_oferta != null ? String(p.precio_oferta) : "",
       en_oferta: p.en_oferta ?? false,
+      categoria_id: p.categoria_id ?? "",
     });
     setFormError("");
     setShowForm(true);
@@ -365,6 +387,19 @@ export default function InventoryPage() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                <select
+                  value={form.categoria_id}
+                  onChange={(e) => setForm((f) => ({ ...f, categoria_id: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Sin categoría</option>
+                  {categorias.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta c/IVA (opcional)</label>
                 <input type="number" step="0.01" value={form.precio_oferta} onChange={(e) => setForm(f => ({ ...f, precio_oferta: e.target.value }))}

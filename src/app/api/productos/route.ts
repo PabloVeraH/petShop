@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta } = parsed.data;
+  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, categoria_id } = parsed.data;
 
   const { data, error } = await supabase
     .from("productos")
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       dias_alerta: dias_alerta ? Number(dias_alerta) : 30,
       precio_oferta: precio_oferta ? Number(precio_oferta) : null,
       en_oferta: en_oferta === true,
+      categoria_id: categoria_id ?? null,
       activo: true,
     })
     .select()
@@ -73,21 +74,6 @@ export async function POST(req: NextRequest) {
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  }
-
-  const { error: canalConfigError } = await supabase
-    .from("canal_producto_config")
-    .insert({
-      store_id,
-      canal_id: "pos",
-      producto_id: data.id,
-      precio: Number(precio),
-      activo: true,
-    });
-
-  if (canalConfigError) {
-    await supabase.from("productos").delete().eq("id", data.id);
-    return NextResponse.json({ error: "Error guardando precio en canal" }, { status: 500 });
   }
 
   const { ipAddress, userAgent } = await getRequestMetadata(req);
