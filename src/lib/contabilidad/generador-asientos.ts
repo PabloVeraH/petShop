@@ -178,20 +178,38 @@ export function lineasVentaCanal(params: {
 }
 
 export function lineasNotaCredito(params: {
-  monto: number;
+  monto: number;         // total con IVA incluido
   tipoReembolso: string;
+  metodoReembolso?: string;
 }): LineaAsiento[] {
-  const cuentaCredito =
-    params.tipoReembolso === "saldo_a_favor" ? CUENTAS.SALDOS_FAVOR : CUENTAS.CAJA;
+  const montoNeto = Math.round((params.monto / 1.19) * 100) / 100;
+  const ivaDevuelto = Math.round((params.monto - montoNeto) * 100) / 100;
+
+  let cuentaCredito;
+  if (params.tipoReembolso === "saldo_a_favor") {
+    cuentaCredito = CUENTAS.SALDOS_FAVOR;
+  } else if (params.metodoReembolso === "efectivo") {
+    cuentaCredito = CUENTAS.CAJA;
+  } else {
+    cuentaCredito = CUENTAS.BANCO;
+  }
 
   return [
     {
       cuentaCodigo: CUENTAS.DEVOLUCIONES.codigo,
       cuentaNombre: CUENTAS.DEVOLUCIONES.nombre,
       cuentaTipo: CUENTAS.DEVOLUCIONES.tipo,
-      debito: params.monto,
+      debito: montoNeto,
       credito: 0,
-      descripcionLinea: "Devolución de venta",
+      descripcionLinea: "Devolución de venta (neto)",
+    },
+    {
+      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      debito: ivaDevuelto,
+      credito: 0,
+      descripcionLinea: "Reverso IVA débito fiscal",
     },
     {
       cuentaCodigo: cuentaCredito.codigo,

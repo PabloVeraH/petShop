@@ -82,7 +82,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cantidad devuelta excede original" }, { status: 400 });
     }
 
-    const subtotal = item.cantidadDevuelta * Number(ventaItem.precio_unitario);
+    const montoNeto = item.cantidadDevuelta * Number(ventaItem.precio_unitario);
+    const ivaItem = Math.round(montoNeto * 0.19 * 100) / 100;
+    const subtotal = Math.round((montoNeto + ivaItem) * 100) / 100;
     montoTotal += subtotal;
     itemsConDetalles.push({
       ventaItemId: item.ventaItemId,
@@ -206,7 +208,7 @@ export async function POST(req: NextRequest) {
     referenciaId: nc.id,
     referenciaNomero: numero_nc,
     descripcion: `Nota de Crédito ${numero_nc}`,
-    lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso }),
+    lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
 
