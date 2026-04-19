@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { createHmac } from "crypto";
 import { RappiChannel } from "@/lib/canales/rappi/adapter";
-import type { CanalConfig, CanalOrden } from "@/lib/canales/types";
+import type { CanalConfig } from "@/lib/canales/types";
 
 describe("canales/rappi/adapter", () => {
   let channel: RappiChannel;
@@ -34,8 +35,7 @@ describe("canales/rappi/adapter", () => {
       const secret = "test-secret";
       const signature =
         "sha256=" +
-        require("crypto")
-          .createHmac("sha256", secret)
+        createHmac("sha256", secret)
           .update(rawBody)
           .digest("hex");
 
