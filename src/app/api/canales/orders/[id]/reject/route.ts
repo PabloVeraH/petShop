@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   await logAudit({
     storeId,
     userId,
-    action: "REJECT",
+    action: "UPDATE",
     entityType: "canal_ordenes",
     entityId: ordenId,
     changeDescription: `Orden ${orden.external_order_id} rechazada: ${reason}`,

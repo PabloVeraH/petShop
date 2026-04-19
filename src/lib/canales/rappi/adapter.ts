@@ -2,11 +2,10 @@ import type {
   CanalConfig,
   CanalOrden,
   CanalProducto,
-  ChannelError,
   EstadoOrdenCanal,
   IExternalChannel,
-  TokenExpiredError,
 } from "../types";
+import { TokenExpiredError, ChannelError } from "../types";
 import { verifyWebhookSignature } from "../webhook";
 import { getRappiToken, isRappiTokenExpired, clearRappiToken } from "./auth";
 import { confirmRappiOrder, rejectRappiOrder, updateRappiOrderStatus } from "./orders";
@@ -149,12 +148,12 @@ export class RappiChannel implements IExternalChannel {
       accepted: "accepted",
       ready: "in_progress",
       picked_up: "ready",
-      delivered: "delivered",
-      rejected: "cancelled",
-      cancelled: "cancelled",
+      delivered: "ready",
+      rejected: "accepted",
+      cancelled: "accepted",
       pending: "accepted",
       reserved: "accepted",
-      expired: "cancelled",
+      expired: "accepted",
     };
 
     const rappiStatus = statusMap[status];

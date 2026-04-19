@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Orden sin items" }, { status: 400 });
   }
 
-  const total = items.reduce((sum, item) => sum + item.unit_price * item.cantidad, 0);
+  const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
   const { data: nuevaVenta, error: ventaError } = await supabase
     .from("ventas")
@@ -77,13 +77,13 @@ export async function POST(req: NextRequest) {
       producto_id: productoId,
       cantidad: item.quantity,
       precio: item.unit_price,
-      subtotal: item.unit_price * item.cantidad,
+      subtotal: item.unit_price * item.quantity,
     });
 
     if (productoId) {
       await supabase.rpc("decrement_stock", {
         p_producto_id: productoId,
-        p_cantidad: item.cantidad,
+        p_cantidad: item.quantity,
       });
     }
   }

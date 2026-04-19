@@ -61,19 +61,19 @@ export async function POST(req: NextRequest) {
   const canalIdTyped = canal_id as CanalId;
   try {
     const channel = getChannel(canalIdTyped);
-    const config: CanalConfig = {
+    const channelConfig: CanalConfig = {
       storeId,
       canalId: canalIdTyped,
       externalStoreId: "",
       credentials: {},
       comisionPct: 0,
     };
-    await channel.syncCatalog(config, catalogItems);
+    await channel.syncCatalog(channelConfig, catalogItems);
 
     await logAudit({
       storeId,
       userId,
-      action: "SYNC",
+      action: "UPDATE",
       entityType: "canal_catalog",
       entityId: config.id,
       changeDescription: `Catálogo sincronizado con ${canal_id}`,
