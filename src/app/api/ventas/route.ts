@@ -5,7 +5,7 @@ import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
-import { crearAsiento, lineasVenta } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaCanal } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuento } = parsed.data;
+  const { items, clienteId, metodoPago, descuento, canal } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
   const vendedorId = body.vendedorId;
   const descuento_pct = descuento ?? 0;
@@ -99,17 +99,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Retrieve prices from DB — do not trust client-supplied prices
+  // Retrieve prices from canal_producto_config — do not trust client-supplied prices
   const productoIds: string[] = items.map((i: { producto_id: string }) => i.producto_id);
-  const { data: productos, error: prodError } = await supabase
-    .from("productos")
-    .select("id, precio, store_id")
-    .in("id", productoIds)
-    .eq("store_id", store_id);
-  if (prodError || !productos || productos.length !== productoIds.length) {
-    return NextResponse.json({ error: "Uno o más productos no encontrados" }, { status: 400 });
+  const { data: preciosCanal, error: precioError } = await supabase
+    .from("canal_producto_config")
+    .select("producto_id, precio")
+    .eq("store_id", store_id)
+    .eq("canal_id", canal)
+    .eq("activo", true)
+    .in("producto_id", productoIds);
+
+  if (precioError || !preciosCanal || preciosCanal.length !== productoIds.length) {
+    return NextResponse.json(
+      { error: "Uno o más productos no disponibles en este canal" },
+      { status: 400 }
+    );
   }
-  const precioMap = Object.fromEntries(productos.map((p) => [p.id, Number(p.precio)]));
+  const precioMap = Object.fromEntries(preciosCanal.map((p) => [p.producto_id, Number(p.precio)]));
 
   const itemsConPrecio = items.map((item: { producto_id: string; cantidad: number; mascota_id?: string }) => ({
     ...item,
@@ -139,6 +145,7 @@ export async function POST(req: NextRequest) {
        impuesto,
        total,
        metodo_pago: metodoPago,
+       canal,
        estado: "completada",
        numero_comprobante,
      })
@@ -345,10 +352,11 @@ export async function POST(req: NextRequest) {
     storeId: store_id,
     fecha: venta.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
     tipoMovimiento: "VENTA",
+    canal,
     referenciaId: venta.id,
     referenciaNomero: venta.numero_comprobante,
-    descripcion: `Venta ${metodoPago} - ${venta.numero_comprobante}`,
-    lineas: lineasVenta({ metodoPago, montoNeto, iva: ivaCalc, total }),
+    descripcion: `Venta ${canal.toUpperCase()} ${metodoPago} - ${venta.numero_comprobante}`,
+    lineas: lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 

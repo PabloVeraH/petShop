@@ -1,0 +1,95 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getStoreId } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase";
+import { ChannelError } from "@/lib/canales/types";
+import { getActiveOrders } from "@/lib/canales/hub";
+
+export async function GET(req: NextRequest) {
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId } = ctx;
+
+  const canalId = req.nextUrl.searchParams.get("canal");
+  const estado = req.nextUrl.searchParams.get("estado");
+
+  const supabase = createServiceClient();
+
+  let query = supabase
+    .from("canal_ordenes")
+    .select("*, venta_id")
+    .eq("store_id", storeId);
+
+  if (canalId) {
+    query = query.eq("canal_id", canalId);
+  }
+
+  if (estado) {
+    query = query.eq("estado", estado);
+  } else {
+    query = query.in("estado", ["pending", "reserved", "accepted", "ready"]);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: "Error obteniendo órdenes" }, { status: 500 });
+  }
+
+  return NextResponse.json(data ?? []);
+}
+
+export async function POST(req: NextRequest) {
+  const ctx = await getStoreId();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { storeId, userId } = ctx;
+
+  const body = await req.json();
+  const { canal_id, external_order_id, action, reason } = body;
+
+  if (!canal_id || !external_order_id || !action) {
+    return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+
+  const { data: orden, error: findError } = await supabase
+    .from("canal_ordenes")
+    .select("*, venta_id")
+    .eq("store_id", storeId)
+    .eq("external_order_id", external_order_id)
+    .single();
+
+  if (findError || !orden) {
+    return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+  }
+
+  if (action === "accept") {
+    if (orden.estado !== "pending" && orden.estado !== "reserved") {
+      return NextResponse.json({ error: "La orden ya fue procesada" }, { status: 400 });
+    }
+
+    // TODO: Crear venta, descontar stock, confirmar al canal
+    await supabase
+      .from("canal_ordenes")
+      .update({ estado: "accepted", accepted_at: new Date().toISOString() })
+      .eq("id", orden.id);
+
+    return NextResponse.json({ status: "accepted" });
+  }
+
+  if (action === "reject") {
+    if (orden.estado !== "pending" && orden.estado !== "reserved") {
+      return NextResponse.json({ error: "La orden ya fue procesada" }, { status: 400 });
+    }
+
+    // Liberar reserva sin descontar stock
+    await supabase
+      .from("canal_ordenes")
+      .update({ estado: "rejected", rejected_at: new Date().toISOString(), motivo_rechazo: reason ?? "" })
+      .eq("id", orden.id);
+
+    return NextResponse.json({ status: "rejected" });
+  }
+
+  return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
+}

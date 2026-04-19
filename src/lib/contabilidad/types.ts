@@ -62,6 +62,7 @@ export interface CrearAsientoInput {
   storeId: string;
   fecha: string;
   tipoMovimiento?: TipoMovimiento;
+  canal?: "pos" | "rappi" | "pedidosya" | "ubereats";
   referenciaId?: string;
   referenciaNomero?: string;
   descripcion: string;
@@ -84,4 +85,10 @@ export const CUENTAS = {
   VENTAS: { codigo: '410101', nombre: 'Venta de Productos', tipo: 'INGRESO' as TipoCuenta },
   DEVOLUCIONES: { codigo: '410102', nombre: 'Devoluciones en Ventas', tipo: 'INGRESO' as TipoCuenta },
   COGS: { codigo: '510101', nombre: 'Costo de Bienes Vendidos', tipo: 'GASTO' as TipoCuenta },
+  // Cuentas por cobrar por canal
+  CXC_RAPPI: { codigo: '110401', nombre: 'CxC Rappi', tipo: 'ACTIVO' as TipoCuenta },
+  CXC_PEDIDOSYA: { codigo: '110402', nombre: 'CxC PedidosYa', tipo: 'ACTIVO' as TipoCuenta },
+  CXC_UBEREATS: { codigo: '110403', nombre: 'CxC UberEats', tipo: 'ACTIVO' as TipoCuenta },
+  // Devoluciones por canal externo
+  DEVOLUCIONES_CANAL: { codigo: '510201', nombre: 'Devoluciones Canal Externo', tipo: 'GASTO' as TipoCuenta },
 } as const;

@@ -11,6 +11,7 @@ interface ReportsData {
   topProductos: { nombre: string; cantidad: number; revenue: number }[];
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
+  canales: Record<string, number>;
   prediccion7dias: number;
   promedioDiario: number;
 }
@@ -19,6 +20,14 @@ const PERIODOS = [
   { label: "7 días", value: "7" },
   { label: "30 días", value: "30" },
   { label: "90 días", value: "90" },
+];
+
+const CANALES = [
+  { label: "Todos", value: "" },
+  { label: "POS", value: "pos" },
+  { label: "Rappi", value: "rappi" },
+  { label: "PedidosYa", value: "pedidosya" },
+  { label: "Uber Eats", value: "ubereats" },
 ];
 
 function fmt(n: number) {
@@ -72,16 +81,19 @@ function DayChart({ data }: { data: [string, number][] }) {
 
 export default function ReportsPage() {
   const [periodo, setPeriodo] = useState("30");
+  const [canal, setCanal] = useState("");
   const [data, setData] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<"ventas" | "inventario" | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/reports?periodo=${periodo}`)
+    const params = new URLSearchParams({ periodo });
+    if (canal) params.set("canal", canal);
+    fetch(`/api/reports?${params}`)
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); });
-  }, [periodo]);
+  }, [periodo, canal]);
 
   async function handleExport(tipo: "ventas" | "inventario") {
     setExporting(tipo);
@@ -100,6 +112,17 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Reportes</h1>
         <div className="flex items-center gap-3">
+          <select
+            value={canal}
+            onChange={(e) => setCanal(e.target.value)}
+            className="border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-700 bg-white"
+          >
+            {CANALES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
           <div className="flex border border-gray-200 rounded-md overflow-hidden">
             {PERIODOS.map((p) => (
               <button
@@ -184,6 +207,25 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
+
+          {/* Ventas por canal */}
+          {data.canales && Object.keys(data.canales).length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-4">Ventas por canal</h2>
+              <BarChart
+                data={Object.entries(data.canales).map(([k, v]) => ({ label: k, value: v }))}
+                color="bg-purple-500"
+              />
+              <div className="mt-4 space-y-1">
+                {Object.entries(data.canales).map(([canal, total]) => (
+                  <div key={canal} className="flex justify-between text-xs text-gray-600">
+                    <span className="capitalize">{canal}</span>
+                    <span>{fmt(total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Top clientes */}
           <div className="bg-white rounded-lg border border-gray-200 p-5">

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { data: venta } = await supabase
     .from("ventas")
-    .select("id, cliente_id, total, subtotal, estado")
+    .select("id, cliente_id, total, subtotal, estado, canal")
     .eq("id", ventaId)
     .eq("store_id", store_id)
     .single();
@@ -189,6 +189,7 @@ export async function POST(req: NextRequest) {
     storeId: store_id,
     fecha: nc.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
     tipoMovimiento: "NOTA_CREDITO",
+    canal: venta.canal ?? "pos",
     referenciaId: nc.id,
     referenciaNomero: numero_nc,
     descripcion: `Nota de Crédito ${numero_nc}`,

@@ -134,9 +134,10 @@ export const VentaCreateSchema = z.object({
   clienteId: UUIDSchema,
   items: z.array(VentaItemSchema).min(1),
   descuento: z.number().nonnegative().max(100).optional(),
-  metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor"]),
+  metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor", "plataforma"]),
   notas: z.string().max(500).optional(),
   numeroTransaccion: z.string().optional(),
+  canal: z.enum(["pos", "rappi", "pedidosya", "ubereats"]).default("pos"),
 });
 
 export const PagoSchema = z.object({

@@ -52,6 +52,14 @@ function periodoLabel(año: string, mes: string) {
   });
 }
 
+const CANALES = [
+  { label: "Todos", value: "" },
+  { label: "POS", value: "pos" },
+  { label: "Rappi", value: "rappi" },
+  { label: "PedidosYa", value: "pedidosya" },
+  { label: "Uber Eats", value: "ubereats" },
+];
+
 export default function ContabilidadPage() {
   const { sessionClaims } = useAuth();
   const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
@@ -60,6 +68,7 @@ export default function ContabilidadPage() {
   const hoy = new Date();
   const [año, setAño] = useState(String(hoy.getFullYear()));
   const [mes, setMes] = useState(String(hoy.getMonth() + 1).padStart(2, "0"));
+  const [canal, setCanal] = useState("");
   const [tab, setTab] = useState<"libro" | "balance" | "resultado">("libro");
   const [planCargado, setPlanCargado] = useState(false);
   const queryClient = useQueryClient();
@@ -67,9 +76,11 @@ export default function ContabilidadPage() {
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
 
   const { data: libro, isLoading: loadingLibro } = useQuery<LibroDiarioResumen>({
-    queryKey: ["libro-diario", año, mes],
-    queryFn: () =>
-      fetch(`/api/contabilidad/libro-diario?mes=${Number(mes)}&año=${año}`).then((r) => r.json()),
+    queryKey: ["libro-diario", año, mes, canal],
+    queryFn: () => {
+      const url = `/api/contabilidad/libro-diario?mes=${Number(mes)}&año=${año}${canal ? `&canal=${canal}` : ""}`;
+      return fetch(url).then((r) => r.json());
+    },
   });
 
   const { data: balance, isLoading: loadingBalance } = useQuery({
@@ -197,10 +208,24 @@ export default function ContabilidadPage() {
             ))}
           </select>
         </div>
-        <div className="text-sm text-gray-500">
-          Período: <strong>{periodoLabel(año, mes)}</strong>
+        <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Canal</label>
+            <select
+              value={canal}
+              onChange={(e) => setCanal(e.target.value)}
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {CANALES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-sm text-gray-500">
+            Período: <strong>{periodoLabel(año, mes)}</strong>
+          </div>
         </div>
-      </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200">

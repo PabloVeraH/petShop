@@ -7,6 +7,7 @@ import TopProductos from "./components/TopProductos";
 import UltimasVentas from "./components/UltimasVentas";
 import AlertasConsumo from "./components/AlertasConsumo";
 import SugerenciasRecompra from "./components/SugerenciasRecompra";
+import VentasPorCanal from "./components/VentasPorCanal";
 
 type StockAlerta = {
   id: string;
@@ -98,7 +99,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold">Top 5 productos hoy</CardTitle>
@@ -114,6 +115,15 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <UltimasVentas data={data?.ultimasVentas ?? []} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Ventas por canal hoy</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VentasPorCanal data={data?.ventasPorCanal ?? []} />
           </CardContent>
         </Card>
       </div>

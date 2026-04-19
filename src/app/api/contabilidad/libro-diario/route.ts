@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   const mes = req.nextUrl.searchParams.get("mes");
   const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
   const fecha_unica = req.nextUrl.searchParams.get("fecha");
+  const canal = req.nextUrl.searchParams.get("canal");
 
   let desde: string;
   let hasta: string;
@@ -41,18 +42,23 @@ export async function GET(req: NextRequest) {
     .eq("id", store_id)
     .single();
 
-  const { data: entries, error } = await supabase
+  let query = supabase
     .from("journal_entries")
-    .select("id, numero_asiento, fecha, tipo_movimiento, referencia_numero, descripcion, total_debito, total_credito, esta_balanceado")
+    .select("id, numero_asiento, fecha, tipo_movimiento, canal, referencia_numero, descripcion, total_debito, total_credito, esta_balanceado")
     .eq("store_id", store_id)
     .gte("fecha", desde)
-    .lte("fecha", hasta)
-    .order("numero_asiento", { ascending: true });
+    .lte("fecha", hasta);
+
+  if (canal) {
+    query = query.eq("canal", canal);
+  }
+
+  const { data: entries, error } = await query.order("numero_asiento", { ascending: true });
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const entryIds = (entries ?? []).map((e) => e.id);
-  let detalleMap: Record<string, unknown[]> = {};
+  const detalleMap: Record<string, unknown[]> = {};
 
   if (entryIds.length > 0) {
     const { data: detalles } = await supabase

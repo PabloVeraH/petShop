@@ -18,6 +18,7 @@ const navItems = [
   { href: "/payables", label: "Cuentas x Pagar", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/reports", label: "Reportes", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/contabilidad", label: "Libro Diario", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/canales", label: "Canales", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/settings", label: "Configuración", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/admin", label: "Admin", roles: ["systemAdmin"] },
 ];
