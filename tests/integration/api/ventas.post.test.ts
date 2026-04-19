@@ -189,7 +189,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
 
   // I-40
   it("I-40: venta exitosa llama a decrement_stock", async () => {
-    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
     expect(mockRpc).toHaveBeenCalledWith("decrement_stock", expect.objectContaining({
       p_producto_id: PRODUCTO_ID,
       p_cantidad: 2,
@@ -198,7 +198,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
 
   // I-41
   it("I-41: venta exitosa crea venta_items", async () => {
-    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
     const tablas = mockFrom.mock.calls.map(([t]: [string]) => t);
     expect(tablas).toContain("venta_items");
   });

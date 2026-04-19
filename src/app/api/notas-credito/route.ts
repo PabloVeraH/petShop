@@ -82,9 +82,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cantidad devuelta excede original" }, { status: 400 });
     }
 
-    const montoNeto = item.cantidadDevuelta * Number(ventaItem.precio_unitario);
-    const ivaItem = Math.round(montoNeto * 0.19 * 100) / 100;
-    const subtotal = Math.round((montoNeto + ivaItem) * 100) / 100;
+    // precio_unitario ya incluye IVA
+    const subtotal = Math.round(item.cantidadDevuelta * Number(ventaItem.precio_unitario) * 100) / 100;
     montoTotal += subtotal;
     itemsConDetalles.push({
       ventaItemId: item.ventaItemId,

@@ -99,23 +99,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Retrieve prices from canal_producto_config — do not trust client-supplied prices
+  // Retrieve prices from productos — do not trust client-supplied prices
   const productoIds: string[] = items.map((i: { producto_id: string }) => i.producto_id);
-  const { data: preciosCanal, error: precioError } = await supabase
-    .from("canal_producto_config")
-    .select("producto_id, precio")
-    .eq("store_id", store_id)
-    .eq("canal_id", canal)
-    .eq("activo", true)
-    .in("producto_id", productoIds);
+  const { data: productosDB, error: precioError } = await supabase
+    .from("productos")
+    .select("id, precio, precio_oferta, en_oferta")
+    .in("id", productoIds)
+    .eq("store_id", store_id);
 
-  if (precioError || !preciosCanal || preciosCanal.length !== productoIds.length) {
+  if (precioError || !productosDB || productosDB.length !== productoIds.length) {
     return NextResponse.json(
-      { error: "Uno o más productos no disponibles en este canal" },
+      { error: "Uno o más productos no encontrados" },
       { status: 400 }
     );
   }
-  const precioMap = Object.fromEntries(preciosCanal.map((p) => [p.producto_id, Number(p.precio)]));
+  // precio ya incluye IVA (precio al público)
+  const precioMap = Object.fromEntries(productosDB.map((p) => [
+    p.id,
+    p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio),
+  ]));
 
   const itemsConPrecio = items.map((item: { producto_id: string; cantidad: number; mascota_id?: string }) => ({
     ...item,
@@ -123,13 +125,15 @@ export async function POST(req: NextRequest) {
     subtotal: precioMap[item.producto_id] * item.cantidad,
   }));
 
+  // precio_unitario ya incluye IVA (precio al público)
   const subtotal: number = itemsConPrecio.reduce(
     (sum: number, i: { subtotal: number }) => sum + i.subtotal,
     0
   );
   const descuentoMonto = (subtotal * descuento_pct) / 100;
-  const impuesto = (subtotal - descuentoMonto) * 0.19;
-  const total = (subtotal - descuentoMonto) * 1.19;
+  const total = Math.round((subtotal - descuentoMonto) * 100) / 100;
+  const montoNetoVenta = Math.round((total / 1.19) * 100) / 100;
+  const impuesto = Math.round((total - montoNetoVenta) * 100) / 100;
 
   const hoy = new Date();
   const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;

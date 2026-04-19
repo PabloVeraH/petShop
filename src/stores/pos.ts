@@ -120,14 +120,22 @@ export const usePOSStore = create<POSStore>()(
 
       setDescuento: (descuento) => set({ descuento }),
 
+      // precio ya incluye IVA
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
 
-      impuesto: () => get().subtotal() * 0.19,
+      // IVA contenido en el precio (extraído del total con descuento)
+      impuesto: () => {
+        const sub = get().subtotal();
+        const desc = (sub * get().descuento) / 100;
+        const t = sub - desc;
+        return Math.round((t - t / 1.19) * 100) / 100;
+      },
 
+      // Total = subtotal - descuento (IVA ya incluido en el precio)
       total: () => {
         const sub = get().subtotal();
         const desc = (sub * get().descuento) / 100;
-        return (sub - desc) * 1.19;
+        return Math.round((sub - desc) * 100) / 100;
       },
     }),
     { name: "pos-store" }
