@@ -1,8 +1,8 @@
 # FASE 0: Refactor Base — Canal como Concepto Central
 
 **Fecha inicio:** 2026-04-18  
-**Última actualización:** 2026-04-18 (16:25)  
-**Estado:** En progreso (55% — BD + Core + APIs completado)  
+**Última actualización:** 2026-04-18 (16:35)  
+**Estado:** En progreso (65% — BD + Core + APIs + Contabilidad completado)  
 **Objetivo:** Reemplazar `productos.precio`, agregar `canal` a `ventas`, actualizar UI. Base de todo lo demás.  
 **Rama:** develop
 
@@ -67,11 +67,11 @@
 - [x] `src/app/api/canales/config/route.ts` — GET/POST/PATCH credenciales
 - **Commit:** ✅ `498de6b` — feat: update APIs for canal_producto_config
 
-#### Contabilidad
+#### Contabilidad ✅
 - [x] `src/lib/contabilidad/generador-asientos.ts` — agregado lineasVentaCanal con cuentas por canal
-- [ ] `src/app/api/contabilidad/libro-diario/route.ts` — filtro ?canal=
-- [ ] `src/app/api/notas-credito/route.ts` — metodo_reembolso='plataforma'
-- **Commit:** ✅ `498de6b` (parcial — tipos y lineasVentaCanal)
+- [x] `src/app/api/contabilidad/libro-diario/route.ts` — filtro ?canal=
+- [x] `src/app/api/notas-credito/route.ts` — metodo_reembolso='plataforma'
+- **Commit:** ✅ `498de6b` (tipos y lineasVentaCanal) + `652ca15` (libro-diario, notas-credito)
 
 #### Cron Jobs
 - [ ] Expiración automática de stock_reservas (cada 2 min)
@@ -114,8 +114,9 @@
 | BD — Pasos 1-6 | ✅ COMPLETADO | — | 4 migraciones creadas |
 | Backend Core | ✅ COMPLETADO | — | types, encryption, registry, hub, pos adapter |
 | Backend APIs | ✅ COMPLETADO | — | ventas, productos, canales/config |
-| Contabilidad | 🔄 EN PROGRESO | — | lineasVentaCanal ✅, pendiente: libro-diario, notas-credito |
-| Frontend | ⬜ Pendiente | APIs | deps en esquema BD |
+| Contabilidad | ✅ COMPLETADO | — | lineasVentaCanal, libro-diario, notas-credito |
+| Cron Jobs | ⬜ Pendiente | — | stock_reservas expiry |
+| Frontend | ⬜ Pendiente | — | formularios, UI, reportes |
 | Tests | ⬜ Pendiente | Backend | — |
 
 ---
