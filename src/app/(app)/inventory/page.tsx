@@ -250,7 +250,7 @@ export default function InventoryPage() {
               <TableRow>
                 <TableHead>Producto</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
+                <TableHead className="text-right">Precio (c/IVA)</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Mín.</TableHead>
                 <TableHead>Vencimiento</TableHead>
@@ -339,7 +339,7 @@ export default function InventoryPage() {
               {[
                 { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg" },
                 { label: "SKU *", key: "sku" as const, placeholder: "PRD-001" },
-                { label: "Precio venta *", key: "precio" as const, placeholder: "19990", type: "number" },
+                { label: "Precio venta c/IVA *", key: "precio" as const, placeholder: "19990", type: "number" },
                 { label: "Costo (opcional)", key: "costo" as const, placeholder: "12000", type: "number" },
                 { label: "Stock inicial", key: "stock" as const, placeholder: "0", type: "number" },
                 { label: "Stock mínimo", key: "stock_minimo" as const, placeholder: "5", type: "number" },
@@ -366,9 +366,9 @@ export default function InventoryPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta (opcional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio oferta c/IVA (opcional)</label>
                 <input type="number" step="0.01" value={form.precio_oferta} onChange={(e) => setForm(f => ({ ...f, precio_oferta: e.target.value }))}
-                  placeholder="Precio rebajado"
+                  placeholder="Precio rebajado c/IVA"
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
               <div className="flex items-center gap-2">
