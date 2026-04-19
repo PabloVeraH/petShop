@@ -5,8 +5,8 @@
 import { NextRequest } from "next/server";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
-const CLIENTE_ID = "c1";
-const VENTA_ID = "v1";
+const CLIENTE_ID = "223e4567-e89b-12d3-a456-426614174001";
+const VENTA_ID = "323e4567-e89b-12d3-a456-426614174002";
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
@@ -105,12 +105,12 @@ function makeFromDevolucion(
 describe("POST /api/notas-credito", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID, systemAdmin: false });
   });
 
   it("devolución parcial exitosa → crea NC y retorna numeroNc", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada", total: 5000 };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 5, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 5, precio_unitario: 1000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
 
     const { POST } = await import("@/app/api/notas-credito/route");
@@ -119,7 +119,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 2, restituirStock: true }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2, restituirStock: true }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -161,7 +161,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 1 }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 1 }],
           tipoReembolso: "invalido",
         }),
       })
@@ -178,7 +178,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 1 }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 1 }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -196,7 +196,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 1 }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 1 }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -206,7 +206,7 @@ describe("POST /api/notas-credito", () => {
 
   it("cantidad devuelta > cantidad original → 400", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 3, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 3, precio_unitario: 1000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
 
     const { POST } = await import("@/app/api/notas-credito/route");
@@ -215,7 +215,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 5 }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 5 }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -225,7 +225,7 @@ describe("POST /api/notas-credito", () => {
 
   it("devolución con restituirStock=true → incrementa stock", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
 
     const { POST } = await import("@/app/api/notas-credito/route");
@@ -234,7 +234,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 3, restituirStock: true }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 3, restituirStock: true }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -246,7 +246,7 @@ describe("POST /api/notas-credito", () => {
 
   it("devolución sin restituirStock → no toca stock", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
 
     const { POST } = await import("@/app/api/notas-credito/route");
@@ -255,7 +255,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 2, restituirStock: false }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2, restituirStock: false }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -266,7 +266,7 @@ describe("POST /api/notas-credito", () => {
 
   it("devolución saldo_a_favor → UPSERT saldo con monto", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
     const saldoExistente = { saldo_disponible: 5000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem], saldoExistente));
 
@@ -276,7 +276,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 2, restituirStock: false }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2, restituirStock: false }],
           tipoReembolso: "saldo_a_favor",
         }),
       })
@@ -288,7 +288,7 @@ describe("POST /api/notas-credito", () => {
 
   it("devolución saldo_a_favor (saldo no existe) → crea con monto", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem], null));
 
     const { POST } = await import("@/app/api/notas-credito/route");
@@ -297,7 +297,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 1, restituirStock: false }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 1, restituirStock: false }],
           tipoReembolso: "saldo_a_favor",
         }),
       })
@@ -308,7 +308,7 @@ describe("POST /api/notas-credito", () => {
 
   it("devolución parcial → rollback fidelización (decrementa total_historico)", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
     const fidelizacion = { id: "f1", total_historico: 100000, frecuencia_compras: 10, descuento_actual: 5 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem], null, fidelizacion));
 
@@ -318,7 +318,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 2, restituirStock: false }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2, restituirStock: false }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -330,8 +330,8 @@ describe("POST /api/notas-credito", () => {
 
   it("múltiples items → suma montos correctamente", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
-    const ventaItem1 = { id: "vi1", producto_id: "p1", cantidad: 10, precio_unitario: 1000 };
-    const ventaItem2 = { id: "vi2", producto_id: "p2", cantidad: 5, precio_unitario: 2000 };
+    const ventaItem1 = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
+    const ventaItem2 = { id: "623e4567-e89b-12d3-a456-426614174005", producto_id: "723e4567-e89b-12d3-a456-426614174006", cantidad: 5, precio_unitario: 2000 };
     mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem1, ventaItem2]));
 
     // Este test es simplificado; en real necesitaría mock más sofisticado
@@ -342,8 +342,8 @@ describe("POST /api/notas-credito", () => {
         body: JSON.stringify({
           ventaId: VENTA_ID,
           items: [
-            { ventaItemId: "vi1", cantidadDevuelta: 2 },
-            { ventaItemId: "vi2", cantidadDevuelta: 1 },
+            { ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2 },
+            { ventaItemId: "623e4567-e89b-12d3-a456-426614174005", cantidadDevuelta: 1 },
           ],
           tipoReembolso: "reembolso_directo",
         }),
@@ -362,7 +362,7 @@ describe("POST /api/notas-credito", () => {
         method: "POST",
         body: JSON.stringify({
           ventaId: VENTA_ID,
-          items: [{ ventaItemId: "vi1", cantidadDevuelta: 1 }],
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 1 }],
           tipoReembolso: "reembolso_directo",
         }),
       })
@@ -374,7 +374,7 @@ describe("POST /api/notas-credito", () => {
 describe("GET /api/notas-credito", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID, systemAdmin: false });
     mockFrom.mockImplementation(makeFromDevolucion());
   });
 
@@ -404,7 +404,7 @@ describe("GET /api/notas-credito", () => {
 describe("GET /api/saldos-a-favor", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID, systemAdmin: false });
   });
 
   it("sin clienteId → 400", async () => {

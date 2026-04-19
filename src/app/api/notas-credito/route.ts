@@ -7,18 +7,23 @@ import { crearAsiento, lineasNotaCredito } from "@/lib/contabilidad/generador-as
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { storeId: store_id } = ctx;
+  const { storeId: store_id, systemAdmin } = ctx;
   const supabase = createServiceClient();
 
   const ventaId = req.nextUrl.searchParams.get("ventaId");
   if (!ventaId) return NextResponse.json({ error: "ventaId required" }, { status: 400 });
 
-  const { data: notas, error } = await supabase
+  let query = supabase
     .from("notas_credito")
     .select("id, numero_nc, monto_total, motivo, tipo_reembolso, metodo_reembolso, estado, created_at")
-    .eq("store_id", store_id)
-    .eq("venta_id", ventaId)
-    .order("created_at", { ascending: false });
+    .eq("venta_id", ventaId);
+
+  // systemAdmin puede ver notas de crédito de cualquier tienda
+  if (!systemAdmin) {
+    query = query.eq("store_id", store_id);
+  }
+
+  const { data: notas, error } = await query.order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: "Error al cargar notas de crédito" }, { status: 500 });
   return NextResponse.json({ data: notas ?? [] });
@@ -27,7 +32,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { storeId: store_id } = ctx;
+  const { storeId: store_id, systemAdmin } = ctx;
   const supabase = createServiceClient();
 
   const body = await req.json();
@@ -39,15 +44,23 @@ export async function POST(req: NextRequest) {
 
   const { ventaId, items, tipoReembolso, metodoReembolso, motivo } = parsed.data;
 
-  const { data: venta } = await supabase
+  let query = supabase
     .from("ventas")
     .select("id, cliente_id, total, subtotal, estado, canal")
-    .eq("id", ventaId)
-    .eq("store_id", store_id)
-    .single();
+    .eq("id", ventaId);
+
+  // systemAdmin puede procesar devoluciones de cualquier tienda
+  if (!systemAdmin) {
+    query = query.eq("store_id", store_id);
+  }
+
+  const { data: venta } = await query.single();
 
   if (!venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
   if (venta.estado === "anulada") return NextResponse.json({ error: "No se puede devolver una venta anulada" }, { status: 409 });
+
+  // Para systemAdmin, el store_id se toma del contexto; para otros usuarios, ya está filtrado
+  const venta_store_id = store_id;
 
   const hoy = new Date();
   const numero_nc = `NC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -88,7 +101,7 @@ export async function POST(req: NextRequest) {
   const { data: nc, error: ncError } = await supabase
     .from("notas_credito")
     .insert({
-      store_id,
+      store_id: venta_store_id,
       venta_id: ventaId,
       numero_nc,
       motivo: motivo ?? null,
@@ -146,14 +159,14 @@ export async function POST(req: NextRequest) {
       .from("saldos_a_favor")
       .select("saldo_disponible")
       .eq("cliente_id", venta.cliente_id)
-      .eq("store_id", store_id)
+      .eq("store_id", venta_store_id)
       .single();
 
     const nuevoSaldo = (Number(saldo?.saldo_disponible ?? 0) + montoTotal).toFixed(2);
 
     await supabase.from("saldos_a_favor").upsert(
       {
-        store_id,
+        store_id: venta_store_id,
         cliente_id: venta.cliente_id,
         saldo_disponible: parseFloat(nuevoSaldo),
         updated_at: new Date().toISOString(),
@@ -186,7 +199,7 @@ export async function POST(req: NextRequest) {
   }
 
   crearAsiento({
-    storeId: store_id,
+    storeId: venta_store_id,
     fecha: new Date().toISOString().split("T")[0],
     tipoMovimiento: "NOTA_CREDITO",
     canal: venta.canal ?? "pos",
