@@ -7,15 +7,15 @@
 import { IExternalChannel, CanalId, ChannelError } from "./types";
 import { PosChannel } from "./pos/adapter";
 import { RappiChannel } from "./rappi/adapter";
+import { PedidosYaChannel } from "./pedidosya/adapter";
 // Importes para futuras fases:
-// import { PedidosYaChannel } from "./pedidosya/adapter";
 // import { UberEatsChannel } from "./ubereats/adapter";
 
 // Todos los adaptadores disponibles (se cargan dinámicamente según ENABLED_CHANNELS)
 const ALL_ADAPTERS: Record<CanalId, IExternalChannel> = {
   pos: new PosChannel(),
   rappi: new RappiChannel(),
-  pedidosya: undefined as any, // PedidosYaChannel() cuando esté implementado
+  pedidosya: new PedidosYaChannel(),
   ubereats: undefined as any,  // UberEatsChannel() cuando esté implementado
 };
 
