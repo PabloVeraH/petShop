@@ -2,10 +2,10 @@ import type {
   CanalConfig,
   CanalOrden,
   CanalProducto,
-  ChannelError,
   EstadoOrdenCanal,
   IExternalChannel,
 } from "../types";
+import { ChannelError } from "../types";
 import { verifyWebhookSignature } from "../webhook";
 import { getUberEatsToken, isUberEatsTokenExpired, clearUberEatsToken } from "./auth";
 import { confirmUberEatsOrder, cancelUberEatsOrder, updateUberEatsOrderStatus } from "./orders";
@@ -143,12 +143,12 @@ export class UberEatsChannel implements IExternalChannel {
       accepted: "confirmed",
       ready: "preparing",
       picked_up: "ready_for_pickup",
-      delivered: "delivered",
-      rejected: "canceled",
-      cancelled: "canceled",
+      delivered: "ready_for_pickup",
+      rejected: "confirmed",
+      cancelled: "confirmed",
       pending: "confirmed",
       reserved: "confirmed",
-      expired: "canceled",
+      expired: "confirmed",
     };
 
     const ueStatus = statusMap[status];
