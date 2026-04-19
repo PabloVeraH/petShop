@@ -1,8 +1,8 @@
 # FASE 0: Refactor Base — Canal como Concepto Central
 
 **Fecha inicio:** 2026-04-18  
-**Última actualización:** 2026-04-18 (16:35)  
-**Estado:** En progreso (65% — BD + Core + APIs + Contabilidad completado)  
+**Última actualización:** 2026-04-18 (16:40)  
+**Estado:** En progreso (70% — BD + Backend completado, Frontend pendiente)  
 **Objetivo:** Reemplazar `productos.precio`, agregar `canal` a `ventas`, actualizar UI. Base de todo lo demás.  
 **Rama:** develop
 
@@ -73,9 +73,9 @@
 - [x] `src/app/api/notas-credito/route.ts` — metodo_reembolso='plataforma'
 - **Commit:** ✅ `498de6b` (tipos y lineasVentaCanal) + `652ca15` (libro-diario, notas-credito)
 
-#### Cron Jobs
-- [ ] Expiración automática de stock_reservas (cada 2 min)
-- **Commit:** `feat: stock reservation expiry cron`
+#### Cron Jobs ✅
+- [x] Expiración automática de stock_reservas (cada 2 min)
+- **Commit:** ✅ `86db0fd` — feat: stock reservation expiry cron
 
 ### 3. FRONTEND
 
@@ -115,9 +115,9 @@
 | Backend Core | ✅ COMPLETADO | — | types, encryption, registry, hub, pos adapter |
 | Backend APIs | ✅ COMPLETADO | — | ventas, productos, canales/config |
 | Contabilidad | ✅ COMPLETADO | — | lineasVentaCanal, libro-diario, notas-credito |
-| Cron Jobs | ⬜ Pendiente | — | stock_reservas expiry |
-| Frontend | ⬜ Pendiente | — | formularios, UI, reportes |
-| Tests | ⬜ Pendiente | Backend | — |
+| Cron Jobs | ✅ COMPLETADO | — | stock_reservas expiry |
+| Frontend | 🔄 EN PROGRESO | — | formularios, UI, reportes |
+| Tests | ⬜ Pendiente | — | — |
 
 ---
 
