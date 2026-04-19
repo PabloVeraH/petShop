@@ -10,14 +10,16 @@ import { createServiceClient } from "./supabase";
  *
  * Returns null if the user is unauthenticated or has no store association.
  */
-export async function getStoreId(): Promise<{ userId: string; storeId: string } | null> {
+export async function getStoreId(): Promise<{ userId: string; storeId: string; systemAdmin?: boolean } | null> {
   const { userId, sessionClaims } = await auth();
   if (!userId) return null;
 
   const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
   const metaStoreId = meta?.storeId as string | undefined;
+  const metaSystemAdmin = meta?.systemAdmin as boolean | undefined;
+
   if (metaStoreId) {
-    return { userId, storeId: metaStoreId };
+    return { userId, storeId: metaStoreId, systemAdmin: metaSystemAdmin };
   }
 
   // Fallback: DB lookup for tokens without storeId in publicMetadata
@@ -29,5 +31,5 @@ export async function getStoreId(): Promise<{ userId: string; storeId: string } 
     .single();
 
   if (!user?.store_id) return null;
-  return { userId, storeId: user.store_id };
+  return { userId, storeId: user.store_id, systemAdmin: metaSystemAdmin };
 }
