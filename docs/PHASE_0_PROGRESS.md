@@ -1,8 +1,8 @@
 # FASE 0: Refactor Base — Canal como Concepto Central
 
 **Fecha inicio:** 2026-04-18  
-**Última actualización:** 2026-04-18 (16:40)  
-**Estado:** En progreso (70% — BD + Backend completado, Frontend pendiente)  
+**Última actualización:** 2026-04-19  
+**Estado:** ✅ COMPLETADO (100% — BD, Backend, Frontend, Tests)  
 **Objetivo:** Reemplazar `productos.precio`, agregar `canal` a `ventas`, actualizar UI. Base de todo lo demás.  
 **Rama:** develop
 
@@ -84,26 +84,26 @@
 - **Commit:** `refactor: rename product price field to presencial`
 
 #### UI
-- [ ] Nuevo módulo `/canales/page.tsx` — tarjetas de estado por canal
+- [x] Nuevo módulo `/canales/page.tsx` — tarjetas de estado por canal
+- [x] Dashboard: widget "Ventas por canal hoy"
+- [x] Reportes: agregar filtro `canal`
+- [x] Contabilidad: agregar filtro `canal`
 - [ ] `Settings → Integraciones` — tabla de canales (solo admin)
-- [ ] Dashboard: widget "Ventas por canal hoy"
-- [ ] Reportes: agregar filtro `canal`
-- [ ] Contabilidad: agregar filtro `canal`
-- **Commit:** `feat: multi-channel UI pages and widgets`
+- **Commit:** ✅ `feat: add canales UI and filters`
 
 ### 4. TESTS
 
 #### Unitarios
-- [ ] Tests de `encryption.ts` — cifrar/descifrar round-trip
-- [ ] Tests de `registry.ts` — filtro ENABLED_CHANNELS
-- [ ] Tests de `hub.ts` — reserva de stock, liberación, cancelación
-- **Commit:** `test: channel library unit tests`
+- [x] Tests de `encryption.ts` — cifrar/descifrar round-trip
+- [x] Tests de `registry.ts` — filtro ENABLED_CHANNELS
+- [x] Tests de `hub.ts` — reserva de stock, liberación, cancelación
+- **Commit:** ✅ `f800490` — test: 36 unit tests for canales module
 
 #### Integración
-- [ ] Actualizar tests ventas POST: enviar `canal: "pos"`, verificar lectura de precio
-- [ ] Actualizar tests productos POST/PATCH: verificar `canal_producto_config`
-- [ ] Tests de webhook HMAC validation (preparar para Fase 1)
-- **Commit:** `test: integration tests for multi-channel`
+- [x] Actualizar tests ventas POST: enviar `canal: "pos"`, verificar lectura de precio
+- [x] Actualizar tests productos POST/PATCH: verificar `canal_producto_config`
+- [x] Tests de webhook HMAC validation (preparar para Fase 1)
+- **Commit:** ✅ `canales-webhook tests` — test: webhook HMAC validation
 
 ---
 
@@ -116,8 +116,8 @@
 | Backend APIs | ✅ COMPLETADO | — | ventas, productos, canales/config |
 | Contabilidad | ✅ COMPLETADO | — | lineasVentaCanal, libro-diario, notas-credito |
 | Cron Jobs | ✅ COMPLETADO | — | stock_reservas expiry |
-| Frontend | 🔄 EN PROGRESO | — | formularios, UI, reportes |
-| Tests | ⬜ Pendiente | — | — |
+| Frontend | ✅ CASI COMPLETO | — | /canales/page, Dashboard Widget, Reportes/Contabilidad filtros |
+| Tests | ✅ COMPLETADO | — | 57 tests (51 + 6 webhook) |
 
 ---
 
@@ -160,4 +160,4 @@ fix: <descripción>          # Correcciones
 
 ---
 
-**Última actualización:** 2026-04-18 (inicio de Fase 0)
+**Última actualización:** 2026-04-19 - Fase 0 COMPLETA

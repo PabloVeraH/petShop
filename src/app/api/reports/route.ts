@@ -9,16 +9,23 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
 
   const periodo = req.nextUrl.searchParams.get("periodo") ?? "30"; // days
+  const canal = req.nextUrl.searchParams.get("canal"); // optional filter
   const desde = new Date();
   desde.setDate(desde.getDate() - Number(periodo));
 
-  const { data: ventas } = await supabase
+  let query = supabase
     .from("ventas")
-    .select("id, total, subtotal, descuento, created_at, metodo_pago, clientes(nombre)")
+    .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, clientes(nombre)")
     .eq("store_id", store_id)
     .neq("estado", "anulada")
     .gte("created_at", desde.toISOString())
     .order("created_at");
+
+  if (canal) {
+    query = query.eq("canal", canal);
+  }
+
+  const { data: ventas } = await query;
 
   const { data: ventaItems } = await supabase
     .from("venta_items")
@@ -67,6 +74,13 @@ export async function GET(req: NextRequest) {
     metodos[m] = (metodos[m] ?? 0) + Number(v.total);
   }
 
+  // Ventas por canal breakdown
+  const canales: Record<string, number> = {};
+  for (const v of ventas ?? []) {
+    const c = v.canal ?? "pos";
+    canales[c] = (canales[c] ?? 0) + Number(v.total);
+  }
+
   // Predicción demanda: promedio diario de los últimos 7 días
   const ultimos7 = Object.entries(ventasPorDia)
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -110,6 +124,7 @@ export async function GET(req: NextRequest) {
     topProductos,
     topClientes,
     metodos,
+    canales,
     prediccion7dias,
     promedioDiario: Math.round(promedioDiario),
     vencimientos: {

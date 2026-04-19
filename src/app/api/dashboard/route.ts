@@ -16,14 +16,14 @@ export async function GET() {
   const [ventasHoyResult, ultimasVentasResult] = await Promise.all([
     supabase
       .from("ventas")
-      .select("id, total, descuento, metodo_pago")
+      .select("id, total, descuento, metodo_pago, canal")
       .eq("store_id", store_id)
       .neq("estado", "anulada")
       .gte("created_at", dayStart)
       .lte("created_at", dayEnd),
     supabase
       .from("ventas")
-      .select("id, total, created_at, estado, clientes(nombre)")
+      .select("id, total, created_at, estado, canal, clientes(nombre)")
       .eq("store_id", store_id)
       .order("created_at", { ascending: false })
       .limit(10),
@@ -82,6 +82,22 @@ export async function GET() {
   }
   const topMetodo = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
 
+  // Ventas por canal
+  const canalCounts: Record<string, { total: number; transacciones: number }> = {};
+  for (const v of ventasHoy) {
+    const canal = v.canal ?? "pos";
+    if (!canalCounts[canal]) {
+      canalCounts[canal] = { total: 0, transacciones: 0 };
+    }
+    canalCounts[canal].total += Number(v.total);
+    canalCounts[canal].transacciones += 1;
+  }
+  const ventasPorCanal = Object.entries(canalCounts).map(([canal, data]) => ({
+    canal,
+    total: data.total,
+    transacciones: data.transacciones,
+  }));
+
   return NextResponse.json({
     ventasHoy: totalVentasHoy,
     transacciones,
@@ -90,5 +106,6 @@ export async function GET() {
     topProductos,
     ultimasVentas,
     alertas,
+    ventasPorCanal,
   });
 }

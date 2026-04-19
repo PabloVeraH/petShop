@@ -150,6 +150,7 @@ export const CUENTAS_POR_COBRAR: Record<CanalId, string> = {
 };
 
 export const CUENTAS_COMISION: Record<CanalId, string> = {
+  pos: "510101",
   rappi: "510101",
   pedidosya: "510102",
   ubereats: "510103",

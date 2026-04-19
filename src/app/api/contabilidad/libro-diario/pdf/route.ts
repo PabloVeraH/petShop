@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const entryIds = (entries ?? []).map((e) => e.id);
-  let detalleMap: Record<string, unknown[]> = {};
+  const detalleMap: Record<string, unknown[]> = {};
 
   if (entryIds.length > 0) {
     const { data: detalles } = await supabase
