@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("notas_credito")
-    .select("id, numero_nc, monto_total, motivo, tipo_reembolso, metodo_reembolso, estado, created_at")
+    .select("id, numero_nc, monto_total, motivo, tipo_reembolso, metodo_reembolso, estado, created_at, nota_credito_items(venta_item_id, cantidad_devuelta)")
     .eq("venta_id", ventaId);
 
   // systemAdmin puede ver notas de crédito de cualquier tienda

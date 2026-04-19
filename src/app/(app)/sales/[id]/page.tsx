@@ -58,6 +58,22 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         .catch(() => ({ data: [] })),
   });
 
+  // Calcula cuántas unidades ya fueron devueltas por cada venta_item_id
+  const cantidadesDevueltas: Record<string, number> = {};
+  for (const nc of notasCredito?.data ?? []) {
+    for (const item of nc.nota_credito_items ?? []) {
+      cantidadesDevueltas[item.venta_item_id] = (cantidadesDevueltas[item.venta_item_id] ?? 0) + item.cantidad_devuelta;
+    }
+  }
+
+  // Items con cantidad disponible para devolver (excluye los totalmente devueltos)
+  const itemsDisponibles = (data?.items ?? [])
+    .map((item) => ({
+      ...item,
+      cantidad: item.cantidad - (cantidadesDevueltas[item.id] ?? 0),
+    }))
+    .filter((item) => item.cantidad > 0);
+
   const { data: saldoFavor } = useQuery({
     queryKey: ["saldo", data?.clientes?.id],
     queryFn: () => {
@@ -129,6 +145,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               variant="outline"
               onClick={() => setShowDevolucionModal(true)}
               className="text-amber-600 border-amber-200 hover:bg-amber-50"
+              disabled={itemsDisponibles.length === 0}
+              title={itemsDisponibles.length === 0 ? "Todos los productos ya fueron devueltos" : undefined}
             >
               Devolución parcial
             </Button>
@@ -275,7 +293,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         isOpen={showDevolucionModal}
         ventaId={id}
         ventaTotal={data?.total ?? 0}
-        items={data?.items ?? []}
+        items={itemsDisponibles}
         clienteId={data?.clientes?.id ?? null}
         onClose={() => setShowDevolucionModal(false)}
         onSuccess={() => setShowDevolucionModal(false)}
