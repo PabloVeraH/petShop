@@ -5,16 +5,16 @@
 
 import crypto from "crypto";
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-
-if (!ENCRYPTION_KEY) {
-  throw new Error("ENCRYPTION_KEY environment variable is not set");
-}
-
-// Validar que la clave sea de 32 bytes (256 bits)
-const keyBuffer = Buffer.from(ENCRYPTION_KEY, "hex");
-if (keyBuffer.length !== 32) {
-  throw new Error("ENCRYPTION_KEY must be 32 bytes (64 hex characters)");
+function getEncryptionKey(): Buffer {
+  const encryptionKey = process.env.ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    throw new Error("ENCRYPTION_KEY environment variable is not set");
+  }
+  const keyBuffer = Buffer.from(encryptionKey, "hex");
+  if (keyBuffer.length !== 32) {
+    throw new Error("ENCRYPTION_KEY must be 32 bytes (64 hex characters)");
+  }
+  return keyBuffer;
 }
 
 export interface EncryptedData {
@@ -28,6 +28,7 @@ export interface EncryptedData {
  * Retorna un objeto con ciphertext, iv, y authTag (todos en hex)
  */
 export function encrypt(plaintext: string): EncryptedData {
+  const keyBuffer = getEncryptionKey();
   const iv = crypto.randomBytes(12); // 96 bits = 12 bytes para GCM
   const cipher = crypto.createCipheriv("aes-256-gcm", keyBuffer, iv);
 
@@ -47,6 +48,7 @@ export function encrypt(plaintext: string): EncryptedData {
  * Descifra un EncryptedData con AES-256-GCM
  */
 export function decrypt(encrypted: EncryptedData): string {
+  const keyBuffer = getEncryptionKey();
   const iv = Buffer.from(encrypted.iv, "hex");
   const authTag = Buffer.from(encrypted.authTag, "hex");
   const decipher = crypto.createDecipheriv("aes-256-gcm", keyBuffer, iv);

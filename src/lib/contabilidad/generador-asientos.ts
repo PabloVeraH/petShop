@@ -39,6 +39,7 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
       numero_asiento: numero,
       fecha: input.fecha,
       tipo_movimiento: input.tipoMovimiento ?? null,
+      canal: input.canal ?? "pos",
       referencia_id: input.referenciaId ?? null,
       referencia_numero: input.referenciaNomero ?? null,
       descripcion: input.descripcion,
@@ -98,6 +99,64 @@ export function lineasVenta(params: {
       debito: params.total,
       credito: 0,
       descripcionLinea: "Cobro venta",
+    },
+    {
+      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      debito: 0,
+      credito: params.iva,
+      descripcionLinea: "IVA 19%",
+    },
+    {
+      cuentaCodigo: CUENTAS.VENTAS.codigo,
+      cuentaNombre: CUENTAS.VENTAS.nombre,
+      cuentaTipo: CUENTAS.VENTAS.tipo,
+      debito: 0,
+      credito: params.montoNeto,
+      descripcionLinea: "Ingreso por venta",
+    },
+  ];
+}
+
+export function lineasVentaCanal(params: {
+  canal: string;
+  metodoPago: string;
+  montoNeto: number;
+  iva: number;
+  total: number;
+}): LineaAsiento[] {
+  let cuentaCodigo: string;
+  let cuentaNombre: string;
+  let cuentaTipo: string;
+
+  if (params.canal === "rappi") {
+    cuentaCodigo = CUENTAS.CXC_RAPPI.codigo;
+    cuentaNombre = CUENTAS.CXC_RAPPI.nombre;
+    cuentaTipo = CUENTAS.CXC_RAPPI.tipo;
+  } else if (params.canal === "pedidosya") {
+    cuentaCodigo = CUENTAS.CXC_PEDIDOSYA.codigo;
+    cuentaNombre = CUENTAS.CXC_PEDIDOSYA.nombre;
+    cuentaTipo = CUENTAS.CXC_PEDIDOSYA.tipo;
+  } else if (params.canal === "ubereats") {
+    cuentaCodigo = CUENTAS.CXC_UBEREATS.codigo;
+    cuentaNombre = CUENTAS.CXC_UBEREATS.nombre;
+    cuentaTipo = CUENTAS.CXC_UBEREATS.tipo;
+  } else {
+    const caja = params.metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+    cuentaCodigo = caja.codigo;
+    cuentaNombre = caja.nombre;
+    cuentaTipo = caja.tipo;
+  }
+
+  return [
+    {
+      cuentaCodigo,
+      cuentaNombre,
+      cuentaTipo,
+      debito: params.total,
+      credito: 0,
+      descripcionLinea: `Cobro ${params.canal}`,
     },
     {
       cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
