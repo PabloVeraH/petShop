@@ -1,81 +1,105 @@
-import { RAPPI_API_BASE, RAPPI_ENDPOINTS } from "./types";
-import { getRappiToken, isRappiTokenExpired } from "./auth";
+import { RAPPI_API_BASE } from "./types";
+import type { RappiCancelType } from "./types";
+import { getRappiToken } from "./auth";
 
+function rappiHeaders(token: string): Record<string, string> {
+  return {
+    "x-authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  };
+}
+
+// Aceptar orden — PUT /orders/{orderId}/take[/{cookingTime}]
 export async function confirmRappiOrder(
   storeId: string,
-  orderId: string
+  orderId: string,
+  cookingTimeMinutes: number = 0
 ): Promise<void> {
-  if (isRappiTokenExpired(storeId)) {
-    throw new Error("Rappi token expired");
-  }
-
   const token = await getRappiToken(storeId);
-  const endpoint = RAPPI_ENDPOINTS.confirm.replace("{order_id}", orderId);
+  const base = `${RAPPI_API_BASE}/api/v2/restaurants-integrations-public-api/orders/${orderId}/take`;
+  const url = cookingTimeMinutes > 0 ? `${base}/${cookingTimeMinutes}` : base;
 
-  const response = await fetch(`${RAPPI_API_BASE}${endpoint}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: rappiHeaders(token),
   });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Failed to confirm order ${orderId}: ${err}`);
+    throw new Error(`Failed to confirm order ${orderId}: ${response.status} ${err}`);
   }
 }
 
+// Rechazar orden — PUT /orders/{orderId}/reject
 export async function rejectRappiOrder(
   storeId: string,
   orderId: string,
-  reason: string = "Store unavailable"
+  reason: string = "Store unavailable",
+  cancelType: RappiCancelType = "ITEM_OUT_OF_STOCK",
+  itemIds?: string[]
 ): Promise<void> {
-  if (isRappiTokenExpired(storeId)) {
-    throw new Error("Rappi token expired");
-  }
-
   const token = await getRappiToken(storeId);
-  const endpoint = RAPPI_ENDPOINTS.reject.replace("{order_id}", orderId);
 
-  const response = await fetch(`${RAPPI_API_BASE}${endpoint}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ reason }),
-  });
+  const body: Record<string, unknown> = { reason, cancel_type: cancelType };
+  if (itemIds?.length) body.items_ids = itemIds;
+
+  const response = await fetch(
+    `${RAPPI_API_BASE}/api/v2/restaurants-integrations-public-api/orders/${orderId}/reject`,
+    {
+      method: "PUT",
+      headers: rappiHeaders(token),
+      body: JSON.stringify(body),
+    }
+  );
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Failed to reject order ${orderId}: ${err}`);
+    throw new Error(`Failed to reject order ${orderId}: ${response.status} ${err}`);
   }
 }
 
-export async function updateRappiOrderStatus(
+// Notificar pedido listo para retiro — POST /orders/{orderId}/ready-for-pickup
+// Máximo 3 llamadas por orden; intentos adicionales son ignorados por Rappi.
+export async function notifyRappiOrderReady(
   storeId: string,
-  orderId: string,
-  status: "accepted" | "in_progress" | "ready"
+  orderId: string
 ): Promise<void> {
-  if (isRappiTokenExpired(storeId)) {
-    throw new Error("Rappi token expired");
-  }
-
   const token = await getRappiToken(storeId);
-  const endpoint = RAPPI_ENDPOINTS.status.replace("{order_id}", orderId);
 
-  const response = await fetch(`${RAPPI_API_BASE}${endpoint}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ status }),
-  });
+  const response = await fetch(
+    `${RAPPI_API_BASE}/api/v2/restaurants-integrations-public-api/orders/${orderId}/ready-for-pickup`,
+    {
+      method: "POST",
+      headers: rappiHeaders(token),
+    }
+  );
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Failed to update order status: ${err}`);
+    throw new Error(`Failed to notify order ready ${orderId}: ${response.status} ${err}`);
   }
+}
+
+// Obtener eventos de una orden — GET /orders/{orderId}/events
+export async function getRappiOrderEvents(
+  storeId: string,
+  orderId: string
+): Promise<unknown[]> {
+  const token = await getRappiToken(storeId);
+
+  const response = await fetch(
+    `${RAPPI_API_BASE}/api/v2/restaurants-integrations-public-api/orders/${orderId}/events`,
+    {
+      method: "GET",
+      headers: rappiHeaders(token),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Failed to get order events ${orderId}: ${response.status} ${err}`);
+  }
+
+  return response.json();
 }

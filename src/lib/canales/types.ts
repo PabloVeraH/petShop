@@ -70,7 +70,7 @@ export interface IExternalChannel {
     secret: string
   ): boolean;
   parseWebhookEvent(body: unknown): {
-    type: "order" | "ping" | "status_change" | "cancellation" | "other";
+    type: "order" | "ping" | "status_change" | "cancellation" | "menu_approved" | "menu_rejected" | "store_connectivity" | "tracking" | "other";
     data: unknown;
   };
   parseOrder(rawOrder: unknown): CanalOrden;

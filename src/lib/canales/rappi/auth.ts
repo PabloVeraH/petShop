@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { decryptJSON } from "../encryption";
 import { TokenExpiredError } from "../types";
 import type { RappiAuthResponse } from "./types";
+import { RAPPI_AUTH_BASE, RAPPI_ENDPOINTS } from "./types";
 
 interface TokenCache {
   token: string;
@@ -11,9 +12,12 @@ interface TokenCache {
 
 const tokenCache: Record<string, TokenCache> = {};
 
+// Renovar 24 horas antes del vencimiento (token dura 7 días)
+const RENEWAL_BUFFER_MS = 24 * 60 * 60 * 1000;
+
 export async function getRappiToken(storeId: string): Promise<string> {
   const cached = tokenCache[storeId];
-  if (cached && Date.now() < cached.expiresAt - 60000) {
+  if (cached && Date.now() < cached.expiresAt - RENEWAL_BUFFER_MS) {
     return cached.token;
   }
 
@@ -29,27 +33,27 @@ export async function getRappiToken(storeId: string): Promise<string> {
     throw new Error("Rappi not configured for this store");
   }
 
-  const encrypted = {
+  const creds = decryptJSON({
     ciphertext: config.credenciales_encriptada,
     iv: config.credenciales_iv,
     authTag: config.credenciales_auth_tag,
-  };
+  }) as { client_id: string; client_secret: string };
 
-  const creds = decryptJSON(encrypted);
-  const { client_id, client_secret } = creds as { client_id: string; client_secret: string };
-
-  const response = await fetch(`https://api.rappi.com/oauth/token`, {
+  const response = await fetch(`${RAPPI_AUTH_BASE}${RAPPI_ENDPOINTS.auth}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
     },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id,
-      client_secret,
+    body: JSON.stringify({
+      client_id: creds.client_id,
+      client_secret: creds.client_secret,
     }),
   });
 
+  if (response.status === 403) {
+    throw new TokenExpiredError("rappi");
+  }
   if (!response.ok) {
     const err = await response.text();
     throw new Error(`Rappi auth failed: ${err}`);
@@ -59,7 +63,7 @@ export async function getRappiToken(storeId: string): Promise<string> {
 
   tokenCache[storeId] = {
     token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    expiresAt: Date.now() + data.expires_in * 1000,
     storeId,
   };
 
@@ -69,7 +73,7 @@ export async function getRappiToken(storeId: string): Promise<string> {
 export function isRappiTokenExpired(storeId: string): boolean {
   const cached = tokenCache[storeId];
   if (!cached) return true;
-  return Date.now() >= cached.expiresAt;
+  return Date.now() >= cached.expiresAt - RENEWAL_BUFFER_MS;
 }
 
 export async function clearRappiToken(storeId: string): Promise<void> {

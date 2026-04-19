@@ -89,12 +89,14 @@ describe("Generador de Asientos Contables", () => {
       const lineas = lineasNotaCredito({
         monto: 5000,
         tipoReembolso: "caja",
+        metodoReembolso: "efectivo",
       });
 
-      expect(lineas).toHaveLength(2);
+      // 3 líneas: devolución neto + reverso IVA + caja
+      expect(lineas).toHaveLength(3);
 
-      const debitos = lineas.reduce((s, l) => s + l.debito, 0);
-      const creditos = lineas.reduce((s, l) => s + l.credito, 0);
+      const debitos  = Math.round(lineas.reduce((s, l) => s + l.debito,  0) * 100) / 100;
+      const creditos = Math.round(lineas.reduce((s, l) => s + l.credito, 0) * 100) / 100;
 
       expect(debitos).toBe(5000);
       expect(creditos).toBe(5000);

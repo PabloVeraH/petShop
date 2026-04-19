@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { decryptJSON } from "@/lib/canales/encryption";
 import type { IExternalChannel } from "@/lib/canales/types";
 
+// El webhook llega como llamada server-to-server desde Rappi, sin sesión de usuario.
+// La autenticidad se verifica exclusivamente con la firma HMAC del payload.
 export async function POST(req: NextRequest) {
   const canalId = req.nextUrl.pathname.split("/canales/webhook/")[1]?.split("/")[0];
 
@@ -11,23 +12,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Canal no especificado" }, { status: 400 });
   }
 
-  const ctx = await getStoreId();
-  if (!ctx) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // storeId puede venir como query param al registrar el webhook:
+  // /api/canales/webhook/rappi?store_id=<uuid>
+  const storeId = req.nextUrl.searchParams.get("store_id");
+  if (!storeId) {
+    return NextResponse.json({ error: "store_id requerido" }, { status: 400 });
   }
-  const { storeId } = ctx;
 
   const bodyText = await req.text();
   const headers: Record<string, string> = {};
-  req.headers.forEach((v, k) => {
-    headers[k] = v;
-  });
+  req.headers.forEach((v, k) => { headers[k] = v; });
 
   try {
     const supabase = createServiceClient();
     const { data: config, error: configError } = await supabase
       .from("canal_config")
-      .select("credenciales_encriptada, credenciales_iv, credenciales_auth_tag, credenciales_encriptada")
+      .select("credenciales_encriptada, credenciales_iv, credenciales_auth_tag")
       .eq("store_id", storeId)
       .eq("canal_id", canalId)
       .eq("activo", true)
@@ -49,10 +49,6 @@ export async function POST(req: NextRequest) {
     if (canalId === "rappi") {
       const { RappiChannel } = await import("@/lib/canales/rappi/adapter");
       handler = new RappiChannel();
-    } else if (canalId === "pedidosya") {
-      return NextResponse.json({ error: "Canal no implementado" }, { status: 501 });
-    } else if (canalId === "ubereats") {
-      return NextResponse.json({ error: "Canal no implementado" }, { status: 501 });
     } else {
       return NextResponse.json({ error: "Canal no soportado" }, { status: 400 });
     }
@@ -65,24 +61,30 @@ export async function POST(req: NextRequest) {
     const parsed = JSON.parse(bodyText);
     const event = handler.parseWebhookEvent(parsed);
 
+    // PING — respuesta exacta que exige Rappi o marca la tienda como offline
     if (event.type === "ping") {
-      return NextResponse.json({ status: "ok", message: "PONG" });
+      return NextResponse.json({ status: "OK", description: "Tienda prendida" });
     }
 
     if (event.type === "order") {
-      const orderData = event.data as { order_id: string; items?: { id: string; quantity: number; unit_price: number }[]; total?: number };
-      const orderId = orderData.order_id;
+      const orden = handler.parseOrder(event.data);
+      const orderId = orden.externalOrderId;
 
-      const existing = await supabase
+      // Idempotencia: ignorar si ya existe
+      const { data: existing } = await supabase
         .from("canal_ordenes")
         .select("id")
         .eq("store_id", storeId)
         .eq("external_order_id", orderId)
         .single();
 
-      if (existing.data) {
+      if (existing) {
         return NextResponse.json({ status: "ok", message: "Orden ya procesada" });
       }
+
+      const aceptarAntesDe = new Date(
+        Date.now() + 5 * 60 * 1000 // 5 minutos para Rappi
+      ).toISOString();
 
       const { data: newOrden, error: insertError } = await supabase
         .from("canal_ordenes")
@@ -91,26 +93,69 @@ export async function POST(req: NextRequest) {
           canal_id: canalId,
           external_order_id: orderId,
           estado: "pending",
-          total_externo: orderData.total ?? 0,
-          raw_payload: orderData,
-          created_at: new Date().toISOString(),
+          payload: orden.rawPayload,
+          aceptar_antes_de: aceptarAntesDe,
         })
         .select()
         .single();
 
       if (insertError) {
+        console.error("[webhook] Error guardando orden:", insertError.message);
         return NextResponse.json({ error: "Error guardando orden" }, { status: 500 });
       }
 
-      return NextResponse.json(
-        { status: "ok", orderId: newOrden.id },
-        { status: 201 }
-      );
+      return NextResponse.json({ status: "ok", orderId: newOrden.id }, { status: 201 });
     }
 
+    if (event.type === "cancellation") {
+      const data = event.data as { order_id?: string };
+      const orderId = String(data.order_id ?? "");
+      if (orderId) {
+        await supabase
+          .from("canal_ordenes")
+          .update({ estado: "cancelled", updated_at: new Date().toISOString() })
+          .eq("store_id", storeId)
+          .eq("external_order_id", orderId);
+      }
+      return NextResponse.json({ status: "ok" });
+    }
+
+    if (event.type === "status_change") {
+      const data = event.data as { order_id?: string; event?: string };
+      const orderId = String(data.order_id ?? "");
+      if (orderId) {
+        await supabase
+          .from("canal_ordenes")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("store_id", storeId)
+          .eq("external_order_id", orderId);
+      }
+      return NextResponse.json({ status: "ok" });
+    }
+
+    if (event.type === "menu_approved") {
+      // El menú fue aprobado por Rappi — canal listo para recibir órdenes
+      console.info(`[webhook] Menú aprobado para store ${storeId}`);
+      return NextResponse.json({ status: "ok" });
+    }
+
+    if (event.type === "menu_rejected") {
+      // El menú fue rechazado — notificar al operador (TODO: alerta)
+      console.warn(`[webhook] Menú rechazado para store ${storeId}`);
+      return NextResponse.json({ status: "ok" });
+    }
+
+    if (event.type === "store_connectivity") {
+      const data = event.data as { enabled?: boolean; message?: string };
+      console.info(`[webhook] Store connectivity store=${storeId} enabled=${data.enabled}: ${data.message}`);
+      return NextResponse.json({ status: "ok" });
+    }
+
+    // tracking, other — acusar recibo
     return NextResponse.json({ status: "ok" });
+
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("[webhook] Error interno:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
