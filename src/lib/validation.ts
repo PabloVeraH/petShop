@@ -315,7 +315,7 @@ export const NotaCreditoPostSchema = z.object({
   })).min(1),
   tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),
   metodoReembolso: z.string().max(100).optional(),
-  motivo: z.string().max(500).optional(),
+  motivo: z.string().max(500).nullable().optional(),
 });
 
 export const OrdenCompraReceiveSchema = z.object({
