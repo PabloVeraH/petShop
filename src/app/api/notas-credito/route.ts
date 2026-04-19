@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   let query = supabase
     .from("ventas")
-    .select("id, cliente_id, total, subtotal, estado, canal")
+    .select("id, cliente_id, total, subtotal, estado")
     .eq("id", ventaId);
 
   // systemAdmin puede procesar devoluciones de cualquier tienda
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     storeId: venta_store_id,
     fecha: new Date().toISOString().split("T")[0],
     tipoMovimiento: "NOTA_CREDITO",
-    canal: venta.canal ?? "pos",
+    canal: "pos",
     referenciaId: nc.id,
     referenciaNomero: numero_nc,
     descripcion: `Nota de Crédito ${numero_nc}`,
