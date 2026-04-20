@@ -29,6 +29,7 @@ type Producto = {
   precio_oferta: number | null;
   en_oferta: boolean;
   categoria_id: string | null;
+  codigo_barra: string | null;
 };
 
 type Categoria = {
