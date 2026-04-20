@@ -37,7 +37,8 @@ const CANALES = [
     nombre: "Uber Eats",
     descripcion: "Delivery y pedidos online",
     color: "bg-black",
-    icono: "🍔",
+    icono: "/logos/ubereats.png",
+    useImage: true,
   },
 ];
 
