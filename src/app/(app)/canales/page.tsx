@@ -22,7 +22,8 @@ const CANALES = [
     nombre: "Rappi",
     descripcion: "Entrega a domicilio y delivery",
     color: "bg-red-500",
-    icono: "🛵",
+    icono: "/logos/rappi.png",
+    useImage: true,
   },
   {
     id: "pedidosya",
@@ -91,9 +92,19 @@ export default function CanalesPage() {
             >
               <div className="flex items-start gap-4">
                 <div
-                  className={`w-12 h-12 rounded-lg ${canal.color} flex items-center justify-center text-xl`}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${
+                    canal.useImage ? "" : canal.color
+                  }`}
                 >
-                  {canal.icono}
+                  {canal.useImage ? (
+                    <img
+                      src={canal.icono}
+                      alt={canal.nombre}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xl">{canal.icono}</span>
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
