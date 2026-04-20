@@ -64,14 +64,14 @@ export function decrypt(encrypted: EncryptedData): string {
 /**
  * Cifra un objeto JSON
  */
-export function encryptJSON<T extends Record<string, any>>(obj: T): EncryptedData {
+export function encryptJSON<T>(obj: T): EncryptedData {
   return encrypt(JSON.stringify(obj));
 }
 
 /**
  * Descifra a un objeto JSON
  */
-export function decryptJSON<T extends Record<string, any>>(encrypted: EncryptedData): T {
+export function decryptJSON<T>(encrypted: EncryptedData): T {
   const plaintext = decrypt(encrypted);
   return JSON.parse(plaintext) as T;
 }
