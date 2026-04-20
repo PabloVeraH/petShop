@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { decryptJSON } from "../encryption";
+import { PEDIDOSYA_AUTH_BASE, PEDIDOSYA_ENDPOINTS } from "./types";
 import type { PedidosYaAuthResponse } from "./types";
 
 interface TokenCache {
@@ -10,9 +11,13 @@ interface TokenCache {
 
 const tokenCache: Record<string, TokenCache> = {};
 
+// Token válido por 2 horas (7200000 ms) - renovar 5 min antes
+const TOKEN_EXPIRY_MS = 2 * 60 * 60 * 1000;
+const RENEWAL_BUFFER_MS = 5 * 60 * 1000;
+
 export async function getPedidosYaToken(storeId: string): Promise<string> {
   const cached = tokenCache[storeId];
-  if (cached && Date.now() < cached.expiresAt - 60000) {
+  if (cached && Date.now() < cached.expiresAt - RENEWAL_BUFFER_MS) {
     return cached.token;
   }
 
@@ -37,10 +42,12 @@ export async function getPedidosYaToken(storeId: string): Promise<string> {
   const creds = decryptJSON(encrypted);
   const { client_id, client_secret } = creds as { client_id: string; client_secret: string };
 
-  const response = await fetch(`https://api.pedidosya.com/v1/oauth/token`, {
+  // Usar el endpoint oficial de PedidosYa Partner API
+  const response = await fetch(`${PEDIDOSYA_AUTH_BASE}${PEDIDOSYA_ENDPOINTS.auth}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
@@ -56,9 +63,11 @@ export async function getPedidosYaToken(storeId: string): Promise<string> {
 
   const data: PedidosYaAuthResponse = await response.json();
 
+  // Token expira en 2 horas según docs
+  const expiresIn = data.expires_in * 1000 || TOKEN_EXPIRY_MS;
   tokenCache[storeId] = {
     token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    expiresAt: Date.now() + expiresIn,
     storeId,
   };
 
@@ -68,7 +77,7 @@ export async function getPedidosYaToken(storeId: string): Promise<string> {
 export function isPedidosYaTokenExpired(storeId: string): boolean {
   const cached = tokenCache[storeId];
   if (!cached) return true;
-  return Date.now() >= cached.expiresAt;
+  return Date.now() >= cached.expiresAt - RENEWAL_BUFFER_MS;
 }
 
 export async function clearPedidosYaToken(storeId: string): Promise<void> {

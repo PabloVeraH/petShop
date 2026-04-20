@@ -59,10 +59,11 @@ export interface PedidosYaWebhookEvent {
   payload: unknown;
 }
 
-export const PEDIDOSYA_API_BASE = "https://api.pedidosya.com";
+export const PEDIDOSYA_AUTH_BASE = process.env.PEDIDOSYA_AUTH_BASE ?? "https://pedidosya.partner.deliveryhero.io";
+export const PEDIDOSYA_API_BASE = process.env.PEDIDOSYA_API_BASE ?? "https://api.pedidosya.com";
 
 export const PEDIDOSYA_ENDPOINTS = {
-  auth: "/v1/oauth/token",
+  auth: "/v2/oauth/token",
   catalog: "/v1/stores/{store_id}/products",
   orders: "/v1/orders",
   confirm: "/v1/orders/{order_id}/confirm",
