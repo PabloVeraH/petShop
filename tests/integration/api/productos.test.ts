@@ -1,5 +1,5 @@
 /**
- * Tests I-16 a I-28: GET, POST, PATCH, DELETE /api/productos
+ * Tests I-16 a I-34: GET, POST, PATCH, DELETE /api/productos + codigo_barra
  */
 import { NextRequest } from "next/server";
 
@@ -61,6 +61,24 @@ describe("GET /api/productos", () => {
     const res = await GET(req("/api/productos?search=royal"));
     expect(res.status).toBe(200);
   });
+
+  // I-29
+  it("I-29: search por código de barra retorna 200", async () => {
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos?search=7891234567890"));
+    expect(res.status).toBe(200);
+  });
+
+  // I-30
+  it("I-30: select incluye campo codigo_barra", async () => {
+    let capturedSelect = "";
+    const c = chain();
+    c.select = jest.fn((s: string) => { capturedSelect = s; return c; });
+    mockFrom.mockReturnValue(c);
+    const { GET } = await import("@/app/api/productos/route");
+    await GET(req("/api/productos"));
+    expect(capturedSelect).toContain("codigo_barra");
+  });
 });
 
 describe("POST /api/productos", () => {
@@ -115,6 +133,30 @@ describe("POST /api/productos", () => {
     await POST(req("/api/productos", "POST", { nombre: "Test", sku: "SKU1", precio: 15000 }));
     expect(mockSyncProductsToHub).toHaveBeenCalled();
   });
+
+  // I-31
+  it("I-31: POST con codigo_barra válido → 201", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", sku: "SKU1", precio: 15000, stock: 0, activo: true, marca: null, codigo_barra: "7891234567890" },
+      error: null,
+    });
+    const { POST } = await import("@/app/api/productos/route");
+    const res = await POST(req("/api/productos", "POST", { nombre: "Test", sku: "SKU1", precio: 15000, codigo_barra: "7891234567890" }));
+    expect(res.status).toBe(201);
+  });
+
+  // I-32
+  it("I-32: codigo_barra duplicado → 409 con mensaje diferenciado", async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: "23505", message: "duplicate key value violates unique constraint productos_codigo_barra_store_unique" },
+    });
+    const { POST } = await import("@/app/api/productos/route");
+    const res = await POST(req("/api/productos", "POST", { nombre: "Test", sku: "SKU99", precio: 1000, codigo_barra: "7891234567890" }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("El código de barra ya existe");
+  });
 });
 
 describe("PATCH /api/productos/[id]", () => {
@@ -150,6 +192,30 @@ describe("PATCH /api/productos/[id]", () => {
     const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { precio: 9999 }), { params: patchParams });
     expect(res.status).toBe(200);
     expect(mockSyncProductsToHub).toHaveBeenCalled();
+  });
+
+  // I-33
+  it("I-33: PATCH con codigo_barra → 200", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", marca: null, precio: 9999, stock: 5, activo: true, codigo_barra: "7891234567890" },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { codigo_barra: "7891234567890" }), { params: patchParams });
+    expect(res.status).toBe(200);
+  });
+
+  // I-34
+  it("I-34: PATCH con codigo_barra duplicado → 409 con mensaje diferenciado", async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: "23505", message: "duplicate key value violates unique constraint productos_codigo_barra_store_unique" },
+    });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { codigo_barra: "7891234567890" }), { params: patchParams });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("El código de barra ya existe");
   });
 });
 
