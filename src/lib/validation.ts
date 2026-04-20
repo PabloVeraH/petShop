@@ -103,6 +103,7 @@ export const ProductoCreateSchema = z.object({
   precio_oferta: z.number().nonnegative().optional(),
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
+  codigo_barra: z.string().max(100).optional(),
 });
 
 export const ProductoUpdateSchema = z.object({
@@ -119,6 +120,7 @@ export const ProductoUpdateSchema = z.object({
   precio_oferta: z.number().nonnegative().optional(),
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
+  codigo_barra: z.string().max(100).nullable().optional(),
 });
 
 export const MascotaUpdateSchema = z.object({

@@ -10,6 +10,7 @@ export interface Producto {
   dias_alerta?: number;
   precio_oferta?: number | null;
   en_oferta?: boolean;
+  codigo_barra?: string | null;
 }
 
 export interface Cliente {

@@ -61,13 +61,14 @@ type ProductoForm = {
   precio_oferta: string;
   en_oferta: boolean;
   categoria_id: string;
+  codigo_barra: string;
 };
 
 const EMPTY_FORM: ProductoForm = {
   nombre: "", sku: "", precio: "", costo: "",
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
   fecha_vencimiento: "", dias_alerta: "30", precio_oferta: "", en_oferta: false,
-  categoria_id: "",
+  categoria_id: "", codigo_barra: "",
 };
 
 async function getInventario(search: string, soloAlertas: boolean, soloVencimientos: boolean): Promise<Producto[]> {
@@ -166,6 +167,7 @@ export default function InventoryPage() {
           precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
           en_oferta: form.en_oferta,
           categoria_id: form.categoria_id || null,
+          codigo_barra: form.codigo_barra || null,
         }),
       });
       const data = await res.json();
@@ -201,6 +203,7 @@ export default function InventoryPage() {
       precio_oferta: p.precio_oferta != null ? String(p.precio_oferta) : "",
       en_oferta: p.en_oferta ?? false,
       categoria_id: p.categoria_id ?? "",
+      codigo_barra: p.codigo_barra ?? "",
     });
     setFormError("");
     setShowForm(true);
@@ -361,6 +364,7 @@ export default function InventoryPage() {
               {[
                 { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg" },
                 { label: "SKU *", key: "sku" as const, placeholder: "PRD-001" },
+                { label: "Código de barra", key: "codigo_barra" as const, placeholder: "7891234567890" },
                 { label: "Precio venta c/IVA *", key: "precio" as const, placeholder: "19990", type: "number" },
                 { label: "Costo (opcional)", key: "costo" as const, placeholder: "12000", type: "number" },
                 { label: "Stock inicial", key: "stock" as const, placeholder: "0", type: "number" },

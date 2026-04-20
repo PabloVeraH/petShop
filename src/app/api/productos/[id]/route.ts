@@ -35,6 +35,7 @@ export async function PATCH(
   if (parsed.data.precio_oferta !== undefined) updates.precio_oferta = parsed.data.precio_oferta;
   if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
   if (parsed.data.categoria_id !== undefined) updates.categoria_id = parsed.data.categoria_id;
+  if (parsed.data.codigo_barra !== undefined) updates.codigo_barra = parsed.data.codigo_barra?.trim() || null;
 
   const { data, error } = await supabase
     .from("productos")
@@ -45,7 +46,10 @@ export async function PATCH(
     .single();
 
   if (error) {
-    if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
+    if (error.code === "23505") {
+      const msg = error.message?.includes("codigo_barra") ? "El código de barra ya existe" : "El SKU ya existe";
+      return NextResponse.json({ error: msg }, { status: 409 });
+    }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 

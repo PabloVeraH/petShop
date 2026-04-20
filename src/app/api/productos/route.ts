@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("productos")
-    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta")
+    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, codigo_barra")
     .eq("store_id", store_id)
     .eq("activo", true)
     .gt("stock", 0);
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (search.trim()) {
     // Sanitize to prevent PostgREST filter string manipulation
     const s = search.replace(/[()%,]/g, "");
-    query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%`);
+    query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%,codigo_barra.eq.${s}`);
   }
 
   const { data, error } = await query.limit(50);
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, categoria_id } = parsed.data;
+  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, categoria_id, codigo_barra } = parsed.data;
 
   const { data, error } = await supabase
     .from("productos")
@@ -66,13 +66,17 @@ export async function POST(req: NextRequest) {
       precio_oferta: precio_oferta ? Number(precio_oferta) : null,
       en_oferta: en_oferta === true,
       categoria_id: categoria_id ?? null,
+      codigo_barra: codigo_barra?.trim() || null,
       activo: true,
     })
     .select()
     .single();
 
   if (error) {
-    if (error.code === "23505") return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
+    if (error.code === "23505") {
+      const msg = error.message?.includes("codigo_barra") ? "El código de barra ya existe" : "El SKU ya existe";
+      return NextResponse.json({ error: msg }, { status: 409 });
+    }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
