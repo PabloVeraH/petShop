@@ -30,7 +30,8 @@ const CANALES = [
     nombre: "PedidosYa",
     descripcion: "Plataforma de delivery",
     color: "bg-yellow-500",
-    icono: "📦",
+    icono: "/logos/pedidosya.png",
+    useImage: true,
   },
   {
     id: "ubereats",
