@@ -8,7 +8,7 @@ import type {
 import { ChannelError } from "../types";
 import { verifyWebhookSignature } from "../webhook";
 import { getUberEatsToken, isUberEatsTokenExpired, clearUberEatsToken } from "./auth";
-import { confirmUberEatsOrder, cancelUberEatsOrder, updateUberEatsOrderStatus } from "./orders";
+import { acceptUberEatsOrder, denyUberEatsOrder, cancelUberEatsOrder, updateUberEatsOrderStatus } from "./orders";
 import type { UberEatsOrder, UberEatsWebhookEvent } from "./types";
 
 export class UberEatsChannel implements IExternalChannel {
@@ -110,20 +110,20 @@ export class UberEatsChannel implements IExternalChannel {
     const order = rawOrder as UberEatsOrder;
 
     return {
-      externalOrderId: order.uuid,
+      externalOrderId: order.uuid || order.order_id,
       canal: "ubereats",
-      items: order.cart_items.map((item) => ({
+      items: (order.cart_items || order.items || []).map((item) => ({
         externalProductId: item.id,
         cantidad: item.quantity,
         precio: item.price.amount,
       })),
-      totalExterno: order.total.amount,
+      totalExterno: order.total?.amount || 0,
       rawPayload: order,
     };
   }
 
   async confirmOrder(config: CanalConfig, externalOrderId: string): Promise<void> {
-    await confirmUberEatsOrder(config.storeId, externalOrderId);
+    await acceptUberEatsOrder(config.storeId, externalOrderId);
   }
 
   async rejectOrder(
@@ -131,7 +131,7 @@ export class UberEatsChannel implements IExternalChannel {
     externalOrderId: string,
     reason?: string
   ): Promise<void> {
-    await cancelUberEatsOrder(config.storeId, externalOrderId, reason);
+    await denyUberEatsOrder(config.storeId, externalOrderId, reason);
   }
 
   async updateOrderStatus(
@@ -139,16 +139,16 @@ export class UberEatsChannel implements IExternalChannel {
     externalOrderId: string,
     status: EstadoOrdenCanal
   ): Promise<void> {
-    const statusMap: Record<EstadoOrdenCanal, "confirmed" | "preparing" | "ready_for_pickup"> = {
-      accepted: "confirmed",
-      ready: "preparing",
-      picked_up: "ready_for_pickup",
-      delivered: "ready_for_pickup",
-      rejected: "confirmed",
-      cancelled: "confirmed",
-      pending: "confirmed",
-      reserved: "confirmed",
-      expired: "confirmed",
+    const statusMap: Record<EstadoOrdenCanal, "preparing" | "ready_for_pickup" | "en_route" | "arrived"> = {
+      accepted: "preparing",
+      ready: "ready_for_pickup",
+      picked_up: "en_route",
+      delivered: "arrived",
+      rejected: "ready_for_pickup",
+      cancelled: "ready_for_pickup",
+      pending: "preparing",
+      reserved: "preparing",
+      expired: "ready_for_pickup",
     };
 
     const ueStatus = statusMap[status];

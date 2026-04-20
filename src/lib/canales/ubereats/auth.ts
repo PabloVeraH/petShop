@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { decryptJSON } from "../encryption";
+import { UBEREATS_AUTH_BASE, UBEREATS_ENDPOINTS } from "./types";
 import type { UberEatsAuthResponse } from "./types";
 
 interface TokenCache {
@@ -10,9 +11,11 @@ interface TokenCache {
 
 const tokenCache: Record<string, TokenCache> = {};
 
+const RENEWAL_BUFFER_MS = 5 * 60 * 1000;
+
 export async function getUberEatsToken(storeId: string): Promise<string> {
   const cached = tokenCache[storeId];
-  if (cached && Date.now() < cached.expiresAt - 60000) {
+  if (cached && Date.now() < cached.expiresAt - RENEWAL_BUFFER_MS) {
     return cached.token;
   }
 
@@ -37,15 +40,16 @@ export async function getUberEatsToken(storeId: string): Promise<string> {
   const creds = decryptJSON(encrypted);
   const { client_id, client_secret } = creds as { client_id: string; client_secret: string };
 
-  const response = await fetch("https://auth.uber.com/oauth/token", {
+  const response = await fetch(`${UBEREATS_AUTH_BASE}${UBEREATS_ENDPOINTS.auth}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
     },
     body: new URLSearchParams({
-      grant_type: "client_credentials",
       client_id,
       client_secret,
+      grant_type: "client_credentials",
     }),
   });
 
@@ -56,9 +60,10 @@ export async function getUberEatsToken(storeId: string): Promise<string> {
 
   const data: UberEatsAuthResponse = await response.json();
 
+  const expiresIn = data.expires_in * 1000 || (30 * 60 * 1000);
   tokenCache[storeId] = {
     token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    expiresAt: Date.now() + expiresIn,
     storeId,
   };
 
@@ -68,7 +73,7 @@ export async function getUberEatsToken(storeId: string): Promise<string> {
 export function isUberEatsTokenExpired(storeId: string): boolean {
   const cached = tokenCache[storeId];
   if (!cached) return true;
-  return Date.now() >= cached.expiresAt;
+  return Date.now() >= cached.expiresAt - RENEWAL_BUFFER_MS;
 }
 
 export async function clearUberEatsToken(storeId: string): Promise<void> {
