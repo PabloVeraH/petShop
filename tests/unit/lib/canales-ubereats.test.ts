@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { createHmac } from "crypto";
 import { UberEatsChannel } from "@/lib/canales/ubereats/adapter";
 import type { CanalConfig } from "@/lib/canales/types";

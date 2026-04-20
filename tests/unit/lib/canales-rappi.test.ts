@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach } from "vitest";
 import { createHmac } from "crypto";
 import { RappiChannel } from "@/lib/canales/rappi/adapter";
 import type { CanalConfig } from "@/lib/canales/types";
@@ -31,90 +30,68 @@ describe("canales/rappi/adapter", () => {
 
   describe("validateWebhook", () => {
     it("returns true for valid signature", () => {
-      const rawBody = JSON.stringify({ order_id: "123", event_type: "order.created" });
+      const rawBody = JSON.stringify({ order_id: "123", event_type: "NEW_ORDER" });
       const secret = "test-secret";
-      const signature =
-        "sha256=" +
-        createHmac("sha256", secret)
-          .update(rawBody)
-          .digest("hex");
+      const ts = String(Math.floor(Date.now() / 1000));
+      const sign = createHmac("sha256", secret).update(`${ts}.${rawBody}`).digest("hex");
+      const headers = { "rappi-signature": `t=${ts},sign=${sign}` };
 
-      const headers = { "x-rappi-signature": signature };
-      const result = channel.validateWebhook(headers, rawBody, secret);
-
-      expect(result).toBe(true);
+      expect(channel.validateWebhook(headers, rawBody, secret)).toBe(true);
     });
 
     it("returns false for invalid signature", () => {
       const rawBody = JSON.stringify({ order_id: "123" });
-      const headers = { "x-rappi-signature": "sha256=invalid" };
+      const ts = String(Math.floor(Date.now() / 1000));
+      const headers = { "rappi-signature": `t=${ts},sign=invalidsignature` };
 
-      const result = channel.validateWebhook(headers, rawBody, "secret");
-
-      expect(result).toBe(false);
+      expect(channel.validateWebhook(headers, rawBody, "secret")).toBe(false);
     });
 
     it("returns false for missing signature", () => {
       const rawBody = JSON.stringify({ order_id: "123" });
-      const headers = {};
+      expect(channel.validateWebhook({}, rawBody, "secret")).toBe(false);
+    });
 
-      const result = channel.validateWebhook(headers, rawBody, "secret");
+    it("returns false for expired timestamp (anti-replay > 5 min)", () => {
+      const rawBody = JSON.stringify({ order_id: "123" });
+      const secret = "test-secret";
+      const oldTs = String(Math.floor(Date.now() / 1000) - 400);
+      const sign = createHmac("sha256", secret).update(`${oldTs}.${rawBody}`).digest("hex");
+      const headers = { "rappi-signature": `t=${oldTs},sign=${sign}` };
 
-      expect(result).toBe(false);
+      expect(channel.validateWebhook(headers, rawBody, secret)).toBe(false);
     });
   });
 
   describe("parseWebhookEvent", () => {
-    it("parses order.created event", () => {
-      const body = {
-        event_type: "order.created",
-        order_id: "ORD-123",
-        total: 15000,
-        items: [{ id: "P1", quantity: 2, unit_price: 7500 }],
-      };
-
+    it("parses NEW_ORDER event", () => {
+      const body = { event_type: "NEW_ORDER", order_id: "ORD-123" };
       const result = channel.parseWebhookEvent(body);
-
       expect(result.type).toBe("order");
       expect(result.data).toEqual(body);
     });
 
-    it("parses ping event", () => {
-      const body = { event_type: "ping", timestamp: "2026-04-19T12:00:00Z" };
-
+    it("parses PING event", () => {
+      const body = { event_type: "PING" };
       const result = channel.parseWebhookEvent(body);
-
       expect(result.type).toBe("ping");
     });
 
-    it("parses status_change event", () => {
-      const body = {
-        event_type: "order.status_changed",
-        order_id: "ORD-123",
-        status: "accepted",
-      };
-
+    it("parses ORDER_OTHER_EVENT as status_change", () => {
+      const body = { event_type: "ORDER_OTHER_EVENT", order_id: "ORD-123" };
       const result = channel.parseWebhookEvent(body);
-
       expect(result.type).toBe("status_change");
     });
 
-    it("parses cancellation event", () => {
-      const body = {
-        event_type: "order.cancelled",
-        order_id: "ORD-123",
-      };
-
+    it("parses ORDER_EVENT_CANCEL as cancellation", () => {
+      const body = { event_type: "ORDER_EVENT_CANCEL", order_id: "ORD-123" };
       const result = channel.parseWebhookEvent(body);
-
       expect(result.type).toBe("cancellation");
     });
 
     it("returns 'other' for unknown event", () => {
-      const body = { event_type: "unknown.event", data: {} };
-
+      const body = { event_type: "UNKNOWN_EVENT" };
       const result = channel.parseWebhookEvent(body);
-
       expect(result.type).toBe("other");
     });
   });
@@ -123,11 +100,13 @@ describe("canales/rappi/adapter", () => {
     it("maps Rappi order to CanalOrden", () => {
       const rawOrder = {
         order_id: "ORD-456",
-        items: [
-          { id: "PROD-1", quantity: 1, unit_price: 5000 },
-          { id: "PROD-2", quantity: 2, unit_price: 2500 },
-        ],
-        total: 10000,
+        order_detail: {
+          items: [
+            { id: "PROD-1", quantity: 1, price: 5000 },
+            { id: "PROD-2", quantity: 2, price: 2500 },
+          ],
+          total_order: 10000,
+        },
       };
 
       const result = channel.parseOrder(rawOrder);
@@ -142,9 +121,8 @@ describe("canales/rappi/adapter", () => {
   });
 
   describe("isTokenExpired", () => {
-    it("returns true when no token cached", () => {
-      const result = channel.isTokenExpired(mockConfig);
-      expect(result).toBe(true);
+    it("always returns false (real expiry check is in auth.ts)", () => {
+      expect(channel.isTokenExpired(mockConfig)).toBe(false);
     });
   });
 });

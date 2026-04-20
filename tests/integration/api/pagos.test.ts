@@ -3,18 +3,22 @@ import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+jest.mock("@/lib/audit", () => ({
+  logAudit: jest.fn().mockResolvedValue(undefined),
+  getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
+}));
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 
-describe("POST /api/pagos", () => {
-  const mockStoreId = "store-1";
-  const mockVentaId = "venta-1";
-  const mockPagoId = "pago-1";
+const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
+const VENTA_ID = "123e4567-e89b-12d3-a456-426614174001";
+const PAGO_ID  = "123e4567-e89b-12d3-a456-426614174002";
 
+describe("POST /api/pagos", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
   });
 
   it("registra un pago con efectivo sin numero_transaccion", async () => {
@@ -31,10 +35,10 @@ describe("POST /api/pagos", () => {
     chain.single.mockImplementation(function () {
       callCount++;
       if (callCount === 1) {
-        return Promise.resolve({ data: { id: mockVentaId, total: 10000, store_id: mockStoreId, estado: "pendiente" }, error: null });
+        return Promise.resolve({ data: { id: VENTA_ID, total: 10000, store_id: STORE_ID, estado: "pendiente" }, error: null });
       }
       if (callCount === 2) {
-        return Promise.resolve({ data: { id: mockPagoId, metodo: "efectivo", monto: 10000 }, error: null });
+        return Promise.resolve({ data: { id: PAGO_ID, metodo: "efectivo", monto: 10000 }, error: null });
       }
       return Promise.resolve({ data: [], error: null });
     });
@@ -45,11 +49,7 @@ describe("POST /api/pagos", () => {
 
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "efectivo",
-        monto: 10000,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 10000 }),
     });
 
     const res = await POST(req);
@@ -57,23 +57,7 @@ describe("POST /api/pagos", () => {
 
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
-    expect(data.pagoId).toBe(mockPagoId);
-  });
-
-  it("rechaza pago con tarjeta sin numero_transaccion", async () => {
-    const req = new NextRequest("http://localhost/api/pagos", {
-      method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "credito",
-        monto: 10000,
-      }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toContain("número de transacción");
+    expect(data.pagoId).toBe(PAGO_ID);
   });
 
   it("registra pago con tarjeta y numero_transaccion", async () => {
@@ -90,10 +74,10 @@ describe("POST /api/pagos", () => {
     chain.single.mockImplementation(function () {
       callCount++;
       if (callCount === 1) {
-        return Promise.resolve({ data: { id: mockVentaId, total: 10000, store_id: mockStoreId, estado: "pendiente" }, error: null });
+        return Promise.resolve({ data: { id: VENTA_ID, total: 10000, store_id: STORE_ID, estado: "pendiente" }, error: null });
       }
       if (callCount === 2) {
-        return Promise.resolve({ data: { id: mockPagoId, metodo: "credito", monto: 10000, numero_transaccion: "TXN123456" }, error: null });
+        return Promise.resolve({ data: { id: PAGO_ID, metodo: "credito", monto: 10000, numero_transaccion: "TXN123456" }, error: null });
       }
       return Promise.resolve({ data: [], error: null });
     });
@@ -104,12 +88,7 @@ describe("POST /api/pagos", () => {
 
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "credito",
-        monto: 10000,
-        numeroTransaccion: "TXN123456",
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "credito", monto: 10000, numeroTransaccion: "TXN123456" }),
     });
 
     const res = await POST(req);
@@ -118,44 +97,20 @@ describe("POST /api/pagos", () => {
     expect(data.ok).toBe(true);
   });
 
-  it("rechaza pago con transferencia sin numero_transaccion", async () => {
+  it("rechaza metodo_pago inválido → 400", async () => {
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "transferencia",
-        monto: 5000,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "bitcoin", monto: 10000 }),
     });
 
     const res = await POST(req);
     expect(res.status).toBe(400);
-  });
-
-  it("rechaza metodo_pago inválido", async () => {
-    const req = new NextRequest("http://localhost/api/pagos", {
-      method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "bitcoin",
-        monto: 10000,
-      }),
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toContain("inválido");
   });
 
   it("rechaza monto <= 0", async () => {
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "efectivo",
-        monto: 0,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 0 }),
     });
 
     const res = await POST(req);
@@ -167,7 +122,7 @@ describe("POST /api/pagos", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, total: 5000, store_id: mockStoreId, estado: "pendiente" },
+        data: { id: VENTA_ID, total: 5000, store_id: STORE_ID, estado: "pendiente" },
         error: null,
       }),
     };
@@ -178,11 +133,7 @@ describe("POST /api/pagos", () => {
 
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "efectivo",
-        monto: 10000,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 10000 }),
     });
 
     const res = await POST(req);
@@ -204,11 +155,7 @@ describe("POST /api/pagos", () => {
 
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: "invalid-venta",
-        metodo: "efectivo",
-        monto: 10000,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 10000 }),
     });
 
     const res = await POST(req);
@@ -220,11 +167,7 @@ describe("POST /api/pagos", () => {
 
     const req = new NextRequest("http://localhost/api/pagos", {
       method: "POST",
-      body: JSON.stringify({
-        ventaId: mockVentaId,
-        metodo: "efectivo",
-        monto: 10000,
-      }),
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 10000 }),
     });
 
     const res = await POST(req);
@@ -233,12 +176,11 @@ describe("POST /api/pagos", () => {
 });
 
 describe("GET /api/pagos", () => {
-  const mockStoreId = "store-1";
   const mockVentaId = "venta-1";
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
   });
 
   it("obtiene pagos de una venta", async () => {

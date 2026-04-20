@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { verifyWebhookSignature, parseWebhookBody } from "@/lib/canales/webhook";
 
 describe("canales/webhook", () => {

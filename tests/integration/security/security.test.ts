@@ -12,6 +12,10 @@ jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
 jest.mock("@/lib/hub-sync", () => ({ syncPurchaseToHub: jest.fn() }));
+jest.mock("@/lib/audit", () => ({
+  logAudit: jest.fn().mockResolvedValue(undefined),
+  getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
+}));
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
