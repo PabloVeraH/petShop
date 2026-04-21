@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
-import { syncPurchaseToHub } from "@/lib/hub-sync";
+import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
 import { crearAsiento, lineasVentaCanal } from "@/lib/contabilidad/generador-asientos";
@@ -266,6 +266,29 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+  }
+
+  // Sync stock al hub (fire-and-forget) - independientemente de si hay cliente
+  const syncedProductoIds = itemsConPrecio.map((i) => i.producto_id);
+  const { data: productosActualizados } = await supabase
+    .from("productos")
+    .select("id, nombre, marca, codigo_barra, precio, stock, activo")
+    .eq("store_id", store_id)
+    .in("id", syncedProductoIds);
+
+  if (productosActualizados && productosActualizados.length > 0) {
+    syncProductsToHub(
+      productosActualizados.map((p) => ({
+        producto_id: p.id,
+        nombre_producto: p.nombre,
+        marca: p.marca ?? undefined,
+        categoria: p.categoria ?? undefined,
+        codigo_barra: p.codigo_barra ?? null,
+        precio: Number(p.precio),
+        stock: p.stock,
+        activo: p.activo ?? true,
+      }))
+    );
   }
 
   // Actualizar fidelización si hay cliente
