@@ -57,6 +57,7 @@ export async function PATCH(
     producto_id: data.id,
     nombre_producto: data.nombre,
     marca: data.marca ?? undefined,
+    codigo_barra: data.codigo_barra ?? null,
     precio: Number(data.precio),
     stock: data.stock,
     activo: data.activo ?? true,
@@ -82,7 +83,7 @@ export async function DELETE(
     .update({ activo: false })
     .eq("id", id)
     .eq("store_id", store_id)
-    .select("id, nombre, marca, precio, stock")
+    .select("id, nombre, marca, precio, stock, codigo_barra")
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -92,6 +93,7 @@ export async function DELETE(
       producto_id: data.id,
       nombre_producto: data.nombre,
       marca: data.marca ?? undefined,
+      codigo_barra: data.codigo_barra ?? null,
       precio: Number(data.precio),
       stock: data.stock,
       activo: false,

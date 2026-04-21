@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     producto_id: data.id,
     nombre_producto: data.nombre,
     marca: data.marca ?? undefined,
+    codigo_barra: data.codigo_barra ?? null,
     precio: Number(data.precio),
     stock: data.stock,
     activo: true,

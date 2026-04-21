@@ -44,7 +44,7 @@ export async function PATCH(
     .from("productos")
     .update({ stock: nuevoStock })
     .eq("id", id)
-    .select("id, nombre, marca, precio, stock")
+    .select("id, nombre, marca, precio, stock, codigo_barra")
     .single();
 
   if (error) {
@@ -82,6 +82,7 @@ export async function PATCH(
     producto_id: updated.id,
     nombre_producto: updated.nombre,
     marca: updated.marca ?? undefined,
+    codigo_barra: updated.codigo_barra ?? null,
     precio: Number(updated.precio),
     stock: updated.stock,
     activo: true,

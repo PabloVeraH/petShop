@@ -20,6 +20,7 @@ export function syncProductsToHub(
     nombre_producto: string;
     marca?: string;
     categoria?: string;
+    codigo_barra?: string | null;
     precio: number;
     stock: number;
     imagen_url?: string | null;
