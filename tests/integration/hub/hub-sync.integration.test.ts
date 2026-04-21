@@ -131,29 +131,7 @@ describe("H-04: POST /api/ventas sincroniza historial de compras al hub", () => 
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     mockRpc.mockResolvedValue({ error: null });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { ...chain(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [{ id: PRODUCTO_ID, precio: 10000, store_id: STORE_ID }], error: null }), select: jest.fn().mockReturnThis() };
-      }
-      if (table === "ventas") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { id: "v1", total: 23800 }, error: null });
-        return c;
-      }
-      if (table === "clientes") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { rut: "11111111-1" }, error: null });
-        return c;
-      }
-      if (table === "stores") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false }, error: null });
-        return c;
-      }
-      const c = chain();
-      c.single = jest.fn().mockResolvedValue({ data: null, error: null });
-      return { ...c, upsert: jest.fn().mockResolvedValue({ error: null }), insert: jest.fn().mockReturnValue({ ...c }) };
-    });
+    mockFrom.mockImplementation(buildVentasMockFrom());
   });
 
   it("H-04: venta con cliente RUT llama syncPurchaseToHub con rut y monto", async () => {
@@ -179,29 +157,7 @@ describe("H-05: hub caído no impide crear la venta", () => {
       // fire-and-forget: lanza internamente pero no propaga
     });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { ...chain(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [{ id: PRODUCTO_ID, precio: 10000, store_id: STORE_ID }], error: null }), select: jest.fn().mockReturnThis() };
-      }
-      if (table === "ventas") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { id: "v1", total: 23800 }, error: null });
-        return c;
-      }
-      if (table === "clientes") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { rut: "11111111-1" }, error: null });
-        return c;
-      }
-      if (table === "stores") {
-        const c = chain();
-        c.single = jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false }, error: null });
-        return c;
-      }
-      const c = chain();
-      c.single = jest.fn().mockResolvedValue({ data: null, error: null });
-      return { ...c, upsert: jest.fn().mockResolvedValue({ error: null }), insert: jest.fn().mockReturnValue({ ...c }) };
-    });
+    mockFrom.mockImplementation(buildVentasMockFrom());
   });
 
   it("H-05: hub inaccesible → venta retorna 200 igual", async () => {
@@ -212,5 +168,117 @@ describe("H-05: hub caído no impide crear la venta", () => {
       clienteId: CLIENTE_ID,
     }));
     expect(res.status).toBe(200);
+  });
+});
+
+// ── H-06: POST /api/ventas → sync stock al hub (independiente de cliente) ───
+
+const PRODUCTO_DATA_SYNC = {
+  id: PRODUCTO_ID,
+  nombre: "Royal Canin",
+  marca: "Royal",
+  codigo_barra: "123456789",
+  precio: 15000,
+  stock: 48,
+  activo: true,
+};
+
+// Mock de productos para H-06: el route llama .from("productos") dos veces con cadenas distintas:
+//   1ª llamada — precio lookup:  .select().in(ids).eq("store_id")  → termina en .eq()
+//   2ª llamada — stock sync:     .select().eq("store_id").in(ids)  → termina en .in()
+// Se diferencia por el orden de llamadas a from(), no por el orden de in()/eq().
+function buildVentasMockFrom(clienteRut: string | null = "11111111-1") {
+  let productosCall = 0;
+  return (table: string) => {
+    if (table === "productos") {
+      productosCall++;
+      if (productosCall === 1) {
+        // Precio lookup: select → in → eq (resuelve en eq)
+        const c: Record<string, jest.Mock> = {
+          select: jest.fn(), in: jest.fn(), eq: jest.fn(),
+        };
+        c.select.mockReturnValue(c);
+        c.in.mockReturnValue(c);
+        c.eq.mockResolvedValue({
+          data: [{ id: PRODUCTO_ID, precio: 15000, precio_oferta: null, en_oferta: false }],
+          error: null,
+        });
+        return c;
+      } else {
+        // Stock sync: select → eq → in (resuelve en in)
+        const c: Record<string, jest.Mock> = {
+          select: jest.fn(), eq: jest.fn(), in: jest.fn(),
+        };
+        c.select.mockReturnValue(c);
+        c.eq.mockReturnValue(c);
+        c.in.mockResolvedValue({ data: [PRODUCTO_DATA_SYNC], error: null });
+        return c;
+      }
+    }
+    if (table === "ventas") {
+      const c = chain();
+      c.single = jest.fn().mockResolvedValue({ data: { id: "v1", total: 30000 }, error: null });
+      return c;
+    }
+    if (table === "clientes") {
+      const c = chain();
+      c.single = jest.fn().mockResolvedValue({ data: { rut: clienteRut }, error: null });
+      return c;
+    }
+    if (table === "stores") {
+      const c = chain();
+      c.single = jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false }, error: null });
+      return c;
+    }
+    // Cubre: venta_items, pagos, stock_movements, audit_logs, fidelizacion, etc.
+    const c = chain();
+    c.single = jest.fn().mockResolvedValue({ data: null, error: null });
+    return { ...c, upsert: jest.fn().mockResolvedValue({ error: null }), insert: jest.fn().mockReturnValue({ ...c }) };
+  };
+}
+
+// H-06a: cliente SIN RUT → syncProductsToHub llamado, syncPurchaseToHub NO
+describe("H-06a: POST /api/ventas con cliente sin RUT sincroniza stock pero no historial", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockRpc.mockResolvedValue({ error: null });
+    mockFrom.mockImplementation(buildVentasMockFrom(null));
+  });
+
+  it("H-06a: cliente sin RUT llama syncProductsToHub con stock actualizado pero no syncPurchaseToHub", async () => {
+    const { POST } = await import("@/app/api/ventas/route");
+    await POST(req("/api/ventas", "POST", {
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 2 }],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+    }));
+    expect(mockSyncProductsToHub).toHaveBeenCalledWith([
+      expect.objectContaining({ producto_id: PRODUCTO_ID, stock: 48 }),
+    ]);
+    expect(mockSyncPurchaseToHub).not.toHaveBeenCalled();
+  });
+});
+
+// H-06b: venta CON cliente → syncProductsToHub Y syncPurchaseToHub llamados
+describe("H-06b: POST /api/ventas con cliente sincroniza stock e historial", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockRpc.mockResolvedValue({ error: null });
+    mockFrom.mockImplementation(buildVentasMockFrom());
+  });
+
+  it("H-06b: venta con cliente llama syncProductsToHub y syncPurchaseToHub", async () => {
+    const { POST } = await import("@/app/api/ventas/route");
+    await POST(req("/api/ventas", "POST", {
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 2 }],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+    }));
+    expect(mockSyncProductsToHub).toHaveBeenCalledWith([
+      expect.objectContaining({ producto_id: PRODUCTO_ID, stock: 48 }),
+    ]);
+    expect(mockSyncPurchaseToHub).toHaveBeenCalledWith("11111111-1", expect.any(Number));
   });
 });
