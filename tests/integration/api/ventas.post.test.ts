@@ -38,6 +38,7 @@ jest.mock("@/lib/whatsapp", () => ({
 
 jest.mock("@/lib/hub-sync", () => ({
   syncPurchaseToHub: jest.fn(),
+  syncProductsToHub: jest.fn(),
 }));
 
 import { POST } from "@/app/api/ventas/route";
@@ -55,22 +56,31 @@ function makeRequest(body: object) {
 const VALID_ITEM = { producto_id: PRODUCTO_ID, cantidad: 2 };
 
 // Productos devueltos por la DB (con precio real)
-const DB_PRODUCTO = { id: PRODUCTO_ID, precio: 10000, store_id: STORE_ID };
+const DB_PRODUCTO = { id: PRODUCTO_ID, precio: 10000, precio_oferta: null, en_oferta: false };
+const DB_PRODUCTO_SYNC = { id: PRODUCTO_ID, nombre: "Test", marca: null, codigo_barra: null, precio: 10000, stock: 48, activo: true };
 // Venta creada
 const DB_VENTA = { id: "123e4567-e89b-12d3-a456-426614174030", total: 23800 };
 
 function setupHappyPath() {
-  // 1ra llamada .single() → productos (via .in())
-  // La ruta hace .select().in().eq() sin .single() para productos,
-  // entonces necesitamos mockear el chain para que resuelva con array
+  let productosCall = 0;
   mockFrom.mockImplementation((table: string) => {
     if (table === "productos") {
-      return {
-        ...mockChain,
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
-      };
+      productosCall++;
+      if (productosCall === 1) {
+        // Price lookup: select → in → eq (resolves in eq)
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+        };
+      } else {
+        // Stock sync: select → eq → in (resolves in in)
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }),
+        };
+      }
     }
     if (table === "ventas") {
       return {
@@ -224,9 +234,15 @@ describe("POST /api/ventas — flujo exitoso", () => {
 
   // I-45
   it("I-45: WhatsApp habilitado + teléfono válido → sendWhatsAppText llamado", async () => {
+    let productosCallI45 = 0;
     mockFrom.mockImplementation((table: string) => {
       if (table === "productos") {
-        return { ...mockChain, select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        productosCallI45++;
+        if (productosCallI45 === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        } else {
+          return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+        }
       }
       if (table === "ventas") {
         return { ...mockChain, insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
