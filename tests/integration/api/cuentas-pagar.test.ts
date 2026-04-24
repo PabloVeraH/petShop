@@ -69,3 +69,106 @@ describe("PATCH /api/cuentas-pagar", () => {
     expect(body.estado).toBe("pagada");
   });
 });
+
+describe("GET /api/cuentas-pagar", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // I-87
+  it("I-87: GET sin filtro → lista todas las cuentas", async () => {
+    const mockChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn(function() { return this; }),
+    };
+    (mockChain as any).then = function(resolve: any) {
+      return resolve({
+        data: [
+          { id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" },
+          { id: "cp-2", monto: 1500, estado: "pagada", proveedor_id: "prov-2" },
+        ],
+        error: null,
+      });
+    };
+    mockFrom.mockReturnValue(mockChain);
+
+    const { GET } = await import("@/app/api/cuentas-pagar/route");
+    const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data).toHaveLength(2);
+  });
+
+  // I-88
+  it("I-88: GET con estado=pendiente → filtra por estado", async () => {
+    const mockChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn(function() { return this; }),
+    };
+    (mockChain as any).then = function(resolve: any) {
+      return resolve({
+        data: [{ id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" }],
+        error: null,
+      });
+    };
+    mockFrom.mockReturnValue(mockChain);
+
+    const { GET } = await import("@/app/api/cuentas-pagar/route");
+    const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar?estado=pendiente"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  // I-89
+  it("I-89: GET con proveedor_id=X → filtra por proveedor", async () => {
+    const mockChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn(function() { return this; }),
+    };
+    (mockChain as any).then = function(resolve: any) {
+      return resolve({
+        data: [{ id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" }],
+        error: null,
+      });
+    };
+    mockFrom.mockReturnValue(mockChain);
+
+    const { GET } = await import("@/app/api/cuentas-pagar/route");
+    const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar?proveedor_id=prov-1"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+});
+
+describe("PATCH /api/cuentas-pagar mark-pagada", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // I-90
+  it("I-90: PATCH mark-pagada → 200 + estado actualizado", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: CUENTA_ID, estado: "pagada", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(new NextRequest(`http://localhost/api/cuentas-pagar?id=${CUENTA_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado: "pagada" }),
+    }));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.estado).toBe("pagada");
+  });
+});
