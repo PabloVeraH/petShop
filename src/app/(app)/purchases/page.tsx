@@ -11,6 +11,7 @@ type OrdenRow = { id: string; numero: string; estado: string; total: number; fec
 type OrdenDetalle = OrdenRow & { items: Array<{ id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number; subtotal: number; productos: { id: string; nombre: string; sku: string } | null }> };
 type Proveedor = { id: string; nombre: string };
 type ProductoOpt = { id: string; nombre: string; sku: string; precio: number };
+type Sugerencia = { producto_id: string; producto_nombre: string; sku: string; stock_actual: number; demanda_promedio: number; dias_restantes: number; cantidad_sugerida: number; prioridad: "alta" | "media" | "baja" };
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: "bg-yellow-100 text-yellow-700",
@@ -23,6 +24,7 @@ export default function PurchasesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
   const [showRecibir, setShowRecibir] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(false);
   const queryClient = useQueryClient();
 
   // Create form state
@@ -56,6 +58,12 @@ export default function PurchasesPage() {
     queryKey: ["orden-detalle", viewId],
     queryFn: async () => { const res = await fetch(`/api/ordenes-compra/${viewId}`); return res.json(); },
     enabled: !!viewId,
+  });
+
+  const { data: sugerenciasAvanzadas } = useQuery<{ sugerencias: Sugerencia[] }>({
+    queryKey: ["recompras-avanzadas"],
+    queryFn: async () => { const res = await fetch("/api/analytics/recompras-avanzadas"); return res.json(); },
+    enabled: advancedMode,
   });
 
   const { mutate: createOrden, isPending: creating } = useMutation({
@@ -109,9 +117,54 @@ export default function PurchasesPage() {
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Órdenes de Compra</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold text-gray-900">Órdenes de Compra</h1>
+          <button
+            onClick={() => setAdvancedMode(!advancedMode)}
+            className={`px-3 py-1 text-xs rounded border ${advancedMode ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-gray-50 border-gray-300 text-gray-700"}`}
+          >
+            {advancedMode ? "✓ Modo Avanzado" : "Modo Básico"}
+          </button>
+        </div>
         <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva OC</Button>
       </div>
+
+      {advancedMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h2 className="text-sm font-bold text-blue-900 mb-3">Sugerencias Inteligentes de Recompra</h2>
+          {!sugerenciasAvanzadas && <p className="text-xs text-blue-700">Cargando sugerencias...</p>}
+          {sugerenciasAvanzadas?.sugerencias && sugerenciasAvanzadas.sugerencias.length === 0 && (
+            <p className="text-xs text-blue-700">No hay sugerencias en este momento.</p>
+          )}
+          {sugerenciasAvanzadas?.sugerencias && sugerenciasAvanzadas.sugerencias.length > 0 && (
+            <div className="space-y-2">
+              {sugerenciasAvanzadas.sugerencias.map((s) => (
+                <div key={s.producto_id} className="bg-white rounded p-3 border border-blue-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{s.producto_nombre}</p>
+                      <p className="text-xs text-gray-500">SKU: {s.sku} · Stock actual: {s.stock_actual}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Demanda promedio: {s.demanda_promedio.toFixed(1)} unidades/día · Agotar en ~{s.dias_restantes} días
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={
+                        s.prioridad === "alta" ? "bg-red-100 text-red-700" :
+                        s.prioridad === "media" ? "bg-yellow-100 text-yellow-700" :
+                        "bg-green-100 text-green-700"
+                      }>
+                        {s.prioridad}
+                      </Badge>
+                      <p className="text-sm font-bold text-blue-700 mt-1">{s.cantidad_sugerida} unid.</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         {["", "pendiente", "recibida", "cancelada"].map((e) => (
