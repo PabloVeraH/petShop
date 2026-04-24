@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
 
   const estado = req.nextUrl.searchParams.get("estado") ?? "";
+  const proveedor_id = req.nextUrl.searchParams.get("proveedor_id") ?? "";
 
   let query = supabase
     .from("ordenes_compra")
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     .eq("store_id", store_id)
     .order("created_at", { ascending: false });
   if (estado) query = query.eq("estado", estado);
+  if (proveedor_id) query = query.eq("proveedor_id", proveedor_id);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
