@@ -31,7 +31,7 @@ export default function SupplierHubPage() {
   const [orderForm, setOrderForm] = useState({ items: [] as Array<{ producto_id: string; nombre: string; cantidad: string; precio: string }> });
   const [addingOrderItem, setAddingOrderItem] = useState({ producto_id: "", cantidad: "1", precio: "" });
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
-  const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week">("all");
+  const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
     if (typeof window === "undefined") return [];
     const stored = localStorage.getItem(SAVED_FILTERS_KEY);

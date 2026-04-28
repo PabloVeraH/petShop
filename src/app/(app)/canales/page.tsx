@@ -41,6 +41,14 @@ const CANALES = [
     icono: "/logos/ubereats.png",
     useImage: true,
   },
+  {
+    id: "instagram",
+    nombre: "Instagram",
+    descripcion: "Publica posts, historias y carruseles",
+    color: "bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-400",
+    icono: "/logos/instagram.jpeg",
+    useImage: true,
+  },
 ];
 
 export default function CanalesPage() {
@@ -154,6 +162,7 @@ export default function CanalesPage() {
           <li>• <strong>Rappi</strong>: Integración completa con marketplace</li>
           <li>• <strong>PedidosYa</strong>: Sincronización de productos y pedidos</li>
           <li>• <strong>Uber Eats</strong>: Gestión de inventario y órdenes</li>
+          <li>• <strong>Instagram</strong>: Publicaciones, historias y carruseles con product tagging</li>
         </ul>
       </div>
     </div>

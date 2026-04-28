@@ -9,6 +9,7 @@ interface CanalInfo {
   descripcion: string;
   color: string;
   icono: string;
+  useImage?: boolean;
   campos: { key: string; label: string; type: string; placeholder: string }[];
 }
 
@@ -50,12 +51,26 @@ const CANALES_INFO: Record<string, CanalInfo> = {
       { key: "store_uuid", label: "Store UUID", type: "text", placeholder: "..." },
     ],
   },
+  instagram: {
+    id: "instagram",
+    nombre: "Instagram",
+    descripcion: "Conecta tu cuenta profesional",
+    color: "bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-400",
+    icono: "/logos/instagram.jpeg",
+    useImage: true,
+    campos: [
+      { key: "app_id", label: "App ID", type: "text", placeholder: "123456789" },
+      { key: "app_secret", label: "App Secret", type: "password", placeholder: "abc123..." },
+      { key: "ig_user_id", label: "IG User ID", type: "text", placeholder: "17841..." },
+      { key: "access_token", label: "Access Token", type: "password", placeholder: "EAAB..." },
+    ],
+  },
 };
 
 export default function CanalConfigPage() {
   const router = useRouter();
   const params = useParams();
-  const canalId = params.canal as string;
+  const canalId = params?.canal as string | undefined;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,11 +78,13 @@ export default function CanalConfigPage() {
   const [error, setError] = useState("");
   const [activo, setActivo] = useState(false);
   const [credenciales, setCredenciales] = useState<Record<string, string>>({});
+  const [configExists, setConfigExists] = useState(false);
 
-  const canalInfo = CANALES_INFO[canalId];
+  const canalInfo = canalId ? CANALES_INFO[canalId] : undefined;
 
   useEffect(() => {
-    if (!canalInfo) {
+    if (!canalId || !canalInfo) {
+      if (!canalId) return;
       router.push("/canales");
       return;
     }
@@ -79,6 +96,7 @@ export default function CanalConfigPage() {
           const config = data.find((c: { canal_id: string }) => c.canal_id === canalId);
           if (config) {
             setActivo(config.activo);
+            setConfigExists(true);
           }
         }
         setLoading(false);
@@ -87,7 +105,7 @@ export default function CanalConfigPage() {
         setError("Error cargando configuración");
         setLoading(false);
       });
-  }, [canalId, canalInfo, router]);
+  }, [canalId, canalInfo]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -97,7 +115,7 @@ export default function CanalConfigPage() {
     setError("");
 
     const res = await fetch("/api/canales/config", {
-      method: credenciales ? "PATCH" : "POST",
+      method: configExists ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         canal_id: canalId,
@@ -108,6 +126,9 @@ export default function CanalConfigPage() {
 
     setSaving(false);
     if (res.ok) {
+      const data = await res.json();
+      setConfigExists(true);
+      setActivo(data.activo ?? activo);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } else {
@@ -116,21 +137,37 @@ export default function CanalConfigPage() {
     }
   }
 
-  if (loading) return <div className="text-gray-500">Cargando...</div>;
+  if (!canalId || loading) return <div className="text-gray-500">Cargando...</div>;
   if (!canalInfo) return null;
+
+  const isDashboardAvailable = canalId === "instagram" && configExists && activo;
 
   return (
     <div className="max-w-xl">
-      <button
-        onClick={() => router.push("/canales")}
-        className="text-sm text-gray-500 hover:text-gray-700 mb-4"
-      >
-        ← Volver a Canales
-      </button>
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => router.push("/canales")}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          ← Volver a Canales
+        </button>
+        {isDashboardAvailable && (
+          <button
+            onClick={() => router.push("/canales/instagram/posts")}
+            className="text-sm text-purple-600 hover:text-purple-700"
+          >
+            Gestionar publicaciones →
+          </button>
+        )}
+      </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className={`w-10 h-10 rounded-lg ${canalInfo.color} flex items-center justify-center text-xl`}>
-          {canalInfo.icono}
+        <div className={`w-10 h-10 rounded-lg ${canalInfo.useImage ? "" : canalInfo.color} flex items-center justify-center text-xl overflow-hidden`}>
+          {canalInfo.useImage ? (
+            <img src={canalInfo.icono} alt={canalInfo.nombre} className="w-full h-full object-contain" />
+          ) : (
+            <span>{canalInfo.icono}</span>
+          )}
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-800">{canalInfo.nombre}</h1>
