@@ -58,7 +58,7 @@ export async function sendEmailAlertsForStore(storeId: string): Promise<SendResu
   const porCliente = new Map<string, FoodAlert[]>();
   for (const alerta of alertas) {
     const grupo = porCliente.get(alerta.cliente_id) ?? [];
-    grupo.push(alerta as FoodAlert);
+    grupo.push(alerta as unknown as FoodAlert);
     porCliente.set(alerta.cliente_id, grupo);
   }
 

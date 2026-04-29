@@ -239,7 +239,8 @@ export async function POST(req: NextRequest) {
         .eq("id", item.producto_id)
         .single();
 
-      const cat = producto?.categorias as { es_alimento: boolean } | null;
+      const cats = producto?.categorias as { es_alimento: boolean }[] | null;
+      const cat = Array.isArray(cats) ? cats[0] : cats;
       if (!cat?.es_alimento || !producto?.peso_gramos) continue;
 
       const { data: configPrincipal } = await supabase

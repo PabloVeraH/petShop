@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
 
   const alimentos = (data ?? [])
     .filter(p => {
-      const cat = p.categorias as { es_alimento: boolean } | null;
+      const cats = p.categorias as { es_alimento: boolean }[] | null;
+      const cat = Array.isArray(cats) ? cats[0] : cats;
       return cat?.es_alimento === true;
     })
     .map(p => ({ id: p.id, nombre: p.nombre, peso_gramos: p.peso_gramos }));
