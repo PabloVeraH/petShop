@@ -9,10 +9,40 @@ import { usePOSStore } from "@/stores/pos";
 import { getClienteByRUT, getMascotasByCliente } from "../api";
 import { formatRUT, validateRUT } from "@/lib/validation";
 
-async function getFidelizacion(clienteId: string) {
-  const res = await fetch(`/api/fidelizacion?clienteId=${clienteId}`);
-  if (!res.ok) return null;
-  return res.json() as Promise<{ total_historico: number; frecuencia_compras: number; descuento_actual: number } | null>;
+interface AlimentoCheckItem {
+  id: string;
+  nombre: string;
+  peso_gramos: number | null;
+}
+
+interface ConsumoConfig {
+  mascota_id: string;
+  producto_id: string;
+  gramos_porcion: number;
+  veces_dia: number;
+}
+
+async function getAlimentoCheck(ids: string[]): Promise<AlimentoCheckItem[]> {
+  if (ids.length === 0) return [];
+  const params = new URLSearchParams({ ids: ids.join(",") });
+  const res = await fetch(`/api/inventario/alimento-check?${params}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function getConsumoConfigsCliente(clienteId: string): Promise<ConsumoConfig[]> {
+  const params = new URLSearchParams({ clienteId });
+  const res = await fetch(`/api/consumo-configs/cliente?${params}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function saveConsumoConfig(config: { mascota_id: string; producto_id: string; gramos_porcion: number; veces_dia: number }) {
+  await fetch("/api/consumo-configs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
 }
 
 interface ModalClienteProps {
@@ -25,7 +55,8 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
   const [showRegister, setShowRegister] = useState(false);
   const [registerForm, setRegisterForm] = useState({ nombre: "", email: "", telefono: "" });
   const [registerError, setRegisterError] = useState("");
-  const { setCliente, clearCliente } = usePOSStore();
+  const [porciones, setPorciones] = useState<Record<string, string>>({});
+  const { setCliente, clearCliente, items } = usePOSStore();
 
   const rutValido = validateRUT(rut);
 
@@ -48,6 +79,30 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     enabled: !!cliente?.id,
   });
 
+  const cartProductIds = items.map((i) => i.producto_id);
+
+  const { data: alimentosEnCarrito } = useQuery({
+    queryKey: ["alimento-check", cartProductIds.join(",")],
+    queryFn: () => getAlimentoCheck(cartProductIds),
+    enabled: cartProductIds.length > 0 && !!cliente?.id,
+  });
+
+  const { data: configsExistentes } = useQuery({
+    queryKey: ["consumo-configs-cliente", cliente?.id],
+    queryFn: () => getConsumoConfigsCliente(cliente!.id),
+    enabled: !!cliente?.id,
+  });
+
+  const necesitaPrompt = mascotas && alimentosEnCarrito && mascotas.length > 0 && alimentosEnCarrito.length > 0
+    ? mascotas.flatMap((mascota) =>
+        alimentosEnCarrito
+          .filter((prod) => !configsExistentes?.some(
+            (c) => c.mascota_id === mascota.id && c.producto_id === prod.id
+          ))
+          .map((prod) => ({ mascota, prod }))
+      )
+    : [];
+
   const { mutate: registrarCliente, isPending: registrando } = useMutation({
     mutationFn: async () => {
       if (registerForm.nombre.trim().length < 3) throw new Error("Nombre mínimo 3 caracteres");
@@ -67,10 +122,25 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     onError: (e: Error) => setRegisterError(e.message),
   });
 
-  const handleConfirm = () => {
-    if (cliente) {
-      setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0);
+  const handleConfirm = async () => {
+    if (!cliente) return;
+
+    const saves: Promise<void>[] = [];
+    for (const key of Object.keys(porciones)) {
+      const [mascotaId, productoId] = key.split("|");
+      const valor = Number(porciones[key]);
+      if (valor > 0) {
+        saves.push(saveConsumoConfig({
+          mascota_id: mascotaId,
+          producto_id: productoId,
+          gramos_porcion: valor,
+          veces_dia: 1,
+        }).then(() => undefined));
+      }
     }
+    await Promise.allSettled(saves);
+
+    setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0);
     onClose();
   };
 
@@ -185,6 +255,38 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
                   </div>
                 </div>
               )}
+
+              {necesitaPrompt.length > 0 && (
+                <div className="mt-3 rounded bg-blue-50 border border-blue-200 p-3">
+                  <p className="text-xs font-semibold text-blue-700 mb-2">Porción diaria de alimento (opcional)</p>
+                  <p className="text-xs text-blue-600 mb-3">
+                    Si nos indicas cuánto come tu mascota, te avisaremos cuando el alimento esté por acabarse.
+                  </p>
+                  <div className="space-y-3">
+                    {necesitaPrompt.map(({ mascota, prod }) => {
+                      const key = `${mascota.id}|${prod.id}`;
+                      return (
+                        <div key={key}>
+                          <p className="text-xs font-medium text-gray-700">
+                            {mascota.nombre} ({mascota.tipo}) — {prod.nombre}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="number"
+                              placeholder="gramos/día"
+                              value={porciones[key] ?? ""}
+                              onChange={(e) => setPorciones((p) => ({ ...p, [key]: e.target.value }))}
+                              className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                              min="1"
+                            />
+                            <span className="text-xs text-gray-500">g/día</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -204,4 +306,10 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+async function getFidelizacion(clienteId: string) {
+  const res = await fetch(`/api/fidelizacion?clienteId=${clienteId}`);
+  if (!res.ok) return null;
+  return res.json() as Promise<{ total_historico: number; frecuencia_compras: number; descuento_actual: number } | null>;
 }

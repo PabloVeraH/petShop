@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token")
+    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token, email_reminder_enabled, email_reminder_dias_aviso, resend_from_email")
     .eq("id", store_id)
     .single();
 
@@ -47,6 +47,9 @@ export async function PATCH(req: NextRequest) {
     whatsapp_phone_number_id,
     whatsapp_access_token,
     whatsapp_webhook_verify_token,
+    email_reminder_enabled,
+    email_reminder_dias_aviso,
+    resend_from_email,
   } = parsed.data;
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -61,6 +64,9 @@ export async function PATCH(req: NextRequest) {
   if (whatsapp_access_token !== undefined && whatsapp_access_token !== "••••••••") {
     updateData.whatsapp_access_token = whatsapp_access_token;
   }
+  if (email_reminder_enabled !== undefined) updateData.email_reminder_enabled = email_reminder_enabled;
+  if (email_reminder_dias_aviso !== undefined) updateData.email_reminder_dias_aviso = email_reminder_dias_aviso;
+  if (resend_from_email !== undefined) updateData.resend_from_email = resend_from_email;
 
   const { data: originalStore } = await supabase
     .from("stores")

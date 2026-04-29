@@ -33,6 +33,7 @@ export async function PATCH(
   if (parsed.data.nombre !== undefined) updates.nombre = parsed.data.nombre.trim();
   if (parsed.data.descripcion !== undefined) updates.descripcion = parsed.data.descripcion?.trim() || null;
   if (parsed.data.activo !== undefined) updates.activo = parsed.data.activo;
+  if (parsed.data.es_alimento !== undefined) updates.es_alimento = parsed.data.es_alimento;
 
   const supabase = createServiceClient();
   const { data, error } = await supabase

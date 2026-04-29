@@ -14,6 +14,9 @@ interface StoreSettings {
   whatsapp_phone_number_id: string;
   whatsapp_access_token: string;
   whatsapp_webhook_verify_token: string;
+  email_reminder_enabled: boolean;
+  email_reminder_dias_aviso: number;
+  resend_from_email: string;
 }
 
 export default function SettingsPage() {
@@ -29,7 +32,7 @@ export default function SettingsPage() {
   const handleSendAlerts = useCallback(async () => {
     setSendingAlerts(true);
     setAlertsResult(null);
-    const res = await fetch("/api/whatsapp/send-alerts", { method: "POST" });
+    const res = await fetch("/api/email/send-alerts", { method: "POST" });
     const data = await res.json();
     setSendingAlerts(false);
     if (res.ok) setAlertsResult(data);
@@ -202,6 +205,49 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Email Reminder */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-700">Recordatorio de alimento por email</h2>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm text-gray-600">Activado</span>
+              <div
+                onClick={() => setSettings({ ...settings, email_reminder_enabled: !settings.email_reminder_enabled })}
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${settings.email_reminder_enabled ? "bg-green-500" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.email_reminder_enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </label>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Días de anticipación</label>
+              <input
+                type="number"
+                value={settings.email_reminder_dias_aviso ?? 5}
+                onChange={(e) => setSettings({ ...settings, email_reminder_dias_aviso: parseInt(e.target.value) || 5 })}
+                min={1}
+                max={30}
+                className="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Cuántos días antes de que se acabe se envía el recordatorio</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email remitente (opcional)</label>
+              <input
+                type="email"
+                value={settings.resend_from_email ?? ""}
+                onChange={(e) => setSettings({ ...settings, resend_from_email: e.target.value })}
+                placeholder="tienda@midominio.com"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Si está vacío, se usa el email por defecto del sistema</p>
+            </div>
+          </div>
+        </section>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex items-center gap-3">
@@ -216,12 +262,12 @@ export default function SettingsPage() {
         </div>
       </form>
 
-      {/* WhatsApp Alerts section */}
+      {/* Email Alerts section */}
       <div className="max-w-2xl mt-4">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Alertas de consumo</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Alertas de alimento</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Envía recordatorios de reposición a clientes cuyos productos están próximos a agotarse, según las configuraciones de consumo registradas.
+            Envía recordatorios por email a clientes cuyo alimento está próximo a agotarse.
           </p>
           <div className="flex items-center gap-3">
             <button

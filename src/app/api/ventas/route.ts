@@ -233,33 +233,59 @@ export async function POST(req: NextRequest) {
 
     // Calcular alerta de consumo si hay mascota y config definida
     if (item.mascota_id) {
-      const { data: config } = await supabase
+      const { data: producto } = await supabase
+        .from("productos")
+        .select("peso_gramos, categorias(es_alimento)")
+        .eq("id", item.producto_id)
+        .single();
+
+      const cat = producto?.categorias as { es_alimento: boolean } | null;
+      if (!cat?.es_alimento || !producto?.peso_gramos) continue;
+
+      const { data: configPrincipal } = await supabase
         .from("consumo_configs")
-        .select("id, cliente_id, gramos_porcion, veces_dia")
+        .select("cliente_id, gramos_porcion, veces_dia")
         .eq("mascota_id", item.mascota_id)
         .eq("producto_id", item.producto_id)
         .single();
 
-      const { data: producto } = await supabase
-        .from("productos")
-        .select("peso_gramos")
-        .eq("id", item.producto_id)
+      if (!configPrincipal || configPrincipal.gramos_porcion <= 0) continue;
+
+      const { data: todosLosConfigs } = await supabase
+        .from("consumo_configs")
+        .select("mascota_id, gramos_porcion, veces_dia")
+        .eq("cliente_id", configPrincipal.cliente_id)
+        .eq("producto_id", item.producto_id);
+
+      const consumoDiarioTotal = (todosLosConfigs ?? []).reduce(
+        (sum, c) => sum + (c.gramos_porcion * c.veces_dia),
+        0
+      );
+
+      if (consumoDiarioTotal <= 0) continue;
+
+      const totalGramos = item.cantidad * producto.peso_gramos;
+      const diasEstimados = Math.round(totalGramos / consumoDiarioTotal);
+      const fechaTermino = new Date();
+      fechaTermino.setDate(fechaTermino.getDate() + diasEstimados);
+      const fechaTerminoStr = fechaTermino.toISOString().split("T")[0];
+
+      const { data: storeConfig } = await supabase
+        .from("stores")
+        .select("email_reminder_dias_aviso")
+        .eq("id", store_id)
         .single();
+      const diasAviso = storeConfig?.email_reminder_dias_aviso ?? 5;
 
-      if (config && producto?.peso_gramos && config.gramos_porcion > 0 && config.veces_dia > 0) {
-        const consumoDiario = config.gramos_porcion * config.veces_dia;
-        const diasEstimados = Math.round((item.cantidad * producto.peso_gramos) / consumoDiario);
-        const fechaTermino = new Date();
-        fechaTermino.setDate(fechaTermino.getDate() + diasEstimados);
-
+      for (const cfg of (todosLosConfigs ?? [])) {
         await supabase.from("consumo_alertas").upsert(
           {
             store_id,
-            cliente_id: config.cliente_id,
-            mascota_id: item.mascota_id,
+            cliente_id: configPrincipal.cliente_id,
+            mascota_id: cfg.mascota_id,
             producto_id: item.producto_id,
-            fecha_estimada_termino: fechaTermino.toISOString().split("T")[0],
-            dias_aviso: 7,
+            fecha_estimada_termino: fechaTerminoStr,
+            dias_aviso: diasAviso,
             enviado: false,
           },
           { onConflict: "mascota_id,producto_id" }

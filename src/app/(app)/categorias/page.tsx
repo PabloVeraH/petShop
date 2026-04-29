@@ -11,6 +11,7 @@ type Categoria = {
   nombre: string;
   descripcion: string | null;
   activo: boolean;
+  es_alimento: boolean;
 };
 
 export default function CategoriasPage() {
@@ -20,6 +21,7 @@ export default function CategoriasPage() {
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [esAlimento, setEsAlimento] = useState(false);
   const [editando, setEditando] = useState<Categoria | null>(null);
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
@@ -44,6 +46,7 @@ export default function CategoriasPage() {
       queryClient.invalidateQueries({ queryKey: ["categorias"] });
       setNombre("");
       setDescripcion("");
+      setEsAlimento(false);
       setError("");
     },
     onError: (e: Error) => setError(e.message),
@@ -54,7 +57,7 @@ export default function CategoriasPage() {
       fetch(`/api/categorias/${editando!.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, descripcion: descripcion || undefined }),
+        body: JSON.stringify({ nombre, descripcion: descripcion || undefined, es_alimento: esAlimento }),
       }).then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error ?? "Error al actualizar");
@@ -65,6 +68,7 @@ export default function CategoriasPage() {
       setEditando(null);
       setNombre("");
       setDescripcion("");
+      setEsAlimento(false);
       setError("");
     },
     onError: (e: Error) => setError(e.message),
@@ -80,6 +84,7 @@ export default function CategoriasPage() {
     setEditando(c);
     setNombre(c.nombre);
     setDescripcion(c.descripcion ?? "");
+    setEsAlimento(c.es_alimento ?? false);
     setError("");
   }
 
@@ -87,6 +92,7 @@ export default function CategoriasPage() {
     setEditando(null);
     setNombre("");
     setDescripcion("");
+    setEsAlimento(false);
     setError("");
   }
 
@@ -117,6 +123,15 @@ export default function CategoriasPage() {
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
           />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={esAlimento}
+              onChange={(e) => setEsAlimento(e.target.checked)}
+              className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+            />
+            <span className="text-sm text-gray-700">Es categoría de alimento</span>
+          </label>
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex gap-2">
@@ -146,9 +161,14 @@ export default function CategoriasPage() {
           <div key={c.id} className="flex items-center justify-between px-4 py-3 border-b last:border-0">
             <div>
               <p className="text-sm font-medium text-gray-800">{c.nombre}</p>
-              {c.descripcion && (
-                <p className="text-xs text-gray-400">{c.descripcion}</p>
-              )}
+              <div className="flex gap-2 items-center">
+                {c.descripcion && (
+                  <p className="text-xs text-gray-400">{c.descripcion}</p>
+                )}
+                {c.es_alimento && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Alimento</span>
+                )}
+              </div>
             </div>
             <div className="flex gap-2 shrink-0">
               <button

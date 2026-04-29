@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/email-alerts",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

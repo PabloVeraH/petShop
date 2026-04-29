@@ -87,6 +87,7 @@ export const CategoriaUpdateSchema = z.object({
   nombre: z.string().min(2).max(100).optional(),
   descripcion: z.string().max(500).optional(),
   activo: z.boolean().optional(),
+  es_alimento: z.boolean().optional(),
 });
 
 export const ProductoCreateSchema = z.object({
@@ -174,6 +175,9 @@ export const SettingsUpdateSchema = z.object({
   whatsapp_phone_number_id: z.string().max(50).optional(),
   whatsapp_access_token: z.string().max(200).optional(),
   whatsapp_webhook_verify_token: z.string().max(100).optional(),
+  email_reminder_enabled: z.boolean().optional(),
+  email_reminder_dias_aviso: z.number().int().min(1).max(30).optional(),
+  resend_from_email: z.string().email().nullable().optional(),
 });
 
 export const ClienteDeleteSchema = z.object({
