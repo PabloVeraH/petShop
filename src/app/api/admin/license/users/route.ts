@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 
 export async function GET(req: NextRequest) {
-  const { userId: adminId, sessionClaims } = await auth();
+  const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
   try {
@@ -64,10 +64,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al actualizar usuario en Clerk" }, { status: 500 });
   }
 
-  const supabaseAction = action === "disable" ? true : false;
   await supabase
     .from("clerk_users")
-    .update({ is_disabled: supabaseAction })
+    .update({ is_disabled: action === "disable" })
     .in("clerk_id", userIds);
 
   await logAudit({

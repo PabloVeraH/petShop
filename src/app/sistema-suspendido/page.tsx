@@ -1,4 +1,10 @@
-export default function SistemaSuspendido() {
+import { auth } from "@clerk/nextjs/server";
+
+export default async function SistemaSuspendido() {
+  const { sessionClaims } = await auth();
+  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
+  const isSystemAdmin = Boolean(meta?.systemAdmin);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full mx-4">
@@ -14,12 +20,20 @@ export default function SistemaSuspendido() {
           <p className="text-gray-600 mb-6">
             El período de uso de este sistema ha terminado. Por favor, póngase en contacto con la administración para resolver esta situación.
           </p>
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <p className="text-sm text-gray-500">Si eres administrador del sistema, puedes acceder al panel de administración para gestionar la licencia.</p>
-          </div>
-          <a href="/admin" className="inline-block bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors">
-            Ir al panel de administración
-          </a>
+          {isSystemAdmin ? (
+            <a
+              href="/admin"
+              className="inline-block bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors"
+            >
+              Ir al panel de administración
+            </a>
+          ) : (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-500">
+                Comuníquese con el administrador del sistema para restablecer el acceso.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
