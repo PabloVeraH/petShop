@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { TiendaCard } from "@/components/admin/TiendaCard";
 import { UsuariosCard } from "@/components/admin/UsuariosCard";
+import { LicenciaCard } from "@/components/admin/LicenciaCard";
 
 type AdminRole = "systemAdmin" | "storeAdmin" | "storeWorker" | null;
 
@@ -19,12 +20,15 @@ type Store = {
   whatsapp_enabled: boolean;
   created_at: string;
   user_count: number;
+  license_start_date: string | null;
+  license_end_date: string | null;
+  license_warning_days: number;
 };
 
 export default function AdminPage() {
   const router = useRouter();
   const { userId, sessionClaims } = useAuth();
-  const [activeSection, setActiveSection] = useState<"tienda" | "usuarios">("tienda");
+  const [activeSection, setActiveSection] = useState<"tienda" | "usuarios" | "licencia">("tienda");
   const [role, setRole] = useState<AdminRole>(null);
 
   // Determine role
@@ -96,6 +100,13 @@ export default function AdminPage() {
         <div>
           <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Gestión de Usuarios</h1>
           <UsuariosCard store={store} role={role} />
+        </div>
+      )}
+
+      {activeSection === "licencia" && role === "systemAdmin" && (
+        <div>
+          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Licencia y Acceso</h1>
+          <LicenciaCard />
         </div>
       )}
     </AdminLayout>

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
+import { LicenseProvider } from "@/components/LicenseProvider";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
@@ -78,6 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
+    <LicenseProvider>
     <div className="flex min-h-screen bg-gray-50">
       {/* Desktop sidebar — always visible on lg+ */}
       <div className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0">
@@ -116,5 +118,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
       </div>
     </div>
+    </LicenseProvider>
   );
 }

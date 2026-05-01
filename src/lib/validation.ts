@@ -349,3 +349,22 @@ export const OrdenCompraReceiveSchema = z.object({
 export const OrdenCompraEstadoSchema = z.object({
   estado: z.enum(["pendiente", "enviada", "recibida", "cancelada"]),
 });
+
+export const LicenseConfigSchema = z.object({
+  license_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  license_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  license_warning_days: z.number().int().min(1).max(90).optional(),
+}).refine(
+  (data) => {
+    if (data.license_start_date && data.license_end_date) {
+      return new Date(data.license_start_date) <= new Date(data.license_end_date);
+    }
+    return true;
+  },
+  { message: "license_start_date debe ser anterior o igual a license_end_date" }
+);
+
+export const UserDisableSchema = z.object({
+  userIds: z.array(z.string()).min(1, "Seleccionar al menos un usuario"),
+  action: z.enum(["disable", "enable"]),
+});

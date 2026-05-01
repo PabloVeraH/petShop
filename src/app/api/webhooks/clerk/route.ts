@@ -8,6 +8,7 @@ type ClerkWebhookEvent = {
     id: string;
     email_addresses: { email_address: string }[];
     public_metadata: Record<string, unknown>;
+    banned?: boolean;
   };
 };
 
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
         store_admin: Boolean(meta?.storeAdmin),
         store_worker: Boolean(meta?.storeWorker),
         store_id: (meta?.storeId as string) ?? null,
+        is_disabled: event.data.banned ?? false,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "clerk_id" }

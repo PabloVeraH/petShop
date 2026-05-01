@@ -1,12 +1,16 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { apiGeneralLimit } from "@/middleware/rateLimit";
+import { createServiceClient } from "@/lib/supabase";
+import { computeLicenseStatus } from "@/lib/license";
 
 const publicRoutes = createRouteMatcher([
   "/auth/(.*)",
   "/api/health",
   "/api/webhooks/(.*)",
   "/api/whatsapp/webhook",
+  "/sistema-suspendido",
+  "/api/admin/license/(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
@@ -20,9 +24,37 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
-  const { userId, sessionClaims } = await auth();
+  const { sessionClaims } = await auth();
+
+  // License check for non-systemAdmin users
+  if (!publicRoutes(req)) {
+    const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
+    const storeId = meta?.storeId as string | undefined;
+    const isSystemAdmin = Boolean(meta?.systemAdmin);
+
+    if (!isSystemAdmin && storeId) {
+      const supabase = createServiceClient();
+      const { data: store } = await supabase
+        .from("stores")
+        .select("license_end_date, license_warning_days")
+        .eq("id", storeId)
+        .single();
+
+      if (store) {
+        const status = computeLicenseStatus({
+          license_end_date: store.license_end_date,
+          license_warning_days: store.license_warning_days,
+        });
+
+        if (status.isAutoBlocked) {
+          return NextResponse.redirect(new URL("/sistema-suspendido", req.url));
+        }
+      }
+    }
+  }
 
   // Role-based redirect from root
+  const { userId } = await auth();
   if (req.nextUrl.pathname === "/" && userId) {
     const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
 
@@ -35,7 +67,6 @@ export default clerkMiddleware(async (auth, req) => {
     if (meta?.storeWorker) {
       return NextResponse.redirect(new URL("/pos", req.url));
     }
-    // Default fallback
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 

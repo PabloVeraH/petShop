@@ -6,7 +6,7 @@ import { logSecurityAlert } from "./security-alerts";
 export interface AuditLogInput {
   storeId: string;
   userId: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN_FAILED" | "EXPORT" | "SETTINGS";
+  action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN_FAILED" | "EXPORT" | "SETTINGS" | "BAN_USER" | "UNBAN_USER";
   entityType: string;
   entityId?: string;
   oldValues?: Record<string, unknown>;
