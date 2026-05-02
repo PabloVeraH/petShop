@@ -147,13 +147,14 @@ export const VentaItemSchema = z.object({
 });
 
 export const VentaCreateSchema = z.object({
-  clienteId: UUIDSchema,
+  clienteId: UUIDSchema.optional(),
   items: z.array(VentaItemSchema).min(1),
-  descuento: z.number().nonnegative().max(100).optional(),
+  descuentoPct: z.number().nonnegative().max(100).optional(),
   metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor", "plataforma"]),
   notas: z.string().max(500).optional(),
   numeroTransaccion: z.string().optional(),
   canal: z.enum(["pos", "rappi", "pedidosya", "ubereats"]).default("pos"),
+  procedencia: z.enum(["presencial", "instagram", "whatsapp", "facebook", "tiktok", "telefonico"]).default("presencial"),
 });
 
 export const PagoSchema = z.object({

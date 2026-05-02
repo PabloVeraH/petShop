@@ -28,6 +28,7 @@ export async function createVenta({
   metodoPago,
   numeroTransaccion,
   descuentoPct,
+  procedencia,
 }: {
   items: {
     producto_id: string;
@@ -41,11 +42,12 @@ export async function createVenta({
   metodoPago: string;
   numeroTransaccion?: string;
   descuentoPct: number;
+  procedencia: string;
 }) {
   const res = await fetch("/api/ventas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, clienteId, vendedorId, metodoPago, numeroTransaccion, descuentoPct }),
+    body: JSON.stringify({ items, clienteId, vendedorId, metodoPago, numeroTransaccion, descuentoPct, procedencia }),
   });
   if (!res.ok) {
     const data = await res.json();

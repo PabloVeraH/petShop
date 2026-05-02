@@ -86,10 +86,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuento, canal } = parsed.data;
+  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
   const vendedorId = body.vendedorId;
-  const descuento_pct = descuento ?? 0;
+  const descuento_pct = descuentoPct ?? 0;
 
   // Additional validation for transaction numbers
   if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion) {
@@ -145,11 +145,12 @@ export async function POST(req: NextRequest) {
        cliente_id: clienteId ?? null,
        vendedor_id: vendedorId ?? null,
        subtotal,
-       descuento,
+       descuento: descuento_pct,
        impuesto,
        total,
        metodo_pago: metodoPago,
        canal,
+       procedencia,
        estado: "completada",
        numero_comprobante,
      })

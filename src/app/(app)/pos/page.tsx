@@ -17,7 +17,7 @@ export default function POSPage() {
   const [ventaError, setVentaError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, vendedorId, metodoPago, numeroTransaccion, descuento, total, clearCart } = usePOSStore();
+  const { items, clienteId, mascotaId, vendedorId, metodoPago, numeroTransaccion, descuento, total, procedencia, clearCart } = usePOSStore();
 
   const { mutate: procesarVenta, isPending } = useMutation({
     mutationFn: () =>
@@ -34,6 +34,7 @@ export default function POSPage() {
         metodoPago: metodoPago!,
         numeroTransaccion,
         descuentoPct: descuento,
+        procedencia,
       }),
     onSuccess: () => {
       clearCart();

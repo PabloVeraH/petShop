@@ -12,6 +12,15 @@ const METODOS_PAGO = [
   { value: "transferencia", label: "Transf." },
 ];
 
+const PROCEDENCIAS = [
+  { value: "presencial", label: "Presencial" },
+  { value: "instagram", label: "Instagram" },
+  { value: "whatsapp", label: "Whatsapp" },
+  { value: "facebook", label: "Facebook" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "telefonico", label: "Telefónico" },
+];
+
 const DESCUENTOS_RAPIDOS = [5, 10, 15, 20];
 
 type Vendedor = { id: string; nombre: string };
@@ -23,7 +32,7 @@ interface ModalPagoProps {
 }
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
-  const { subtotal, descuento, total, metodoPago, setMetodoPago, numeroTransaccion, setNumeroTransaccion, setDescuento, fidelizacionDescuento, vendedorId, setVendedor } =
+  const { subtotal, descuento, total, metodoPago, setMetodoPago, numeroTransaccion, setNumeroTransaccion, setDescuento, fidelizacionDescuento, vendedorId, setVendedor, procedencia, setProcedencia } =
     usePOSStore();
 
   const { data: vendedores } = useQuery<Vendedor[]>({
@@ -119,6 +128,22 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               </select>
             </div>
           )}
+
+          {/* Procedencia */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              Procedencia
+            </label>
+            <select
+              value={procedencia}
+              onChange={(e) => setProcedencia(e.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {PROCEDENCIAS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Descuento */}
           <div>
