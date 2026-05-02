@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { usePOSStore } from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Carrito() {
-  const { items, removeItem, updateQuantity, subtotal, impuesto, total, descuento } =
+  const { items, removeItem, updateQuantity, subtotal, impuesto, total, descuento, clearCart } =
     usePOSStore();
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const isVencido = (item: typeof items[0]) => {
     if (!item.fecha_vencimiento) return false;
@@ -36,9 +38,35 @@ export default function Carrito() {
   return (
     <Card className="flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">
-          Carrito ({items.length} {items.length === 1 ? "item" : "items"})
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">
+            Carrito ({items.length} {items.length === 1 ? "item" : "items"})
+          </CardTitle>
+          {!confirmClear ? (
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="text-xs text-red-500 hover:text-red-700 hover:underline"
+            >
+              Limpiar carro
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-500">¿Seguro?</span>
+              <button
+                onClick={() => { clearCart(); setConfirmClear(false); }}
+                className="font-medium text-red-600 hover:text-red-800"
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                No
+              </button>
+            </div>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 space-y-2 overflow-y-auto max-h-80 p-3">

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
 
 interface CartItem {
   id: string;
@@ -44,6 +44,7 @@ interface POSStore {
 
 export const usePOSStore = create<POSStore>()(
   devtools(
+    persist(
     (set, get) => ({
       items: [],
       descuento: 0,
@@ -144,6 +145,22 @@ export const usePOSStore = create<POSStore>()(
         return Math.round((sub - desc) * 100) / 100;
       },
     }),
+    {
+      name: "pos-cart",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        items: state.items,
+        clienteId: state.clienteId,
+        mascotaId: state.mascotaId,
+        vendedorId: state.vendedorId,
+        metodoPago: state.metodoPago,
+        numeroTransaccion: state.numeroTransaccion,
+        descuento: state.descuento,
+        fidelizacionDescuento: state.fidelizacionDescuento,
+        procedencia: state.procedencia,
+      }),
+    }
+    ),
     { name: "pos-store" }
   )
 );
