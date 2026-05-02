@@ -175,6 +175,14 @@ describe("POST /api/ventas — validaciones", () => {
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
     expect(res.status).toBe(400);
   });
+
+  // I-46
+  it("I-46: venta sin clienteId es válida (clienteId es opcional)", async () => {
+    setupHappyPath();
+    mockRpc.mockResolvedValue({ error: null });
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("POST /api/ventas — flujo exitoso", () => {
@@ -260,5 +268,78 @@ describe("POST /api/ventas — flujo exitoso", () => {
     });
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
     expect(sendWhatsAppText).toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/ventas — cálculo de descuento", () => {
+  // precio DB = 10000, cantidad = 2 → subtotal = 20000
+  let ventasInsertArgs: Record<string, unknown> | null = null;
+
+  function setupDiscountCapture() {
+    ventasInsertArgs = null;
+    let productosCall = 0;
+    let ventasCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        }
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+      }
+      if (table === "ventas") {
+        ventasCall++;
+        if (ventasCall === 1) {
+          return {
+            insert: jest.fn().mockImplementation((args: Record<string, unknown>) => {
+              ventasInsertArgs = args;
+              return { select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
+            }),
+          };
+        }
+        return { update: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5 }, error: null }) };
+      }
+      return {
+        ...mockChain,
+        insert: jest.fn().mockResolvedValue({ error: null }),
+        upsert: jest.fn().mockResolvedValue({ error: null }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDiscountCapture();
+    mockRpc.mockResolvedValue({ error: null });
+  });
+
+  // I-47
+  it("I-47: sin descuentoPct el total insertado es igual al subtotal (20000)", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    expect(ventasInsertArgs).toMatchObject({ total: 20000, descuento: 0 });
+  });
+
+  // I-48
+  it("I-48: descuentoPct=10 reduce el total al 90% del subtotal (18000)", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", descuentoPct: 10 }));
+    expect(ventasInsertArgs).toMatchObject({ total: 18000, descuento: 10 });
+  });
+
+  // I-49
+  it("I-49: descuentoPct=50 reduce el total a la mitad (10000)", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", descuentoPct: 50 }));
+    expect(ventasInsertArgs).toMatchObject({ total: 10000, descuento: 50 });
+  });
+
+  // I-50
+  it("I-50: descuentoPct=100 resulta en total 0", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", descuentoPct: 100 }));
+    expect(ventasInsertArgs).toMatchObject({ total: 0, descuento: 100 });
   });
 });
