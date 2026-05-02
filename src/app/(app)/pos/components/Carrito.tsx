@@ -43,27 +43,32 @@ export default function Carrito() {
             Carrito ({items.length} {items.length === 1 ? "item" : "items"})
           </CardTitle>
           {!confirmClear ? (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setConfirmClear(true)}
-              className="text-xs text-red-500 hover:text-red-700 hover:underline"
+              className="text-xs text-red-500 border-red-300 hover:bg-red-50 hover:text-red-700 h-7 px-2"
             >
               Limpiar carro
-            </button>
+            </Button>
           ) : (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-500">¿Seguro?</span>
-              <button
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-500">¿Seguro?</span>
+              <Button
+                size="sm"
                 onClick={() => { clearCart(); setConfirmClear(false); }}
-                className="font-medium text-red-600 hover:text-red-800"
+                className="text-xs bg-red-600 hover:bg-red-700 text-white h-7 px-2"
               >
                 Sí
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setConfirmClear(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-xs h-7 px-2"
               >
                 No
-              </button>
+              </Button>
             </div>
           )}
         </div>
