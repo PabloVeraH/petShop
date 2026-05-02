@@ -12,6 +12,8 @@ const METODOS_PAGO = [
   { value: "transferencia", label: "Transf." },
 ];
 
+const DESCUENTOS_RAPIDOS = [5, 10, 15, 20];
+
 type Vendedor = { id: string; nombre: string };
 
 interface ModalPagoProps {
@@ -120,7 +122,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
 
           {/* Descuento */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Descuento (%)</label>
               {fidelizacionDescuento > 0 && (
                 <button
@@ -131,6 +133,19 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
                   Aplicar fidelización ({fidelizacionDescuento}%)
                 </button>
               )}
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {DESCUENTOS_RAPIDOS.map((d) => (
+                <Button
+                  key={d}
+                  type="button"
+                  variant={descuento === d ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDescuento(descuento === d ? 0 : d)}
+                >
+                  {d}%
+                </Button>
+              ))}
             </div>
             <input
               type="number"
