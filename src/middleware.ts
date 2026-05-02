@@ -11,6 +11,7 @@ const publicRoutes = createRouteMatcher([
   "/api/webhooks/(.*)",
   "/api/whatsapp/webhook",
   "/sistema-suspendido",
+  "/landing",
 ]);
 
 // Requieren auth pero no deben ser bloqueadas por licencia vencida

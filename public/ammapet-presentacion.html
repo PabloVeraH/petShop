@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AmmaPet — Sistema de gestión para petshops</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal-900: #134e4a;
+      --teal-800: #115e59;
+      --teal-700: #0f766e;
+      --teal-600: #0d9488;
+      --teal-100: #ccfbf1;
+      --teal-50:  #f0fdfa;
+      --orange-500: #f97316;
+      --orange-400: #fb923c;
+      --orange-300: #fdba74;
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50:  #f8fafc;
+      --white: #ffffff;
+      --radius-sm: 0.5rem;
+      --radius: 1rem;
+      --radius-lg: 1.25rem;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--slate-900);
+      background: var(--white);
+      line-height: 1.6;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(255,255,255,0.93);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 1.5rem; height: 4rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 0.5rem; }
+    .nav-logo span:first-child { font-size: 1.5rem; }
+    .nav-logo strong { font-size: 1.25rem; font-weight: 800; color: var(--teal-700); }
+    .btn-primary {
+      background: var(--teal-700); color: var(--white);
+      font-weight: 700; font-size: 0.875rem;
+      padding: 0.5rem 1.25rem; border-radius: var(--radius-sm);
+      transition: background 0.2s;
+      cursor: pointer; border: none;
+    }
+    .btn-primary:hover { background: var(--teal-800); }
+
+    /* HERO */
+    .hero {
+      padding: 8rem 1.5rem 5rem;
+      background: linear-gradient(135deg, var(--teal-900), var(--teal-700));
+      color: var(--white);
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(249,115,22,0.18); color: var(--orange-300);
+      font-size: 0.85rem; font-weight: 600;
+      padding: 0.3rem 1rem; border-radius: 99px;
+      border: 1px solid rgba(249,115,22,0.3);
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 900; line-height: 1.15;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 em { color: var(--orange-400); font-style: normal; }
+    .hero p { color: #a7f3d0; font-size: 1.1rem; max-width: 580px; margin: 0 auto 0.75rem; }
+    .hero .fomu { color: var(--orange-300); font-weight: 600; margin-bottom: 2.5rem; }
+    .hero-ctas { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+    .btn-hero-main {
+      background: var(--orange-500); color: var(--white);
+      font-weight: 800; font-size: 1.1rem;
+      padding: 1rem 2rem; border-radius: var(--radius);
+      transition: background 0.2s; border: none; cursor: pointer;
+    }
+    .btn-hero-main:hover { background: var(--orange-400); }
+    .btn-hero-sec {
+      background: rgba(255,255,255,0.12); color: var(--white);
+      font-weight: 700; font-size: 1.1rem;
+      padding: 1rem 2rem; border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.25);
+      transition: background 0.2s; cursor: pointer;
+    }
+    .btn-hero-sec:hover { background: rgba(255,255,255,0.2); }
+
+    /* SECTIONS */
+    section { padding: 5rem 1.5rem; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+      font-weight: 800; margin-bottom: 1rem; text-align: center;
+    }
+    .section-sub {
+      color: var(--slate-500); font-size: 1.1rem;
+      text-align: center; margin-bottom: 3.5rem;
+    }
+
+    /* PAIN POINTS */
+    .pain { background: var(--slate-50); }
+    .pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+    .pain-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--slate-200);
+      padding: 1.5rem; display: flex; gap: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .pain-card .icon { font-size: 2rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+    .pain-card h3 { font-weight: 700; margin-bottom: 0.35rem; color: var(--slate-900); }
+    .pain-card p { color: var(--slate-500); font-size: 0.9rem; line-height: 1.55; }
+
+    /* BRIDGE */
+    .bridge {
+      padding: 4rem 1.5rem;
+      background: var(--teal-700); color: var(--white); text-align: center;
+    }
+    .bridge h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; margin-bottom: 0.75rem; }
+    .bridge p { color: #a7f3d0; font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+
+    /* FEATURES */
+    .features { background: var(--white); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      border: 1px solid var(--slate-200); border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transition: box-shadow 0.2s;
+    }
+    .feature-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .feature-icon {
+      width: 3rem; height: 3rem; border-radius: 0.75rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 1rem;
+    }
+    .feature-card h3 { font-weight: 700; color: var(--slate-900); margin-bottom: 0.4rem; }
+    .feature-card p { color: var(--slate-500); font-size: 0.875rem; line-height: 1.55; }
+    .bg-teal   { background: #f0fdfa; } .bg-orange { background: #fff7ed; }
+    .bg-blue   { background: #eff6ff; } .bg-purple { background: #faf5ff; }
+    .bg-green  { background: #f0fdf4; } .bg-yellow { background: #fefce8; }
+    .bg-rose   { background: #fff1f2; } .bg-gray   { background: var(--slate-100); }
+
+    /* ROI */
+    .roi { background: var(--slate-900); }
+    .roi .section-title { color: var(--white); }
+    .roi .section-sub { color: var(--slate-400); }
+    .roi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
+    .roi-card {
+      background: var(--slate-800); border-radius: var(--radius-lg);
+      padding: 2rem 1.5rem; text-align: center;
+    }
+    .roi-stat { font-size: 2.8rem; font-weight: 900; color: var(--orange-400); margin-bottom: 0.25rem; }
+    .roi-label { font-weight: 700; color: var(--white); font-size: 1.1rem; }
+    .roi-sub { color: var(--slate-400); font-size: 0.85rem; margin-top: 0.25rem; }
+
+    /* WHY */
+    .why { background: var(--white); }
+    .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .why-card {
+      display: flex; gap: 1.25rem;
+      background: var(--slate-50); border: 1px solid var(--slate-100);
+      border-radius: var(--radius-lg); padding: 1.5rem;
+    }
+    .why-card .icon { font-size: 2.5rem; flex-shrink: 0; }
+    .why-card h3 { font-weight: 700; color: var(--slate-900); font-size: 1.05rem; margin-bottom: 0.35rem; }
+    .why-card p { color: var(--slate-500); font-size: 0.9rem; line-height: 1.55; }
+
+    /* RISK */
+    .risk {
+      background: var(--teal-50);
+      border-top: 1px solid var(--teal-100);
+      border-bottom: 1px solid var(--teal-100);
+      padding: 4rem 1.5rem; text-align: center;
+    }
+    .risk h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .risk > .section-inner > p { color: var(--slate-600); font-size: 1.05rem; margin-bottom: 2.5rem; }
+    .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .risk-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--teal-100);
+      padding: 1.5rem 1rem; text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .risk-card .icon { font-size: 2rem; margin-bottom: 0.75rem; }
+    .risk-card span { display: block; color: var(--slate-700); font-weight: 600; font-size: 0.9rem; }
+
+    /* FINAL CTA */
+    .cta-final {
+      padding: 6rem 1.5rem;
+      background: linear-gradient(135deg, var(--teal-900), var(--teal-700));
+      color: var(--white); text-align: center;
+    }
+    .cta-final h2 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 900; margin-bottom: 1rem;
+    }
+    .cta-final p { color: #a7f3d0; font-size: 1.15rem; margin-bottom: 2.5rem; }
+    .btn-cta {
+      display: inline-block;
+      background: var(--orange-500); color: var(--white);
+      font-weight: 800; font-size: 1.2rem;
+      padding: 1.2rem 2.5rem; border-radius: var(--radius-lg);
+      transition: background 0.2s; border: none; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+    .btn-cta:hover { background: var(--orange-400); }
+    .cta-final small { display: block; color: #5eead4; margin-top: 1.25rem; font-size: 0.9rem; }
+
+    /* FOOTER */
+    footer {
+      background: var(--slate-950); color: var(--slate-500);
+      padding: 2rem 1.5rem; text-align: center; font-size: 0.875rem;
+    }
+    footer .footer-logo { display: flex; align-items: center; gap: 0.5rem; justify-content: center; margin-bottom: 0.5rem; }
+    footer .footer-logo span { font-size: 1.2rem; }
+    footer .footer-logo strong { color: var(--white); font-weight: 700; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 2rem; }
+      .btn-hero-main, .btn-hero-sec { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <span>🐾</span>
+      <strong>AmmaPet</strong>
+    </div>
+    <a href="mailto:contacto@ammapet.cl" class="btn-primary">Agenda tu demo →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">Sistema de gestión para petshops</div>
+  <h1>Tu petshop merece más<br />que <em>una planilla de Excel</em></h1>
+  <p>AmmaPet centraliza tus ventas, inventario, delivery, contabilidad y clientes en una sola plataforma. Sin errores, sin pérdidas, sin caos.</p>
+  <p class="fomu">⚠️ Cada mes sin sistema = dinero que pierdes sin darte cuenta</p>
+  <div class="hero-ctas">
+    <a href="mailto:contacto@ammapet.cl" class="btn-hero-main">Agenda una demo gratuita →</a>
+    <a href="#funcionalidades" class="btn-hero-sec">Ver funcionalidades</a>
+  </div>
+</section>
+
+<!-- PAIN POINTS -->
+<section class="pain">
+  <div class="section-inner">
+    <h2 class="section-title">¿Reconoces alguna de estas situaciones?</h2>
+    <p class="section-sub">Son problemas comunes en petshops sin sistema. Y todos tienen solución.</p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <span class="icon">🗑️</span>
+        <div>
+          <h3>Productos vencidos que terminan en la basura</h3>
+          <p>Alimentos y medicamentos que expiran sin que te enterés. Pérdida directa, sin posibilidad de recupero.</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="icon">📱</span>
+        <div>
+          <h3>Pedidos de delivery que pierdes todos los días</h3>
+          <p>Tus competidores ya cobran por Rappi y PedidosYa. Cada pedido que no tomas es una venta que se va a otro.</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="icon">📊</span>
+        <div>
+          <h3>Horas perdidas en contabilidad manual</h3>
+          <p>Planillas de Excel, errores de carga, cierres de mes eternos. Tiempo que podrías dedicar a tu negocio.</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="icon">🙈</span>
+        <div>
+          <h3>Cero información sobre tus clientes</h3>
+          <p>No sabes quién compra más, qué productos rotan más, ni cómo fidelizar a quienes más te generan.</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="icon">📦</span>
+        <div>
+          <h3>Descontrol total con tus proveedores</h3>
+          <p>Órdenes de compra en papel, facturas perdidas, deudas que no recuerdas. El caos que frena tu crecimiento.</p>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="icon">👁️</span>
+        <div>
+          <h3>No sabes qué hacen tus empleados</h3>
+          <p>Sin control de accesos, cualquiera puede ver o modificar lo que quiera. Un riesgo que no puedes ignorar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BRIDGE -->
+<div class="bridge">
+  <h2>AmmaPet resuelve todo esto desde el primer día</h2>
+  <p>Una plataforma diseñada exclusivamente para petshops en Chile. Con soporte en español incluido.</p>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="funcionalidades">
+  <div class="section-inner">
+    <h2 class="section-title">Todo lo que tu petshop necesita</h2>
+    <p class="section-sub">8 módulos integrados. Un solo sistema.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon bg-teal">🛒</div>
+        <h3>Punto de Venta</h3>
+        <p>Cierra ventas en segundos. Multi-método de pago. Sin colas, sin errores de carga.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-orange">📦</div>
+        <h3>Inventario Inteligente</h3>
+        <p>Stock en tiempo real y alertas automáticas de vencimiento. Nunca más pierdas un producto.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-blue">🚀</div>
+        <h3>Delivery Multi-Canal</h3>
+        <p>Rappi, PedidosYa y UberEats integrados. Todos tus pedidos en un solo panel.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-purple">📊</div>
+        <h3>Contabilidad Automática</h3>
+        <p>Cada venta genera su asiento contable sola. Fin de las planillas manuales.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-green">👥</div>
+        <h3>Clientes &amp; Fidelización</h3>
+        <p>Historial completo de compras. Saldos a favor. Conoce a tus mejores clientes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-yellow">🔄</div>
+        <h3>Devoluciones Simples</h3>
+        <p>Notas de crédito y saldos a favor gestionados en segundos. Sin papelerío.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-rose">🏭</div>
+        <h3>Supply Chain</h3>
+        <p>Órdenes de compra y cuentas por pagar. Control total de tus proveedores.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon bg-gray">🔐</div>
+        <h3>Roles &amp; Seguridad</h3>
+        <p>Define qué puede ver y hacer cada empleado. Auditoría completa de cada cambio.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROI -->
+<section class="roi">
+  <div class="section-inner">
+    <h2 class="section-title">Resultados concretos desde el primer mes</h2>
+    <p class="section-sub">Números conservadores basados en la experiencia de petshops que ya usan el sistema.</p>
+    <div class="roi-grid">
+      <div class="roi-card">
+        <div class="roi-stat">3 hs</div>
+        <div class="roi-label">diarias ahorradas</div>
+        <div class="roi-sub">en tareas administrativas</div>
+      </div>
+      <div class="roi-card">
+        <div class="roi-stat">$0</div>
+        <div class="roi-label">en pérdidas</div>
+        <div class="roi-sub">por productos vencidos</div>
+      </div>
+      <div class="roi-card">
+        <div class="roi-stat">+30%</div>
+        <div class="roi-label">más ventas</div>
+        <div class="roi-sub">al integrar canales de delivery</div>
+      </div>
+      <div class="roi-card">
+        <div class="roi-stat">100%</div>
+        <div class="roi-label">trazabilidad</div>
+        <div class="roi-sub">de cada movimiento del negocio</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY AMMAPET -->
+<section class="why">
+  <div class="section-inner">
+    <h2 class="section-title">¿Por qué AmmaPet?</h2>
+    <p class="section-sub"></p>
+    <div class="why-grid">
+      <div class="why-card">
+        <span class="icon">🌎</span>
+        <div>
+          <h3>Hecho para ti</h3>
+          <p>Diseñado para petshops de Chile. Con los canales de delivery que usas, en tu idioma y con tu moneda.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="icon">📱</span>
+        <div>
+          <h3>Desde cualquier dispositivo</h3>
+          <p>Accede desde tu computadora, tablet o celular. Tu negocio en el bolsillo, sin instalaciones ni configuraciones.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="icon">☁️</span>
+        <div>
+          <h3>Datos siempre seguros</h3>
+          <p>Tu información guardada en la nube con backup automático. Sin riesgo de perder datos por fallas de hardware.</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <span class="icon">🤝</span>
+        <div>
+          <h3>Soporte en español</h3>
+          <p>Acompañamiento real desde la implementación. Hablamos tu idioma y entendemos tu negocio.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RISK REMOVAL -->
+<section class="risk">
+  <div class="section-inner">
+    <h2>Comienza sin riesgo</h2>
+    <p>No necesitas comprometerte con nada para probar AmmaPet.</p>
+    <div class="risk-grid">
+      <div class="risk-card">
+        <div class="icon">🎯</div>
+        <span>Demo gratuita de 90 días</span>
+      </div>
+      <div class="risk-card">
+        <div class="icon">📋</div>
+        <span>Sin contratos de largo plazo</span>
+      </div>
+      <div class="risk-card">
+        <div class="icon">🛠️</div>
+        <span>Implementación asistida incluida</span>
+      </div>
+      <div class="risk-card">
+        <div class="icon">💬</div>
+        <span>Soporte técnico en español</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-final">
+  <h2>Transforma tu petshop hoy</h2>
+  <p>Cada día que pasa sin sistema es dinero que pierdes.<br />Agenda una demo gratuita y véelo en acción.</p>
+  <a href="mailto:contacto@ammapet.cl" class="btn-cta">Agenda tu demo gratuita →</a>
+  <small>Sin compromisos · Respuesta en menos de 24 horas</small>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <span>🐾</span>
+    <strong>AmmaPet</strong>
+  </div>
+  <p>Sistema de gestión integral para petshops</p>
+</footer>
+
+</body>
+</html>
