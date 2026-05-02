@@ -183,6 +183,12 @@ describe("POST /api/ventas — validaciones", () => {
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
     expect(res.status).toBe(200);
   });
+
+  // I-51
+  it("I-51: rechaza procedencia inválida con 400", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: "twitter" }));
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("POST /api/ventas — flujo exitoso", () => {
@@ -341,5 +347,77 @@ describe("POST /api/ventas — cálculo de descuento", () => {
   it("I-50: descuentoPct=100 resulta en total 0", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", descuentoPct: 100 }));
     expect(ventasInsertArgs).toMatchObject({ total: 0, descuento: 100 });
+  });
+});
+
+describe("POST /api/ventas — procedencia", () => {
+  let ventasInsertArgs: Record<string, unknown> | null = null;
+
+  function setupProcedenciaCapture() {
+    ventasInsertArgs = null;
+    let productosCall = 0;
+    let ventasCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        }
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+      }
+      if (table === "ventas") {
+        ventasCall++;
+        if (ventasCall === 1) {
+          return {
+            insert: jest.fn().mockImplementation((args: Record<string, unknown>) => {
+              ventasInsertArgs = args;
+              return { select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
+            }),
+          };
+        }
+        return { update: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5 }, error: null }) };
+      }
+      return {
+        ...mockChain,
+        insert: jest.fn().mockResolvedValue({ error: null }),
+        upsert: jest.fn().mockResolvedValue({ error: null }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupProcedenciaCapture();
+    mockRpc.mockResolvedValue({ error: null });
+  });
+
+  // I-52
+  it("I-52: sin procedencia el valor insertado es 'presencial' (default)", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    expect(ventasInsertArgs).toMatchObject({ procedencia: "presencial" });
+  });
+
+  // I-53
+  it.each([
+    "presencial", "instagram", "whatsapp", "facebook", "tiktok", "telefonico",
+  ])("I-53: procedencia='%s' se guarda correctamente en el INSERT", async (proc) => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: proc }));
+    expect(ventasInsertArgs).toMatchObject({ procedencia: proc });
+  });
+
+  // I-54
+  it("I-54: procedencia se incluye junto con metodo_pago y total en el INSERT", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: "whatsapp" }));
+    expect(ventasInsertArgs).toMatchObject({
+      metodo_pago: "efectivo",
+      procedencia: "whatsapp",
+      total: 20000,
+    });
   });
 });
