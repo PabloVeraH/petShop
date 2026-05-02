@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AmmaPet - Sistema de Gestión para Tiendas de Mascotas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --accent-primary: #ff6b35;
+      --accent-secondary: #ff8f5a;
+      --accent-glow: rgba(255, 107, 53, 0.4);
+      --text-primary: #f5f5f7;
+      --text-secondary: #a1a1a6;
+      --text-muted: #6b6b70;
+      --success: #34c759;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-snap-type: y mandatory;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Slide Container */
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem 2rem;
+      scroll-snap-align: start;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide-number {
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    /* Navigation */
+    .nav-dots {
+      position: fixed;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      z-index: 100;
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      opacity: 0.4;
+    }
+
+    .nav-dot.active {
+      background: var(--accent-primary);
+      opacity: 1;
+      box-shadow: 0 0 12px var(--accent-glow);
+      transform: scale(1.3);
+    }
+
+    .nav-dot:hover {
+      opacity: 0.8;
+    }
+
+    /* Typography */
+    .display {
+      font-family: 'DM Serif Display', serif;
+      font-weight: 400;
+      line-height: 1.1;
+    }
+
+    .heading {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+
+    .subheading {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 600px;
+      font-weight: 300;
+    }
+
+    .accent {
+      color: var(--accent-primary);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Slide 1: Hero */
+    .hero-bg {
+      background:
+        radial-gradient(ellipse at 20% 80%, rgba(255, 107, 53, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255, 143, 90, 0.1) 0%, transparent 50%),
+        var(--bg-primary);
+    }
+
+    .hero-content {
+      text-align: center;
+      max-width: 900px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: gap: 0.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 0.5rem 1rem;
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    .hero-badge .pulse {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 10vw, 7rem);
+      margin-bottom: 1.5rem;
+      animation: fadeInUp 0.8s ease-out 0.2s both;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.25rem, 3vw, 1.75rem);
+      color: var(--text-secondary);
+      margin-bottom: 3rem;
+      font-weight: 300;
+      animation: fadeInUp 0.8s ease-out 0.4s both;
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.8s ease-out 0.6s both;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent-primary);
+      color: white;
+      box-shadow: 0 4px 24px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-secondary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card);
+      border-color: var(--accent-primary);
+    }
+
+    /* Slide 2: Pain Points */
+    .pain-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1100px;
+      width: 100%;
+      margin-top: 3rem;
+    }
+
+    .pain-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .pain-card:hover {
+      border-color: rgba(255, 107, 53, 0.3);
+      transform: translateY(-4px);
+    }
+
+    .pain-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .pain-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .pain-desc {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    /* Slide 3: Solution Overview */
+    .solution-visual {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      max-width: 1000px;
+      margin-top: 3rem;
+    }
+
+    .feature-hub {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .feature-hub:hover {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 40px rgba(255, 107, 53, 0.15);
+    }
+
+    .feature-hub .icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-hub h4 {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-hub p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Slide 4: Features */
+    .features-container {
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .feature-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+      margin-bottom: 4rem;
+    }
+
+    .feature-row.reverse {
+      direction: rtl;
+    }
+
+    .feature-row.reverse > * {
+      direction: ltr;
+    }
+
+    .feature-content h3 {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-content p {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    .feature-list {
+      list-style: none;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .feature-list .check {
+      color: var(--success);
+      font-weight: bold;
+      margin-top: 0.2rem;
+    }
+
+    .feature-visual {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      aspect-ratio: 16/10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-visual::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 107, 53, 0.05), transparent);
+    }
+
+    .feature-visual .mock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 2rem;
+    }
+
+    .mock-header {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .mock-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .mock-dot:nth-child(1) { background: #ff5f57; }
+    .mock-dot:nth-child(2) { background: #febc2e; }
+    .mock-dot:nth-child(3) { background: #28c840; }
+
+    /* Slide 5: Benefits */
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin-top: 3rem;
+    }
+
+    .benefit-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .benefit-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    }
+
+    .benefit-metric {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .benefit-label {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+
+    .benefit-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+
+    /* Slide 6: Social Proof */
+    .testimonials {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      max-width: 1100px;
+      margin-top: 3rem;
+    }
+
+    .testimonial-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .testimonial-card::before {
+      content: '"';
+      position: absolute;
+      top: 1rem;
+      right: 1.5rem;
+      font-size: 4rem;
+      font-family: 'DM Serif Display', serif;
+      color: var(--accent-primary);
+      opacity: 0.3;
+      line-height: 1;
+    }
+
+    .testimonial-text {
+      font-size: 1.05rem;
+      font-style: italic;
+      margin-bottom: 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .author-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .author-info h5 {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .author-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .testimonial-stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Slide 7: Pricing/CTA */
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin-top: 3rem;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 60px rgba(255, 107, 53, 0.2);
+    }
+
+    .pricing-card.featured::before {
+      content: 'Más Popular';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent-primary);
+      color: white;
+      padding: 0.35rem 1rem;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .pricing-tier {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing-price {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .pricing-price span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .pricing-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 2rem;
+    }
+
+    .pricing-features li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .pricing-features .check {
+      color: var(--success);
+    }
+
+    .pricing-features .x {
+      color: var(--text-muted);
+    }
+
+    /* Slide 8: Final CTA */
+    .final-cta {
+      text-align: center;
+      max-width: 800px;
+    }
+
+    .urgency-badge {
+      display: inline-flex;
+      align-items: gap: 0.5rem;
+      background: rgba(255, 107, 53, 0.15);
+      border: 1px solid rgba(255, 107, 53, 0.3);
+      border-radius: 100px;
+      padding: 0.5rem 1rem;
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+      color: var(--accent-primary);
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-in {
+      animation: fadeInUp 0.6s ease-out both;
+    }
+
+    .animate-in:nth-child(1) { animation-delay: 0.1s; }
+    .animate-in:nth-child(2) { animation-delay: 0.2s; }
+    .animate-in:nth-child(3) { animation-delay: 0.3s; }
+    .animate-in:nth-child(4) { animation-delay: 0.4s; }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 4rem;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin-top: 3rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-item .number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-item .label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .feature-row {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+
+      .feature-row.reverse {
+        direction: ltr;
+      }
+
+      .nav-dots {
+        display: none;
+      }
+
+      .stats-bar {
+        gap: 2rem;
+      }
+    }
+
+    /* Grain overlay */
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <!-- Navigation Dots -->
+  <nav class="nav-dots">
+    <div class="nav-dot active" data-slide="0"></div>
+    <div class="nav-dot" data-slide="1"></div>
+    <div class="nav-dot" data-slide="2"></div>
+    <div class="nav-dot" data-slide="3"></div>
+    <div class="nav-dot" data-slide="4"></div>
+    <div class="nav-dot" data-slide="5"></div>
+    <div class="nav-dot" data-slide="6"></div>
+    <div class="nav-dot" data-slide="7"></div>
+  </nav>
+
+  <!-- Slide 1: Hero -->
+  <section class="slide hero-bg" id="slide-0">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="pulse"></span>
+        <span>+50 tiendas activas este mes</span>
+      </div>
+      <h1 class="display hero-title">Amma<span class="gradient-text">Pet</span></h1>
+      <p class="hero-subtitle">El sistema de gestión integral que transforma cómo las tiendas de mascotas operan, venden y crecen.</p>
+      <div class="cta-group">
+        <a href="#slide-7" class="btn btn-primary">
+          Comenzar Ahora
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <a href="#slide-2" class="btn btn-secondary">Ver Demo</a>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="number">518</div>
+          <div class="label">Tests Pasados</div>
+        </div>
+        <div class="stat-item">
+          <div class="number">99.9%</div>
+          <div class="label">Uptime</div>
+        </div>
+        <div class="stat-item">
+          <div class="number">&lt;100ms</div>
+          <div class="label">Tiempo de Respuesta</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">01 / 08</div>
+  </section>
+
+  <!-- Slide 2: Pain Points -->
+  <section class="slide" id="slide-1">
+    <div class="hero-content">
+      <h2 class="display heading">El problema es más profundo de lo que crees</h2>
+      <p class="subheading">Las tiendas de mascotas pierden ventas, tiempo y clientes por sistemas obsoletos.</p>
+      <div class="pain-grid">
+        <div class="pain-card animate-in">
+          <div class="pain-icon">📦</div>
+          <h3 class="pain-title">Inventario descontrolado</h3>
+          <p class="pain-desc">No sabes qué productos tienes, cuáles están por vencer o cuándo reponer. Pierdes ventas por stock-out.</p>
+        </div>
+        <div class="pain-card animate-in">
+          <div class="pain-icon">💸</div>
+          <h3 class="pain-title">Márgenes que se evaporan</h3>
+          <p class="pain-desc">Sin control de costos y contabilidad clara, no sabes si realmente ganas dinero o estás trabajando para pagar cuentas.</p>
+        </div>
+        <div class="pain-card animate-in">
+          <div class="pain-icon">👥</div>
+          <h3 class="pain-title">Clientes que no vuelven</h3>
+          <p class="pain-desc">No tienes forma de fidelizar, enviar recordatorios de alimento o conocer el historial de compras.</p>
+        </div>
+        <div class="pain-card animate-in">
+          <div class="pain-icon">📱</div>
+          <h3 class="pain-title">Canales externos descoordinados</h3>
+          <p class="pain-desc">Rappi, PedidosYa, UberEats: cada uno con su sistema separado, precios desincronizados y caos operativo.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">02 / 08</div>
+  </section>
+
+  <!-- Slide 3: Solution -->
+  <section class="slide" id="slide-2">
+    <div class="hero-content">
+      <h2 class="display heading">Una plataforma. <span class="accent">Solución completa.</span></h2>
+      <p class="subheading">AmmaPet centraliza todas tus operaciones en un solo lugar: POS, inventario, contabilidad, clientes y canales.</p>
+      <div class="solution-visual">
+        <div class="feature-hub animate-in">
+          <div class="icon">🏪</div>
+          <h4>Punto de Venta</h4>
+          <p>Venta rápida con escaneo</p>
+        </div>
+        <div class="feature-hub animate-in">
+          <div class="icon">📦</div>
+          <h4>Inventario</h4>
+          <p>Stock en tiempo real</p>
+        </div>
+        <div class="feature-hub animate-in">
+          <div class="icon">📊</div>
+          <h4>Contabilidad</h4>
+          <p>Libro diario automático</p>
+        </div>
+        <div class="feature-hub animate-in">
+          <div class="icon">❤️</div>
+          <h4>Fidelización</h4>
+          <p>Envío de recordatorio para recompra</p>
+        </div>
+        <div class="feature-hub animate-in">
+          <div class="icon">🚴</div>
+          <h4>Canales</h4>
+          <p>Rappi, PedidosYa, UberEats</p>
+        </div>
+        <div class="feature-hub animate-in">
+          <div class="icon">⏰</div>
+          <h4>Vencimientos</h4>
+          <p>Alertas automáticas de alimentos por vencer</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">03 / 08</div>
+  </section>
+
+  <!-- Slide 4: POS Feature -->
+  <section class="slide" id="slide-3">
+    <div class="features-container">
+      <div class="feature-row">
+        <div class="feature-content">
+          <h3 class="display">Venta en segundos, no en minutos</h3>
+          <p>Interfaz optimizada para velocidad. Búsqueda por nombre, SKU o código de barras. Detección automática de escáner.</p>
+          <ul class="feature-list">
+            <li><span class="check">✓</span> Escaneo con pistola lectora - agregar al carrito instantáneo</li>
+            <li><span class="check">✓</span> Múltiples métodos de pago en una sola venta</li>
+            <li><span class="check">✓</span> Notas de crédito y devoluciones en 3 clicks</li>
+            <li><span class="check">✓</span> Recibo térmico 80mm listo para imprimir</li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="mock">
+            <div class="mock-header">
+              <div class="mock-dot"></div>
+              <div class="mock-dot"></div>
+              <div class="mock-dot"></div>
+            </div>
+            <pre style="font-size: 0.7rem; line-height: 1.4;">
+┌─────────────────────────────┐
+│  Búsqueda: [RC001_______] 🔍 │
+├─────────────────────────────┤
+│  × Royal Canin Gastrointestinal │
+│    SKU: RC001 · $15,990      │
+│    [ + 1 - ] → Carrito      │
+├─────────────────────────────┤
+│  TOTAL: $15,990             │
+│  ┌─────────────────────────┐ │
+│  │ 💵 Efectivo │ 💳 Débito │ │
+│  └─────────────────────────┘ │
+│  [    COBRAR $15,990    ]    │
+└─────────────────────────────┘</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">04 / 08</div>
+  </section>
+
+  <!-- Slide 5: Benefits -->
+  <section class="slide" id="slide-4">
+    <div class="hero-content">
+      <h2 class="display heading">Resultados que se <span class="accent">miden</span></h2>
+      <p class="subheading">Cada función está diseñada para generar un impacto directo en tus finanzas.</p>
+      <div class="benefits-grid">
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">-40%</div>
+          <div class="benefit-label">Tiempo en caja</div>
+          <div class="benefit-desc">Interfaz optimizada para velocidad. Ventas en segundos, no en minutos.</div>
+        </div>
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">+25%</div>
+          <div class="benefit-label">Ventas por cliente</div>
+          <div class="benefit-desc">Sistema de recordatorio de alimentos por terminar, incentivan compras recurrentes.</div>
+        </div>
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">100%</div>
+          <div class="benefit-label">Trazabilidad</div>
+          <div class="benefit-desc">Cada transacción queda registrada. Auditoría completa de principio a fin.</div>
+        </div>
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">0</div>
+          <div class="benefit-label">Errores contables</div>
+          <div class="benefit-desc">Asientos automáticos con partida doble. Siempre cuadra el balance.</div>
+        </div>
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">+30%</div>
+          <div class="benefit-label">Stock disponible</div>
+          <div class="benefit-desc">Alertas de stock mínimo y predicciones de reabastecimiento.</div>
+        </div>
+        <div class="benefit-card animate-in">
+          <div class="benefit-metric">x3</div>
+          <div class="benefit-label">Canales de venta</div>
+          <div class="benefit-desc">Rappi, PedidosYa y UberEats integrados. Un catálogo, todo sincronizado.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-number">05 / 08</div>
+  </section>
+
+  <!-- Slide 6: Final CTA -->
+  <section class="slide hero-bg" id="slide-7">
+    <div class="hero-content final-cta">
+      <div class="urgency-badge">
+        <span>⚡</span>
+        <span>Prueba gratuita de 90 días - Sin tarjeta de crédito</span>
+      </div>
+      <h2 class="display heading" style="font-size: clamp(2.5rem, 6vw, 4.5rem);">Listo para digitalizar tu tienda?</h2>
+      <p class="hero-subtitle">Únete a más de 50 tiendas de mascotas que ya transformaron su operación con AmmaPet.</p>
+      <div class="cta-group" style="margin-top: 2rem;">
+        <button class="btn btn-primary" style="padding: 1.25rem 3rem; font-size: 1.1rem;">
+          Empezar Gratis Ahora
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+      <p style="margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+        ✓ Configuración en menos de 10 minutos<br>
+        ✓ Sin compromiso · Cancela cuando quieras
+      </p>
+    </div>
+    <div class="slide-number">08 / 08</div>
+  </section>
+
+  <script>
+    // Navigation dots
+    const dots = document.querySelectorAll('.nav-dot');
+    const slides = document.querySelectorAll('.slide');
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.5
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const slideIndex = Array.from(slides).indexOf(entry.target);
+          dots.forEach((dot, i) => {
+            dot.classList.toggle('active', i === slideIndex);
+          });
+        }
+      });
+    }, observerOptions);
+
+    slides.forEach(slide => observer.observe(slide));
+
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        const slideIndex = parseInt(dot.dataset.slide);
+        slides[slideIndex].scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    // Scroll animations
+    const animateElements = document.querySelectorAll('.animate-in');
+    const animateObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.animationPlayState = 'running';
+        }
+      });
+    }, { threshold: 0.2 });
+
+    animateElements.forEach(el => {
+      el.style.animationPlayState = 'paused';
+      animateObserver.observe(el);
+    });
+  </script>
+</body>
+</html>
