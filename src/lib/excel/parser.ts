@@ -11,7 +11,7 @@ export interface RawProductoRow {
   peso_gramos?: unknown;
   codigo_barra?: string;
   categoria?: string;
-  fecha_vencimiento?: string;
+  fecha_vencimiento?: string | Date;
   _fila: number; // número de fila en el excel (base 2, sin contar header)
 }
 
