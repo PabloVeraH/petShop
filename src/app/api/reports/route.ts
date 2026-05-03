@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
   const hoy = new Date().toISOString().split("T")[0];
   const { data: productosConVencimiento } = await supabase
     .from("productos")
-    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta")
+    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira")
     .eq("store_id", store_id)
     .eq("activo", true)
     .not("fecha_vencimiento", "is", null);
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
     })
     .filter((p) => {
       if (p.fecha_vencimiento < hoy) return false;
-      return p.diasRestantes <= p.dias_alerta && p.stock > 0;
+      return p.diasRestantes <= p.dias_alerta_expira && p.stock > 0;
     });
 
   return NextResponse.json({

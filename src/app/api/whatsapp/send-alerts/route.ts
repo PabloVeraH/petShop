@@ -106,10 +106,10 @@ export async function POST() {
     const hoy = new Date().toISOString().split("T")[0];
 
     if (store?.whatsapp_enabled && store?.whatsapp_phone_number) {
-      // Traer productos próximos a vencer (dentro del umbral dias_alerta)
+      // Traer productos próximos a vencer (dentro del umbral dias_alerta_expira)
       const { data: productos } = await supabase
         .from("productos")
-        .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta")
+        .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira")
         .eq("store_id", storeId)
         .eq("activo", true)
         .not("fecha_vencimiento", "is", null)
@@ -125,7 +125,7 @@ export async function POST() {
           const diasRestantes = Math.ceil(
             (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
           );
-          if (diasRestantes <= p.dias_alerta) {
+          if (diasRestantes <= p.dias_alerta_expira) {
             proximos.push(p);
           }
         }

@@ -31,7 +31,7 @@ export async function PATCH(
   if (parsed.data.marca !== undefined) updates.marca = parsed.data.marca?.trim() || null;
   if (parsed.data.peso_gramos !== undefined) updates.peso_gramos = parsed.data.peso_gramos;
   if (parsed.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = parsed.data.fecha_vencimiento || null;
-  if (parsed.data.dias_alerta !== undefined) updates.dias_alerta = parsed.data.dias_alerta || 30;
+  if (parsed.data.dias_alerta_expira !== undefined) updates.dias_alerta_expira = parsed.data.dias_alerta_expira || 30;
   if (parsed.data.precio_oferta !== undefined) updates.precio_oferta = parsed.data.precio_oferta;
   if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
   if (parsed.data.categoria_id !== undefined) updates.categoria_id = parsed.data.categoria_id;

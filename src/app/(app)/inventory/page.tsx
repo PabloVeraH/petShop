@@ -25,7 +25,7 @@ type Producto = {
   marca: string | null;
   peso_gramos: number | null;
   fecha_vencimiento: string | null;
-  dias_alerta: number;
+  dias_alerta_expira: number;
   precio_oferta: number | null;
   en_oferta: boolean;
   categoria_id: string | null;
@@ -58,7 +58,7 @@ type ProductoForm = {
   marca: string;
   peso_gramos: string;
   fecha_vencimiento: string;
-  dias_alerta: string;
+  dias_alerta_expira: string;
   precio_oferta: string;
   en_oferta: boolean;
   categoria_id: string;
@@ -68,7 +68,7 @@ type ProductoForm = {
 const EMPTY_FORM: ProductoForm = {
   nombre: "", sku: "", precio: "", costo: "",
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
-  fecha_vencimiento: "", dias_alerta: "30", precio_oferta: "", en_oferta: false,
+  fecha_vencimiento: "", dias_alerta_expira: "30", precio_oferta: "", en_oferta: false,
   categoria_id: "", codigo_barra: "",
 };
 
@@ -87,7 +87,7 @@ function getVencimientoStatus(producto: Producto): VencimientoStatus {
   if (!producto.fecha_vencimiento) return 'sin-fecha';
   const diasRestantes = Math.ceil((new Date(producto.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000);
   if (diasRestantes < 0) return 'vencido';
-  if (diasRestantes <= (producto.dias_alerta ?? 30)) return 'proximo';
+  if (diasRestantes <= (producto.dias_alerta_expira ?? 30)) return 'proximo';
   return 'vigente';
 }
 
@@ -164,7 +164,7 @@ export default function InventoryPage() {
           marca: form.marca || undefined,
           peso_gramos: form.peso_gramos ? Number(form.peso_gramos) : undefined,
           fecha_vencimiento: form.fecha_vencimiento || undefined,
-          dias_alerta: form.fecha_vencimiento ? Number(form.dias_alerta) : undefined,
+          dias_alerta_expira: form.fecha_vencimiento ? Number(form.dias_alerta_expira) : undefined,
           precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
           en_oferta: form.en_oferta,
           categoria_id: form.categoria_id || null,
@@ -200,7 +200,7 @@ export default function InventoryPage() {
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
       marca: p.marca ?? "", peso_gramos: p.peso_gramos != null ? String(p.peso_gramos) : "",
       fecha_vencimiento: p.fecha_vencimiento ?? "",
-      dias_alerta: String(p.dias_alerta ?? 30),
+      dias_alerta_expira: String(p.dias_alerta_expira ?? 30),
       precio_oferta: p.precio_oferta != null ? String(p.precio_oferta) : "",
       en_oferta: p.en_oferta ?? false,
       categoria_id: p.categoria_id ?? "",
@@ -391,7 +391,7 @@ export default function InventoryPage() {
               {form.fecha_vencimiento && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Días de alerta</label>
-                  <input type="number" min={1} value={form.dias_alerta} onChange={(e) => setForm(f => ({ ...f, dias_alerta: e.target.value }))}
+                  <input type="number" min={1} value={form.dias_alerta_expira} onChange={(e) => setForm(f => ({ ...f, dias_alerta_expira: e.target.value }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               )}

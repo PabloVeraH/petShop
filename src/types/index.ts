@@ -7,7 +7,7 @@ export interface Producto {
   stock: number;
   stock_minimo: number;
   fecha_vencimiento?: string | null;
-  dias_alerta?: number;
+  dias_alerta_expira?: number;
   precio_oferta?: number | null;
   en_oferta?: boolean;
   codigo_barra?: string | null;

@@ -57,7 +57,7 @@ export function clasificarProductos(
   productos: Array<{
     id: string;
     fecha_vencimiento: string | null;
-    dias_alerta: number;
+    dias_alerta_expira: number;
     stock: number;
   }>
 ) {
@@ -75,7 +75,7 @@ export function clasificarProductos(
     const diasRestantes = Math.ceil(
       (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
     );
-    return diasRestantes <= p.dias_alerta;
+    return diasRestantes <= p.dias_alerta_expira;
   });
 
   return { vencidos, proximos };
@@ -118,7 +118,7 @@ describe("lib/vencimiento-helpers", () => {
       expect(result.diasRestantes).toBeLessThan(0);
     });
 
-    it("debería retornar status 'proximo' si está dentro de dias_alerta", () => {
+    it("debería retornar status 'proximo' si está dentro de dias_alerta_expira", () => {
       const result = getVencimientoStatus("2024-04-20", 7);
 
       expect(result.status).toBe("proximo");
@@ -127,7 +127,7 @@ describe("lib/vencimiento-helpers", () => {
       expect(result.diasRestantes).toBe(4);
     });
 
-    it("debería retornar status 'vigente' si está fuera de dias_alerta", () => {
+    it("debería retornar status 'vigente' si está fuera de dias_alerta_expira", () => {
       const result = getVencimientoStatus("2024-05-01", 7);
 
       expect(result.status).toBe("vigente");
@@ -136,7 +136,7 @@ describe("lib/vencimiento-helpers", () => {
       expect(result.diasRestantes).toBe(15);
     });
 
-    it("debería calcular correctamente dias_alerta=0", () => {
+    it("debería calcular correctamente dias_alerta_expira=0", () => {
       const result = getVencimientoStatus("2024-04-17", 0);
 
       expect(result.status).toBe("vigente"); // 1 día > 0
@@ -150,7 +150,7 @@ describe("lib/vencimiento-helpers", () => {
       expect(result.diasRestantes).toBe(2);
     });
 
-    it("debería usar dias_alerta por defecto si no se especifica", () => {
+    it("debería usar dias_alerta_expira por defecto si no se especifica", () => {
       const result = getVencimientoStatus("2024-04-20");
 
       expect(result.status).toBe("proximo"); // 4 días <= 7 (default)
@@ -170,13 +170,13 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: "2024-04-10",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 5,
         },
         {
           id: "p2",
           fecha_vencimiento: "2024-04-20",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 3,
         },
       ];
@@ -194,13 +194,13 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: null,
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 5,
         },
         {
           id: "p2",
           fecha_vencimiento: "2024-04-10",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 3,
         },
       ];
@@ -216,7 +216,7 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: "2024-04-10",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 0,
         },
       ];
@@ -226,12 +226,12 @@ describe("lib/vencimiento-helpers", () => {
       expect(vencidos).toHaveLength(0);
     });
 
-    it("debería respetar dias_alerta personalizado", () => {
+    it("debería respetar dias_alerta_expira personalizado", () => {
       const productos = [
         {
           id: "p1",
           fecha_vencimiento: "2024-04-25",
-          dias_alerta: 3, // Solo alertar si <= 3 días
+          dias_alerta_expira: 3, // Solo alertar si <= 3 días
           stock: 5,
         },
       ];
@@ -246,7 +246,7 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: "2025-12-31",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 10,
         },
       ];
@@ -262,25 +262,25 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: "2024-04-10",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 2,
         },
         {
           id: "p2",
           fecha_vencimiento: "2024-04-12",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 3,
         },
         {
           id: "p3",
           fecha_vencimiento: "2024-04-18",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 4,
         },
         {
           id: "p4",
           fecha_vencimiento: "2024-04-25",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 5,
         },
       ];
@@ -336,14 +336,14 @@ describe("lib/vencimiento-helpers", () => {
       expect(proximos).toEqual([]);
     });
 
-    it("debería manejar dias_alerta negativo", () => {
+    it("debería manejar dias_alerta_expira negativo", () => {
       const result = getVencimientoStatus("2024-04-20", -5);
 
-      // Con dias_alerta negativo, todos estarán fuera de rango
+      // Con dias_alerta_expira negativo, todos estarán fuera de rango
       expect(result.status).toBe("vigente");
     });
 
-    it("debería manejar dias_alerta muy grande", () => {
+    it("debería manejar dias_alerta_expira muy grande", () => {
       const result = getVencimientoStatus("2024-04-20", 1000);
 
       expect(result.status).toBe("proximo");
@@ -384,13 +384,13 @@ describe("lib/vencimiento-helpers", () => {
         {
           id: "p1",
           fecha_vencimiento: "2024-04-10",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 5,
         },
         {
           id: "p2",
           fecha_vencimiento: "2024-04-20",
-          dias_alerta: 7,
+          dias_alerta_expira: 7,
           stock: 3,
         },
       ];

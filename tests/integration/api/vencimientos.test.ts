@@ -59,7 +59,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 5,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -69,7 +69,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-B",
         stock: 3,
         fecha_vencimiento: "2024-04-25",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -87,7 +87,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 5,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -103,7 +103,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-20", // 4 días restantes
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -128,7 +128,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 5,
         fecha_vencimiento: "2025-12-31",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -152,7 +152,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 0,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -167,7 +167,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     expect(json.totalUnidadesVencidas).toBe(0);
   });
 
-  it("debería respetar filtro dias_alerta para próximos a vencer", async () => {
+  it("debería respetar filtro dias_alerta_expira para próximos a vencer", async () => {
     const productos = [
       {
         id: "p1",
@@ -175,7 +175,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-25", // 9 días restantes
-        dias_alerta: 7, // Solo alertar con 7 días o menos
+        dias_alerta_expira: 7, // Solo alertar con 7 días o menos
         precio_oferta: null,
         en_oferta: false,
       },
@@ -197,7 +197,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-17", // 1 día restante
-        dias_alerta: 0, // Sin alerta configurada
+        dias_alerta_expira: 0, // Sin alerta configurada
         precio_oferta: null,
         en_oferta: false,
       },
@@ -219,7 +219,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-20",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: 15000,
         en_oferta: true,
       },
@@ -285,7 +285,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 5,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -295,7 +295,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-B",
         stock: 8,
         fecha_vencimiento: "2024-04-15",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -350,7 +350,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 5,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -360,7 +360,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-B",
         stock: 0,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 10,
+        dias_alerta_expira: 10,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -385,7 +385,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-17", // 1 día después de hoy
-        dias_alerta: 5,
+        dias_alerta_expira: 5,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -402,7 +402,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     expect(json.vencidos).toHaveLength(0);
   });
 
-  it("debería excluir de proximos si diasRestantes > dias_alerta", async () => {
+  it("debería excluir de proximos si diasRestantes > dias_alerta_expira", async () => {
     const productos = [
       {
         id: "p1",
@@ -410,7 +410,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 3,
         fecha_vencimiento: "2024-05-10", // 24 días restantes
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -425,7 +425,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     expect(json.vencidos).toHaveLength(0);
   });
 
-  it("debería incluir en proximos si diasRestantes <= dias_alerta (exacto)", async () => {
+  it("debería incluir en proximos si diasRestantes <= dias_alerta_expira (exacto)", async () => {
     const productos = [
       {
         id: "p1",
@@ -433,7 +433,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 4,
         fecha_vencimiento: "2024-04-23", // 7 días restantes
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -456,7 +456,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 0,
         fecha_vencimiento: "2024-04-20",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -478,7 +478,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 3,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -488,7 +488,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-B",
         stock: 5,
         fecha_vencimiento: "2024-04-19", // 3 días
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -498,7 +498,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-C",
         stock: 2,
         fecha_vencimiento: "2024-06-01",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -515,15 +515,15 @@ describe("GET /api/dashboard/vencimientos", () => {
     expect(json.proximos[0].diasRestantes).toBe(3);
   });
 
-  it("debería manejar dias_alerta=null como 0 (sin alerta)", async () => {
+  it("debería manejar dias_alerta_expira=null como 0 (sin alerta)", async () => {
     const productos = [
       {
         id: "p1",
-        nombre: "Producto con dias_alerta nulo",
+        nombre: "Producto con dias_alerta_expira nulo",
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-20",
-        dias_alerta: null,
+        dias_alerta_expira: null,
         precio_oferta: null,
         en_oferta: false,
       },
@@ -546,7 +546,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-A",
         stock: 2,
         fecha_vencimiento: "2024-04-10",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: 99.99,
         en_oferta: true,
       },
@@ -556,7 +556,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         sku: "SKU-B",
         stock: 3,
         fecha_vencimiento: "2024-04-18",
-        dias_alerta: 7,
+        dias_alerta_expira: 7,
         precio_oferta: 49.99,
         en_oferta: false,
       },
@@ -579,7 +579,7 @@ describe("GET /api/dashboard/vencimientos", () => {
       expect(json.vencidos[0]).toHaveProperty("sku");
       expect(json.vencidos[0]).toHaveProperty("stock");
       expect(json.vencidos[0]).toHaveProperty("fecha_vencimiento");
-      expect(json.vencidos[0]).toHaveProperty("dias_alerta");
+      expect(json.vencidos[0]).toHaveProperty("dias_alerta_expira");
       expect(json.vencidos[0]).toHaveProperty("precio_oferta");
       expect(json.vencidos[0]).toHaveProperty("en_oferta");
     }

@@ -97,7 +97,7 @@ export default function SearchProductos() {
     const diasRestantes = Math.ceil(
       (new Date(prod.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
     );
-    if (diasRestantes <= (prod.dias_alerta ?? 30)) return "proximo";
+    if (diasRestantes <= (prod.dias_alerta_expira ?? 30)) return "proximo";
     return null;
   };
 

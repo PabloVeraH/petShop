@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("productos")
-    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta")
+    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira_expira, precio_oferta, en_oferta")
     .eq("store_id", store_id)
     .eq("activo", true)
     .not("fecha_vencimiento", "is", null)
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       const diasRestantes = Math.ceil(
         (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
       );
-      return diasRestantes <= (p.dias_alerta ?? 0);
+      return diasRestantes <= (p.dias_alerta_expira ?? 0);
     })
     .map((p) => ({
       ...p,

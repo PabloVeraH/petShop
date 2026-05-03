@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("productos")
-    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, codigo_barra")
+    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira_expira, precio_oferta, en_oferta, codigo_barra")
     .eq("store_id", store_id)
     .eq("activo", true)
     .gt("stock", 0);
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta, precio_oferta, en_oferta, categoria_id, codigo_barra } = parsed.data;
+  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, codigo_barra } = parsed.data;
 
   const { data, error } = await supabase
     .from("productos")
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       marca: marca?.trim() || null,
       peso_gramos: peso_gramos ? Number(peso_gramos) : null,
       fecha_vencimiento: fecha_vencimiento || null,
-      dias_alerta: dias_alerta ? Number(dias_alerta) : 30,
+      dias_alerta_expira: dias_alerta_expira ? Number(dias_alerta_expira) : 30,
       precio_oferta: precio_oferta ? Number(precio_oferta) : null,
       en_oferta: en_oferta === true,
       categoria_id: categoria_id ?? null,
