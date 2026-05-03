@@ -378,7 +378,6 @@ export const ProductoImportRowSchema = z.object({
   stock: z.number().int().nonnegative().default(0),
   stock_minimo: z.number().int().nonnegative().default(5),
   marca: z.string().max(100).optional(),
-  tipo_animal: z.string().max(50).optional(),
   peso_gramos: z.number().int().positive().optional(),
   codigo_barra: z.string().max(100).optional(),
   categoria: z.string().max(100).optional(),

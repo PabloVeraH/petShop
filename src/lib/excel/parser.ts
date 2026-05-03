@@ -8,7 +8,6 @@ export interface RawProductoRow {
   stock?: unknown;
   stock_minimo?: unknown;
   marca?: string;
-  tipo_animal?: string;
   peso_gramos?: unknown;
   codigo_barra?: string;
   categoria?: string;
@@ -27,9 +26,6 @@ const HEADER_MAP: Record<string, keyof Omit<RawProductoRow, "_fila">> = {
   "stock minimo": "stock_minimo",
   "stock mínimo": "stock_minimo",
   marca: "marca",
-  tipoanimal: "tipo_animal",
-  tipo_animal: "tipo_animal",
-  "tipo animal": "tipo_animal",
   pesogramos: "peso_gramos",
   peso_gramos: "peso_gramos",
   "peso gramos": "peso_gramos",
@@ -89,7 +85,6 @@ export function parseProductosXLSX(buffer: Buffer): RawProductoRow[] {
     if (row.sku) row.sku = String(row.sku).trim();
     if (row.nombre) row.nombre = String(row.nombre).trim();
     if (row.marca) row.marca = String(row.marca).trim();
-    if (row.tipo_animal) row.tipo_animal = String(row.tipo_animal).trim();
     if (row.codigo_barra) row.codigo_barra = String(row.codigo_barra).trim();
     if (row.categoria) row.categoria = String(row.categoria).trim();
 
@@ -105,13 +100,13 @@ export function generateTemplateXLSX(): Buffer {
   // Hoja 1: Productos
   const headers = [
     "SKU", "Nombre", "Precio", "Costo", "Stock", "StockMinimo",
-    "Marca", "TipoAnimal", "PesoGramos", "CodigoBarra", "Categoria", "FechaVencimiento",
+    "Marca", "PesoGramos", "CodigoBarra", "Categoria", "FechaVencimiento",
   ];
 
   const ejemplos = [
-    ["ALI-001", "Royal Canin Adult Perro 15kg", 45990, 32000, 20, 3, "Royal Canin", "perro", 15000, "7891000315507", "Alimentos", ""],
-    ["ALI-002", "Whiskas Adulto Pollo 1kg", 4990, 3200, 50, 5, "Whiskas", "gato", 1000, "7613032359479", "Alimentos", ""],
-    ["ACC-001", "Collar Ajustable Talla M", 3990, 2000, 15, 2, "PetComfort", "perro", "", "9506000134376", "Accesorios", ""],
+    ["ALI-001", "Royal Canin Adult Perro 15kg", 45990, 32000, 20, 3, "Royal Canin", 15000, "7891000315507", "Alimentos", ""],
+    ["ALI-002", "Whiskas Adulto Pollo 1kg", 4990, 3200, 50, 5, "Whiskas", 1000, "7613032359479", "Alimentos", ""],
+    ["ACC-001", "Collar Ajustable Talla M", 3990, 2000, 15, 2, "PetComfort", "", "9506000134376", "Accesorios", ""],
   ];
 
   const wsData = [headers, ...ejemplos];
@@ -120,7 +115,7 @@ export function generateTemplateXLSX(): Buffer {
   // Ancho de columnas
   ws["!cols"] = [
     { wch: 12 }, { wch: 35 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 },
-    { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 18 },
+    { wch: 15 }, { wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 18 },
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, "Productos");
@@ -140,7 +135,6 @@ export function generateTemplateXLSX(): Buffer {
     ["Stock", "Cantidad en inventario (opcional, default 0)", "20"],
     ["StockMinimo", "Stock mínimo antes de alerta (opcional, default 5)", "3"],
     ["Marca", "Nombre de la marca (opcional)", "Royal Canin"],
-    ["TipoAnimal", "perro / gato / ave / pez / roedor / otro (opcional)", "perro"],
     ["PesoGramos", "Peso del producto en gramos (opcional)", "15000"],
     ["CodigoBarra", "Código de barras EAN/UPC (opcional)", "7891000315507"],
     ["Categoria", "Nombre de la categoría (opcional, se crea si no existe)", "Alimentos"],
