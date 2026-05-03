@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("productos")
-    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira_expira, precio_oferta, en_oferta, codigo_barra")
+    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, codigo_barra")
     .eq("store_id", store_id)
     .eq("activo", true)
     .gt("stock", 0);

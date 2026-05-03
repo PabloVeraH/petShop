@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("productos")
-    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira_expira, precio_oferta, en_oferta")
+    .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta")
     .eq("store_id", store_id)
     .eq("activo", true)
     .not("fecha_vencimiento", "is", null)
