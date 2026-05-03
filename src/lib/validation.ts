@@ -369,3 +369,22 @@ export const UserDisableSchema = z.object({
   userIds: z.array(z.string()).min(1, "Seleccionar al menos un usuario"),
   action: z.enum(["disable", "enable"]),
 });
+
+export const ProductoImportRowSchema = z.object({
+  sku: z.string().min(1, "SKU es obligatorio").max(100),
+  nombre: z.string().min(1, "Nombre es obligatorio").max(255),
+  precio: z.number("Precio es obligatorio o inválido").positive("Precio debe ser mayor a 0"),
+  costo: z.number().nonnegative().optional(),
+  stock: z.number().int().nonnegative().default(0),
+  stock_minimo: z.number().int().nonnegative().default(5),
+  marca: z.string().max(100).optional(),
+  tipo_animal: z.string().max(50).optional(),
+  peso_gramos: z.number().int().positive().optional(),
+  codigo_barra: z.string().max(100).optional(),
+  categoria: z.string().max(100).optional(),
+  fecha_vencimiento: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (debe ser YYYY-MM-DD)")
+    .optional()
+    .nullable(),
+});

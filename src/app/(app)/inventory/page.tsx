@@ -235,6 +235,9 @@ export default function InventoryPage() {
               {totalAlertas} bajo stock mínimo
             </span>
           )}
+          <Button variant="outline" size="sm" onClick={() => window.location.href = "/inventory/import"}>
+            Importar
+          </Button>
           <Button size="sm" onClick={abrirNuevo}>+ Nuevo producto</Button>
         </div>
       </div>
