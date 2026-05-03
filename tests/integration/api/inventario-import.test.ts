@@ -53,7 +53,7 @@ function makeXLSX(rows: unknown[][]): Buffer {
 }
 
 function makeRequest(buffer: Buffer, filename = "productos.xlsx", dryRun = false): NextRequest {
-  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const blob = new Blob([new Uint8Array(buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const file = new File([blob], filename, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const fd = new FormData();
   fd.append("file", file);
