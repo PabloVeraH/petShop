@@ -71,7 +71,7 @@ export function parseProductosXLSX(buffer: Buffer): RawProductoRow[] {
       const field = HEADER_MAP[header];
       if (!field) return;
       const value = rawRow[colIdx];
-      (row as Record<string, unknown>)[field] = value === "" ? undefined : value;
+      (row as unknown as Record<string, unknown>)[field] = value === "" ? undefined : value;
     });
 
     // Normalizar fecha si viene como objeto Date (xlsx con cellDates:true)
