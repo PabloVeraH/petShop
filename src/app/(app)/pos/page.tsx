@@ -90,6 +90,7 @@ export default function POSPage() {
             disabled={items.length === 0}
             className="w-full"
             size="lg"
+            suppressHydrationWarning
           >
             Cobrar ${Math.round(total()).toLocaleString("es-CL")}
           </Button>
