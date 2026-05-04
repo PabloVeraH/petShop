@@ -82,7 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <LicenseProvider>
     <div className="flex min-h-screen bg-gray-50">
       {/* Desktop sidebar — always visible on lg+ */}
-      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0">
+      <div className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0 print:hidden">
         {sidebar}
       </div>
 
@@ -102,7 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 sticky top-0 z-30 print:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
@@ -115,7 +115,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="font-bold text-green-600">{storeName}</span>
         </div>
 
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 lg:p-6 overflow-auto print:p-0">{children}</main>
       </div>
     </div>
     </LicenseProvider>
