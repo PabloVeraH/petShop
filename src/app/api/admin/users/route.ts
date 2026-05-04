@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   const { data: users, error } = await supabase
     .from("clerk_users")
-    .select("clerk_id, email, store_admin, store_worker, system_admin, updated_at")
+    .select("clerk_id, email, nombre, rut, store_admin, store_worker, system_admin, updated_at")
     .eq("store_id", storeId)
     .order("updated_at", { ascending: false });
 
@@ -66,10 +66,14 @@ export async function POST(req: NextRequest) {
 
   // Sync clerk_users
   const supabase = createServiceClient();
+  const nombre = target.firstName && target.lastName
+    ? `${target.firstName} ${target.lastName}`.trim()
+    : null;
   await supabase.from("clerk_users").upsert(
     {
       clerk_id: target.id,
       email,
+      nombre,
       store_id: storeId,
       store_admin: role === "storeAdmin",
       store_worker: role === "storeWorker",

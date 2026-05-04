@@ -21,11 +21,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { email, password, firstName, lastName, storeId, role } = parsed.data;
+  const { email, password, firstName, lastName, storeId, role, rut, meta_ventas } = parsed.data;
 
   if (role !== "systemAdmin" && !storeId) {
     return NextResponse.json({ error: "storeId requerido para roles de tienda" }, { status: 400 });
   }
+
+  const nombre = `${firstName} ${lastName}`.trim();
 
   try {
     const client = await clerkClient();
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
         {
           clerk_id: newUser.id,
           email,
+          nombre,
           system_admin: true,
           updated_at: new Date().toISOString(),
         },
@@ -73,6 +76,9 @@ export async function POST(req: NextRequest) {
         {
           clerk_id: newUser.id,
           email,
+          nombre,
+          rut: rut ?? null,
+          meta_ventas: role === "storeWorker" ? (meta_ventas ?? null) : null,
           store_id: storeId,
           store_admin: role === "storeAdmin",
           store_worker: role === "storeWorker",

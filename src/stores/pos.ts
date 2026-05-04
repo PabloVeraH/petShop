@@ -18,7 +18,7 @@ interface POSStore {
   items: CartItem[];
   clienteId?: string;
   mascotaId?: string;
-  vendedorId?: string;
+  workerClerkId?: string;
   metodoPago?: string;
   numeroTransaccion?: string;
   descuento: number;
@@ -31,7 +31,7 @@ interface POSStore {
   clearCart: () => void;
   setCliente: (clienteId: string, mascotaId?: string, fidelizacionDescuento?: number) => void;
   clearCliente: () => void;
-  setVendedor: (vendedorId: string | undefined) => void;
+  setWorker: (clerkId: string | undefined) => void;
   setMetodoPago: (metodo: string) => void;
   setNumeroTransaccion: (numero: string | undefined) => void;
   setDescuento: (descuento: number) => void;
@@ -92,7 +92,7 @@ export const usePOSStore = create<POSStore>()(
           items: [],
           clienteId: undefined,
           mascotaId: undefined,
-          vendedorId: undefined,
+          workerClerkId: undefined,
           metodoPago: undefined,
           numeroTransaccion: undefined,
           descuento: 0,
@@ -117,7 +117,7 @@ export const usePOSStore = create<POSStore>()(
 
       clearCliente: () => set({ clienteId: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
 
-      setVendedor: (vendedorId) => set({ vendedorId }),
+      setWorker: (workerClerkId) => set({ workerClerkId }),
 
       setMetodoPago: (metodoPago) => set({ metodoPago }),
 
@@ -152,7 +152,7 @@ export const usePOSStore = create<POSStore>()(
         items: state.items,
         clienteId: state.clienteId,
         mascotaId: state.mascotaId,
-        vendedorId: state.vendedorId,
+        workerClerkId: state.workerClerkId,
         metodoPago: state.metodoPago,
         numeroTransaccion: state.numeroTransaccion,
         descuento: state.descuento,

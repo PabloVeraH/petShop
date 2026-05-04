@@ -132,13 +132,6 @@ export const MascotaUpdateSchema = z.object({
   alimento_habitual_id: UUIDSchema.optional(),
 });
 
-export const VendedorCreateSchema = z.object({
-  nombre: z.string().min(3).max(100),
-  email: z.string().email(),
-  telefono: z.string().max(20).optional(),
-  activo: z.boolean().optional(),
-});
-
 export const VentaItemSchema = z.object({
   producto_id: UUIDSchema,
   cantidad: z.number().int().positive(),
@@ -155,6 +148,7 @@ export const VentaCreateSchema = z.object({
   numeroTransaccion: z.string().optional(),
   canal: z.enum(["pos", "rappi", "pedidosya", "ubereats"]).default("pos"),
   procedencia: z.enum(["presencial", "instagram", "whatsapp", "facebook", "tiktok", "telefonico"]).default("presencial"),
+  workerClerkId: z.string().optional(),
 });
 
 export const PagoSchema = z.object({
@@ -183,13 +177,6 @@ export const SettingsUpdateSchema = z.object({
 
 export const ClienteDeleteSchema = z.object({
   confirm: z.literal("DELETE"),
-});
-
-export const VendedorUpdateSchema = z.object({
-  nombre: z.string().min(3).max(100).optional(),
-  email: z.string().email().optional(),
-  telefono: z.string().max(20).optional(),
-  activo: z.boolean().optional(),
 });
 
 export const OrdenesCompraCreateSchema = z.object({
@@ -271,10 +258,6 @@ export const MascotaGetSchema = z.object({
   id: UUIDSchema,
 });
 
-export const VendedorGetSchema = z.object({
-  id: UUIDSchema,
-});
-
 export const ReciboGetSchema = z.object({
   ventaId: UUIDSchema,
 });
@@ -311,6 +294,8 @@ export const AdminUserCreateFullSchema = z.object({
   lastName: z.string().min(2).max(100),
   storeId: UUIDSchema.optional(),
   role: z.enum(["storeAdmin", "storeWorker", "systemAdmin"]),
+  rut: z.string().max(20).optional(),
+  meta_ventas: z.number().positive().optional(),
 });
 
 export const SaldosFavorUsageSchema = z.object({
