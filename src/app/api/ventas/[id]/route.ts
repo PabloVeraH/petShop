@@ -15,19 +15,29 @@ export async function GET(
 
   const { data: venta, error } = await supabase
     .from("ventas")
-    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, clientes(id, nombre, rut, telefono), vendedores(nombre)")
+    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, worker_clerk_id, clientes(id, nombre, rut, telefono)")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
 
   if (error || !venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
 
+  let worker = null;
+  if (venta.worker_clerk_id) {
+    const { data: workerData } = await supabase
+      .from("clerk_users")
+      .select("nombre, email")
+      .eq("clerk_id", venta.worker_clerk_id)
+      .single();
+    worker = workerData;
+  }
+
   const { data: items } = await supabase
     .from("venta_items")
     .select("id, cantidad, precio_unitario, subtotal, productos(nombre, sku)")
     .eq("venta_id", id);
 
-  return NextResponse.json({ ...venta, items: items ?? [] });
+  return NextResponse.json({ ...venta, worker, items: items ?? [] });
 }
 
 export async function PATCH(

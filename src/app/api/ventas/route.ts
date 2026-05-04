@@ -86,9 +86,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia } = parsed.data;
+  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
-  const vendedorId = body.vendedorId;
   const descuento_pct = descuentoPct ?? 0;
 
   // Additional validation for transaction numbers
@@ -143,7 +142,7 @@ export async function POST(req: NextRequest) {
      .insert({
        store_id,
        cliente_id: clienteId ?? null,
-       vendedor_id: vendedorId ?? null,
+       worker_clerk_id: workerClerkId ?? null,
        subtotal,
        descuento: descuento_pct,
        impuesto,
@@ -163,7 +162,7 @@ export async function POST(req: NextRequest) {
        userId: ctx.userId || "unknown",
        action: "CREATE",
        entityType: "venta",
-       newValues: { items, clienteId, vendedorId, metodoPago, descuento: descuento_pct, numeroTransaccion },
+       newValues: { items, clienteId, workerClerkId, metodoPago, descuento: descuento_pct, numeroTransaccion },
        ipAddress: (await getRequestMetadata(req)).ipAddress,
        userAgent: (await getRequestMetadata(req)).userAgent,
        result: "failure",
