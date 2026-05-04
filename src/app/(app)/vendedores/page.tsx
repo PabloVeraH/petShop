@@ -64,13 +64,13 @@ async function updateWorker(clerkId: string, data: { rut?: string; meta_ventas?:
 export default function VendedoresPage() {
   const { sessionClaims } = useAuth();
   const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
-  const isStoreAdmin = meta?.storeAdmin === true;
+  const hasAccess = meta?.storeAdmin === true || meta?.systemAdmin === true;
   const queryClient = useQueryClient();
 
   const { data: workers, isLoading } = useQuery({
     queryKey: ["workers"],
     queryFn: getWorkers,
-    enabled: isStoreAdmin,
+    enabled: hasAccess,
   });
 
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -115,13 +115,13 @@ export default function VendedoresPage() {
 
       <div className="flex-1 overflow-auto rounded-lg bg-white shadow-sm">
         {isLoading && <p className="text-sm text-gray-400 p-4 text-center">Cargando...</p>}
-        {!isLoading && !isStoreAdmin && (
+        {!isLoading && !hasAccess && (
           <p className="text-sm text-gray-400 p-4 text-center">No tienes acceso a esta página</p>
         )}
-        {!isLoading && isStoreAdmin && sortedWorkers.length === 0 && (
+        {!isLoading && hasAccess && sortedWorkers.length === 0 && (
           <p className="text-sm text-gray-400 p-4 text-center">Sin trabajadores registrados</p>
         )}
-        {!isLoading && isStoreAdmin && sortedWorkers.length > 0 && (
+        {!isLoading && hasAccess && sortedWorkers.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
