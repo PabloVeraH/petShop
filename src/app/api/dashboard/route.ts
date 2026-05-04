@@ -16,7 +16,7 @@ export async function GET() {
   const [ventasHoyResult, ultimasVentasResult] = await Promise.all([
     supabase
       .from("ventas")
-      .select("id, total, descuento, metodo_pago, canal")
+      .select("id, total, descuento, metodo_pago, canal, procedencia")
       .eq("store_id", store_id)
       .neq("estado", "anulada")
       .gte("created_at", dayStart)
@@ -98,6 +98,20 @@ export async function GET() {
     transacciones: data.transacciones,
   }));
 
+  // Ventas por procedencia
+  const procedenciaCounts: Record<string, { total: number; transacciones: number }> = {};
+  for (const v of ventasHoy) {
+    const proc = (v as { procedencia?: string }).procedencia ?? "presencial";
+    if (!procedenciaCounts[proc]) procedenciaCounts[proc] = { total: 0, transacciones: 0 };
+    procedenciaCounts[proc].total += Number(v.total);
+    procedenciaCounts[proc].transacciones += 1;
+  }
+  const ventasPorProcedencia = Object.entries(procedenciaCounts).map(([procedencia, data]) => ({
+    procedencia,
+    total: data.total,
+    transacciones: data.transacciones,
+  }));
+
   return NextResponse.json({
     ventasHoy: totalVentasHoy,
     transacciones,
@@ -107,5 +121,6 @@ export async function GET() {
     ultimasVentas,
     alertas,
     ventasPorCanal,
+    ventasPorProcedencia,
   });
 }

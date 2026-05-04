@@ -12,6 +12,7 @@ interface ReportsData {
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
   canales: Record<string, number>;
+  procedencias: Record<string, { total: number; transacciones: number }>;
   prediccion7dias: number;
   promedioDiario: number;
 }
@@ -29,6 +30,15 @@ const CANALES = [
   { label: "PedidosYa", value: "pedidosya" },
   { label: "Uber Eats", value: "ubereats" },
 ];
+
+const PROCEDENCIA_LABELS: Record<string, { label: string; color: string }> = {
+  presencial: { label: "Presencial", color: "bg-green-500" },
+  instagram:  { label: "Instagram",  color: "bg-pink-500" },
+  whatsapp:   { label: "WhatsApp",   color: "bg-emerald-500" },
+  facebook:   { label: "Facebook",   color: "bg-blue-600" },
+  tiktok:     { label: "TikTok",     color: "bg-gray-900" },
+  telefonico: { label: "Telefónico", color: "bg-amber-500" },
+};
 
 function fmt(n: number) {
   return `$${Math.round(n).toLocaleString("es-CL")}`;
@@ -223,6 +233,45 @@ export default function ReportsPage() {
                     <span>{fmt(total)}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ventas por procedencia */}
+          {data.procedencias && Object.keys(data.procedencias).length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-4">Procedencia de ventas</h2>
+              <BarChart
+                data={Object.entries(data.procedencias)
+                  .sort((a, b) => b[1].total - a[1].total)
+                  .map(([k, v]) => ({
+                    label: PROCEDENCIA_LABELS[k]?.label ?? k,
+                    value: v.total,
+                  }))}
+                color="bg-pink-500"
+              />
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Object.entries(data.procedencias)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([proc, stats]) => {
+                      const cfg = PROCEDENCIA_LABELS[proc] ?? { label: proc, color: "bg-gray-400" };
+                      const totalAll = Object.values(data.procedencias).reduce((s, v) => s + v.total, 0);
+                      const pct = totalAll > 0 ? Math.round((stats.total / totalAll) * 100) : 0;
+                      return (
+                        <div key={proc} className="flex items-start gap-2 p-2 rounded-md bg-gray-50">
+                          <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${cfg.color}`} />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-700">{cfg.label}</p>
+                            <p className="text-sm font-bold text-gray-800">{fmt(stats.total)}</p>
+                            <p className="text-xs text-gray-400">
+                              {stats.transacciones} venta{stats.transacciones !== 1 ? "s" : ""} · {pct}%
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             </div>
           )}

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("ventas")
-    .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, clientes(nombre)")
+    .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, procedencia, clientes(nombre)")
     .eq("store_id", store_id)
     .neq("estado", "anulada")
     .gte("created_at", desde.toISOString())
@@ -81,6 +81,15 @@ export async function GET(req: NextRequest) {
     canales[c] = (canales[c] ?? 0) + Number(v.total);
   }
 
+  // Ventas por procedencia breakdown
+  const procedencias: Record<string, { total: number; transacciones: number }> = {};
+  for (const v of ventas ?? []) {
+    const p = (v as { procedencia?: string }).procedencia ?? "presencial";
+    if (!procedencias[p]) procedencias[p] = { total: 0, transacciones: 0 };
+    procedencias[p].total += Number(v.total);
+    procedencias[p].transacciones += 1;
+  }
+
   // Predicción demanda: promedio diario de los últimos 7 días
   const ultimos7 = Object.entries(ventasPorDia)
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -125,6 +134,7 @@ export async function GET(req: NextRequest) {
     topClientes,
     metodos,
     canales,
+    procedencias,
     prediccion7dias,
     promedioDiario: Math.round(promedioDiario),
     vencimientos: {

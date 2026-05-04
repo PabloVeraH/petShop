@@ -8,6 +8,7 @@ import UltimasVentas from "./components/UltimasVentas";
 import AlertasConsumo from "./components/AlertasConsumo";
 import SugerenciasRecompra from "./components/SugerenciasRecompra";
 import VentasPorCanal from "./components/VentasPorCanal";
+import VentasPorProcedencia from "./components/VentasPorProcedencia";
 
 type StockAlerta = {
   id: string;
@@ -124,6 +125,18 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <VentasPorCanal data={data?.ventasPorCanal ?? []} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Procedencia */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Procedencia de ventas hoy</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VentasPorProcedencia data={data?.ventasPorProcedencia ?? []} />
           </CardContent>
         </Card>
       </div>
