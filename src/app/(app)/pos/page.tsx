@@ -36,13 +36,16 @@ export default function POSPage() {
         descuentoPct: descuento,
         procedencia,
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       clearCart();
       setShowPagoModal(false);
       setVentaError(null);
       setVentaExito(true);
       queryClient.invalidateQueries({ queryKey: ["productos"] });
       setTimeout(() => setVentaExito(false), 3000);
+      if (data?.id) {
+        window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");
+      }
     },
     onError: (e: Error) => {
       setVentaError(e.message);

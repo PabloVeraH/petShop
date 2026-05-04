@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
 
@@ -34,6 +35,8 @@ async function getVenta(id: string): Promise<VentaDetalle> {
 
 export default function TicketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const autoPrint = searchParams.get("autoPrint") === "1";
   const queryClient = useQueryClient();
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
@@ -96,6 +99,15 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     },
   });
 
+  useEffect(() => {
+    if (!autoPrint || !data) return;
+    const timer = setTimeout(() => {
+      window.print();
+      window.close();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [autoPrint, data]);
+
   if (isLoading) return <p className="p-8 text-gray-400 text-sm">Cargando...</p>;
   if (isError || !data) return <p className="p-8 text-red-500 text-sm">Venta no encontrada.</p>;
 
@@ -125,7 +137,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     : `https://wa.me/?text=${whatsappText}`;
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="max-w-md mx-auto space-y-4 print:max-w-none print:mx-0">
       {/* Acciones (no se imprimen) */}
       <div className="flex gap-2 mb-4 print:hidden flex-wrap">
         <Button variant="outline" onClick={() => window.history.back()}>
