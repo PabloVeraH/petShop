@@ -195,14 +195,18 @@ export function DevolucionModal({
                             <label className="text-xs text-gray-600">Cantidad:</label>
                             <Input
                               type="number"
-                              min={0}
+                              min={1}
                               max={item.cantidad}
-                              value={selectedItems[item.id]?.cantidad ?? 0}
+                              value={selectedItems[item.id]?.cantidad ?? 1}
                               onChange={(e) =>
-                                handleSetCantidad(item.id, parseInt(e.target.value) || 0)
+                                handleSetCantidad(item.id, parseInt(e.target.value) || 1)
                               }
                               className="w-16 h-8 text-xs"
                               onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === "Enter") e.preventDefault();
+                              }}
                             />
                             <span className="text-xs text-gray-500">/ {item.cantidad}</span>
                           </div>
