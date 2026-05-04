@@ -17,10 +17,15 @@ ALTER TABLE ventas
 ALTER TABLE ventas DROP CONSTRAINT IF EXISTS ventas_vendedor_id_fkey;
 ALTER TABLE ventas DROP COLUMN IF EXISTS vendedor_id;
 
--- 4. Eliminar tabla vendedores (vacía, ya no se usa)
+-- 4. Eliminar FK y columna vendedor_id de clientes (dependencia descubierta en ejecución,
+--    campo siempre null — 0 registros con datos)
+ALTER TABLE clientes DROP CONSTRAINT IF EXISTS clientes_vendedor_id_fkey;
+ALTER TABLE clientes DROP COLUMN IF EXISTS vendedor_id;
+
+-- 5. Eliminar tabla vendedores (vacía, ya no se usa)
 DROP TABLE IF EXISTS vendedores;
 
--- 5. Índices para queries de performance
+-- 6. Índices para queries de performance
 CREATE INDEX IF NOT EXISTS idx_ventas_worker_clerk_id ON ventas(store_id, worker_clerk_id);
 CREATE INDEX IF NOT EXISTS idx_ventas_worker_date ON ventas(store_id, worker_clerk_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_clerk_users_nombre ON clerk_users(store_id, nombre);
