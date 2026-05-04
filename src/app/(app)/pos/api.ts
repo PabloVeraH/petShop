@@ -24,7 +24,7 @@ export async function getMascotasByCliente(clienteId: string): Promise<Mascota[]
 export async function createVenta({
   items,
   clienteId,
-  vendedorId,
+  workerClerkId,
   metodoPago,
   numeroTransaccion,
   descuentoPct,
@@ -38,7 +38,7 @@ export async function createVenta({
     mascota_id?: string;
   }[];
   clienteId?: string;
-  vendedorId?: string;
+  workerClerkId?: string;
   metodoPago: string;
   numeroTransaccion?: string;
   descuentoPct: number;
@@ -47,7 +47,7 @@ export async function createVenta({
   const res = await fetch("/api/ventas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, clienteId, vendedorId, metodoPago, numeroTransaccion, descuentoPct, procedencia }),
+    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia }),
   });
   if (!res.ok) {
     const data = await res.json();

@@ -22,9 +22,8 @@ export async function GET(
     .select(
       `
       id, store_id, numero_comprobante, total, subtotal, descuento, impuesto,
-      created_at, estado,
+      created_at, estado, worker_clerk_id,
       clientes(id, nombre, telefono, email, rut),
-      vendedores(nombre),
       venta_items(cantidad, precio_unitario, subtotal, productos(nombre, sku))
     `
     )
@@ -34,6 +33,16 @@ export async function GET(
 
   if (ventaError || !venta) {
     return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
+  }
+
+  let worker = null;
+  if (venta.worker_clerk_id) {
+    const { data: workerData } = await supabase
+      .from("clerk_users")
+      .select("nombre, email")
+      .eq("clerk_id", venta.worker_clerk_id)
+      .single();
+    worker = workerData;
   }
 
   // Obtener pagos
@@ -52,14 +61,13 @@ export async function GET(
 
   // Construir HTML del recibo
   const cliente = venta.clientes as any;
-  const vendedor = venta.vendedores as any;
   const items = venta.venta_items as any[];
 
   const html = generarHTMLRecibo({
     venta,
     store,
     cliente,
-    vendedor,
+    worker,
     items,
     pagos: pagos ?? [],
   });
@@ -76,12 +84,12 @@ interface ReciboDatos {
   venta: any;
   store: any;
   cliente: any;
-  vendedor: any;
+  worker: any;
   items: any[];
   pagos: any[];
 }
 
-function generarHTMLRecibo({ venta, store, cliente, vendedor, items, pagos }: ReciboDatos): string {
+function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: ReciboDatos): string {
   const fecha = new Date(venta.created_at);
   const fechaFormato = fecha.toLocaleDateString("es-CL");
   const horaFormato = fecha.toLocaleTimeString("es-CL");
@@ -324,7 +332,7 @@ function generarHTMLRecibo({ venta, store, cliente, vendedor, items, pagos }: Re
     }
 
     <!-- Vendedor -->
-    ${vendedor ? `<div class="seccion"><div class="seccion-titulo">Vendedor: ${vendedor.nombre}</div></div>` : ""}
+    ${worker ? `<div class="seccion"><div class="seccion-titulo">Vendedor: ${worker.nombre ?? worker.email}</div></div>` : ""}
 
     <!-- Detalles de venta -->
     <div class="seccion">

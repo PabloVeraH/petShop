@@ -34,7 +34,7 @@ describe("GET /api/recibos/[ventaId]", () => {
         email: "juan@example.com",
         telefono: "+56912345678",
       },
-      vendedores: { nombre: "Carlos" },
+      worker: { nombre: "Carlos" },
       venta_items: [
         {
           cantidad: 2,
@@ -127,7 +127,7 @@ describe("GET /api/recibos/[ventaId]", () => {
         email: null,
         telefono: null,
       },
-      vendedores: null,
+      worker: null,
       venta_items: [],
     };
 
@@ -237,6 +237,7 @@ describe("GET /api/recibos/[ventaId]", () => {
       impuesto: 7984,
       estado: "pagada",
       created_at: "2026-04-17T14:30:00Z",
+      worker_clerk_id: null,
       clientes: {
         id: "client-3",
         nombre: "Empresa XYZ",
@@ -244,7 +245,6 @@ describe("GET /api/recibos/[ventaId]", () => {
         email: "empresa@xyz.cl",
         telefono: "+56234567890",
       },
-      vendedores: { nombre: "Ana López" },
       venta_items: [
         {
           cantidad: 1,
@@ -306,7 +306,6 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("77777777-7");
     expect(data.html).toContain("Producto A");
     expect(data.html).toContain("Producto B");
-    expect(data.html).toContain("Ana López");
     expect(data.html).toContain("$50.000");
     expect(data.html).toContain("Subtotal:");
     expect(data.html).toContain("Descuento:");

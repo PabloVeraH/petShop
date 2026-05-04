@@ -16,7 +16,7 @@ describe("GET /api/ventas/[id]", () => {
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
   });
 
-  it("obtiene venta con items, cliente y vendedor", async () => {
+  it("obtiene venta con items, cliente y worker", async () => {
     const ventaChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -31,9 +31,18 @@ describe("GET /api/ventas/[id]", () => {
           metodo_pago: "efectivo",
           estado: "pagada",
           created_at: "2026-04-17T10:00:00Z",
+          worker_clerk_id: "clerk-pedro",
           clientes: { id: "cli-1", nombre: "Juan", rut: "12345678-K", telefono: "98765432" },
-          vendedores: { nombre: "Pedro" },
         },
+        error: null,
+      }),
+    };
+
+    const workerChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { nombre: "Pedro", email: "pedro@example.com" },
         error: null,
       }),
     };
@@ -58,7 +67,8 @@ describe("GET /api/ventas/[id]", () => {
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn((table: string) => {
         callCount++;
-        if (callCount === 1) return ventaChain;
+        if (table === "ventas") return ventaChain;
+        if (table === "clerk_users") return workerChain;
         return itemsChain;
       }),
     });
@@ -70,7 +80,7 @@ describe("GET /api/ventas/[id]", () => {
     expect(res.status).toBe(200);
     expect(data.numero_comprobante).toBe("20260417-ABC123");
     expect(data.clientes.nombre).toBe("Juan");
-    expect(data.vendedores.nombre).toBe("Pedro");
+    expect(data.worker.nombre).toBe("Pedro");
     expect(data.items).toHaveLength(1);
     expect(data.items[0].productos.nombre).toBe("Producto A");
   });
@@ -142,7 +152,7 @@ describe("GET /api/ventas/[id]", () => {
           estado: "pendiente",
           created_at: "2026-04-17T10:00:00Z",
           clientes: null,
-          vendedores: null,
+          worker_clerk_id: null,
         },
         error: null,
       }),
@@ -171,6 +181,7 @@ describe("GET /api/ventas/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(data.items).toEqual([]);
+    expect(data.worker).toBeNull();
   });
 });
 

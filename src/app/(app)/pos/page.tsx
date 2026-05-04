@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import { usePOSStore } from "@/stores/pos";
 import { createVenta } from "./api";
 import SearchProductos from "./components/SearchProductos";
@@ -16,8 +17,18 @@ export default function POSPage() {
   const [ventaExito, setVentaExito] = useState(false);
   const [ventaError, setVentaError] = useState<string | null>(null);
 
+  const { userId, sessionClaims } = useAuth();
+  const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
+  const isStoreAdmin = meta?.storeAdmin === true;
+
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, vendedorId, metodoPago, numeroTransaccion, descuento, total, procedencia, clearCart } = usePOSStore();
+  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, total, procedencia, clearCart, setWorker } = usePOSStore();
+
+  useEffect(() => {
+    if (userId && !isStoreAdmin) {
+      setWorker(userId);
+    }
+  }, [userId, isStoreAdmin, setWorker]);
 
   const { mutate: procesarVenta, isPending } = useMutation({
     mutationFn: () =>
@@ -30,7 +41,7 @@ export default function POSPage() {
           mascota_id: i.mascota_id,
         })),
         clienteId,
-        vendedorId,
+        workerClerkId,
         metodoPago: metodoPago!,
         numeroTransaccion,
         descuentoPct: descuento,

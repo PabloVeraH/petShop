@@ -23,7 +23,13 @@ const PROCEDENCIAS = [
 
 const DESCUENTOS_RAPIDOS = [5, 10, 15, 20];
 
-type Vendedor = { id: string; nombre: string };
+type Worker = {
+  clerk_id: string;
+  nombre: string | null;
+  email: string;
+  ventas_mes: number;
+  ventas_hoy: number;
+};
 
 interface ModalPagoProps {
   onConfirm: () => void;
@@ -32,17 +38,24 @@ interface ModalPagoProps {
 }
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
-  const { subtotal, descuento, total, metodoPago, setMetodoPago, numeroTransaccion, setNumeroTransaccion, setDescuento, fidelizacionDescuento, vendedorId, setVendedor, procedencia, setProcedencia } =
+  const { subtotal, descuento, total, metodoPago, setMetodoPago, numeroTransaccion, setNumeroTransaccion, setDescuento, fidelizacionDescuento, workerClerkId, setWorker, procedencia, setProcedencia } =
     usePOSStore();
 
-  const { data: vendedores } = useQuery<Vendedor[]>({
-    queryKey: ["vendedores"],
-    queryFn: () => fetch("/api/vendedores").then((r) => r.json()),
+  const { data: workers } = useQuery<Worker[]>({
+    queryKey: ["workers"],
+    queryFn: () => fetch("/api/workers").then((r) => r.json()),
   });
 
   const sub = subtotal();
   const desc = (sub * descuento) / 100;
   const tot = Math.round(total());
+
+  const sortedWorkers = workers
+    ? [
+        workers.find((w) => w.clerk_id === workerClerkId),
+        ...workers.filter((w) => w.clerk_id !== workerClerkId),
+      ].filter(Boolean) as Worker[]
+    : [];
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
@@ -110,20 +123,22 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             </div>
           )}
 
-          {/* Vendedor */}
-          {vendedores && vendedores.length > 0 && (
+          {/* Worker */}
+          {sortedWorkers.length > 0 && (
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">
-                Vendedor (opcional)
+                Asignar a vendedor
               </label>
               <select
-                value={vendedorId ?? ""}
-                onChange={(e) => setVendedor(e.target.value || undefined)}
+                value={workerClerkId ?? ""}
+                onChange={(e) => setWorker(e.target.value || undefined)}
                 className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="">Sin vendedor</option>
-                {vendedores.map((v) => (
-                  <option key={v.id} value={v.id}>{v.nombre}</option>
+                <option value="">Sin asignar</option>
+                {sortedWorkers.map((w) => (
+                  <option key={w.clerk_id} value={w.clerk_id}>
+                    {w.nombre ?? w.email}
+                  </option>
                 ))}
               </select>
             </div>
