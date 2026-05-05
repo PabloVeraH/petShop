@@ -54,3 +54,43 @@ export interface Venta {
   metodo_pago?: string;
   created_at: string;
 }
+
+export interface LoteProducto {
+  id: string;
+  store_id: string;
+  producto_id: string;
+  numero_lote?: string | null;
+  cantidad_inicial: number;
+  cantidad_actual: number;
+  fecha_vencimiento: string;
+  fecha_ingreso: string;
+  orden_compra_id?: string | null;
+  notas?: string | null;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+  producto?: Pick<Producto, 'id' | 'nombre' | 'sku' | 'stock' | 'dias_alerta_expira'>;
+}
+
+export type LoteVencimientoStatus = 'vencido' | 'proximo' | 'vigente';
+
+export interface LoteConStatus extends LoteProducto {
+  status: LoteVencimientoStatus;
+  diasRestantes: number;
+  label: string;
+}
+
+export interface VentaItemLote {
+  id: string;
+  venta_item_id: string;
+  lote_id: string;
+  cantidad: number;
+  created_at: string;
+  lote?: LoteProducto;
+}
+
+export interface DeduccionFIFOResultado {
+  lote_id: string;
+  cantidad_deducida: number;
+  fecha_ingreso: string;
+}

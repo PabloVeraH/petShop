@@ -132,26 +132,38 @@ export async function POST(req: NextRequest) {
 
   for (const item of itemsConDetalles) {
     if (item.restituirStock) {
-      const { data: prod } = await supabase
-        .from("productos")
-        .select("stock")
-        .eq("id", item.productoId)
-        .single();
+      const { data: itemLotes } = await supabase
+        .from("venta_item_lotes")
+        .select("id")
+        .eq("venta_item_id", item.ventaItemId)
+        .limit(1);
 
-      if (prod) {
-        await supabase
-          .from("productos")
-          .update({ stock: prod.stock + item.cantidadDevuelta })
-          .eq("id", item.productoId);
-
-        await supabase.from("stock_movements").insert({
-          producto_id: item.productoId,
-          tipo: "entrada",
-          cantidad: item.cantidadDevuelta,
-          referencia_id: nc.id,
-          notas: `Devolución ${numero_nc}`,
+      if (itemLotes && itemLotes.length > 0) {
+        await supabase.rpc("devolver_stock_a_lotes", {
+          p_venta_item_id: item.ventaItemId,
         });
+      } else {
+        const { data: prod } = await supabase
+          .from("productos")
+          .select("stock")
+          .eq("id", item.productoId)
+          .single();
+
+        if (prod) {
+          await supabase
+            .from("productos")
+            .update({ stock: prod.stock + item.cantidadDevuelta })
+            .eq("id", item.productoId);
+        }
       }
+
+      await supabase.from("stock_movements").insert({
+        producto_id: item.productoId,
+        tipo: "entrada",
+        cantidad: item.cantidadDevuelta,
+        referencia_id: nc.id,
+        notas: `Devolución ${numero_nc}`,
+      });
     }
   }
 

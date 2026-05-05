@@ -45,6 +45,7 @@ describe("GET /api/reports - vencimientos section", () => {
     ventasChain.eq = jest.fn().mockReturnValue(ventasChain);
     ventasChain.neq = jest.fn().mockReturnValue(ventasChain);
     ventasChain.gte = jest.fn().mockReturnValue(ventasChain);
+    ventasChain.gt = jest.fn().mockReturnValue(ventasChain);
     ventasChain.order = jest.fn().mockResolvedValue({ data: ventasData, error: null });
 
     const itemsChain: any = {};
@@ -65,6 +66,7 @@ describe("GET /api/reports - vencimientos section", () => {
         if (table === "ventas") return ventasChain;
         if (table === "venta_items") return itemsChain;
         if (table === "productos") return productosChain;
+        if (table === "lotes_producto") return ventasChain;
         return ventasChain;
       }),
     };
@@ -637,6 +639,7 @@ describe("GET /api/reports - vencimientos section", () => {
           chain.eq = jest.fn().mockReturnValue(chain);
           chain.neq = jest.fn().mockReturnValue(chain);
           chain.gte = jest.fn().mockReturnValue(chain);
+          chain.gt = jest.fn().mockReturnValue(chain);
           chain.in = jest.fn().mockResolvedValue({ data: null, error: null });
           chain.order = jest.fn().mockResolvedValue({ data: null, error: null });
           chain.not = jest.fn().mockReturnValue(chain);

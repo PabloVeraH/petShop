@@ -33,6 +33,8 @@ function makeFromDevolucion(
       single: jest.fn().mockResolvedValue({ data: null, error: null }),
       order: jest.fn().mockResolvedValue({ data: [], error: null }),
       upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+      limit: jest.fn().mockResolvedValue({ data: null, error: null }),
+      gt: jest.fn().mockReturnThis(),
     };
 
     if (table === "ventas") {

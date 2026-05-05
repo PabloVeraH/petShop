@@ -1,29 +1,31 @@
 import { GET, POST } from "@/app/api/ordenes-compra/route";
-import { GET as GET_BY_ID } from "@/app/api/ordenes-compra/[id]/route";
+import { GET as GET_BY_ID, PATCH } from "@/app/api/ordenes-compra/[id]/route";
 import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos");
+jest.mock("@/lib/audit");
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
+import * as auditModule from "@/lib/audit";
 
 describe("Órdenes de Compra API", () => {
-  const mockStoreId = "store-1";
+  const mockStoreId = "a57ace69-a5f4-4089-83e9-04d92c27dd43";
   const mockOrden = {
-    id: "oc-1",
+    id: "a57ace69-a5f4-4089-83e9-04d92c27dd43",
     numero: "OC-20260424-ABC123",
     estado: "pendiente",
     total: 3800,
     fecha_estimada: "2026-05-01",
     created_at: "2026-04-24T10:00:00Z",
-    proveedor_id: "prov-1",
+    proveedor_id: "d93cfe99-3abf-4255-8f5f-be40d3d452a0",
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "80e6c208-9e4c-40db-be09-f070a4c5b7a3" });
   });
 
   describe("GET /api/ordenes-compra", () => {
@@ -98,11 +100,282 @@ describe("Órdenes de Compra API", () => {
     it("retorna 400 si no hay items", async () => {
       const req = new NextRequest("http://localhost/api/ordenes-compra", {
         method: "POST",
-        body: JSON.stringify({ proveedor_id: "prov-1", items: [] }),
+        body: JSON.stringify({ proveedor_id: "d93cfe99-3abf-4255-8f5f-be40d3d452a0", items: [] }),
       });
       const res = await POST(req);
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe("PATCH /api/ordenes-compra/[id] — recibir sin lotes", () => {
+    it("funciona sin lotes (stock directo)", async () => {
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      let capturedUpdate = false;
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "productos") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: { stock: 0 }, error: null }); },
+          };
+        }
+        if (table === "stock_movements") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 10, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe("PATCH /api/ordenes-compra/[id] — recibir con lotes", () => {
+    it("crea lote cuando se proporciona lotes[]", async () => {
+      const itemsLoteInsert: any[] = [];
+
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "lotes_producto") {
+          return {
+            insert: jest.fn().mockImplementation((data) => {
+              itemsLoteInsert.push(data);
+              return {
+                select: jest.fn().mockReturnThis(),
+                single: jest.fn().mockReturnThis(),
+                then: function(resolve: any) {
+                  return resolve({ data: { ...data, id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }, error: null });
+                },
+              };
+            }),
+          };
+        }
+        if (table === "stock_movements") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 20, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
+          lotes: [{
+            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
+            fecha_vencimiento: "2026-12-31",
+            numero_lote: "LOTE-A",
+            notas: "Primer lote",
+          }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(itemsLoteInsert.length).toBe(1);
+      expect(itemsLoteInsert[0]).toMatchObject({
+        producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
+        cantidad_inicial: 20,
+        cantidad_actual: 20,
+        numero_lote: "LOTE-A",
+        fecha_vencimiento: "2026-12-31",
+        notas: "Primer lote",
+      });
+    });
+
+    it("omite lote cuando cantidad_recibida = 0", async () => {
+      const itemsLoteInsert: any[] = [];
+
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "lotes_producto") {
+          return {
+            insert: jest.fn().mockImplementation((data) => {
+              itemsLoteInsert.push(data);
+              return {
+                select: jest.fn().mockReturnThis(),
+                single: jest.fn().mockReturnThis(),
+                then: function(resolve: any) {
+                  return resolve({ data: { ...data, id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }, error: null });
+                },
+              };
+            }),
+          };
+        }
+        if (table === "stock_movements") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 0, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
+          lotes: [{
+            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
+            fecha_vencimiento: "2026-12-31",
+          }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(itemsLoteInsert.length).toBe(0);
+    });
+
+    it("retorna 500 si falla la creación del lote", async () => {
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "lotes_producto") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            then: function(resolve: any) {
+              return resolve({ data: null, error: { message: "FK violation" } });
+            },
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 5, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
+          lotes: [{ producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199", fecha_vencimiento: "2026-12-31" }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error).toContain("Error al crear lote");
     });
   });
 
@@ -125,12 +398,12 @@ describe("Órdenes de Compra API", () => {
         return resolve({
           data: [
             {
-              id: "item-1",
+              id: "df50e110-0482-4450-8745-42c54006d902",
               cantidad_solicitada: 10,
               cantidad_recibida: null,
               precio_unitario: 100,
               subtotal: 1000,
-              productos: { id: "prod-1", nombre: "Producto A", sku: "SKU-A" },
+              productos: { id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", nombre: "Producto A", sku: "SKU-A" },
             },
           ],
           error: null,
@@ -145,7 +418,7 @@ describe("Órdenes de Compra API", () => {
       });
 
       const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1");
-      const res = await GET_BY_ID(req, { params: Promise.resolve({ id: "oc-1" }) });
+      const res = await GET_BY_ID(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
       const data = await res.json();
 
       expect(res.status).toBe(200);
@@ -153,3 +426,4 @@ describe("Órdenes de Compra API", () => {
     });
   });
 });
+

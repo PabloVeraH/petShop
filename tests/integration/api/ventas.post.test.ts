@@ -19,6 +19,7 @@ const mockChain = {
   upsert: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
   in: jest.fn().mockReturnThis(),
+  gt: jest.fn().mockReturnThis(),
   single: mockSingle,
 };
 mockFrom.mockReturnValue(mockChain);
@@ -115,10 +116,19 @@ function setupHappyPath() {
         upsert: jest.fn().mockResolvedValue({ error: null }),
       };
     }
+    if (table === "lotes_producto") {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        count: { exact: 0 },
+      };
+    }
     return {
       ...mockChain,
-      insert: jest.fn().mockResolvedValue({ error: null }),
-      upsert: jest.fn().mockResolvedValue({ error: null }),
+      insert: jest.fn().mockReturnThis(),
+      upsert: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: null, error: null }),
@@ -211,9 +221,65 @@ describe("POST /api/ventas — flujo exitoso", () => {
     expect(body.total).toBeCloseTo(23800, 0);
   });
 
-  // I-40
-  it("I-40: venta exitosa llama a decrement_stock", async () => {
-    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
+  // I-40: with FIFO lotes present, calls disminuir_stock_fifo
+it("I-40: venta exitosa llama a decrement_stock", async () => {
+    mockRpc.mockClear();
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "lotes_producto") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          gt: jest.fn().mockReturnThis(),
+          count: { exact: 0 },
+        };
+      }
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return {
+            select: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+          };
+        } else {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }),
+          };
+        }
+      }
+      if (table === "ventas") {
+        return { ...mockChain, insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
+      }
+      if (table === "clientes") {
+        return { select: jest.fn().mockReturnThis(), insert: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), ilike: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+      }
+      if (table === "stores") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false }, error: null }) };
+      }
+      if (table === "fidelizacion") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }), upsert: jest.fn().mockResolvedValue({ error: null }) };
+      }
+      if (table === "venta_items") {
+        const insertMock = jest.fn().mockReturnValue({
+          select: jest.fn().mockResolvedValue({
+            data: [{ id: "vi-1", producto_id: PRODUCTO_ID, cantidad: 2, precio_unitario: 10000, subtotal: 20000 }],
+            error: null
+          }),
+        });
+        return {
+          select: jest.fn().mockReturnThis(),
+          insert: insertMock,
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      return { ...mockChain, insert: jest.fn().mockReturnThis(), upsert: jest.fn().mockResolvedValue({ error: null }), select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
+    expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("decrement_stock", expect.objectContaining({
       p_producto_id: PRODUCTO_ID,
       p_cantidad: 2,
@@ -261,16 +327,39 @@ describe("POST /api/ventas — flujo exitoso", () => {
       if (table === "ventas") {
         return { ...mockChain, insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
       }
+if (table === "lotes_producto") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          gt: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+          count: { exact: 0 },
+        };
+      }
       if (table === "clientes") {
-        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1", nombre: "Juan", telefono: "56912345678" }, error: null }) };
+        return { select: jest.fn().mockReturnThis(), insert: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), ilike: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1", nombre: "Juan", telefono: "56912345678" }, error: null }) };
       }
       if (table === "stores") {
         return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { name: "Test", whatsapp_enabled: true, whatsapp_phone_number_id: "123", whatsapp_access_token: "tok" }, error: null }) };
       }
       if (table === "venta_items") {
-        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
+        const insertMock = jest.fn().mockReturnValue({
+          select: jest.fn().mockResolvedValue({
+            data: [{ id: "vi-1", producto_id: PRODUCTO_ID, cantidad: 2, precio_unitario: 10000, subtotal: 20000 }],
+            error: null
+          }),
+        });
+        return {
+          select: jest.fn().mockReturnThis(),
+          insert: insertMock,
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        };
       }
-      return { ...mockChain, insert: jest.fn().mockResolvedValue({ error: null }), upsert: jest.fn().mockResolvedValue({ error: null }), select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+      if (table === "fidelizacion") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }), upsert: jest.fn().mockResolvedValue({ error: null }) };
+      }
+      return { ...mockChain, insert: jest.fn().mockReturnThis(), upsert: jest.fn().mockResolvedValue({ error: null }), select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
     });
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
     expect(sendWhatsAppText).toHaveBeenCalled();
@@ -310,7 +399,7 @@ describe("POST /api/ventas — cálculo de descuento", () => {
       }
       return {
         ...mockChain,
-        insert: jest.fn().mockResolvedValue({ error: null }),
+        insert: jest.fn().mockReturnThis(),
         upsert: jest.fn().mockResolvedValue({ error: null }),
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -382,7 +471,7 @@ describe("POST /api/ventas — procedencia", () => {
       }
       return {
         ...mockChain,
-        insert: jest.fn().mockResolvedValue({ error: null }),
+        insert: jest.fn().mockReturnThis(),
         upsert: jest.fn().mockResolvedValue({ error: null }),
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),

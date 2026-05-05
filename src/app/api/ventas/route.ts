@@ -185,24 +185,27 @@ export async function POST(req: NextRequest) {
      result: "success",
    });
 
-  const { error: itemsError } = await supabase.from("venta_items").insert(
-    itemsConPrecio.map((item: {
-      producto_id: string;
-      cantidad: number;
-      precio_unitario: number;
-      subtotal: number;
-      mascota_id?: string;
-    }) => ({
-      venta_id: venta.id,
-      producto_id: item.producto_id,
-      cantidad: item.cantidad,
-      precio_unitario: item.precio_unitario,
-      subtotal: item.subtotal,
-      mascota_id: item.mascota_id ?? null,
-    }))
-  );
+const { data: ventaItems, error: itemsError } = await supabase
+     .from("venta_items")
+     .insert(
+       itemsConPrecio.map((item: {
+         producto_id: string;
+         cantidad: number;
+         precio_unitario: number;
+         subtotal: number;
+         mascota_id?: string;
+       }) => ({
+         venta_id: venta.id,
+         producto_id: item.producto_id,
+         cantidad: item.cantidad,
+         precio_unitario: item.precio_unitario,
+         subtotal: item.subtotal,
+         mascota_id: item.mascota_id ?? null,
+       }))
+     )
+     .select();
 
-  if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+   if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   // Registrar pago
   const { error: pagoError } = await supabase.from("pagos").insert({
@@ -218,18 +221,40 @@ export async function POST(req: NextRequest) {
   // Actualizar estado de venta a pagada
   await supabase.from("ventas").update({ estado: "pagada" }).eq("id", venta.id);
 
-  for (const item of itemsConPrecio as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
-    await supabase.rpc("decrement_stock", {
-      p_producto_id: item.producto_id,
-      p_cantidad: item.cantidad,
-    });
-    await supabase.from("stock_movements").insert({
-      producto_id: item.producto_id,
-      tipo: "salida",
-      cantidad: -item.cantidad,
-      referencia_id: venta.id,
-      notas: `Venta ${venta.id}`,
-    });
+for (const item of itemsConPrecio as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
+     const ventaItem = (ventaItems ?? []).find(vi => vi.producto_id === item.producto_id && vi.cantidad === item.cantidad);
+     if (!ventaItem) continue;
+
+const { count } = await supabase
+        .from("lotes_producto")
+        .select("id", { count: "exact", head: true })
+        .eq("producto_id", item.producto_id)
+        .eq("store_id", store_id)
+        .eq("activo", true)
+        .gt("cantidad_actual", 0);
+
+      if ((count ?? 0) > 0) {
+       const { error: fifoError } = await supabase.rpc("deducir_stock_fifo", {
+         p_producto_id:   item.producto_id,
+         p_store_id:      store_id,
+         p_cantidad:      item.cantidad,
+         p_venta_item_id: ventaItem.id,
+       });
+       if (fifoError) return NextResponse.json({ error: "Stock insuficiente para completar la venta." }, { status: 422 });
+     } else {
+       await supabase.rpc("decrement_stock", {
+         p_producto_id: item.producto_id,
+         p_cantidad:    item.cantidad,
+       });
+     }
+
+     await supabase.from("stock_movements").insert({
+       producto_id: item.producto_id,
+       tipo: "salida",
+       cantidad: -item.cantidad,
+       referencia_id: venta.id,
+       notas: `Venta ${venta.id}`,
+     });
 
     // Calcular alerta de consumo si hay mascota y config definida
     if (item.mascota_id) {

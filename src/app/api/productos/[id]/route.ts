@@ -22,6 +22,22 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  if (parsed.data.stock !== undefined) {
+    const { count } = await supabase
+      .from("lotes_producto")
+      .select("*", { count: "exact", head: true })
+      .eq("producto_id", id)
+      .eq("store_id", store_id)
+      .eq("activo", true);
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        { error: "Este producto usa sistema de lotes. Modificar stock a través de lotes." },
+        { status: 422 }
+      );
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (parsed.data.nombre !== undefined) updates.nombre = parsed.data.nombre.trim();
   if (parsed.data.sku !== undefined) updates.sku = parsed.data.sku.trim().toUpperCase();
@@ -53,15 +69,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
-  syncProductsToHub([{
-    producto_id: data.id,
-    nombre_producto: data.nombre,
-    marca: data.marca ?? undefined,
-    codigo_barra: data.codigo_barra ?? null,
-    precio: Number(data.precio),
-    stock: data.stock,
-    activo: data.activo ?? true,
-  }]);
+  if (data) {
+    syncProductsToHub([{
+      producto_id: data.id,
+      nombre_producto: data.nombre,
+      marca: data.marca ?? undefined,
+      codigo_barra: data.codigo_barra ?? null,
+      precio: Number(data.precio),
+      stock: data.stock,
+      activo: data.activo ?? true,
+    }]);
+  }
 
   return NextResponse.json(data);
 }

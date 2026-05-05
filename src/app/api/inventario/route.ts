@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   
   const soloAlertas = req.nextUrl.searchParams.get("alertas") === "1";
   const soloVencimientos = req.nextUrl.searchParams.get("vencimiento") === "1";
+  const conLotes = req.nextUrl.searchParams.get("con_lotes") === "1";
 
   let query = supabase
     .from("productos")
@@ -41,6 +42,27 @@ export async function GET(req: NextRequest) {
 
   if (soloVencimientos) {
     result = result.filter((p) => p.fecha_vencimiento !== null);
+  }
+
+  if (conLotes) {
+    const productoIds = result.map((p) => p.id);
+    const { data: lotes } = await supabase
+      .from("lotes_producto")
+      .select("*")
+      .eq("store_id", store_id)
+      .eq("activo", true)
+      .in("producto_id", productoIds);
+
+    const lotesPorProducto: Record<string, typeof lotes> = {};
+    (lotes ?? []).forEach((l) => {
+      if (!lotesPorProducto[l.producto_id]) lotesPorProducto[l.producto_id] = [];
+      lotesPorProducto[l.producto_id]!.push(l);
+    });
+
+    result = result.map((p) => ({
+      ...p,
+      lotes: lotesPorProducto[p.id] ?? [],
+    }));
   }
 
   return NextResponse.json(result);

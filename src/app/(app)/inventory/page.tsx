@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LotesPanel } from "./components/LotesPanel";
 
 type Producto = {
   id: string;
@@ -115,6 +116,7 @@ export default function InventoryPage() {
   const [formError, setFormError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Producto | null>(null);
   const [historial, setHistorial] = useState<HistorialModal>(null);
+  const [verLotesDe, setVerLotesDe] = useState<{ id: string; nombre: string; dias_alerta_expira: number } | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
@@ -346,6 +348,7 @@ export default function InventoryPage() {
                       <div className="flex gap-1">
                         <button onClick={() => abrirEditar(p)} className="text-xs text-blue-500 hover:underline">Editar</button>
                         <button onClick={() => setHistorial(p)} className="text-xs text-gray-500 hover:underline ml-1">Historial</button>
+                        <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-xs text-purple-600 hover:underline ml-1">Lotes</button>
                         <button onClick={() => setConfirmDelete(p)} className="text-xs text-red-400 hover:underline ml-1">Desact.</button>
                       </div>
                     </TableCell>
@@ -536,6 +539,24 @@ export default function InventoryPage() {
               <Button variant="outline" onClick={() => setConfirmDelete(null)} className="flex-1">Cancelar</Button>
               <Button variant="destructive" onClick={() => desactivarProducto(confirmDelete.id)} className="flex-1">Desactivar</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal LotesPanel */}
+      {verLotesDe && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-800">Lotes: {verLotesDe.nombre}</h3>
+              <button onClick={() => setVerLotesDe(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            </div>
+            <LotesPanel
+              productoId={verLotesDe.id}
+              storeId=""
+              diasAlerta={verLotesDe.dias_alerta_expira}
+              esSoloLectura={false}
+            />
           </div>
         </div>
       )}

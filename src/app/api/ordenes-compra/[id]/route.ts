@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraReceiveSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(
   _req: NextRequest,
@@ -43,22 +44,72 @@ export async function PATCH(
 
   const body = await req.json();
 
-  // Receiving order: estado = "recibida", items with cantidad_recibida
-  if (body.action === "recibir") {
+    // Receiving order: estado = "recibida", items with cantidad_recibida
+    if (body.action === "recibir") {
     const parsed = OrdenCompraReceiveSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { items } = parsed.data;
+    const { items, lotes } = parsed.data;
+    const lotesPorProducto = new Map(
+      (lotes ?? []).map(l => [l.producto_id, l])
+    );
 
-    // Update each item and increment stock
+    // Update each item
     for (const item of items) {
       await supabase.from("ordenes_compra_items")
         .update({ cantidad_recibida: item.cantidad_recibida })
         .eq("id", item.id);
 
-      if (item.cantidad_recibida > 0) {
+      if (item.cantidad_recibida <= 0) continue;
+
+      const loteData = lotesPorProducto.get(item.producto_id);
+
+      if (loteData) {
+        // Alimento con datos de vencimiento → crear lote
+        // El trigger de lotes_producto actualiza productos.stock automáticamente
+        const { data: lote, error: loteError } = await supabase
+          .from("lotes_producto")
+          .insert({
+            store_id,
+            producto_id: item.producto_id,
+            numero_lote: loteData.numero_lote ?? null,
+            cantidad_inicial: item.cantidad_recibida,
+            cantidad_actual: item.cantidad_recibida,
+            fecha_vencimiento: loteData.fecha_vencimiento,
+            fecha_ingreso: new Date().toISOString().split("T")[0],
+            orden_compra_id: id,
+            notas: loteData.notas ?? `Recepción orden ${id}`,
+          })
+          .select()
+          .single();
+
+        if (loteError) {
+          return NextResponse.json(
+            { error: `Error al crear lote para producto ${item.producto_id}: ${loteError.message}` },
+            { status: 500 }
+          );
+        }
+
+        await logAudit({
+          storeId: store_id,
+          userId: ctx.userId,
+          action: "CREATE",
+          entityType: "lotes_producto",
+          entityId: lote.id,
+          newValues: lote,
+        });
+
+        await supabase.from("stock_movements").insert({
+          producto_id: item.producto_id,
+          tipo: "entrada",
+          cantidad: item.cantidad_recibida,
+          referencia_id: id,
+          notas: `Recepción orden ${id} — lote ${lote.id}`,
+        });
+      } else {
+        // Producto sin lotes (no es alimento o sin datos de vencimiento) → stock directo
         const { data: prod } = await supabase.from("productos").select("stock").eq("id", item.producto_id).single();
         if (prod) {
           await supabase.from("productos").update({ stock: prod.stock + item.cantidad_recibida }).eq("id", item.producto_id);

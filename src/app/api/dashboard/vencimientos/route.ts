@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
 
   const productos = data ?? [];
 
-  // Clasificar en vencidos y próximos
   const vencidos = productos.filter((p) => p.fecha_vencimiento < hoy && p.stock > 0);
 
   const proximos = productos
@@ -41,10 +40,33 @@ export async function GET(req: NextRequest) {
       ),
     }));
 
+  const { data: lotes } = await supabase
+    .from("lotes_producto")
+    .select("*, producto:productos(id, nombre, sku, stock, dias_alerta_expira)")
+    .eq("store_id", store_id)
+    .eq("activo", true)
+    .gt("cantidad_actual", 0)
+    .order("fecha_vencimiento", { ascending: true });
+
+  const lotesVencidos = (lotes ?? []).filter((l) => l.fecha_vencimiento < hoy);
+  const lotesProximos = (lotes ?? []).filter((l) => {
+    if (l.fecha_vencimiento < hoy) return false;
+    const dias = Math.floor(
+      (new Date(l.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86_400_000
+    );
+    return dias >= 0 && dias <= ((l.producto as { dias_alerta_expira?: number } | null)?.dias_alerta_expira ?? 30);
+  });
+
   return NextResponse.json({
     hoy,
     vencidos,
     proximos,
     totalUnidadesVencidas: vencidos.reduce((sum, p) => sum + p.stock, 0),
+    lotes: {
+      vencidos: lotesVencidos,
+      proximos: lotesProximos,
+      totalUnidadesVencidas: lotesVencidos.reduce((s, l) => s + l.cantidad_actual, 0),
+      totalUnidadesProximas: lotesProximos.reduce((s, l) => s + l.cantidad_actual, 0),
+    },
   });
 }

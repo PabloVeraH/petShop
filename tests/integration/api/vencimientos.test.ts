@@ -32,6 +32,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
+    chain.gt = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockResolvedValue({ data, error: null });
 
     const mockSupabase = {
@@ -597,6 +598,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
+    chain.gt = jest.fn().mockReturnValue(chain);
     chain.order = jest.fn().mockResolvedValue({ data: [], error: null });
 
     const mockSupabase = {
@@ -610,5 +612,124 @@ describe("GET /api/dashboard/vencimientos", () => {
     // Debería llamar con el store_id del usuario
     expect(chain.eq).toHaveBeenCalledWith("store_id", "other-store");
     expect(response.status).toBe(200); // Query ejecutada, pero RLS en BD filtra
+  });
+
+  it("debería incluir campo lotes con estructura completa en respuesta", async () => {
+    const productos = [
+      {
+        id: "p1",
+        nombre: "Producto A",
+        sku: "SKU-A",
+        stock: 5,
+        fecha_vencimiento: "2024-04-10",
+        dias_alerta_expira: 10,
+        precio_oferta: null,
+        en_oferta: false,
+      },
+    ];
+
+    const lotesData = [
+      {
+        id: "lote-1",
+        producto_id: "p1",
+        numero_lote: "L001",
+        cantidad_actual: 3,
+        cantidad_inicial: 5,
+        fecha_vencimiento: "2024-04-08",
+        fecha_ingreso: "2024-01-01",
+        activo: true,
+        store_id: STORE_ID,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        producto: { id: "p1", nombre: "Producto A", sku: "SKU-A", stock: 5, dias_alerta_expira: 10 },
+      },
+    ];
+
+    const chain: any = {};
+    chain.select = jest.fn().mockReturnValue(chain);
+    chain.eq = jest.fn().mockReturnValue(chain);
+    chain.not = jest.fn().mockReturnValue(chain);
+    chain.order = jest.fn().mockResolvedValue({ data: productos, error: null });
+    chain.gt = jest.fn().mockReturnValue(chain);
+
+    const mockSupabase = {
+      from: jest.fn().mockImplementation((table: string) => {
+        if (table === "lotes_producto") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            gt: jest.fn().mockReturnThis(),
+            order: jest.fn().mockResolvedValue({ data: lotesData, error: null }),
+          };
+        }
+        return chain;
+      }),
+    };
+    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json).toHaveProperty("lotes");
+    expect(json.lotes).toHaveProperty("vencidos");
+    expect(json.lotes).toHaveProperty("proximos");
+    expect(json.lotes).toHaveProperty("totalUnidadesVencidas");
+    expect(json.lotes).toHaveProperty("totalUnidadesProximas");
+  });
+
+  it("debería calcular totalUnidadesVencidas en lotes correctamente", async () => {
+    const productos = [
+      {
+        id: "p1", nombre: "Producto A", sku: "SKU-A", stock: 5,
+        fecha_vencimiento: "2024-04-10", dias_alerta_expira: 10,
+        precio_oferta: null, en_oferta: false,
+      },
+    ];
+
+    const lotesData = [
+      {
+        id: "lote-1", producto_id: "p1", numero_lote: "A",
+        cantidad_actual: 3, cantidad_inicial: 3,
+        fecha_vencimiento: "2024-04-08", fecha_ingreso: "2024-01-01",
+        activo: true, store_id: STORE_ID,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        producto: { id: "p1", nombre: "Producto A", sku: "SKU-A", stock: 5, dias_alerta_expira: 10 },
+      },
+      {
+        id: "lote-2", producto_id: "p1", numero_lote: "B",
+        cantidad_actual: 2, cantidad_inicial: 5,
+        fecha_vencimiento: "2024-04-09", fecha_ingreso: "2024-02-01",
+        activo: true, store_id: STORE_ID,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        producto: { id: "p1", nombre: "Producto A", sku: "SKU-A", stock: 5, dias_alerta_expira: 10 },
+      },
+    ];
+
+    const chain: any = {};
+    chain.select = jest.fn().mockReturnValue(chain);
+    chain.eq = jest.fn().mockReturnValue(chain);
+    chain.not = jest.fn().mockReturnValue(chain);
+    chain.order = jest.fn().mockResolvedValue({ data: productos, error: null });
+    chain.gt = jest.fn().mockReturnValue(chain);
+
+    const mockSupabase = {
+      from: jest.fn().mockImplementation((table: string) => {
+        if (table === "lotes_producto") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            gt: jest.fn().mockReturnThis(),
+            order: jest.fn().mockResolvedValue({ data: lotesData, error: null }),
+          };
+        }
+        return chain;
+      }),
+    };
+    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+
+    const response = await GET(new NextRequest(new URL("http://localhost:3000")));
+    const json = await response.json();
+
+    expect(json.lotes.totalUnidadesVencidas).toBe(5);
   });
 });

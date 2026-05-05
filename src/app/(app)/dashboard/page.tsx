@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import KPICard from "./components/KPICard";
@@ -25,6 +26,15 @@ type Vencimiento = {
   stock: number;
   fecha_vencimiento: string;
   diasRestantes?: number;
+};
+
+type LoteDashboard = {
+  id: string;
+  producto_id: string;
+  numero_lote: string | null;
+  cantidad_actual: number;
+  fecha_vencimiento: string;
+  producto: { id: string; nombre: string; sku: string; dias_alerta_expira?: number };
 };
 
 async function getDashboardData() {
@@ -64,14 +74,16 @@ export default function DashboardPage() {
   });
 
   const {
-    data: vencimientos,
-    isLoading: vencimientosLoading,
-    isError: vencimientosError,
+    data: vencData,
+    isLoading: vencLoading,
+    isError: vencError,
   } = useQuery({
     queryKey: ["vencimientos"],
     queryFn: getVencimientos,
     refetchInterval: 60_000,
   });
+
+  const [vencimientoTab, setVencimientoTab] = useState<"producto" | "lote">("producto");
 
   if (isLoading) {
     return <p className="text-sm text-gray-400">Cargando...</p>;
@@ -190,41 +202,59 @@ export default function DashboardPage() {
 
       {/* Vencimientos */}
       <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">
-          Vencimientos
-          {(vencimientos?.vencidos?.length || 0) > 0 && (
-            <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-              {vencimientos!.vencidos.length} vencido{vencimientos!.vencidos.length !== 1 ? "s" : ""}
-            </span>
-          )}
-          {(vencimientos?.proximos?.length || 0) > 0 && (
-            <span className="ml-2 text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
-              {vencimientos!.proximos.length} próximo{vencimientos!.proximos.length !== 1 ? "s" : ""}
-            </span>
-          )}
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-700">
+            Vencimientos
+            {(vencData?.vencidos?.length ?? 0) > 0 && (
+              <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                {vencData?.vencidos?.length} vencido{(vencData?.vencidos?.length ?? 0) !== 1 ? "s" : ""}
+              </span>
+            )}
+            {(vencData?.proximos?.length ?? 0) > 0 && (
+              <span className="ml-2 text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
+                {vencData?.proximos?.length} proximo{(vencData?.proximos?.length ?? 0) !== 1 ? "s" : ""}
+              </span>
+            )}
+          </h2>
+          {(vencData?.lotes?.vencidos?.length ?? 0) > 0 || (vencData?.lotes?.proximos?.length ?? 0) > 0 ? (
+            <div className="flex gap-1 text-xs">
+              <button
+                onClick={() => setVencimientoTab("producto")}
+                className={`px-2 py-1 rounded ${vencimientoTab === "producto" ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-600"}`}
+              >
+                Por producto
+              </button>
+              <button
+                onClick={() => setVencimientoTab("lote")}
+                className={`px-2 py-1 rounded ${vencimientoTab === "lote" ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-600"}`}
+              >
+                Por lote
+              </button>
+            </div>
+          ) : null}
+        </div>
 
-        {vencimientosLoading && (
+        {vencLoading && (
           <p className="text-sm text-gray-400">Cargando...</p>
         )}
 
-        {vencimientosError && (
+        {vencError && (
           <p className="text-sm text-red-500">Error al cargar vencimientos</p>
         )}
 
-        {!vencimientosLoading && !vencimientosError && (vencimientos?.vencidos?.length || 0) === 0 && (vencimientos?.proximos?.length || 0) === 0 && (
-          <p className="text-sm text-gray-400">Sin vencimientos próximos</p>
+        {!vencLoading && !vencError && (vencData?.vencidos?.length ?? 0) === 0 && (vencData?.proximos?.length ?? 0) === 0 && (vencData?.lotes?.vencidos?.length ?? 0) === 0 && (vencData?.lotes?.proximos?.length ?? 0) === 0 && (
+          <p className="text-sm text-gray-400">Sin vencimientos proximos</p>
         )}
 
-        {!vencimientosLoading && !vencimientosError && (
+        {!vencLoading && !vencError && vencimientoTab === "producto" && (
           <div className="space-y-4">
-            {(vencimientos?.vencidos?.length || 0) > 0 && (
+            {(vencData?.vencidos?.length ?? 0) > 0 && (
               <div>
                 <span className="inline-block mb-2 text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
                   Vencidos
                 </span>
                 <div className="space-y-2">
-                  {vencimientos!.vencidos.map((p: Vencimiento) => (
+                  {vencData!.vencidos.map((p: Vencimiento) => (
                     <div key={p.id} className="flex items-center justify-between text-sm">
                       <span className="truncate flex-1 mr-2 text-gray-700">{p.nombre}</span>
                       <span className="text-gray-400 mr-2 whitespace-nowrap">{p.sku}</span>
@@ -240,13 +270,13 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {(vencimientos?.proximos?.length || 0) > 0 && (
+            {(vencData?.proximos?.length ?? 0) > 0 && (
               <div>
                 <span className="inline-block mb-2 text-xs font-semibold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
                   Proximos
                 </span>
                 <div className="space-y-2">
-                  {vencimientos!.proximos.map((p: Vencimiento) => (
+                  {vencData!.proximos.map((p: Vencimiento) => (
                     <div key={p.id} className="flex items-center justify-between text-sm">
                       <span className="truncate flex-1 mr-2 text-gray-700">{p.nombre}</span>
                       <span className="text-gray-400 mr-2 whitespace-nowrap">{p.sku}</span>
@@ -254,10 +284,72 @@ export default function DashboardPage() {
                         {p.stock} ud
                       </span>
                       <span className="text-amber-600 whitespace-nowrap">
-                        vence en {p.diasRestantes} día{p.diasRestantes !== 1 ? "s" : ""}
+                        vence en {p.diasRestantes} dia{p.diasRestantes !== 1 ? "s" : ""}
                       </span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!vencLoading && !vencError && vencimientoTab === "lote" && (
+          <div className="space-y-4">
+            {(vencData?.lotes?.vencidos?.length ?? 0) > 0 && (
+              <div>
+                <span className="inline-block mb-2 text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                  Lotes vencidos ({vencData!.lotes.vencidos.length})
+                </span>
+                <div className="space-y-2">
+                  {vencData!.lotes.vencidos.map((l: LoteDashboard) => {
+                    const diasRestantes = Math.ceil(
+                      (new Date(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
+                    );
+                    return (
+                      <div key={l.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate flex-1 mr-2 text-gray-700">{l.producto?.nombre ?? "—"}</span>
+                        <span className="text-gray-400 mr-2 whitespace-nowrap">
+                          {l.numero_lote ? `#${l.numero_lote}` : "—"}
+                        </span>
+                        <span className="text-red-600 font-medium whitespace-nowrap mr-2">
+                          {l.cantidad_actual} ud
+                        </span>
+                        <span className="text-red-600 whitespace-nowrap">
+                          {diasRestantes === 0 ? "Vence hoy" : `Vencio hace ${Math.abs(diasRestantes)} dia${Math.abs(diasRestantes) !== 1 ? "s" : ""}`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {(vencData?.lotes?.proximos?.length ?? 0) > 0 && (
+              <div>
+                <span className="inline-block mb-2 text-xs font-semibold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">
+                  Lotes proximos ({vencData!.lotes.proximos.length})
+                </span>
+                <div className="space-y-2">
+                  {vencData!.lotes.proximos.map((l: LoteDashboard) => {
+                    const diasRestantes = Math.ceil(
+                      (new Date(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
+                    );
+                    return (
+                      <div key={l.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate flex-1 mr-2 text-gray-700">{l.producto?.nombre ?? "—"}</span>
+                        <span className="text-gray-400 mr-2 whitespace-nowrap">
+                          {l.numero_lote ? `#${l.numero_lote}` : "—"}
+                        </span>
+                        <span className="text-amber-600 font-medium whitespace-nowrap mr-2">
+                          {l.cantidad_actual} ud
+                        </span>
+                        <span className="text-amber-600 whitespace-nowrap">
+                          vence en {diasRestantes} dia{diasRestantes !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

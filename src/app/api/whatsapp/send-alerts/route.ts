@@ -106,56 +106,60 @@ export async function POST() {
     const hoy = new Date().toISOString().split("T")[0];
 
     if (store?.whatsapp_enabled && store?.whatsapp_phone_number) {
-      // Traer productos próximos a vencer (dentro del umbral dias_alerta_expira)
-      const { data: productos } = await supabase
-        .from("productos")
-        .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira")
+      const { data: lotes } = await supabase
+        .from("lotes_producto")
+        .select("*, producto:productos(id, nombre, sku)")
         .eq("store_id", storeId)
         .eq("activo", true)
-        .not("fecha_vencimiento", "is", null)
+        .gt("cantidad_actual", 0)
         .order("fecha_vencimiento");
 
-      const vencidos: typeof productos = [];
-      const proximos: typeof productos = [];
+      const lotesVencidos: typeof lotes = [];
+      const lotesProximos: typeof lotes = [];
 
-      (productos ?? []).forEach((p) => {
-        if (p.fecha_vencimiento < hoy && p.stock > 0) {
-          vencidos.push(p);
-        } else if (p.fecha_vencimiento >= hoy) {
+      (lotes ?? []).forEach((l) => {
+        if (l.fecha_vencimiento < hoy && l.cantidad_actual > 0) {
+          lotesVencidos.push(l);
+        } else if (l.fecha_vencimiento >= hoy) {
           const diasRestantes = Math.ceil(
-            (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+            (new Date(l.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
           );
-          if (diasRestantes <= p.dias_alerta_expira) {
-            proximos.push(p);
+          const diasAlerta = (l.producto as { dias_alerta_expira?: number } | null)?.dias_alerta_expira ?? 30;
+          if (diasRestantes <= diasAlerta) {
+            lotesProximos.push(l);
           }
         }
       });
 
-      const hayVencimientos = vencidos.length > 0 || proximos.length > 0;
+      const hayVencimientos = lotesVencidos.length > 0 || lotesProximos.length > 0;
 
       if (hayVencimientos) {
         let msgVencimientos = `*${store!.name}* ⏰\n\nAlerta de Vencimientos:\n`;
 
-        if (vencidos.length > 0) {
-          msgVencimientos += `\n🔴 *VENCIDOS* (${vencidos.length} productos):\n`;
-          vencidos.slice(0, 5).forEach((p) => {
-            msgVencimientos += `• ${p.nombre} (SKU: ${p.sku}) - ${p.stock} ud.\n`;
+        if (lotesVencidos.length > 0) {
+          msgVencimientos += `\n🔴 *LOTES VENCIDOS* (${lotesVencidos.length}):\n`;
+          lotesVencidos.slice(0, 5).forEach((l) => {
+            const prod = l.producto as { nombre: string; sku?: string } | null;
+            const numLote = l.numero_lote ? `Lote #${l.numero_lote}` : "(sin N° lote)";
+            msgVencimientos += `• ${prod?.nombre ?? "Producto"} — ${numLote} — ${l.cantidad_actual} unid\n`;
           });
-          if (vencidos.length > 5) {
-            msgVencimientos += `... y ${vencidos.length - 5} más\n`;
+          if (lotesVencidos.length > 5) {
+            msgVencimientos += `... y ${lotesVencidos.length - 5} más\n`;
           }
         }
 
-        if (proximos.length > 0) {
-          msgVencimientos += `\n🟡 *PRÓXIMOS A VENCER* (${proximos.length} productos):\n`;
-          proximos.slice(0, 5).forEach((p) => {
+        if (lotesProximos.length > 0) {
+          msgVencimientos += `\n🟡 *LOTES PRÓXIMOS A VENCER* (${lotesProximos.length}):\n`;
+          lotesProximos.slice(0, 5).forEach((l) => {
+            const prod = l.producto as { nombre: string; sku?: string } | null;
             const diasRestantes = Math.ceil(
-              (new Date(p.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+              (new Date(l.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
             );
-            msgVencimientos += `• ${p.nombre} (SKU: ${p.sku}) - vence en ${diasRestantes}d\n`;
+            const numLote = l.numero_lote ? `Lote #${l.numero_lote}` : "(sin N° lote)";
+            msgVencimientos += `• ${prod?.nombre ?? "Producto"} — ${numLote} — ${l.cantidad_actual} unid — Vence en ${diasRestantes}d\n`;
           });
-          if (proximos.length > 5) {
-            msgVencimientos += `... y ${proximos.length - 5} más\n`;
+          if (lotesProximos.length > 5) {
+            msgVencimientos += `... y ${lotesProximos.length - 5} más\n`;
           }
         }
 

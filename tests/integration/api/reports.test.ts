@@ -21,6 +21,7 @@ function chain(data: unknown[] = []) {
     lte: jest.fn(),
     in: jest.fn(),
     not: jest.fn(),
+    gt: jest.fn(),
     order: jest.fn(),
     limit: jest.fn().mockReturnValue(resolved),
     single: jest.fn().mockResolvedValue({ data: null, error: null }),
@@ -28,7 +29,7 @@ function chain(data: unknown[] = []) {
       resolve({ data, error: null, count: data.length })
     ),
   };
-  ["select","eq","neq","gte","lte","in","not","order"].forEach(k => c[k].mockReturnValue(c));
+  ["select","eq","neq","gte","lte","in","not","gt","order"].forEach(k => c[k].mockReturnValue(c));
   return c;
 }
 

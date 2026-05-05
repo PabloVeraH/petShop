@@ -124,6 +124,32 @@ export async function GET(req: NextRequest) {
       return p.diasRestantes <= p.dias_alerta_expira && p.stock > 0;
     });
 
+  const { data: lotesData } = await supabase
+    .from("lotes_producto")
+    .select("*, producto:productos(id, nombre, sku, dias_alerta_expira)")
+    .eq("store_id", store_id)
+    .eq("activo", true)
+    .gt("cantidad_actual", 0)
+    .order("fecha_vencimiento", { ascending: true });
+
+  const lotesVencidos = (lotesData ?? []).filter((l) => l.fecha_vencimiento < hoy);
+  const lotesProximos = (lotesData ?? []).filter((l) => {
+    if (l.fecha_vencimiento < hoy) return false;
+    const diasRestantes = Math.ceil(
+      (new Date(l.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+    );
+    const diasAlerta = (l.producto as { dias_alerta_expira?: number } | null)?.dias_alerta_expira ?? 30;
+    return diasRestantes <= diasAlerta;
+  });
+
+  const porProducto: Record<string, { producto_id: string; nombre: string; lotes: typeof lotesVencidos }> = {};
+  for (const lote of [...lotesVencidos, ...lotesProximos]) {
+    const prod = lote.producto as { id: string; nombre: string } | null;
+    if (!prod) continue;
+    if (!porProducto[prod.id]) porProducto[prod.id] = { producto_id: prod.id, nombre: prod.nombre, lotes: [] };
+    porProducto[prod.id].lotes.push(lote);
+  }
+
   return NextResponse.json({
     periodo: Number(periodo),
     totalPeriodo,
@@ -141,6 +167,13 @@ export async function GET(req: NextRequest) {
       vencidos: vencidosReport,
       proximos: proximosReport,
       totalUnidadesVencidas: vencidosReport.reduce((sum, p) => sum + p.stock, 0),
+    },
+    lotes_vencimientos: {
+      vencidos: lotesVencidos,
+      proximos: lotesProximos,
+      totalUnidadesVencidas: lotesVencidos.reduce((s, l) => s + l.cantidad_actual, 0),
+      totalUnidadesProximas: lotesProximos.reduce((s, l) => s + l.cantidad_actual, 0),
+      porProducto: Object.values(porProducto),
     },
   });
 }

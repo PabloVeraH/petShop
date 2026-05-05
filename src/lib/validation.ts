@@ -323,13 +323,21 @@ export const NotaCreditoPostSchema = z.object({
   motivo: z.string().max(500).nullable().optional(),
 });
 
+export const OrdenCompraLoteSchema = z.object({
+  producto_id: UUIDSchema,
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato YYYY-MM-DD"),
+  numero_lote: z.string().max(100).optional(),
+  notas: z.string().max(500).optional(),
+});
+
 export const OrdenCompraReceiveSchema = z.object({
   action: z.literal("recibir"),
   items: z.array(z.object({
     id: UUIDSchema,
-    cantidad_recibida: z.number().int().positive(),
+    cantidad_recibida: z.number().int().min(0),
     producto_id: UUIDSchema,
   })).min(1),
+  lotes: z.array(OrdenCompraLoteSchema).optional(),
 });
 
 export const OrdenCompraEstadoSchema = z.object({
@@ -372,3 +380,25 @@ export const ProductoImportRowSchema = z.object({
     .optional()
     .nullable(),
 });
+
+export const LoteCreateSchema = z.object({
+  producto_id:       z.string().uuid(),
+  numero_lote:       z.string().max(100).optional().nullable(),
+  cantidad_inicial:  z.number().int().positive(),
+  cantidad_actual:   z.number().int().min(0).optional(),
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD'),
+  fecha_ingreso:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  orden_compra_id:   z.string().uuid().optional().nullable(),
+  notas:             z.string().max(500).optional().nullable(),
+});
+
+export const LoteUpdateSchema = z.object({
+  numero_lote:       z.string().max(100).optional().nullable(),
+  cantidad_actual:   z.number().int().min(0).optional(),
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  notas:             z.string().max(500).optional().nullable(),
+  activo:            z.boolean().optional(),
+});
+
+export type LoteCreateInput = z.infer<typeof LoteCreateSchema>;
+export type LoteUpdateInput = z.infer<typeof LoteUpdateSchema>;
