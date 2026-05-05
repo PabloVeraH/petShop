@@ -59,7 +59,7 @@ CREATE POLICY "lotes_store_isolation" ON lotes_producto
   FOR ALL USING (
     store_id = (
       SELECT store_id FROM clerk_users
-      WHERE clerk_user_id = auth.uid()::TEXT
+      WHERE clerk_id = auth.uid()::TEXT
       LIMIT 1
     )
   );
@@ -70,7 +70,7 @@ CREATE POLICY "venta_item_lotes_via_lote" ON venta_item_lotes
       SELECT 1 FROM lotes_producto l
       JOIN clerk_users cu ON cu.store_id = l.store_id
       WHERE l.id = venta_item_lotes.lote_id
-        AND cu.clerk_user_id = auth.uid()::TEXT
+        AND cu.clerk_id = auth.uid()::TEXT
     )
   );
 
@@ -80,7 +80,7 @@ CREATE POLICY "venta_item_lotes_via_lote" ON venta_item_lotes
 CREATE TRIGGER lotes_producto_updated_at
   BEFORE UPDATE ON lotes_producto
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION update_updated_at();
 
 -- ─────────────────────────────────────────────
 -- 6. Función + Trigger: sincronizar productos.stock
