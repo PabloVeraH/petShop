@@ -11,6 +11,10 @@
 ALTER TABLE productos
   ADD COLUMN IF NOT EXISTS tiene_vencimiento BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- precio (venta al público) nullable para productos nuevos creados al recibir OC
+ALTER TABLE productos
+  ALTER COLUMN precio DROP NOT NULL;
+
 UPDATE productos
   SET tiene_vencimiento = TRUE
   WHERE fecha_vencimiento IS NOT NULL;
