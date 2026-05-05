@@ -10,6 +10,7 @@ type Proveedor = { id: string; nombre: string; rut: string | null; contacto: str
 type ProdRow = { id: string; costo: number | null; tiempo_entrega_dias: number | null; productos: { id: string; nombre: string; sku: string; stock: number } | null };
 type DetalleProveedor = Proveedor & { productos: ProdRow[] };
 type OrdenCompra = { id: string; numero: string; estado: string; total: number; fecha_estimada: string | null; fecha_recibida: string | null; created_at: string };
+type OrdenItem = { id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number | null; nombre_nuevo: string | null; productos: { id: string; nombre: string; sku: string } | null };
 type CuentaPagar = { id: string; monto: number; fecha_vencimiento: string; estado: string; orden_id?: string };
 type ProductoOpt = { id: string; nombre: string; sku: string; precio: number };
 
@@ -28,8 +29,11 @@ export default function SupplierHubPage() {
   const [showAddProd, setShowAddProd] = useState(false);
   const [prodForm, setProdForm] = useState({ producto_id: "", costo: "", tiempo_entrega_dias: "3" });
   const [showCreateOrder, setShowCreateOrder] = useState(false);
-  const [orderForm, setOrderForm] = useState({ items: [] as Array<{ producto_id: string; nombre: string; cantidad: string; precio: string }> });
-  const [addingOrderItem, setAddingOrderItem] = useState({ producto_id: "", cantidad: "1", precio: "" });
+  const [orderForm, setOrderForm] = useState({ items: [] as Array<{ producto_id: string | null; nombre_nuevo: string; nombre: string; cantidad: string; esNuevo: boolean }> });
+  const [addingOrderItem, setAddingOrderItem] = useState({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
+  const [selectedOrden, setSelectedOrden] = useState<string | null>(null);
+  const [showReceiving, setShowReceiving] = useState<string | null>(null);
+  const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: number; fecha_vencimiento?: string }>>({});
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
@@ -202,10 +206,9 @@ export default function SupplierHubPage() {
   const { mutate: createOrden, isPending: creatingOrder } = useMutation({
     mutationFn: async () => {
       const items = orderForm.items.map(item => ({
-        producto_id: item.producto_id,
+        producto_id: item.producto_id ?? undefined,
+        nombre_nuevo: item.esNuevo ? item.nombre_nuevo : undefined,
         cantidad_solicitada: Number(item.cantidad),
-        precio_unitario: Number(item.precio),
-        subtotal: Number(item.cantidad) * Number(item.precio),
       }));
       const res = await fetch("/api/ordenes-compra", {
         method: "POST",
@@ -219,7 +222,59 @@ export default function SupplierHubPage() {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
       setShowCreateOrder(false);
       setOrderForm({ items: [] });
-      setAddingOrderItem({ producto_id: "", cantidad: "1", precio: "" });
+      setAddingOrderItem({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
+    },
+  });
+
+  const { data: ordenDetalle } = useQuery<OrdenCompra & { items: OrdenItem[] }>({
+    queryKey: ["orden-detalle", selectedOrden],
+    queryFn: async () => {
+      const res = await fetch(`/api/ordenes-compra/${selectedOrden}`);
+      return res.json();
+    },
+    enabled: !!selectedOrden,
+  });
+
+  const { mutate: cambiarEstadoOrden } = useMutation({
+    mutationFn: async ({ ordenId, estado }: { ordenId: string; estado: string }) => {
+      const res = await fetch(`/api/ordenes-compra/${ordenId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+      setSelectedOrden(null);
+    },
+  });
+
+  const { mutate: recibirOrden, isPending: recibiendo } = useMutation({
+    mutationFn: async () => {
+      const items = (ordenDetalle?.items ?? []).map(item => ({
+        id: item.id,
+        cantidad_recibida: receivingForm[item.id]?.cantidad ?? 0,
+        precio_unitario: receivingForm[item.id]?.precio ?? 0,
+        producto_id: item.productos?.id ?? undefined,
+        nombre_nuevo: item.nombre_nuevo ?? undefined,
+        fecha_vencimiento: receivingForm[item.id]?.fecha_vencimiento || undefined,
+      }));
+      const res = await fetch(`/api/ordenes-compra/${selectedOrden}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recibir", items }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      setSelectedOrden(null);
+      setShowReceiving(null);
+      setReceivingForm({});
     },
   });
 
@@ -284,13 +339,33 @@ export default function SupplierHubPage() {
   };
 
   const addOrderItem = () => {
-    const prod = todosProductos?.find(p => p.id === addingOrderItem.producto_id);
-    if (!prod) return;
-    setOrderForm(prev => ({
-      ...prev,
-      items: [...prev.items, { ...addingOrderItem, nombre: prod.nombre }]
-    }));
-    setAddingOrderItem({ producto_id: "", cantidad: "1", precio: "" });
+    if (addingOrderItem.esNuevo) {
+      if (!addingOrderItem.nombre_nuevo.trim()) return;
+      setOrderForm(prev => ({
+        ...prev,
+        items: [...prev.items, {
+          producto_id: null,
+          nombre_nuevo: addingOrderItem.nombre_nuevo.trim(),
+          nombre: addingOrderItem.nombre_nuevo.trim(),
+          cantidad: addingOrderItem.cantidad,
+          esNuevo: true,
+        }]
+      }));
+    } else {
+      const prod = todosProductos?.find(p => p.id === addingOrderItem.producto_id);
+      if (!prod) return;
+      setOrderForm(prev => ({
+        ...prev,
+        items: [...prev.items, {
+          producto_id: prod.id,
+          nombre_nuevo: "",
+          nombre: prod.nombre,
+          cantidad: addingOrderItem.cantidad,
+          esNuevo: false,
+        }]
+      }));
+    }
+    setAddingOrderItem({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
   };
 
   const removeOrderItem = (idx: number) => {
@@ -300,7 +375,6 @@ export default function SupplierHubPage() {
     }));
   };
 
-  const totalOrderAmount = orderForm.items.reduce((sum, item) => sum + (Number(item.cantidad) * Number(item.precio)), 0);
   const pendingOrders = ordenes?.filter(o => o.estado !== "cancelada") ?? [];
 
   return (
@@ -451,29 +525,53 @@ export default function SupplierHubPage() {
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       {orderForm.items.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                          <span>{item.nombre}</span>
+                          <span>{item.nombre}{item.esNuevo && <span className="text-xs text-blue-500 ml-1">(nuevo)</span>}</span>
                           <div className="flex items-center gap-2">
-                            <span>{item.cantidad}x${Number(item.precio).toLocaleString("es-CL")}</span>
+                            <span>{item.cantidad}x</span>
                             <button onClick={() => removeOrderItem(idx)} className="text-xs text-red-400 hover:text-red-600">✕</button>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="flex gap-2">
-                      <select
-                        value={addingOrderItem.producto_id}
-                        onChange={(e) => setAddingOrderItem((f) => ({ ...f, producto_id: e.target.value }))}
-                        className="flex-1 rounded border border-input px-2 py-1.5 text-sm"
+                    <div className="flex gap-1 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setAddingOrderItem(f => ({ ...f, esNuevo: false, nombre_nuevo: "", producto_id: "" }))}
+                        className={`text-xs px-3 py-1 rounded ${!addingOrderItem.esNuevo ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"}`}
                       >
-                        <option value="">Producto...</option>
-                        {todosProductos?.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                      </select>
+                        Existente
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddingOrderItem(f => ({ ...f, esNuevo: true, producto_id: "" }))}
+                        className={`text-xs px-3 py-1 rounded ${addingOrderItem.esNuevo ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}
+                      >
+                        + Nuevo producto
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      {!addingOrderItem.esNuevo ? (
+                        <select
+                          value={addingOrderItem.producto_id}
+                          onChange={(e) => setAddingOrderItem((f) => ({ ...f, producto_id: e.target.value }))}
+                          className="flex-1 rounded border border-input px-2 py-1.5 text-sm h-8"
+                        >
+                          <option value="">Producto...</option>
+                          {todosProductos?.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </select>
+                      ) : (
+                        <Input
+                          placeholder="Nombre del producto nuevo"
+                          className="flex-1 h-8 text-sm"
+                          value={addingOrderItem.nombre_nuevo}
+                          onChange={e => setAddingOrderItem(f => ({ ...f, nombre_nuevo: e.target.value }))}
+                        />
+                      )}
                       <Input type="number" placeholder="Cant" className="w-16 h-8 text-sm" value={addingOrderItem.cantidad} onChange={(e) => setAddingOrderItem((f) => ({ ...f, cantidad: e.target.value }))} />
-                      <Input type="number" placeholder="Precio" className="w-20 h-8 text-sm" value={addingOrderItem.precio} onChange={(e) => setAddingOrderItem((f) => ({ ...f, precio: e.target.value }))} />
-                      <Button size="sm" disabled={!addingOrderItem.producto_id || !addingOrderItem.precio} onClick={addOrderItem} className="h-8">Agregar</Button>
+                      <Button size="sm" disabled={(!addingOrderItem.producto_id && !addingOrderItem.nombre_nuevo.trim()) || !addingOrderItem.cantidad} onClick={addOrderItem} className="h-8">Agregar</Button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Total: ${totalOrderAmount.toLocaleString("es-CL")}</span>
+                      <span className="text-xs text-gray-600">Precio se ingresará al recibir</span>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="h-7" onClick={() => setShowCreateOrder(false)}>Cancelar</Button>
                         <Button size="sm" className="h-7" disabled={orderForm.items.length === 0 || creatingOrder} onClick={() => createOrden()}>
@@ -488,15 +586,147 @@ export default function SupplierHubPage() {
                   <p className="text-xs text-gray-400">Sin órdenes pendientes</p>
                 ) : (
                   <div className="space-y-1">
-                    {pendingOrders.map((oc) => (
-                      <div key={oc.id} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2 text-sm">
-                        <div>
-                          <span className="font-medium">{oc.numero}</span>
-                          <span className="text-xs text-gray-400 ml-2">{oc.estado}</span>
+                    {pendingOrders.map((oc) => {
+                      const expanded = selectedOrden === oc.id;
+                      const estadoColor = oc.estado === "pendiente" ? "text-orange-500" : oc.estado === "enviada" ? "text-blue-500" : oc.estado === "recibida" ? "text-green-600" : "text-gray-400";
+                      return (
+                        <div key={oc.id} className="rounded border bg-gray-50 text-sm overflow-hidden">
+                          <div
+                            className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            onClick={() => setSelectedOrden(expanded ? null : oc.id)}
+                          >
+                            <div>
+                              <span className="font-medium">{oc.numero}</span>
+                              <span className={`text-xs ml-2 ${estadoColor}`}>{oc.estado}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {oc.total ? `$${Number(oc.total).toLocaleString("es-CL")}` : "Precio pendiente"}
+                              </span>
+                              <span className="text-gray-400 text-xs">{expanded ? "▲" : "▼"}</span>
+                            </div>
+                          </div>
+
+                          {expanded && (
+                            <div className="border-t px-3 py-3 bg-white space-y-3">
+                              {!ordenDetalle || ordenDetalle.id !== oc.id ? (
+                                <p className="text-xs text-gray-400">Cargando...</p>
+                              ) : (
+                                <>
+                                  <div className="space-y-1">
+                                    {(ordenDetalle.items ?? []).map((item) => (
+                                      <div key={item.id} className="flex items-center justify-between text-xs">
+                                        <span>
+                                          {item.productos?.nombre ?? item.nombre_nuevo ?? "Producto nuevo"}
+                                          {" "}
+                                          {item.productos?.sku && <span className="text-gray-400">({item.productos.sku})</span>}
+                                          {!item.productos && item.nombre_nuevo && (
+                                            <span className="text-xs text-blue-500 ml-1">(nuevo)</span>
+                                          )}
+                                        </span>
+                                        <span className="text-gray-500">
+                                          Solicitado: {item.cantidad_solicitada}
+                                          {item.cantidad_recibida !== null && ` · Recibido: ${item.cantidad_recibida}`}
+                                          {item.precio_unitario != null && ` · $${Number(item.precio_unitario).toLocaleString("es-CL")}`}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {oc.estado !== "recibida" && oc.estado !== "cancelada" && (
+                                    <div className="flex gap-2 flex-wrap">
+                                      {oc.estado === "pendiente" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs"
+                            onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "enviada" })}>
+                            Enviar OC
+                          </Button>
+                                      )}
+                                      <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 border-red-200"
+                                        onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "cancelada" })}>
+                                        Cancelar OC
+                                      </Button>
+                                    <Button size="sm" className="h-7 text-xs"
+                                      onClick={() => {
+                                        const initial: Record<string, { cantidad: number; precio: number; fecha_vencimiento?: string }> = {};
+                                        (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: 0 }; });
+                                        setReceivingForm(initial);
+                                        setShowReceiving(oc.id);
+                                      }}>
+                                        Recibir OC
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                  {showReceiving === oc.id && (
+                                    <div className="border rounded p-2 space-y-3 bg-gray-50">
+                                      <p className="text-xs font-medium text-gray-600">Confirmar recepción — ingrese precio y cantidades:</p>
+                                      {(ordenDetalle.items ?? []).map(item => {
+                                        const nombreProducto = item.productos?.nombre ?? item.nombre_nuevo ?? "Producto nuevo";
+                                        return (
+                                          <div key={item.id} className="bg-white rounded p-2 space-y-1.5">
+                                            <p className="text-xs font-medium text-gray-700">{nombreProducto}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <div className="flex flex-col">
+                                                <label className="text-xs text-gray-500 mb-0.5">Cant. recibida</label>
+                                                <div className="flex items-center gap-1">
+                                                  <Input
+                                                    type="number"
+                                                    className="w-16 h-7 text-xs"
+                                                    min="0"
+                                                    value={receivingForm[item.id]?.cantidad ?? item.cantidad_solicitada}
+                                                    onChange={e => setReceivingForm(f => ({
+                                                      ...f,
+                                                      [item.id]: { ...f[item.id], cantidad: Number(e.target.value) }
+                                                    }))}
+                                                  />
+                                                  <span className="text-xs text-gray-400">/ {item.cantidad_solicitada}</span>
+                                                </div>
+                                              </div>
+                                              <div className="flex flex-col">
+                                                <label className="text-xs text-gray-500 mb-0.5">Precio unit. $</label>
+                                                <Input
+                                                  type="number"
+                                                  className="w-24 h-7 text-xs"
+                                                  min="0"
+                                                  placeholder="0"
+                                                  value={receivingForm[item.id]?.precio ?? ""}
+                                                  onChange={e => setReceivingForm(f => ({
+                                                    ...f,
+                                                    [item.id]: { ...f[item.id], precio: Number(e.target.value) }
+                                                  }))}
+                                                />
+                                              </div>
+                                              <div className="flex flex-col">
+                                                <label className="text-xs text-gray-500 mb-0.5">Vencimiento</label>
+                                                <Input
+                                                  type="date"
+                                                  className="w-32 h-7 text-xs"
+                                                  value={receivingForm[item.id]?.fecha_vencimiento ?? ""}
+                                                  onChange={e => setReceivingForm(f => ({
+                                                    ...f,
+                                                    [item.id]: { ...f[item.id], fecha_vencimiento: e.target.value }
+                                                  }))}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                      <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => setShowReceiving(null)}>Cancelar</Button>
+                                        <Button size="sm" className="h-7 text-xs flex-1" disabled={recibiendo} onClick={() => recibirOrden()}>
+                                          {recibiendo ? "Procesando..." : "Confirmar recepción"}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <span className="font-medium">${Number(oc.total).toLocaleString("es-CL")}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

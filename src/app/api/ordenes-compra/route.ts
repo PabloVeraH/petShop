@@ -1,9 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { z } from "zod";
-import { UUIDSchema } from "@/lib/validation";
-import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
+import { OrdenCompraCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -34,58 +32,43 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const body = await req.json();
-  const schema = z.object({
-    proveedor_id: UUIDSchema,
-    items: z.array(z.object({
-      producto_id: UUIDSchema,
-      cantidad_solicitada: z.number().int().positive(),
-      precio_unitario: z.number().positive(),
-      subtotal: z.number().positive(),
-    })).min(1),
-    fecha_estimada: z.string().datetime().optional(),
-    notas: z.string().max(500).optional(),
-  });
-
-  const parsed = schema.safeParse(body);
+  const parsed = OrdenCompraCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
   const { proveedor_id, items, fecha_estimada, notas } = parsed.data;
 
-  const subtotal: number = items.reduce((s: number, i: { subtotal: number }) => s + i.subtotal, 0);
-  const impuesto = subtotal * 0.19;
-  const total = subtotal * 1.19;
   const hoy = new Date();
   const numero = `OC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
   const { data: orden, error: ordenError } = await supabase
     .from("ordenes_compra")
-    .insert({ store_id, proveedor_id, numero, estado: "pendiente", subtotal, impuesto, total, fecha_estimada: fecha_estimada || null, notas: notas || null })
+    .insert({
+      store_id,
+      proveedor_id,
+      numero,
+      estado: "pendiente",
+      subtotal: null,
+      impuesto: null,
+      total: null,
+      fecha_estimada: fecha_estimada || null,
+      notas: notas || null,
+    })
     .select().single();
   if (ordenError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const { error: itemsError } = await supabase.from("ordenes_compra_items").insert(
-    items.map((i: { producto_id: string; cantidad_solicitada: number; precio_unitario: number; subtotal: number }) => ({
+    items.map(i => ({
       orden_id: orden.id,
-      producto_id: i.producto_id,
+      producto_id: i.producto_id ?? null,
+      nombre_nuevo: i.nombre_nuevo ?? null,
       cantidad_solicitada: i.cantidad_solicitada,
-      precio_unitario: i.precio_unitario,
-      subtotal: i.subtotal,
+      precio_unitario: null,
+      subtotal: null,
     }))
   );
   if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-
-  crearAsiento({
-    storeId: store_id,
-    fecha: orden.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
-    tipoMovimiento: "COMPRA",
-    referenciaId: orden.id,
-    referenciaNomero: orden.numero,
-    descripcion: `Compra a proveedor - ${orden.numero}`,
-    lineas: lineasCompra({ montoNeto: subtotal, iva: impuesto, total }),
-    usuarioId: ctx.userId ?? undefined,
-  }).catch((e) => console.error("[contabilidad] Error asiento compra:", e));
 
   return NextResponse.json(orden);
 }

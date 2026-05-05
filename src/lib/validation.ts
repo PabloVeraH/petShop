@@ -323,21 +323,35 @@ export const NotaCreditoPostSchema = z.object({
   motivo: z.string().max(500).nullable().optional(),
 });
 
-export const OrdenCompraLoteSchema = z.object({
-  producto_id: UUIDSchema,
-  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato YYYY-MM-DD"),
-  numero_lote: z.string().max(100).optional(),
+export const OrdenCompraItemCreateSchema = z.object({
+  producto_id: UUIDSchema.optional(),
+  nombre_nuevo: z.string().min(1).max(200).optional(),
+  cantidad_solicitada: z.number().int().positive(),
+}).refine(
+  (d) => d.producto_id || d.nombre_nuevo,
+  { message: "Debe proveer producto_id o nombre_nuevo" }
+);
+
+export const OrdenCompraCreateSchema = z.object({
+  proveedor_id: UUIDSchema,
+  items: z.array(OrdenCompraItemCreateSchema).min(1),
+  fecha_estimada: z.string().datetime().optional(),
   notas: z.string().max(500).optional(),
+});
+
+export const OrdenCompraReceiveItemSchema = z.object({
+  id: UUIDSchema,
+  cantidad_recibida: z.number().int().min(0),
+  precio_unitario: z.number().nonnegative(),
+  producto_id: UUIDSchema.optional(),
+  nombre_nuevo: z.string().min(1).max(200).optional(),
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  numero_lote: z.string().max(100).optional(),
 });
 
 export const OrdenCompraReceiveSchema = z.object({
   action: z.literal("recibir"),
-  items: z.array(z.object({
-    id: UUIDSchema,
-    cantidad_recibida: z.number().int().min(0),
-    producto_id: UUIDSchema,
-  })).min(1),
-  lotes: z.array(OrdenCompraLoteSchema).optional(),
+  items: z.array(OrdenCompraReceiveItemSchema).min(1),
 });
 
 export const OrdenCompraEstadoSchema = z.object({

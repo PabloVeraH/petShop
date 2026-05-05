@@ -248,6 +248,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al insertar productos" }, { status: 500 });
   }
 
+  // Para productos con fecha_vencimiento, crear lotes (lote 0)
+  const productosConVenc = rowsAInsertar.filter(r => r.fecha_vencimiento);
+  if (productosConVenc.length > 0 && !dryRun) {
+    const skusConVenc = productosConVenc.map(r => r.sku);
+    const { data: productosCreados } = await supabase
+      .from("productos")
+      .select("id, sku, stock")
+      .eq("store_id", store_id)
+      .in("sku", skusConVenc);
+
+    const prodMap = new Map((productosCreados ?? []).map(p => [p.sku.toLowerCase(), p]));
+
+    for (const row of productosConVenc) {
+      const prod = prodMap.get(row.sku.toLowerCase());
+      if (!prod || !row.fecha_vencimiento || prod.stock <= 0) continue;
+
+      await supabase.from("lotes_producto").insert({
+        store_id,
+        producto_id: prod.id,
+        numero_lote: "LOTE-0",
+        cantidad_inicial: prod.stock,
+        cantidad_actual: prod.stock,
+        fecha_vencimiento: row.fecha_vencimiento,
+        fecha_ingreso: new Date().toISOString().split("T")[0],
+        notas: "Inventario inicial — importación masiva",
+      });
+
+      await supabase
+        .from("productos")
+        .update({ tiene_vencimiento: true })
+        .eq("id", prod.id);
+    }
+  }
+
   const result: ImportResult = {
     creados: rowsAInsertar.length,
     omitidos,
