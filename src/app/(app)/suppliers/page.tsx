@@ -10,7 +10,7 @@ type Proveedor = { id: string; nombre: string; rut: string | null; contacto: str
 type ProdRow = { id: string; costo: number | null; tiempo_entrega_dias: number | null; productos: { id: string; nombre: string; sku: string; stock: number } | null };
 type DetalleProveedor = Proveedor & { productos: ProdRow[] };
 type OrdenCompra = { id: string; numero: string; estado: string; total: number; fecha_estimada: string | null; fecha_recibida: string | null; created_at: string };
-type OrdenItem = { id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number | null; nombre_nuevo: string | null; productos: { id: string; nombre: string; sku: string } | null };
+type OrdenItem = { id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number | null; nombre_nuevo: string | null; productos: { id: string; nombre: string; sku: string; tiene_vencimiento: boolean } | null };
 type CuentaPagar = { id: string; monto: number; fecha_vencimiento: string; estado: string; orden_id?: string };
 type ProductoOpt = { id: string; nombre: string; sku: string; precio: number };
 
@@ -33,7 +33,8 @@ export default function SupplierHubPage() {
   const [addingOrderItem, setAddingOrderItem] = useState({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
   const [selectedOrden, setSelectedOrden] = useState<string | null>(null);
   const [showReceiving, setShowReceiving] = useState<string | null>(null);
-  const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: number; fecha_vencimiento?: string }>>({});
+  const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }>>({});
+  const [receivingError, setReceivingError] = useState("");
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
@@ -256,7 +257,7 @@ export default function SupplierHubPage() {
       const items = (ordenDetalle?.items ?? []).map(item => ({
         id: item.id,
         cantidad_recibida: receivingForm[item.id]?.cantidad ?? 0,
-        precio_unitario: receivingForm[item.id]?.precio ?? 0,
+        precio_unitario: parseFloat(receivingForm[item.id]?.precio ?? "0") || 0,
         producto_id: item.productos?.id ?? undefined,
         nombre_nuevo: item.nombre_nuevo ?? undefined,
         fecha_vencimiento: receivingForm[item.id]?.fecha_vencimiento || undefined,
@@ -647,9 +648,10 @@ export default function SupplierHubPage() {
                                       </Button>
                                     <Button size="sm" className="h-7 text-xs"
                                       onClick={() => {
-                                        const initial: Record<string, { cantidad: number; precio: number; fecha_vencimiento?: string }> = {};
-                                        (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: 0 }; });
+                                        const initial: Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }> = {};
+                                        (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: "" }; });
                                         setReceivingForm(initial);
+                                        setReceivingError("");
                                         setShowReceiving(oc.id);
                                       }}>
                                         Recibir OC
@@ -692,29 +694,42 @@ export default function SupplierHubPage() {
                                                   value={receivingForm[item.id]?.precio ?? ""}
                                                   onChange={e => setReceivingForm(f => ({
                                                     ...f,
-                                                    [item.id]: { ...f[item.id], precio: Number(e.target.value) }
+                                                    [item.id]: { ...f[item.id], precio: e.target.value }
                                                   }))}
                                                 />
                                               </div>
                                               <div className="flex flex-col">
-                                                <label className="text-xs text-gray-500 mb-0.5">Vencimiento</label>
+                                                <label className="text-xs mb-0.5">
+                                                  <span className="text-gray-500">Vencimiento</span>
+                                                  {item.productos?.tiene_vencimiento && <span className="text-red-500 ml-0.5">*</span>}
+                                                </label>
                                                 <Input
                                                   type="date"
-                                                  className="w-32 h-7 text-xs"
+                                                  className={`w-32 h-7 text-xs ${item.productos?.tiene_vencimiento && !receivingForm[item.id]?.fecha_vencimiento ? "border-red-300" : ""}`}
                                                   value={receivingForm[item.id]?.fecha_vencimiento ?? ""}
-                                                  onChange={e => setReceivingForm(f => ({
+                                                  onChange={e => { setReceivingError(""); setReceivingForm(f => ({
                                                     ...f,
                                                     [item.id]: { ...f[item.id], fecha_vencimiento: e.target.value }
-                                                  }))}
+                                                  })); }}
                                                 />
                                               </div>
                                             </div>
                                           </div>
                                         );
                                       })}
+                                      {receivingError && <p className="text-xs text-red-500">{receivingError}</p>}
                                       <div className="flex gap-2">
-                                        <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => setShowReceiving(null)}>Cancelar</Button>
-                                        <Button size="sm" className="h-7 text-xs flex-1" disabled={recibiendo} onClick={() => recibirOrden()}>
+                                        <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => { setShowReceiving(null); setReceivingError(""); }}>Cancelar</Button>
+                                        <Button size="sm" className="h-7 text-xs flex-1" disabled={recibiendo} onClick={() => {
+                                          const faltanFecha = (ordenDetalle?.items ?? []).filter(
+                                            it => it.productos?.tiene_vencimiento && !receivingForm[it.id]?.fecha_vencimiento
+                                          );
+                                          if (faltanFecha.length > 0) {
+                                            setReceivingError(`Fecha de vencimiento requerida: ${faltanFecha.map(it => it.productos?.nombre ?? it.nombre_nuevo ?? "Producto").join(", ")}`);
+                                            return;
+                                          }
+                                          recibirOrden();
+                                        }}>
                                           {recibiendo ? "Procesando..." : "Confirmar recepción"}
                                         </Button>
                                       </div>

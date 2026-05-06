@@ -27,7 +27,7 @@ export async function GET(
 
   const { data: items } = await supabase
     .from("ordenes_compra_items")
-    .select("id, cantidad_solicitada, cantidad_recibida, precio_unitario, subtotal, nombre_nuevo, productos(id, nombre, sku)")
+    .select("id, cantidad_solicitada, cantidad_recibida, precio_unitario, subtotal, nombre_nuevo, productos(id, nombre, sku, tiene_vencimiento)")
     .eq("orden_id", id);
 
   return NextResponse.json({ ...orden, items: items ?? [] });
