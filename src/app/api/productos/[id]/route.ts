@@ -46,7 +46,10 @@ export async function PATCH(
   if (parsed.data.stock_minimo !== undefined) updates.stock_minimo = parsed.data.stock_minimo;
   if (parsed.data.marca !== undefined) updates.marca = parsed.data.marca?.trim() || null;
   if (parsed.data.peso_gramos !== undefined) updates.peso_gramos = parsed.data.peso_gramos;
-  if (parsed.data.fecha_vencimiento !== undefined) updates.fecha_vencimiento = parsed.data.fecha_vencimiento || null;
+  if (parsed.data.fecha_vencimiento !== undefined) {
+    updates.fecha_vencimiento = parsed.data.fecha_vencimiento || null;
+    if (parsed.data.fecha_vencimiento) updates.tiene_vencimiento = true;
+  }
   if (parsed.data.dias_alerta_expira !== undefined) updates.dias_alerta_expira = parsed.data.dias_alerta_expira || 30;
   if (parsed.data.precio_oferta !== undefined) updates.precio_oferta = parsed.data.precio_oferta;
   if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
@@ -70,6 +73,29 @@ export async function PATCH(
   }
 
   if (data) {
+    // If fecha_vencimiento was just set and product has stock with no lotes, create LOTE-0
+    if (data.fecha_vencimiento && data.stock > 0 && updates.tiene_vencimiento) {
+      const { count } = await supabase
+        .from("lotes_producto")
+        .select("*", { count: "exact", head: true })
+        .eq("producto_id", id)
+        .eq("store_id", store_id)
+        .eq("activo", true);
+
+      if ((count ?? 0) === 0) {
+        await supabase.from("lotes_producto").insert({
+          store_id,
+          producto_id: id,
+          numero_lote: "LOTE-0",
+          cantidad_inicial: data.stock,
+          cantidad_actual: data.stock,
+          fecha_vencimiento: data.fecha_vencimiento,
+          fecha_ingreso: new Date().toISOString().split("T")[0],
+          notas: "Lote inicial — stock existente al activar vencimientos",
+        });
+      }
+    }
+
     syncProductsToHub([{
       producto_id: data.id,
       nombre_producto: data.nombre,
