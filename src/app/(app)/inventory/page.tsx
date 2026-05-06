@@ -19,7 +19,7 @@ type Producto = {
   id: string;
   nombre: string;
   sku: string;
-  precio: number;
+  precio: number | null;
   costo: number | null;
   stock: number;
   stock_minimo: number;
@@ -198,7 +198,7 @@ export default function InventoryPage() {
     setEditando(p);
     setForm({
       nombre: p.nombre, sku: p.sku,
-      precio: String(p.precio), costo: p.costo != null ? String(p.costo) : "",
+      precio: p.precio != null ? String(p.precio) : "", costo: p.costo != null ? String(p.costo) : "",
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
       marca: p.marca ?? "", peso_gramos: p.peso_gramos != null ? String(p.peso_gramos) : "",
       fecha_vencimiento: p.fecha_vencimiento ?? "",
@@ -301,7 +301,7 @@ export default function InventoryPage() {
                   <TableRow key={p.id} className={enAlerta || vencStatus === 'vencido' ? "bg-red-50" : vencStatus === 'proximo' ? "bg-amber-50" : undefined}>
                     <TableCell className="font-medium">{p.nombre}</TableCell>
                     <TableCell className="text-gray-500 text-sm">{p.sku}</TableCell>
-                    <TableCell className="text-right">${p.precio.toLocaleString("es-CL")}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
+                    <TableCell className="text-right">{p.precio != null ? `$${p.precio.toLocaleString("es-CL")}` : <span className="text-gray-400 text-xs">Sin precio</span>}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
                     <TableCell className="text-right font-medium">{p.stock}</TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
                     <TableCell>

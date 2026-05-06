@@ -6,10 +6,12 @@ jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos");
 jest.mock("@/lib/audit");
+jest.mock("@/lib/email");
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 import * as auditModule from "@/lib/audit";
+import * as asientosModule from "@/lib/contabilidad/generador-asientos";
 
 describe("Órdenes de Compra API", () => {
   const mockStoreId = "a57ace69-a5f4-4089-83e9-04d92c27dd43";
@@ -26,6 +28,7 @@ describe("Órdenes de Compra API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "80e6c208-9e4c-40db-be09-f070a4c5b7a3" });
+    (asientosModule.crearAsiento as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe("GET /api/ordenes-compra", () => {
@@ -163,7 +166,7 @@ describe("Órdenes de Compra API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "recibir",
-          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 10, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 10, precio_unitario: 50, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
         }),
       });
       const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
@@ -208,6 +211,14 @@ describe("Órdenes de Compra API", () => {
             }),
           };
         }
+        if (table === "productos") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
         if (table === "stock_movements") {
           return {
             insert: jest.fn().mockReturnThis(),
@@ -232,12 +243,13 @@ describe("Órdenes de Compra API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "recibir",
-          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 20, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
-          lotes: [{
+          items: [{
+            id: "df50e110-0482-4450-8745-42c54006d902",
+            cantidad_recibida: 20,
+            precio_unitario: 100,
             producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
             fecha_vencimiento: "2026-12-31",
             numero_lote: "LOTE-A",
-            notas: "Primer lote",
           }],
         }),
       });
@@ -251,7 +263,6 @@ describe("Órdenes de Compra API", () => {
         cantidad_actual: 20,
         numero_lote: "LOTE-A",
         fecha_vencimiento: "2026-12-31",
-        notas: "Primer lote",
       });
     });
 
@@ -315,8 +326,10 @@ describe("Órdenes de Compra API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "recibir",
-          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 0, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
-          lotes: [{
+          items: [{
+            id: "df50e110-0482-4450-8745-42c54006d902",
+            cantidad_recibida: 0,
+            precio_unitario: 0,
             producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
             fecha_vencimiento: "2026-12-31",
           }],
@@ -367,8 +380,13 @@ describe("Órdenes de Compra API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "recibir",
-          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 5, producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199" }],
-          lotes: [{ producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199", fecha_vencimiento: "2026-12-31" }],
+          items: [{
+            id: "df50e110-0482-4450-8745-42c54006d902",
+            cantidad_recibida: 5,
+            precio_unitario: 100,
+            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
+            fecha_vencimiento: "2026-12-31",
+          }],
         }),
       });
       const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
