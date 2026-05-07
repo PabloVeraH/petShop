@@ -6,7 +6,7 @@ interface TabBarProps {
 }
 
 const TABS: { id: DashboardTab; label: string; icon: string }[] = [
-  { id: "analitica", label: "Analítica", icon: "📊" },
+  { id: "analitica", label: "Dashboard", icon: "📊" },
   { id: "reportes", label: "Reportes", icon: "📋" },
 ];
 
