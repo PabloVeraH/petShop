@@ -352,6 +352,7 @@ describe("Órdenes de Compra API", () => {
         return resolve({ data: mockOrden, error: null });
       };
 
+      let lotesCalls = 0;
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return ordenChain;
         if (table === "ordenes_compra_items") {
@@ -362,6 +363,16 @@ describe("Órdenes de Compra API", () => {
           };
         }
         if (table === "lotes_producto") {
+          lotesCalls++;
+          if (lotesCalls === 1) {
+            // Count query for auto-numbering
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              then: function(resolve: any) { return resolve({ count: 1, error: null }); },
+            };
+          }
+          // Insert query — simulate failure
           return {
             insert: jest.fn().mockReturnThis(),
             select: jest.fn().mockReturnThis(),

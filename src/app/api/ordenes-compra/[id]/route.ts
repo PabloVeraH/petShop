@@ -124,19 +124,30 @@ export async function PATCH(
       if (!productoId) continue;
 
       if (item.fecha_vencimiento) {
+        // Auto-generate numero_lote if not provided: LOTE-{count of existing lotes}
+        let numeroLote = item.numero_lote ?? null;
+        if (!numeroLote) {
+          const { count } = await supabase
+            .from("lotes_producto")
+            .select("*", { count: "exact", head: true })
+            .eq("producto_id", productoId)
+            .eq("store_id", store_id);
+          numeroLote = `LOTE-${count ?? 0}`;
+        }
+
         // Crear lote — el trigger sync_stock_on_lote actualiza productos.stock
         const { data: lote, error: loteError } = await supabase
           .from("lotes_producto")
           .insert({
             store_id,
             producto_id: productoId,
-            numero_lote: item.numero_lote ?? null,
+            numero_lote: numeroLote,
             cantidad_inicial: item.cantidad_recibida,
             cantidad_actual: item.cantidad_recibida,
             fecha_vencimiento: item.fecha_vencimiento,
             fecha_ingreso: new Date().toISOString().split("T")[0],
             orden_compra_id: id,
-            notas: item.numero_lote ? undefined : `Recepción OC ${ordenBase.numero}`,
+            notas: `Recepción OC ${ordenBase.numero}`,
           })
           .select()
           .single();
