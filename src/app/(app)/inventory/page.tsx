@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +105,11 @@ async function getCategorias(): Promise<Categoria[]> {
 }
 
 export default function InventoryPage() {
+  const { user } = useUser();
+  const meta = user?.publicMetadata as Record<string, unknown> | undefined;
+  const isAdmin = !!(meta?.storeAdmin || meta?.systemAdmin);
+  const isSystemAdmin = !!meta?.systemAdmin;
+
   const [search, setSearch] = useState("");
   const [soloAlertas, setSoloAlertas] = useState(false);
   const [soloVencimientos, setSoloVencimientos] = useState(false);
@@ -287,7 +293,7 @@ export default function InventoryPage() {
                 <TableHead>Vencimiento</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Ajustar</TableHead>
-                <TableHead></TableHead>
+                {isAdmin && <TableHead></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -344,14 +350,16 @@ export default function InventoryPage() {
                         >−</button>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <button onClick={() => abrirEditar(p)} className="text-xs text-blue-500 hover:underline">Editar</button>
-                        <button onClick={() => setHistorial(p)} className="text-xs text-gray-500 hover:underline ml-1">Historial</button>
-                        <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-xs text-purple-600 hover:underline ml-1">Lotes</button>
-                        <button onClick={() => setConfirmDelete(p)} className="text-xs text-red-400 hover:underline ml-1">Desact.</button>
-                      </div>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <button onClick={() => abrirEditar(p)} className="text-xs text-blue-500 hover:underline">Editar</button>
+                          <button onClick={() => setHistorial(p)} className="text-xs text-gray-500 hover:underline ml-1">Historial</button>
+                          <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-xs text-purple-600 hover:underline ml-1">Lotes</button>
+                          <button onClick={() => setConfirmDelete(p)} className="text-xs text-red-400 hover:underline ml-1">Desact.</button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -555,7 +563,8 @@ export default function InventoryPage() {
               productoId={verLotesDe.id}
               storeId=""
               diasAlerta={verLotesDe.dias_alerta_expira}
-              esSoloLectura={false}
+              esSoloLectura={!isAdmin}
+              puedeAgregarLote={isSystemAdmin}
             />
           </div>
         </div>

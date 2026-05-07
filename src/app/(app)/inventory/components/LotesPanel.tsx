@@ -36,6 +36,7 @@ interface LotesPanelProps {
   storeId: string;
   diasAlerta: number;
   esSoloLectura?: boolean;
+  puedeAgregarLote?: boolean;
 }
 
 async function getLotes(productoId: string, conStock = true): Promise<LoteProducto[]> {
@@ -82,7 +83,7 @@ async function desactivarLote(id: string) {
   return res.json();
 }
 
-export function LotesPanel({ productoId, diasAlerta, esSoloLectura }: LotesPanelProps) {
+export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregarLote }: LotesPanelProps) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<LoteProducto | null>(null);
@@ -190,7 +191,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura }: LotesPanel
             El stock total del producto se calcula automáticamente desde los lotes
           </p>
         </div>
-        {!esSoloLectura && (
+        {puedeAgregarLote && (
           <Button size="sm" variant="outline" onClick={abrirNuevo}>
             + Agregar Lote
           </Button>
