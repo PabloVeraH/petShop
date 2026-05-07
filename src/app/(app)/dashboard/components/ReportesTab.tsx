@@ -206,14 +206,6 @@ export default function ReportesTab() {
                 data={Object.entries(data.metodos).map(([k, v]) => ({ label: k, value: v }))}
                 color="bg-blue-500"
               />
-              <div className="mt-4 space-y-1">
-                {Object.entries(data.metodos).map(([metodo, total]) => (
-                  <div key={metodo} className="flex justify-between text-xs text-gray-600">
-                    <span className="capitalize">{metodo}</span>
-                    <span>{fmt(total)}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
 
