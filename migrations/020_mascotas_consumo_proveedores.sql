@@ -144,3 +144,18 @@ CREATE POLICY IF NOT EXISTS "consumo_alertas_store_isolation" ON consumo_alertas
       SELECT store_id FROM clerk_users WHERE clerk_id = auth.uid()
     )
   );
+
+-- ─── TRIGGERS updated_at ─────────────────────────────────────
+-- Estos triggers existen en producción pero faltaban en el archivo de migración.
+
+CREATE TRIGGER trg_mascotas_updated_at
+  BEFORE UPDATE ON mascotas
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_consumo_configs_updated_at
+  BEFORE UPDATE ON consumo_configs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_consumo_alertas_updated_at
+  BEFORE UPDATE ON consumo_alertas
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
