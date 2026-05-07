@@ -12,6 +12,7 @@ import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 import * as auditModule from "@/lib/audit";
 import * as asientosModule from "@/lib/contabilidad/generador-asientos";
+import * as emailModule from "@/lib/email";
 
 describe("Órdenes de Compra API", () => {
   const mockStoreId = "a57ace69-a5f4-4089-83e9-04d92c27dd43";
@@ -29,6 +30,8 @@ describe("Órdenes de Compra API", () => {
     jest.clearAllMocks();
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "80e6c208-9e4c-40db-be09-f070a4c5b7a3" });
     (asientosModule.crearAsiento as jest.Mock).mockResolvedValue(undefined);
+    (emailModule.sendOrdenCompraEmail as jest.Mock).mockResolvedValue(true);
+    (emailModule.sendOrdenCompraCancelacionEmail as jest.Mock).mockResolvedValue(true);
   });
 
   describe("GET /api/ordenes-compra", () => {
@@ -405,6 +408,115 @@ describe("Órdenes de Compra API", () => {
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.error).toContain("Error al crear lote");
+    });
+  });
+
+  describe("PATCH /api/ordenes-compra/[id] — cambio de estado", () => {
+    function makeOrdenUpdateChain(estadoResult: string) {
+      return {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        then: jest.fn().mockImplementation((resolve: any) =>
+          resolve({ data: { ...mockOrden, estado: estadoResult }, error: null })
+        ),
+      };
+    }
+
+    function makeProveedorChain(email: string | null) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        then: jest.fn().mockImplementation((resolve: any) =>
+          resolve({ data: { nombre: "Proveedor Test", email }, error: null })
+        ),
+      };
+    }
+
+    function makeStoreChain() {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        then: jest.fn().mockImplementation((resolve: any) =>
+          resolve({ data: { name: "Mi Tienda", address: "Calle 123", resend_from_email: null }, error: null })
+        ),
+      };
+    }
+
+    it("schema inválido → 400", async () => {
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "invalido" }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(400);
+    });
+
+    it("cancelar OC sin notificar_proveedor → 200, no envía email de cancelación", async () => {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn().mockReturnValue(makeOrdenUpdateChain("cancelada")),
+      });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "cancelada" }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(emailModule.sendOrdenCompraCancelacionEmail).not.toHaveBeenCalled();
+    });
+
+    it("cancelar OC con notificar_proveedor y proveedor tiene email → 200, envía email de cancelación", async () => {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn((table: string) => {
+          if (table === "ordenes_compra") return makeOrdenUpdateChain("cancelada");
+          if (table === "proveedores") return makeProveedorChain("prov@test.com");
+          if (table === "stores") return makeStoreChain();
+        }),
+      });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "cancelada", notificar_proveedor: true }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(emailModule.sendOrdenCompraCancelacionEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "prov@test.com",
+          proveedorNombre: "Proveedor Test",
+          storeName: "Mi Tienda",
+          orden: expect.objectContaining({ numero: mockOrden.numero }),
+        })
+      );
+    });
+
+    it("cancelar OC con notificar_proveedor pero sin email → 200, omite el envío silenciosamente", async () => {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn((table: string) => {
+          if (table === "ordenes_compra") return makeOrdenUpdateChain("cancelada");
+          if (table === "proveedores") return makeProveedorChain(null);
+          if (table === "stores") return makeStoreChain();
+        }),
+      });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "cancelada", notificar_proveedor: true }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(emailModule.sendOrdenCompraCancelacionEmail).not.toHaveBeenCalled();
     });
   });
 
