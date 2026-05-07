@@ -9,14 +9,14 @@ import { LicenseProvider } from "@/components/LicenseProvider";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
-  { href: "/dashboard", label: "Dashboard", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/dashboard", label: "Analitica", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/categorias", label: "Categorías", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/suppliers", label: "Compras & Proveedores", roles: ["storeAdmin", "systemAdmin"] },
-  { href: "/reports", label: "Reportes", roles: ["storeAdmin", "systemAdmin"] },
+  
   { href: "/contabilidad", label: "Libro Diario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/canales", label: "Canales", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/settings", label: "Configuración", roles: ["storeAdmin", "systemAdmin"] },
