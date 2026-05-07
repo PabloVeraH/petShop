@@ -5,8 +5,8 @@ import { AdminRole } from "@/hooks/useAdminAuth";
 
 interface AdminLayoutProps {
   role: AdminRole;
-  activeSection: "tienda" | "usuarios" | "licencia";
-  onSectionChange: (section: "tienda" | "usuarios" | "licencia") => void;
+  activeSection: "usuarios" | "licencia";
+  onSectionChange: (section: "usuarios" | "licencia") => void;
   children: React.ReactNode;
 }
 
@@ -34,15 +34,6 @@ export function AdminLayout({ role, activeSection, onSectionChange, children }: 
 
         {/* Navigation */}
         <nav className="flex-1 py-6 px-3 space-y-2">
-          {/* Tienda */}
-          <NavItem
-            icon="📋"
-            label="Tienda"
-            isActive={activeSection === "tienda"}
-            onClick={() => onSectionChange("tienda")}
-            collapsed={!sidebarOpen}
-          />
-
           {/* Usuarios - only for systemAdmin and storeAdmin */}
           {(role === "systemAdmin" || role === "storeAdmin") && (
             <NavItem

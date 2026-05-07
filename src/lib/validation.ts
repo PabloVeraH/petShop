@@ -279,14 +279,6 @@ export const AdminStoreCreateSchema = z.object({
   phone: z.string().max(20).optional(),
 });
 
-export const AdminStoreUpdateSchema = z.object({
-  name: z.string().min(3).max(100).optional(),
-  rut: z.string().max(20).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().max(20).optional(),
-  whatsapp_enabled: z.boolean().optional(),
-});
-
 export const AdminUserCreateFullSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),

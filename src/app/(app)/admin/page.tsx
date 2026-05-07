@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { TiendaCard } from "@/components/admin/TiendaCard";
 import { UsuariosCard } from "@/components/admin/UsuariosCard";
 import { LicenciaCard } from "@/components/admin/LicenciaCard";
 
@@ -28,7 +27,7 @@ type Store = {
 export default function AdminPage() {
   const router = useRouter();
   const { userId, sessionClaims } = useAuth();
-  const [activeSection, setActiveSection] = useState<"tienda" | "usuarios" | "licencia">("tienda");
+  const [activeSection, setActiveSection] = useState<"usuarios" | "licencia">("usuarios");
   const [role, setRole] = useState<AdminRole>(null);
 
   // Determine role
@@ -89,13 +88,6 @@ export default function AdminPage() {
       activeSection={activeSection}
       onSectionChange={setActiveSection}
     >
-      {activeSection === "tienda" && (
-        <div>
-          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Administración de Tienda</h1>
-          <TiendaCard store={store} role={role} />
-        </div>
-      )}
-
       {activeSection === "usuarios" && (
         <div>
           <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Gestión de Usuarios</h1>
