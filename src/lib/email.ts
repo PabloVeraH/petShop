@@ -87,6 +87,72 @@ export function _setResendInstance(resendInstance: Resend) {
   _resend = resendInstance;
 }
 
+export interface OrdenCompraCancelacionEmailParams {
+  to: string;
+  proveedorNombre: string;
+  storeName: string;
+  storeAddress?: string;
+  storeFromEmail?: string;
+  orden: {
+    numero: string;
+    fecha: string;
+  };
+}
+
+export async function sendOrdenCompraCancelacionEmail(params: OrdenCompraCancelacionEmailParams): Promise<boolean> {
+  const from = params.storeFromEmail ?? DEFAULT_FROM;
+  const html = buildOrdenCompraCancelacionHTML(params);
+
+  const { error } = await getResend().emails.send({
+    from,
+    to: params.to,
+    subject: `Cancelación de Orden de Compra ${params.orden.numero} — ${params.storeName}`,
+    html,
+  });
+
+  if (error) {
+    console.error("[email-oc] Error enviando cancelación OC:", error);
+    return false;
+  }
+  return true;
+}
+
+export function buildOrdenCompraCancelacionHTML(params: OrdenCompraCancelacionEmailParams): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 20px;">
+    <tr><td>
+      <table width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="background:#dc2626;padding:28px 32px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${params.storeName}</h1>
+            <p style="margin:4px 0 0;color:#fecaca;font-size:14px;">Cancelación de Orden de Compra</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 32px;">
+            <p style="margin:0;color:#6b7280;font-size:14px;">Estimado/a <strong style="color:#111827;">${params.proveedorNombre}</strong>,</p>
+            <p style="margin:12px 0 0;color:#374151;font-size:15px;">
+              Lamentamos informarle que la orden de compra <strong>${params.orden.numero}</strong>
+              con fecha <strong>${params.orden.fecha}</strong> ha sido
+              <strong style="color:#dc2626;">cancelada</strong>.
+            </p>
+            <p style="margin:12px 0 0;color:#374151;font-size:15px;">
+              Si tiene consultas al respecto, no dude en contactarnos respondiendo a este correo.
+            </p>
+            ${params.storeAddress ? `<p style="margin:24px 0 0;color:#9ca3af;font-size:13px;">${params.storeAddress}</p>` : ""}
+            <p style="margin:8px 0 0;color:#9ca3af;font-size:12px;">— ${params.storeName}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 export interface OrdenCompraEmailParams {
   to: string;
   proveedorNombre: string;

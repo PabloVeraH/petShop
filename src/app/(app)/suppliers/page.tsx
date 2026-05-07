@@ -35,6 +35,7 @@ export default function SupplierHubPage() {
   const [showReceiving, setShowReceiving] = useState<string | null>(null);
   const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }>>({});
   const [receivingError, setReceivingError] = useState("");
+  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
@@ -237,11 +238,11 @@ export default function SupplierHubPage() {
   });
 
   const { mutate: cambiarEstadoOrden } = useMutation({
-    mutationFn: async ({ ordenId, estado }: { ordenId: string; estado: string }) => {
+    mutationFn: async ({ ordenId, estado, notificarProveedor }: { ordenId: string; estado: string; notificarProveedor?: boolean }) => {
       const res = await fetch(`/api/ordenes-compra/${ordenId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado }),
+        body: JSON.stringify({ estado, notificar_proveedor: notificarProveedor }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       return res.json();
@@ -249,6 +250,7 @@ export default function SupplierHubPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
       setSelectedOrden(null);
+      setCancelConfirm(null);
     },
   });
 
@@ -635,28 +637,57 @@ export default function SupplierHubPage() {
                                   </div>
 
                                   {oc.estado !== "recibida" && oc.estado !== "cancelada" && (
-                                    <div className="flex gap-2 flex-wrap">
-                                      {oc.estado === "pendiente" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs"
-                            onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "enviada" })}>
-                            Enviar OC
-                          </Button>
+                                    <>
+                                      <div className="flex gap-2 flex-wrap">
+                                        {oc.estado === "pendiente" && (
+                                          <Button size="sm" variant="outline" className="h-7 text-xs"
+                                            onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "enviada" })}>
+                                            Enviar OC
+                                          </Button>
+                                        )}
+                                        <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 border-red-200"
+                                          onClick={() => {
+                                            if (oc.estado === "enviada") {
+                                              setCancelConfirm(oc.id);
+                                            } else {
+                                              cambiarEstadoOrden({ ordenId: oc.id, estado: "cancelada" });
+                                            }
+                                          }}>
+                                          Cancelar OC
+                                        </Button>
+                                        {oc.estado === "enviada" && (
+                                          <Button size="sm" className="h-7 text-xs"
+                                            onClick={() => {
+                                              const initial: Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }> = {};
+                                              (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: "" }; });
+                                              setReceivingForm(initial);
+                                              setReceivingError("");
+                                              setShowReceiving(oc.id);
+                                            }}>
+                                            Recibir OC
+                                          </Button>
+                                        )}
+                                      </div>
+
+                                      {cancelConfirm === oc.id && (
+                                        <div className="border border-red-200 rounded p-3 bg-red-50 space-y-2">
+                                          <p className="text-xs font-medium text-red-700">¿Cancelar esta orden de compra?</p>
+                                          <p className="text-xs text-red-600">
+                                            Se enviará un email al proveedor notificando la cancelación de <strong>{oc.numero}</strong>.
+                                          </p>
+                                          <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" className="h-7 text-xs flex-1"
+                                              onClick={() => setCancelConfirm(null)}>
+                                              Volver
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-7 text-xs flex-1 text-red-500 border-red-200"
+                                              onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "cancelada", notificarProveedor: true })}>
+                                              Confirmar cancelación
+                                            </Button>
+                                          </div>
+                                        </div>
                                       )}
-                                      <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 border-red-200"
-                                        onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "cancelada" })}>
-                                        Cancelar OC
-                                      </Button>
-                                    <Button size="sm" className="h-7 text-xs"
-                                      onClick={() => {
-                                        const initial: Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }> = {};
-                                        (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: "" }; });
-                                        setReceivingForm(initial);
-                                        setReceivingError("");
-                                        setShowReceiving(oc.id);
-                                      }}>
-                                        Recibir OC
-                                      </Button>
-                                    </div>
+                                    </>
                                   )}
 
                                   {showReceiving === oc.id && (

@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraReceiveSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
 import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
-import { sendOrdenCompraEmail } from "@/lib/email";
+import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/email";
 
 export async function GET(
   _req: NextRequest,
@@ -270,7 +270,7 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { estado } = parsed.data;
+  const { estado, notificar_proveedor } = parsed.data;
 
   const { data, error } = await supabase
     .from("ordenes_compra")
@@ -280,6 +280,31 @@ export async function PATCH(
     .select()
     .single();
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  // Si el estado es "cancelada" y se solicitó notificar, enviar email de cancelación
+  if (estado === "cancelada" && notificar_proveedor) {
+    const [proveedorRes, storeRes] = await Promise.all([
+      supabase.from("proveedores").select("nombre, email").eq("id", data.proveedor_id).single(),
+      supabase.from("stores").select("name, address, resend_from_email").eq("id", store_id).single(),
+    ]);
+
+    const proveedor = proveedorRes.data;
+    const store = storeRes.data;
+
+    if (proveedor?.email && store) {
+      sendOrdenCompraCancelacionEmail({
+        to: proveedor.email,
+        proveedorNombre: proveedor.nombre,
+        storeName: store.name,
+        storeAddress: store.address ?? undefined,
+        storeFromEmail: store.resend_from_email ?? undefined,
+        orden: {
+          numero: data.numero,
+          fecha: new Date().toLocaleDateString("es-CL"),
+        },
+      }).catch(e => console.error("[email-oc] Error enviando cancelación:", e));
+    }
+  }
 
   // Si el estado es "enviada", enviar email al proveedor
   if (estado === "enviada") {

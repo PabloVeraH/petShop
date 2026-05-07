@@ -348,6 +348,7 @@ export const OrdenCompraReceiveSchema = z.object({
 
 export const OrdenCompraEstadoSchema = z.object({
   estado: z.enum(["pendiente", "enviada", "recibida", "cancelada"]),
+  notificar_proveedor: z.boolean().optional(),
 });
 
 export const LicenseConfigSchema = z.object({
