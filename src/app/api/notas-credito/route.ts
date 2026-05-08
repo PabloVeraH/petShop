@@ -78,8 +78,20 @@ export async function POST(req: NextRequest) {
       .eq("id", item.ventaItemId)
       .single();
 
-    if (!ventaItem || ventaItem.cantidad < item.cantidadDevuelta) {
-      return NextResponse.json({ error: "Cantidad devuelta excede original" }, { status: 400 });
+    if (!ventaItem) {
+      return NextResponse.json({ error: "Item de venta no encontrado" }, { status: 400 });
+    }
+
+    const { data: devolucionesPrevias } = await supabase
+      .from("nota_credito_items")
+      .select("cantidad_devuelta")
+      .eq("venta_item_id", item.ventaItemId);
+
+    const yaDevuelto = (devolucionesPrevias ?? []).reduce((sum, r) => sum + r.cantidad_devuelta, 0);
+    const disponible = ventaItem.cantidad - yaDevuelto;
+
+    if (item.cantidadDevuelta > disponible) {
+      return NextResponse.json({ error: "Cantidad devuelta excede el disponible" }, { status: 400 });
     }
 
     // precio_unitario ya incluye IVA
