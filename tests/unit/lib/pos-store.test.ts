@@ -121,6 +121,16 @@ describe("POS Store — cálculos derivados", () => {
   });
 });
 
+describe("POS Store — guard precio null", () => {
+  beforeEach(resetStore);
+
+  // S-13
+  it("S-13: addItem con precio 0 se agrega (precio 0 es válido)", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 0, subtotal: 0 });
+    expect(usePOSStore.getState().items).toHaveLength(1);
+  });
+});
+
 describe("POS Store — persistencia en localStorage", () => {
   beforeEach(resetStore);
 

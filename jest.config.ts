@@ -4,12 +4,12 @@ const config: Config = {
   preset: "ts-jest",
   testEnvironment: "node",
   rootDir: ".",
-  testMatch: ["<rootDir>/tests/**/*.test.ts"],
+  testMatch: ["<rootDir>/tests/**/*.test.ts", "<rootDir>/tests/**/*.test.tsx"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react" } }],
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }],
   },
   clearMocks: true,
   collectCoverageFrom: [
