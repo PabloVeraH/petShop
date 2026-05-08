@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LotesPanel } from "./components/LotesPanel";
+import { CategoriasTab } from "./components/CategoriasTab";
 
 type Producto = {
   id: string;
@@ -39,6 +40,7 @@ type Categoria = {
   nombre: string;
 };
 
+type Tab = "productos" | "categorias";
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
 type HistorialModal = Producto | null;
 
@@ -110,6 +112,7 @@ export default function InventoryPage() {
   const isAdmin = !!(meta?.storeAdmin || meta?.systemAdmin);
   const isSystemAdmin = !!meta?.systemAdmin;
 
+  const [tab, setTab] = useState<Tab>("productos");
   const [search, setSearch] = useState("");
   const [soloAlertas, setSoloAlertas] = useState(false);
   const [soloVencimientos, setSoloVencimientos] = useState(false);
@@ -237,19 +240,43 @@ export default function InventoryPage() {
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Inventario</h1>
-        <div className="flex items-center gap-2">
-          {totalAlertas > 0 && !soloAlertas && (
-            <span className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
-              {totalAlertas} bajo stock mínimo
-            </span>
-          )}
-          <Button variant="outline" size="sm" onClick={() => window.location.href = "/inventory/import"}>
-            Importar
-          </Button>
-          <Button size="sm" onClick={abrirNuevo}>+ Nuevo producto</Button>
-        </div>
+        {tab === "productos" && (
+          <div className="flex items-center gap-2">
+            {totalAlertas > 0 && !soloAlertas && (
+              <span className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded-full">
+                {totalAlertas} bajo stock mínimo
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={() => window.location.href = "/inventory/import"}>
+              Importar
+            </Button>
+            <Button size="sm" onClick={abrirNuevo}>+ Nuevo producto</Button>
+          </div>
+        )}
       </div>
 
+      {isAdmin && (
+        <div className="flex border-b border-gray-200">
+          {(["productos", "categorias"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors capitalize ${
+                tab === t
+                  ? "border-green-600 text-green-700"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {t === "productos" ? "Productos" : "Categorías"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "categorias" && <CategoriasTab />}
+
+      {tab === "productos" && (
+      <>
       <div className="flex gap-2">
         <Input
           placeholder="Buscar por nombre o SKU..."
@@ -568,6 +595,8 @@ export default function InventoryPage() {
             />
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
