@@ -4,6 +4,7 @@ import { use, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Barcode from "react-barcode";
 
 type NcData = {
   id: string;
@@ -31,7 +32,7 @@ function NotaCreditoContent({ id }: { id: string }) {
     if (!autoPrint || !data) return;
     const timer = setTimeout(() => {
       window.print();
-    }, 500);
+    }, 600);
     return () => clearTimeout(timer);
   }, [autoPrint, data]);
 
@@ -44,19 +45,29 @@ function NotaCreditoContent({ id }: { id: string }) {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 print:bg-white print:p-0">
       <div className="bg-white rounded-lg shadow-md p-8 max-w-sm w-full print:shadow-none print:rounded-none print:max-w-none">
+        {/* Header */}
         <div className="text-center border-b-2 border-dashed pb-6 mb-6">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{data.storeName}</p>
           <h1 className="text-xl font-bold text-gray-800 mb-1">NOTA DE CRÉDITO</h1>
           <p className="text-xs text-gray-500">Voucher de devolución</p>
         </div>
 
-        <div className="text-center mb-6">
-          <p className="text-xs text-gray-500 mb-2">Código</p>
-          <p className="font-mono text-lg font-bold tracking-widest bg-gray-50 rounded-lg py-3 px-4 border-2 border-gray-200">
-            {data.numero_nc}
-          </p>
+        {/* Barcode */}
+        <div className="flex flex-col items-center mb-6">
+          <Barcode
+            value={data.numero_nc}
+            format="CODE128"
+            width={1.6}
+            height={60}
+            fontSize={12}
+            margin={4}
+            displayValue={true}
+            background="#ffffff"
+            lineColor="#1a1a1a"
+          />
         </div>
 
+        {/* Datos */}
         <div className="space-y-3 mb-6">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Monto</span>
@@ -74,6 +85,7 @@ function NotaCreditoContent({ id }: { id: string }) {
           </div>
         </div>
 
+        {/* Footer */}
         <div className="border-t-2 border-dashed pt-4 text-center space-y-1">
           <p className="text-xs text-gray-500">Válido para una compra en {data.storeName}.</p>
           <p className="text-xs text-gray-500">No da vuelto. No acumulable.</p>
