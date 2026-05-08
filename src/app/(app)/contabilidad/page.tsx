@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 type Asiento = {
@@ -61,16 +60,11 @@ const CANALES = [
 ];
 
 export default function ContabilidadPage() {
-  const { sessionClaims } = useAuth();
-  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-  const isSystemAdmin = !!meta?.systemAdmin;
-
   const hoy = new Date();
   const [año, setAño] = useState(String(hoy.getFullYear()));
   const [mes, setMes] = useState(String(hoy.getMonth() + 1).padStart(2, "0"));
   const [canal, setCanal] = useState("");
   const [tab, setTab] = useState<"libro" | "balance" | "resultado">("libro");
-  const [planCargado, setPlanCargado] = useState(false);
   const queryClient = useQueryClient();
 
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
@@ -99,16 +93,6 @@ export default function ContabilidadPage() {
     queryFn: () =>
       fetch(`/api/contabilidad/estado-resultado?${params}`).then((r) => r.json()),
     enabled: tab === "resultado",
-  });
-
-  const { mutate: cargarPlan, isPending: cargandoPlan } = useMutation({
-    mutationFn: () =>
-      fetch("/api/contabilidad/plan-cuentas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cargar_plan_base" }),
-      }).then((r) => r.json()),
-    onSuccess: () => setPlanCargado(true),
   });
 
   const { mutate: cierreMes, isPending: cerrandoMes } = useMutation({
@@ -140,16 +124,6 @@ export default function ContabilidadPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {isSystemAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => cargarPlan()}
-              disabled={cargandoPlan || planCargado}
-            >
-              {planCargado ? "✓ Plan Cargado" : cargandoPlan ? "Cargando..." : "Cargar Plan de Cuentas"}
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
