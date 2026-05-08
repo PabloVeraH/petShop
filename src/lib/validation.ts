@@ -311,7 +311,7 @@ export const NotaCreditoPostSchema = z.object({
     restituirStock: z.boolean().optional(),
   })).min(1),
   tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),
-  metodoReembolso: z.string().max(100).optional(),
+  metodoReembolso: z.string().max(100).nullable().optional(),
   motivo: z.string().max(500).nullable().optional(),
 });
 
