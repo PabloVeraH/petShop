@@ -3,7 +3,7 @@ export interface Producto {
   store_id: string;
   nombre: string;
   sku: string;
-  precio: number;
+  precio: number | null;
   stock: number;
   stock_minimo: number;
   fecha_vencimiento?: string | null;

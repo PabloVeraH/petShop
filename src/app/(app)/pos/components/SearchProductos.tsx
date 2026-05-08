@@ -27,6 +27,7 @@ export default function SearchProductos() {
 
   function addProductoToCart(prod: Producto) {
     const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
+    if (precioFinal === null || precioFinal === undefined) return;
     addItem({
       producto_id: prod.id,
       nombre: prod.nombre,
@@ -151,27 +152,36 @@ export default function SearchProductos() {
         {productos?.map((prod) => {
           const vencStatus = getVencimientoStatus(prod);
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
+          const sinPrecio = precioFinal === null || precioFinal === undefined;
 
           return (
             <button
               key={prod.id}
               onClick={() => addProductoToCart(prod)}
-              className={`text-left rounded border p-4 hover:border-green-200 active:bg-green-100 transition-colors min-h-[72px] ${
-                vencStatus === "vencido"
-                  ? "bg-red-50 border-red-200 hover:bg-red-100"
+              disabled={sinPrecio}
+              className={`text-left rounded border p-4 transition-colors min-h-[72px] ${
+                sinPrecio
+                  ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                  : vencStatus === "vencido"
+                  ? "bg-red-50 border-red-200 hover:bg-red-100 active:bg-red-100"
                   : vencStatus === "proximo"
-                  ? "bg-amber-50 border-amber-200 hover:bg-amber-100"
-                  : "border-gray-200 hover:bg-green-50"
+                  ? "bg-amber-50 border-amber-200 hover:bg-amber-100 active:bg-amber-100"
+                  : "border-gray-200 hover:bg-green-50 hover:border-green-200 active:bg-green-100"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
-                {vencStatus === "vencido" && (
+                {sinPrecio && (
+                  <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                    Sin precio
+                  </span>
+                )}
+                {!sinPrecio && vencStatus === "vencido" && (
                   <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">
                     ✕ Vencido
                   </span>
                 )}
-                {vencStatus === "proximo" && (
+                {!sinPrecio && vencStatus === "proximo" && (
                   <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
                     ⚠ Próximo
                   </span>
@@ -180,18 +190,20 @@ export default function SearchProductos() {
               <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
               <div className="flex items-center justify-between mt-2">
                 <div className="flex flex-col">
-                  {prod.en_oferta && prod.precio_oferta ? (
+                  {sinPrecio ? (
+                    <span className="text-sm text-gray-400">—</span>
+                  ) : prod.en_oferta && prod.precio_oferta ? (
                     <>
                       <span className="text-xs text-gray-500 line-through">
-                        ${prod.precio.toLocaleString("es-CL")}
+                        ${(prod.precio ?? 0).toLocaleString("es-CL")}
                       </span>
                       <span className="text-sm font-bold text-green-700">
-                        ${precioFinal.toLocaleString("es-CL")}
+                        ${precioFinal!.toLocaleString("es-CL")}
                       </span>
                     </>
                   ) : (
                     <span className="text-sm font-bold text-green-700">
-                      ${precioFinal.toLocaleString("es-CL")}
+                      ${precioFinal!.toLocaleString("es-CL")}
                     </span>
                   )}
                 </div>
