@@ -16,6 +16,57 @@ jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom })),
 }));
 
+function makeFromWithPrevios(
+  venta: any,
+  ventaItem: any,
+  previosDevueltos: Array<{ cantidad_devuelta: number }>
+) {
+  return jest.fn((table: string) => {
+    const chain: Record<string, jest.Mock> = {
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+      limit: jest.fn().mockResolvedValue({ data: null, error: null }),
+      gt: jest.fn().mockReturnThis(),
+    };
+
+    if (table === "ventas") {
+      chain.single.mockResolvedValue({ data: venta, error: null });
+      return chain;
+    }
+    if (table === "venta_items") {
+      chain.single.mockResolvedValue({ data: ventaItem, error: null });
+      return chain;
+    }
+    if (table === "nota_credito_items") {
+      let selectMode = false;
+      const ncChain: Record<string, any> = {
+        select: jest.fn(() => { selectMode = true; return ncChain; }),
+        insert: jest.fn().mockResolvedValue({ error: null }),
+        eq: jest.fn(() =>
+          selectMode
+            ? Promise.resolve({ data: previosDevueltos, error: null })
+            : ncChain
+        ),
+      };
+      return ncChain;
+    }
+    if (table === "notas_credito") {
+      chain.insert.mockReturnThis();
+      chain.single.mockResolvedValue({
+        data: { id: "nc1", numero_nc: "NC-20260508-TEST1234" },
+        error: null,
+      });
+      return chain;
+    }
+    return chain;
+  });
+}
+
 function makeFromDevolucion(
   venta: any = null,
   ventaItems: any[] = [],
@@ -370,6 +421,58 @@ describe("POST /api/notas-credito", () => {
       })
     );
     expect(res.status).toBe(401);
+  });
+
+  it("overreturn bloqueado por devoluciones previas → 400", async () => {
+    const ITEM_ID = "a23e4567-e89b-12d3-a456-426614174aaa";
+    const venta = { id: VENTA_ID, cliente_id: null, estado: "completada" };
+    // cantidad original = 3, ya devueltos = 2 → disponible = 1
+    const ventaItem = { id: ITEM_ID, producto_id: "b23e4567-e89b-12d3-a456-426614174bbb", cantidad: 3, precio_unitario: 1000 };
+    mockFrom.mockImplementation(
+      makeFromWithPrevios(venta, ventaItem, [{ cantidad_devuelta: 2 }])
+    );
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ITEM_ID, cantidadDevuelta: 2 }], // 2 > 1 disponible
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/disponible/i);
+  });
+
+  it("devolución dentro del disponible considerando previas → 200", async () => {
+    const ITEM_ID = "a23e4567-e89b-12d3-a456-426614174aaa";
+    const venta = { id: VENTA_ID, cliente_id: null, estado: "completada" };
+    // cantidad original = 3, ya devueltos = 2 → disponible = 1
+    const ventaItem = { id: ITEM_ID, producto_id: "b23e4567-e89b-12d3-a456-426614174bbb", cantidad: 3, precio_unitario: 1000 };
+    mockFrom.mockImplementation(
+      makeFromWithPrevios(venta, ventaItem, [{ cantidad_devuelta: 2 }])
+    );
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ITEM_ID, cantidadDevuelta: 1, restituirStock: false }], // 1 <= 1 disponible
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
   });
 });
 
