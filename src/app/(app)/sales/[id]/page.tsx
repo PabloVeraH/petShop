@@ -226,11 +226,15 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="space-y-1">
           {data.items.map((item) => {
             const prod = item.productos as unknown as { nombre: string; sku: string } | null;
+            const devuelto = cantidadesDevueltas[item.id] ?? 0;
             return (
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="flex-1 mr-2">
                   {prod?.nombre ?? "Producto"}
                   <span className="text-gray-400 text-xs ml-1">×{item.cantidad}</span>
+                  {devuelto > 0 && (
+                    <span className="text-amber-600 text-xs ml-1">(Dev. {devuelto})</span>
+                  )}
                 </span>
                 <span>${Math.round(item.subtotal).toLocaleString("es-CL")}</span>
               </div>
