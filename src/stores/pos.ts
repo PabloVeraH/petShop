@@ -14,6 +14,12 @@ interface CartItem {
   en_oferta?: boolean;
 }
 
+interface PagoNc {
+  nota_credito_id: string;
+  numero_nc: string;
+  monto: number;
+}
+
 interface POSStore {
   items: CartItem[];
   clienteId?: string;
@@ -24,6 +30,7 @@ interface POSStore {
   descuento: number;
   fidelizacionDescuento: number;
   procedencia: string;
+  pagoNc?: PagoNc;
 
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
@@ -36,6 +43,8 @@ interface POSStore {
   setNumeroTransaccion: (numero: string | undefined) => void;
   setDescuento: (descuento: number) => void;
   setProcedencia: (procedencia: string) => void;
+  setPayNc: (nc: PagoNc) => void;
+  clearPayNc: () => void;
 
   subtotal: () => number;
   impuesto: () => number;
@@ -98,6 +107,7 @@ export const usePOSStore = create<POSStore>()(
           descuento: 0,
           fidelizacionDescuento: 0,
           procedencia: "presencial",
+          pagoNc: undefined,
         }),
 
       setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0) => {
@@ -126,6 +136,10 @@ export const usePOSStore = create<POSStore>()(
       setDescuento: (descuento) => set({ descuento }),
 
       setProcedencia: (procedencia) => set({ procedencia }),
+
+      setPayNc: (nc) => set({ pagoNc: nc }),
+
+      clearPayNc: () => set({ pagoNc: undefined }),
 
       // precio ya incluye IVA
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
@@ -158,6 +172,7 @@ export const usePOSStore = create<POSStore>()(
         descuento: state.descuento,
         fidelizacionDescuento: state.fidelizacionDescuento,
         procedencia: state.procedencia,
+        pagoNc: state.pagoNc,
       }),
     }
     ),

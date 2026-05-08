@@ -37,7 +37,12 @@ export async function GET(
     .select("id, cantidad, precio_unitario, subtotal, productos(nombre, sku)")
     .eq("venta_id", id);
 
-  return NextResponse.json({ ...venta, worker, items: items ?? [] });
+  const { data: pagos } = await supabase
+    .from("pagos")
+    .select("id, metodo, monto, numero_transaccion, nota_credito_id")
+    .eq("venta_id", id);
+
+  return NextResponse.json({ ...venta, worker, items: items ?? [], pagos: pagos ?? [] });
 }
 
 export async function PATCH(

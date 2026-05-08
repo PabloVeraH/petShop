@@ -5,7 +5,7 @@ import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
-import { crearAsiento, lineasVentaCanal } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaCanal, lineasVentaConNc } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -86,12 +86,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId } = parsed.data;
+  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
   const descuento_pct = descuentoPct ?? 0;
 
-  // Additional validation for transaction numbers
-  if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion) {
+  // Additional validation for transaction numbers (only for non-NC rest payments)
+  if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion && !pagoNc) {
     return NextResponse.json(
       { error: `número de transacción requerido para ${metodoPago}` },
       { status: 400 }
@@ -134,8 +134,34 @@ export async function POST(req: NextRequest) {
   const montoNetoVenta = Math.round((total / 1.19) * 100) / 100;
   const impuesto = Math.round((total - montoNetoVenta) * 100) / 100;
 
+  // ── Validar NC si se paga con voucher ────────────────────────────────────
+  let ncData: { id: string; monto_total: number; venta_id: string | null } | null = null;
+  if (pagoNc) {
+    const { data: nc } = await supabase
+      .from("notas_credito")
+      .select("id, numero_nc, monto_total, fecha_vencimiento, estado, venta_id")
+      .eq("id", pagoNc.nota_credito_id)
+      .eq("store_id", store_id)
+      .single();
+
+    if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
+    if (nc.estado !== "activa") return NextResponse.json({ error: "NC ya fue utilizada o está inactiva" }, { status: 409 });
+    if (nc.fecha_vencimiento && new Date(nc.fecha_vencimiento) < new Date()) {
+      return NextResponse.json({ error: "NC vencida" }, { status: 410 });
+    }
+    if (pagoNc.monto > Number(nc.monto_total)) {
+      return NextResponse.json({ error: "Monto NC no coincide" }, { status: 400 });
+    }
+    ncData = { id: nc.id, monto_total: Number(nc.monto_total), venta_id: nc.venta_id };
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const hoy = new Date();
   const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+   const metodoPagoVenta = pagoNc
+     ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
+     : metodoPago;
 
    const { data: venta, error: ventaError } = await supabase
      .from("ventas")
@@ -147,7 +173,7 @@ export async function POST(req: NextRequest) {
        descuento: descuento_pct,
        impuesto,
        total,
-       metodo_pago: metodoPago,
+       metodo_pago: metodoPagoVenta,
        canal,
        procedencia,
        estado: "completada",
@@ -207,16 +233,76 @@ const { data: ventaItems, error: itemsError } = await supabase
 
    if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
-  // Registrar pago
-  const { error: pagoError } = await supabase.from("pagos").insert({
-    store_id,
-    venta_id: venta.id,
-    metodo: metodoPago,
-    monto: total,
-    numero_transaccion: numeroTransaccion ?? null,
-  });
+  // Registrar pago(s)
+  if (pagoNc && ncData) {
+    const pagosInsert = [
+      {
+        store_id,
+        venta_id: venta.id,
+        metodo: "nota_credito",
+        monto: pagoNc.monto,
+        nota_credito_id: ncData.id,
+        numero_transaccion: pagoNc.numero_nc,
+      },
+    ];
 
-  if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+    const montoResto = Math.round((total - pagoNc.monto) * 100) / 100;
+    if (montoResto > 0) {
+      pagosInsert.push({
+        store_id,
+        venta_id: venta.id,
+        metodo: metodoPago,
+        monto: montoResto,
+        nota_credito_id: null as unknown as string,
+        numero_transaccion: numeroTransaccion ?? null as unknown as string,
+      });
+    }
+
+    const { error: pagoError } = await supabase.from("pagos").insert(pagosInsert);
+    if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+
+    // Marcar NC como usada
+    await supabase
+      .from("notas_credito")
+      .update({ estado: "usada" })
+      .eq("id", ncData.id);
+
+    // Deducir de saldos_a_favor si la NC tiene cliente de origen
+    if (ncData.venta_id) {
+      const { data: ventaOrigen } = await supabase
+        .from("ventas")
+        .select("cliente_id")
+        .eq("id", ncData.venta_id)
+        .single();
+
+      if (ventaOrigen?.cliente_id) {
+        const { data: saldo } = await supabase
+          .from("saldos_a_favor")
+          .select("saldo_disponible")
+          .eq("cliente_id", ventaOrigen.cliente_id)
+          .eq("store_id", store_id)
+          .single();
+
+        if (saldo) {
+          const nuevoSaldo = Math.max(0, Number(saldo.saldo_disponible) - pagoNc.monto);
+          await supabase
+            .from("saldos_a_favor")
+            .update({ saldo_disponible: nuevoSaldo, updated_at: new Date().toISOString() })
+            .eq("cliente_id", ventaOrigen.cliente_id)
+            .eq("store_id", store_id);
+        }
+      }
+    }
+  } else {
+    const { error: pagoError } = await supabase.from("pagos").insert({
+      store_id,
+      venta_id: venta.id,
+      metodo: metodoPago,
+      monto: total,
+      numero_transaccion: numeroTransaccion ?? null,
+    });
+    if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+  }
 
   // Actualizar estado de venta a pagada
   await supabase.from("ventas").update({ estado: "pagada" }).eq("id", venta.id);
@@ -426,6 +512,18 @@ const { count } = await supabase
   // Generar asiento contable (fire-and-forget — no bloquea la respuesta)
   const montoNeto = Math.round((total / 1.19) * 100) / 100;
   const ivaCalc = Math.round((total - montoNeto) * 100) / 100;
+
+  const lineasAsiento = pagoNc
+    ? lineasVentaConNc({
+        montoNeto,
+        iva: ivaCalc,
+        total,
+        montoNc: pagoNc.monto,
+        montoResto: Math.round((total - pagoNc.monto) * 100) / 100,
+        metodoPagoResto: metodoPago,
+      })
+    : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total });
+
   crearAsiento({
     storeId: store_id,
     fecha: venta.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
@@ -433,8 +531,8 @@ const { count } = await supabase
     canal,
     referenciaId: venta.id,
     referenciaNomero: venta.numero_comprobante,
-    descripcion: `Venta ${canal.toUpperCase()} ${metodoPago} - ${venta.numero_comprobante}`,
-    lineas: lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
+    descripcion: `Venta ${canal.toUpperCase()} ${metodoPagoVenta} - ${venta.numero_comprobante}`,
+    lineas: lineasAsiento,
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 

@@ -25,6 +25,13 @@ type VentaDetalle = {
     subtotal: number;
     productos: { nombre: string; sku: string } | null;
   }>;
+  pagos?: Array<{
+    id: string;
+    metodo: string;
+    monto: number;
+    numero_transaccion: string | null;
+    nota_credito_id: string | null;
+  }>;
 };
 
 async function getVenta(id: string): Promise<VentaDetalle> {
@@ -265,6 +272,20 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
             <span>Método de pago</span>
             <span className="capitalize">{data.metodo_pago ?? "efectivo"}</span>
           </div>
+          {data.pagos && data.pagos.length > 1 && (
+            <div className="space-y-0.5 pt-1">
+              {data.pagos.map((p) => (
+                <div key={p.id} className="flex justify-between text-gray-400 text-xs">
+                  <span className="capitalize">
+                    {p.metodo === "nota_credito"
+                      ? `NC${p.numero_transaccion ? ` ${p.numero_transaccion}` : ""}`
+                      : p.metodo}
+                  </span>
+                  <span>${Math.round(p.monto).toLocaleString("es-CL")}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs text-gray-400 border-t pt-3">

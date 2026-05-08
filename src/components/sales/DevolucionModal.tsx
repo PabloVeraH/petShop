@@ -78,6 +78,9 @@ export function DevolucionModal({
       queryClient.invalidateQueries({ queryKey: ["venta", ventaId] });
       queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId] });
       queryClient.invalidateQueries({ queryKey: ["saldo", clienteId] });
+      if (tipoReembolso === "saldo_a_favor" && data.notaCreditoId) {
+        window.open(`/nota-credito/${data.notaCreditoId}?autoPrint=1`, "_blank", "width=500,height=700");
+      }
       setTimeout(() => {
         onSuccess();
         resetForm();
@@ -275,13 +278,11 @@ export function DevolucionModal({
                       checked={tipoReembolso === "saldo_a_favor"}
                       onChange={(e) => setTipoReembolso(e.target.value as "saldo_a_favor")}
                     />
-                    <span>Saldo a favor del cliente</span>
+                    <span>Nota de Crédito (voucher imprimible)</span>
                   </label>
-                  {clienteId && (
-                    <p className="text-xs text-gray-500 ml-6">
-                      El cliente podrá usar este saldo en futuras compras
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 ml-6">
+                    Se genera un voucher con vigencia de 30 días para usar en próximas compras
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">

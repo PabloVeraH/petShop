@@ -10,6 +10,31 @@ export async function GET(req: NextRequest) {
   const { storeId: store_id, systemAdmin } = ctx;
   const supabase = createServiceClient();
 
+  // Lookup/validate a single NC by its code (used by POS for NC payment)
+  const numeroNc = req.nextUrl.searchParams.get("numero_nc");
+  if (numeroNc) {
+    let ncQuery = supabase
+      .from("notas_credito")
+      .select("id, numero_nc, monto_total, fecha_vencimiento, estado")
+      .eq("numero_nc", numeroNc);
+
+    if (!systemAdmin) ncQuery = ncQuery.eq("store_id", store_id);
+
+    const { data: nc } = await ncQuery.single();
+
+    if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
+    if (nc.estado !== "activa") {
+      return NextResponse.json(
+        { error: nc.estado === "usada" ? "NC ya fue utilizada" : "NC inactiva" },
+        { status: 409 }
+      );
+    }
+    if (nc.fecha_vencimiento && new Date(nc.fecha_vencimiento) < new Date()) {
+      return NextResponse.json({ error: "NC vencida" }, { status: 410 });
+    }
+    return NextResponse.json({ data: nc });
+  }
+
   const ventaId = req.nextUrl.searchParams.get("ventaId");
   if (!ventaId) return NextResponse.json({ error: "ventaId required" }, { status: 400 });
 
@@ -111,6 +136,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
   }
 
+  const fechaVencimiento = new Date();
+  fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+
   const { data: nc, error: ncError } = await supabase
     .from("notas_credito")
     .insert({
@@ -122,6 +150,7 @@ export async function POST(req: NextRequest) {
       metodo_reembolso: metodoReembolso ?? null,
       monto_total: montoTotal,
       estado: "activa",
+      fecha_vencimiento: fechaVencimiento.toISOString().split("T")[0],
     })
     .select()
     .single();
@@ -235,5 +264,11 @@ export async function POST(req: NextRequest) {
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
 
-  return NextResponse.json({ ok: true, notaCreditoId: nc.id, numeroNc: numero_nc });
+  return NextResponse.json({
+    ok: true,
+    notaCreditoId: nc.id,
+    numeroNc: numero_nc,
+    montoNc: montoTotal,
+    fechaVencimiento: fechaVencimiento.toISOString().split("T")[0],
+  });
 }

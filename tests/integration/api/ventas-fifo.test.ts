@@ -302,7 +302,12 @@ describe("Devolución con trazabilidad de lotes", () => {
         };
       }
       if (table === "nota_credito_items") {
-        return { insert: jest.fn().mockResolvedValue({ error: null }) };
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+          insert: jest.fn().mockResolvedValue({ error: null }),
+        };
       }
 
       // venta_item_lotes: .select().eq().limit()

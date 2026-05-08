@@ -177,6 +177,58 @@ export function lineasVentaCanal(params: {
   ];
 }
 
+export function lineasVentaConNc(params: {
+  montoNeto: number;
+  iva: number;
+  total: number;
+  montoNc: number;
+  montoResto: number;
+  metodoPagoResto?: string;
+}): LineaAsiento[] {
+  const lineas: LineaAsiento[] = [];
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
+    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
+    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
+    debito: params.montoNc,
+    credito: 0,
+    descripcionLinea: "Pago con Nota de Crédito",
+  });
+
+  if (params.montoResto > 0) {
+    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+    lineas.push({
+      cuentaCodigo: cuentaCaja.codigo,
+      cuentaNombre: cuentaCaja.nombre,
+      cuentaTipo: cuentaCaja.tipo,
+      debito: params.montoResto,
+      credito: 0,
+      descripcionLinea: "Cobro diferencia venta",
+    });
+  }
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+    debito: 0,
+    credito: params.iva,
+    descripcionLinea: "IVA 19%",
+  });
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.VENTAS.codigo,
+    cuentaNombre: CUENTAS.VENTAS.nombre,
+    cuentaTipo: CUENTAS.VENTAS.tipo,
+    debito: 0,
+    credito: params.montoNeto,
+    descripcionLinea: "Ingreso por venta",
+  });
+
+  return lineas;
+}
+
 export function lineasNotaCredito(params: {
   monto: number;         // total con IVA incluido
   tipoReembolso: string;
