@@ -171,10 +171,10 @@ export default function ReportesTab() {
           {/* KPIs */}
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: "Total período", value: fmt(data.totalPeriodo) },
-              { label: "Transacciones", value: data.totalTransacciones.toLocaleString("es-CL") },
-              { label: "Ticket promedio", value: fmt(data.ticketPromedio) },
-              { label: "Predicción 7 días", value: fmt(data.prediccion7dias), sub: `~${fmt(data.promedioDiario)}/día` },
+              { label: "Total Ventas período", value: fmt(data.totalPeriodo) },
+              { label: "Cantidad de Ventas", value: data.totalTransacciones.toLocaleString("es-CL") },
+              { label: "Venta promedio de Venta", value: fmt(data.ticketPromedio) },
+              { label: "Predicción prox. 7 días", value: fmt(data.prediccion7dias), sub: `~${fmt(data.promedioDiario)}/día` },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-white rounded-lg border border-gray-200 p-4">
                 <p className="text-xs text-gray-500 mb-1">{kpi.label}</p>
