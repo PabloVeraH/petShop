@@ -14,11 +14,12 @@ export async function GET(req: NextRequest) {
 
   // Single lookup by RUT (used by POS)
   if (rut) {
+    const rutNormalizado = validateRUT(rut) ? formatRUT(rut) : rut;
     const { data, error } = await supabase
       .from("clientes")
       .select("id, store_id, rut, nombre, email, telefono")
       .eq("store_id", store_id)
-      .eq("rut", rut)
+      .eq("rut", rutNormalizado)
       .single();
 
     if (error?.code === "PGRST116") return NextResponse.json(null);
