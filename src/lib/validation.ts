@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { es } from "zod/locales";
+
+z.config(es());
 
 /**
  * Validates Chilean RUT format (e.g., "12.345.678-9" or "12345678-9")
@@ -43,8 +46,8 @@ export const PriceSchema = z.number().positive().multipleOf(0.01);
 
 export const ClienteCreateSchema = z.object({
   rut: RUTSchema,
-  nombre: z.string().min(3).max(100),
-  email: z.string().email().optional(),
+  nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100),
+  email: z.string().email("Correo electrónico inválido").optional(),
   telefono: z.string().max(20).optional(),
   store_id: UUIDSchema,
 });
@@ -59,8 +62,8 @@ export const MascotaCreateSchema = z.object({
 });
 
 export const ClienteUpdateSchema = z.object({
-  nombre: z.string().min(3).max(100).optional(),
-  email: z.string().email().optional(),
+  nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100).optional(),
+  email: z.string().email("Correo electrónico inválido").optional(),
   telefono: z.string().max(20).optional(),
 });
 
@@ -71,54 +74,54 @@ export const InventarioUpdateSchema = z.object({
 });
 
 export const ProveedorCreateSchema = z.object({
-  nombre: z.string().min(2).max(100),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   rut: z.string().max(20).optional(),
   contacto: z.string().max(100).optional(),
   telefono: z.string().max(20).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email("Correo electrónico inválido").optional(),
 });
 
 export const CategoriaCreateSchema = z.object({
-  nombre: z.string().min(2).max(100),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   descripcion: z.string().max(500).optional(),
 });
 
 export const CategoriaUpdateSchema = z.object({
-  nombre: z.string().min(2).max(100).optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   descripcion: z.string().max(500).optional(),
   activo: z.boolean().optional(),
   es_alimento: z.boolean().optional(),
 });
 
 export const ProductoCreateSchema = z.object({
-  nombre: z.string().min(2).max(100),
-  sku: z.string().min(1).max(50),
-  precio: z.number().positive(),
-  costo: z.number().nonnegative().optional(),
-  stock: z.number().int().nonnegative().optional(),
-  stock_minimo: z.number().int().nonnegative().optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  sku: z.string().min(1, "El SKU es obligatorio").max(50),
+  precio: z.number().positive("El precio debe ser mayor a 0"),
+  costo: z.number().nonnegative("El costo no puede ser negativo").optional(),
+  stock: z.number().int().nonnegative("El stock no puede ser negativo").optional(),
+  stock_minimo: z.number().int().nonnegative("El stock mínimo no puede ser negativo").optional(),
   marca: z.string().max(50).optional(),
-  peso_gramos: z.number().int().positive().optional(),
-  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  peso_gramos: z.number().int().positive("El peso debe ser mayor a 0").optional(),
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)").optional(),
   dias_alerta_expira: z.number().int().positive().max(365).optional(),
-  precio_oferta: z.number().nonnegative().optional(),
+  precio_oferta: z.number().nonnegative("El precio de oferta no puede ser negativo").optional(),
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).optional(),
 });
 
 export const ProductoUpdateSchema = z.object({
-  nombre: z.string().min(2).max(100).optional(),
-  sku: z.string().min(1).max(50).optional(),
-  precio: z.number().positive().optional(),
-  costo: z.number().nonnegative().optional(),
-  stock: z.number().int().nonnegative().optional(),
-  stock_minimo: z.number().int().nonnegative().optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
+  sku: z.string().min(1, "El SKU es obligatorio").max(50).optional(),
+  precio: z.number().positive("El precio debe ser mayor a 0").optional(),
+  costo: z.number().nonnegative("El costo no puede ser negativo").optional(),
+  stock: z.number().int().nonnegative("El stock no puede ser negativo").optional(),
+  stock_minimo: z.number().int().nonnegative("El stock mínimo no puede ser negativo").optional(),
   marca: z.string().max(50).optional(),
-  peso_gramos: z.number().int().positive().optional(),
-  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  peso_gramos: z.number().int().positive("El peso debe ser mayor a 0").optional(),
+  fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)").optional(),
   dias_alerta_expira: z.number().int().positive().max(365).optional(),
-  precio_oferta: z.number().nonnegative().optional(),
+  precio_oferta: z.number().nonnegative("El precio de oferta no puede ser negativo").optional(),
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).nullable().optional(),
@@ -141,7 +144,7 @@ export const VentaItemSchema = z.object({
 
 export const VentaCreateSchema = z.object({
   clienteId: UUIDSchema.optional(),
-  items: z.array(VentaItemSchema).min(1),
+  items: z.array(VentaItemSchema).min(1, "La venta debe tener al menos un producto"),
   descuentoPct: z.number().nonnegative().max(100).optional(),
   metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor", "plataforma", "nota_credito", "mixto"]),
   notas: z.string().max(500).optional(),
@@ -166,18 +169,18 @@ export const PagoSchema = z.object({
 });
 
 export const SettingsUpdateSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   rut: z.string().max(20).optional(),
   address: z.string().max(200).optional(),
   phone: z.string().max(20).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email("Correo electrónico inválido").optional(),
   whatsapp_enabled: z.boolean().optional(),
   whatsapp_phone_number_id: z.string().max(50).optional(),
   whatsapp_access_token: z.string().max(200).optional(),
   whatsapp_webhook_verify_token: z.string().max(100).optional(),
   email_reminder_enabled: z.boolean().optional(),
   email_reminder_dias_aviso: z.number().int().min(1).max(30).optional(),
-  resend_from_email: z.string().email().nullable().optional(),
+  resend_from_email: z.string().email("Correo electrónico inválido").nullable().optional(),
 });
 
 export const ClienteDeleteSchema = z.object({
@@ -196,8 +199,8 @@ export const OrdenesCompraCreateSchema = z.object({
 
 export const NotasCreditoCreateSchema = z.object({
   ventaId: UUIDSchema,
-  motivo: z.string().min(5).max(200),
-  monto: z.number().positive(),
+  motivo: z.string().min(5, "El motivo debe tener al menos 5 caracteres").max(200),
+  monto: z.number().positive("El monto debe ser mayor a 0"),
 });
 
 export const SaldosFavorCreateSchema = z.object({
@@ -227,11 +230,11 @@ export const FidelizacionSchema = z.object({
 });
 
 export const ProveedorUpdateSchema = z.object({
-  nombre: z.string().min(2).max(100).optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   rut: z.string().max(20).optional(),
   contacto: z.string().max(100).optional(),
   telefono: z.string().max(20).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email("Correo electrónico inválido").optional(),
 });
 
 export const ProveedorProductoSchema = z.object({
@@ -272,23 +275,23 @@ export const DashboardQuerySchema = z.object({
 });
 
 export const AdminUserAssignSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email("Correo electrónico inválido"),
   storeId: UUIDSchema,
   role: z.enum(["storeAdmin", "storeWorker"]),
 });
 
 export const AdminStoreCreateSchema = z.object({
-  name: z.string().min(3).max(100),
+  name: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100),
   rut: z.string().max(20).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email("Correo electrónico inválido").optional(),
   phone: z.string().max(20).optional(),
 });
 
 export const AdminUserCreateFullSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  firstName: z.string().min(2).max(100),
-  lastName: z.string().min(2).max(100),
+  email: z.string().email("Correo electrónico inválido"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres").max(100),
   storeId: UUIDSchema.optional(),
   role: z.enum(["storeAdmin", "storeWorker", "systemAdmin"]),
   rut: z.string().max(20).optional(),
@@ -371,7 +374,7 @@ export const LicenseConfigSchema = z.object({
 );
 
 export const UserDisableSchema = z.object({
-  userIds: z.array(z.string()).min(1, "Seleccionar al menos un usuario"),
+  userIds: z.array(z.string()).min(1, "Debes seleccionar al menos un usuario"),
   action: z.enum(["disable", "enable"]),
 });
 
