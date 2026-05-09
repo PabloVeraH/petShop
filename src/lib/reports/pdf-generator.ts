@@ -1,5 +1,174 @@
 import jsPDF from "jspdf";
 
+export interface BoletaData {
+  numeroComprobante: string;
+  fecha: string;
+  storeName: string;
+  storeRut?: string;
+  cliente?: { nombre: string; rut?: string };
+  items: Array<{ nombre: string; cantidad: number; precio_unitario: number; subtotal: number }>;
+  subtotal: number;
+  descuentoPct: number;
+  descuentoMonto: number;
+  impuesto: number;
+  total: number;
+  pagos: Array<{ metodo: string; monto: number; numero_transaccion?: string }>;
+}
+
+const METODO_LABELS: Record<string, string> = {
+  efectivo: "Efectivo",
+  debito: "Débito",
+  credito: "Crédito",
+  transferencia: "Transferencia",
+  nota_credito: "Nota de Crédito",
+  mixto: "Mixto",
+};
+
+export function generateBoletaPDF(data: BoletaData): jsPDF {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 25;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 20;
+
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
+  const fecha = new Date(data.fecha);
+  const fechaStr = fecha.toLocaleDateString("es-CL");
+  const horaStr = fecha.toLocaleTimeString("es-CL");
+
+  // Header
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.storeName, pageWidth / 2, y, { align: "center" });
+  y += 8;
+
+  if (data.storeRut) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`RUT: ${data.storeRut}`, pageWidth / 2, y, { align: "center" });
+    y += 6;
+  }
+
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 7;
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("BOLETA", pageWidth / 2, y, { align: "center" });
+  y += 7;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.numeroComprobante, pageWidth / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(10);
+  doc.text(`${fechaStr} ${horaStr}`, pageWidth / 2, y, { align: "center" });
+  y += 9;
+
+  // Cliente
+  if (data.cliente) {
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 5;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("CLIENTE", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.text(data.cliente.nombre, margin, y);
+    y += 5;
+    if (data.cliente.rut) {
+      doc.text(`RUT: ${data.cliente.rut}`, margin, y);
+      y += 5;
+    }
+    y += 2;
+  }
+
+  // Products table header
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Producto", margin, y);
+  doc.text("Cant", margin + contentWidth * 0.58, y, { align: "right" });
+  doc.text("Precio", margin + contentWidth * 0.79, y, { align: "right" });
+  doc.text("Total", margin + contentWidth, y, { align: "right" });
+  y += 3;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+
+  doc.setFont("helvetica", "normal");
+  for (const item of data.items) {
+    const nombre = item.nombre.length > 38 ? item.nombre.slice(0, 36) + "…" : item.nombre;
+    doc.text(nombre, margin, y);
+    doc.text(String(item.cantidad), margin + contentWidth * 0.58, y, { align: "right" });
+    doc.text(fmt(item.precio_unitario), margin + contentWidth * 0.79, y, { align: "right" });
+    doc.text(fmt(item.subtotal), margin + contentWidth, y, { align: "right" });
+    y += 6;
+  }
+
+  // Totals
+  y += 2;
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+
+  const totRow = (label: string, value: string, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.text(label, margin + contentWidth * 0.45, y);
+    doc.text(value, margin + contentWidth, y, { align: "right" });
+    y += 5;
+  };
+
+  doc.setFontSize(10);
+  totRow("Subtotal:", fmt(data.subtotal));
+  if (data.descuentoMonto > 0) {
+    totRow(`Descuento (${data.descuentoPct}%):`, `-${fmt(data.descuentoMonto)}`);
+  }
+  totRow("IVA (19%):", fmt(data.impuesto));
+
+  y += 1;
+  doc.setLineWidth(0.5);
+  doc.line(margin + contentWidth * 0.45, y, pageWidth - margin, y);
+  y += 5;
+  doc.setFontSize(12);
+  totRow("TOTAL:", fmt(data.total), true);
+
+  // Pagos
+  y += 3;
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("FORMAS DE PAGO", margin, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+
+  for (const pago of data.pagos) {
+    let label = METODO_LABELS[pago.metodo] ?? pago.metodo;
+    if (pago.numero_transaccion) label += ` #${pago.numero_transaccion}`;
+    doc.text(label, margin, y);
+    doc.text(fmt(pago.monto), margin + contentWidth, y, { align: "right" });
+    y += 5;
+  }
+
+  // Footer
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 6;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Este documento NO constituye un documento tributario.", pageWidth / 2, y, { align: "center" });
+  y += 4;
+  doc.text("Gracias por su compra.", pageWidth / 2, y, { align: "center" });
+
+  return doc;
+}
+
 export interface PrediccionReportData {
   producto_nombre: string;
   sku: string;

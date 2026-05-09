@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { generateBoletaPDF, type BoletaData } from "@/lib/reports/pdf-generator";
 
 let _resend: Resend | null = null;
 
@@ -85,6 +86,100 @@ export function buildFoodReminderHTML(params: FoodReminderEmailParams): string {
 
 export function _setResendInstance(resendInstance: Resend) {
   _resend = resendInstance;
+}
+
+export async function sendBoletaEmail(params: {
+  to: string;
+  fromEmail?: string;
+  boleta: BoletaData;
+}): Promise<boolean> {
+  const from = params.fromEmail ?? DEFAULT_FROM;
+  const doc = generateBoletaPDF(params.boleta);
+  const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+
+  const { error } = await getResend().emails.send({
+    from,
+    to: params.to,
+    subject: `Boleta ${params.boleta.numeroComprobante} — ${params.boleta.storeName}`,
+    html: buildBoletaEmailHTML(params.boleta),
+    attachments: [
+      {
+        filename: `boleta-${params.boleta.numeroComprobante}.pdf`,
+        content: pdfBuffer,
+      },
+    ],
+  });
+
+  if (error) {
+    console.error("[email] Error enviando boleta:", error);
+    return false;
+  }
+  return true;
+}
+
+function buildBoletaEmailHTML(b: BoletaData): string {
+  const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
+  const fecha = new Date(b.fecha).toLocaleDateString("es-CL");
+
+  const itemsHTML = b.items.map(i => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;">${i.nombre}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:center;">${i.cantidad}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${fmt(i.precio_unitario)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${fmt(i.subtotal)}</td>
+    </tr>`).join("");
+
+  const pagosHTML = b.pagos.map(p => {
+    const metodoLabels: Record<string, string> = {
+      efectivo: "Efectivo", debito: "Débito", credito: "Crédito",
+      transferencia: "Transferencia", nota_credito: "Nota de Crédito",
+    };
+    let label = metodoLabels[p.metodo] ?? p.metodo;
+    if (p.numero_transaccion) label += ` #${p.numero_transaccion}`;
+    return `<div style="display:flex;justify-content:space-between;"><span>${label}</span><span>${fmt(p.monto)}</span></div>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">
+  <h2 style="color:#16a34a;">${b.storeName}</h2>
+  ${b.storeRut ? `<p style="color:#666;margin-top:-12px;">RUT: ${b.storeRut}</p>` : ""}
+  <p style="font-size:13px;color:#555;">Boleta <strong>${b.numeroComprobante}</strong> · ${fecha}</p>
+  ${b.cliente ? `<p style="font-size:13px;">Cliente: <strong>${b.cliente.nombre}</strong>${b.cliente.rut ? ` (${b.cliente.rut})` : ""}</p>` : ""}
+
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+    <thead>
+      <tr style="border-bottom:2px solid #ddd;">
+        <th style="text-align:left;padding:8px 0;">Producto</th>
+        <th style="text-align:center;padding:8px 0;">Cant</th>
+        <th style="text-align:right;padding:8px 0;">Precio</th>
+        <th style="text-align:right;padding:8px 0;">Total</th>
+      </tr>
+    </thead>
+    <tbody>${itemsHTML}</tbody>
+  </table>
+
+  <div style="margin-top:12px;text-align:right;font-size:13px;">
+    <div>Subtotal: ${fmt(b.subtotal)}</div>
+    ${b.descuentoMonto > 0 ? `<div>Descuento (${b.descuentoPct}%): -${fmt(b.descuentoMonto)}</div>` : ""}
+    <div>IVA (19%): ${fmt(b.impuesto)}</div>
+    <div style="font-weight:bold;font-size:16px;border-top:1px solid #ddd;margin-top:6px;padding-top:6px;">
+      TOTAL: ${fmt(b.total)}
+    </div>
+  </div>
+
+  <div style="margin-top:16px;font-size:12px;color:#666;">
+    <strong>Formas de pago:</strong>
+    ${pagosHTML}
+  </div>
+
+  <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+  <p style="font-size:11px;color:#999;">
+    Adjunto encontrarás la boleta en formato PDF.<br>
+    Este correo no constituye un documento tributario.
+  </p>
+</body>
+</html>`;
 }
 
 export interface OrdenCompraCancelacionEmailParams {

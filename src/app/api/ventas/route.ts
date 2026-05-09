@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
+import { sendBoletaEmail } from "@/lib/email";
 import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
@@ -506,6 +507,62 @@ const { count } = await supabase
           msg
         );
       }
+    }
+  }
+
+  // Auto-send email receipt if cliente has email (fire-and-forget)
+  if (clienteId) {
+    const { data: clienteParaEmail } = await supabase
+      .from("clientes")
+      .select("nombre, email, rut")
+      .eq("id", clienteId)
+      .single();
+
+    if (clienteParaEmail?.email) {
+      const { data: storeParaEmail } = await supabase
+        .from("stores")
+        .select("name, rut, resend_from_email")
+        .eq("id", store_id)
+        .single();
+
+      const { data: itemsParaEmail } = await supabase
+        .from("venta_items")
+        .select("cantidad, precio_unitario, subtotal, productos(nombre)")
+        .eq("venta_id", venta.id);
+
+      const montoRestoEmail = pagoNc ? Math.round((total - pagoNc.monto) * 100) / 100 : 0;
+      const pagosEmail: Array<{ metodo: string; monto: number; numero_transaccion?: string }> = pagoNc
+        ? [
+            { metodo: "nota_credito", monto: pagoNc.monto, numero_transaccion: pagoNc.numero_nc },
+            ...(montoRestoEmail > 0
+              ? [{ metodo: metodoPago, monto: montoRestoEmail, numero_transaccion: numeroTransaccion ?? undefined }]
+              : []),
+          ]
+        : [{ metodo: metodoPago, monto: total, numero_transaccion: numeroTransaccion ?? undefined }];
+
+      sendBoletaEmail({
+        to: clienteParaEmail.email,
+        fromEmail: storeParaEmail?.resend_from_email ?? undefined,
+        boleta: {
+          numeroComprobante: numero_comprobante,
+          fecha: venta.created_at ?? new Date().toISOString(),
+          storeName: storeParaEmail?.name ?? "Tienda",
+          storeRut: storeParaEmail?.rut ?? undefined,
+          cliente: { nombre: clienteParaEmail.nombre, rut: clienteParaEmail.rut ?? undefined },
+          items: (itemsParaEmail ?? []).map((i) => ({
+            nombre: (i.productos as unknown as { nombre: string } | null)?.nombre ?? "Producto",
+            cantidad: i.cantidad,
+            precio_unitario: Number(i.precio_unitario),
+            subtotal: Number(i.subtotal),
+          })),
+          subtotal,
+          descuentoPct: descuento_pct,
+          descuentoMonto: Math.round(descuentoMonto),
+          impuesto,
+          total,
+          pagos: pagosEmail,
+        },
+      }).catch((e) => console.error("[email] Error enviando boleta:", e));
     }
   }
 
