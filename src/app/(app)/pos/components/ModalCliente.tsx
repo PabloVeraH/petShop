@@ -9,6 +9,24 @@ import { usePOSStore } from "@/stores/pos";
 import { getClienteByRUT, getMascotasByCliente } from "../api";
 import { formatRUT, validateRUT } from "@/lib/validation";
 
+function autoFormatRUT(value: string): string {
+  // Extraer solo los caracteres válidos (quitar puntos y guiones que ya existen)
+  const raw = value
+    .replace(/\./g, "")
+    .replace(/-/g, "")
+    .replace(/[^0-9kK]/g, "")
+    .toUpperCase()
+    .slice(0, 9); // max 8 dígitos cuerpo + 1 DV
+
+  if (raw.length <= 3) return raw;
+
+  // A partir de 4 chars: el último siempre es el DV
+  const body = raw.slice(0, -1);
+  const dv   = raw.slice(-1);
+  const bodyFmt = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${bodyFmt}-${dv}`;
+}
+
 interface AlimentoCheckItem {
   id: string;
   nombre: string;
@@ -59,6 +77,7 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
   const { setCliente, clearCliente, items } = usePOSStore();
 
   const rutValido = validateRUT(rut);
+  const mostrarValidacion = rut.includes("-");;
 
   const { data: cliente, isLoading: loadingCliente, error } = useQuery({
     queryKey: ["cliente", rut],
@@ -162,10 +181,10 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
             <Input
               placeholder="12.345.678-9"
               value={rut}
-              onChange={(e) => setRut(e.target.value)}
+              onChange={(e) => setRut(autoFormatRUT(e.target.value))}
               autoFocus
             />
-            {rut && !rutValido && (
+            {mostrarValidacion && !rutValido && (
               <p className="text-xs text-red-500 mt-1">RUT inválido</p>
             )}
           </div>
