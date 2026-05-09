@@ -22,7 +22,7 @@ export default function POSPage() {
   const isStoreAdmin = meta?.storeAdmin === true;
 
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, total, procedencia, pagoNc, clearCart, setWorker } = usePOSStore();
+  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, total, procedencia, pagoNc, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
 
   useEffect(() => {
     if (userId && !isStoreAdmin) {
@@ -47,6 +47,7 @@ export default function POSPage() {
         descuentoPct: descuento,
         procedencia,
         pagoNc,
+        enviarEmail: enviarEmailRecibo,
       }),
     onSuccess: (data) => {
       clearCart();

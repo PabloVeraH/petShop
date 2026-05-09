@@ -54,6 +54,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     workerClerkId, setWorker,
     procedencia, setProcedencia,
     pagoNc, setPayNc, clearPayNc,
+    clienteEmail, enviarEmailRecibo, setEnviarEmailRecibo,
   } = usePOSStore();
 
   const { data: workers } = useQuery<Worker[]>({
@@ -361,6 +362,21 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
+
+          {/* Email toggle — solo visible si el cliente tiene email */}
+          {clienteEmail && (
+            <button
+              type="button"
+              onClick={() => setEnviarEmailRecibo(!enviarEmailRecibo)}
+              className={`w-full rounded border px-3 py-2 text-sm transition-colors text-left ${
+                enviarEmailRecibo
+                  ? "border-blue-400 bg-blue-50 text-blue-700 font-medium"
+                  : "border-gray-200 bg-white text-gray-400"
+              }`}
+            >
+              {enviarEmailRecibo ? "✓" : "○"} Enviar boleta por mail al cliente
+            </button>
+          )}
 
           {/* Acciones */}
           <div className="flex gap-2">

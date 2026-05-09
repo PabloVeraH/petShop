@@ -135,7 +135,7 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
       return d;
     },
     onSuccess: (newCliente) => {
-      setCliente(newCliente.id, undefined, 0);
+      setCliente(newCliente.id, undefined, 0, newCliente.email ?? undefined);
       onClose();
     },
     onError: (e: Error) => setRegisterError(e.message),
@@ -159,7 +159,7 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     }
     await Promise.allSettled(saves);
 
-    setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0);
+    setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0, cliente.email ?? undefined);
     onClose();
   };
 

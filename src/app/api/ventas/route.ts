@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
 
   const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
+  const enviarEmail = body.enviarEmail === true;
   const descuento_pct = descuentoPct ?? 0;
 
   // Additional validation for transaction numbers (only for non-NC rest payments)
@@ -510,8 +511,8 @@ const { count } = await supabase
     }
   }
 
-  // Auto-send email receipt if cliente has email (fire-and-forget)
-  if (clienteId) {
+  // Auto-send email receipt if vendedor activó el toggle y el cliente tiene email (fire-and-forget)
+  if (enviarEmail && clienteId) {
     const { data: clienteParaEmail } = await supabase
       .from("clientes")
       .select("nombre, email, rut")

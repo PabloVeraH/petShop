@@ -23,6 +23,7 @@ interface PagoNc {
 interface POSStore {
   items: CartItem[];
   clienteId?: string;
+  clienteEmail?: string;
   mascotaId?: string;
   workerClerkId?: string;
   metodoPago?: string;
@@ -31,13 +32,15 @@ interface POSStore {
   fidelizacionDescuento: number;
   procedencia: string;
   pagoNc?: PagoNc;
+  enviarEmailRecibo: boolean;
 
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  setCliente: (clienteId: string, mascotaId?: string, fidelizacionDescuento?: number) => void;
+  setCliente: (clienteId: string, mascotaId?: string, fidelizacionDescuento?: number, clienteEmail?: string) => void;
   clearCliente: () => void;
+  setEnviarEmailRecibo: (v: boolean) => void;
   setWorker: (clerkId: string | undefined) => void;
   setMetodoPago: (metodo: string) => void;
   setNumeroTransaccion: (numero: string | undefined) => void;
@@ -59,6 +62,7 @@ export const usePOSStore = create<POSStore>()(
       descuento: 0,
       fidelizacionDescuento: 0,
       procedencia: "presencial",
+      enviarEmailRecibo: false,
 
       addItem: (item) => {
         const existing = get().items.find(
@@ -100,6 +104,7 @@ export const usePOSStore = create<POSStore>()(
         set({
           items: [],
           clienteId: undefined,
+          clienteEmail: undefined,
           mascotaId: undefined,
           workerClerkId: undefined,
           metodoPago: undefined,
@@ -108,24 +113,28 @@ export const usePOSStore = create<POSStore>()(
           fidelizacionDescuento: 0,
           procedencia: "presencial",
           pagoNc: undefined,
+          enviarEmailRecibo: false,
         }),
 
-      setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0) => {
+      setCliente: (clienteId, mascotaId, fidelizacionDescuento = 0, clienteEmail) => {
         const currentClienteId = get().clienteId;
         if (currentClienteId && currentClienteId !== clienteId) {
           // Cliente changed — clear stale mascota_id from all cart items
           set((state) => ({
             items: state.items.map((i) => ({ ...i, mascota_id: undefined })),
             clienteId,
+            clienteEmail,
             mascotaId,
             fidelizacionDescuento,
           }));
         } else {
-          set({ clienteId, mascotaId, fidelizacionDescuento });
+          set({ clienteId, clienteEmail, mascotaId, fidelizacionDescuento });
         }
       },
 
-      clearCliente: () => set({ clienteId: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
+      clearCliente: () => set({ clienteId: undefined, clienteEmail: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
+
+      setEnviarEmailRecibo: (enviarEmailRecibo) => set({ enviarEmailRecibo }),
 
       setWorker: (workerClerkId) => set({ workerClerkId }),
 
@@ -165,6 +174,7 @@ export const usePOSStore = create<POSStore>()(
       partialize: (state) => ({
         items: state.items,
         clienteId: state.clienteId,
+        clienteEmail: state.clienteEmail,
         mascotaId: state.mascotaId,
         workerClerkId: state.workerClerkId,
         metodoPago: state.metodoPago,
