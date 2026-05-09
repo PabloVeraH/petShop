@@ -65,6 +65,12 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
+  // Rutas solo para storeAdmin y systemAdmin
+  const adminOnlyRoutes = createRouteMatcher(["/vendedores(.*)"]);
+  if (adminOnlyRoutes(req) && !isSystemAdmin && !meta?.storeAdmin) {
+    return NextResponse.redirect(new URL("/pos", req.url));
+  }
+
   // Redirect desde raíz según rol
   if (req.nextUrl.pathname === "/" && userId) {
     if (isSystemAdmin) return NextResponse.redirect(new URL("/admin", req.url));
