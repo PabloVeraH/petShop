@@ -210,7 +210,7 @@ export default function InventoryPage() {
       precio: p.precio != null ? String(p.precio) : "", costo: p.costo != null ? String(p.costo) : "",
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
       marca: p.marca ?? "", peso_gramos: p.peso_gramos != null ? String(p.peso_gramos) : "",
-      fecha_vencimiento: p.fecha_vencimiento ?? "",
+      fecha_vencimiento: p.fecha_vencimiento ? p.fecha_vencimiento.split("T")[0] : "",
       dias_alerta_expira: String(p.dias_alerta_expira ?? 30),
       precio_oferta: p.precio_oferta != null ? String(p.precio_oferta) : "",
       en_oferta: p.en_oferta ?? false,
