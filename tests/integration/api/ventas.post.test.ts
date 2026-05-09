@@ -42,9 +42,14 @@ jest.mock("@/lib/hub-sync", () => ({
   syncProductsToHub: jest.fn(),
 }));
 
+jest.mock("@/lib/email", () => ({
+  sendBoletaEmail: jest.fn().mockResolvedValue(true),
+}));
+
 import { POST } from "@/app/api/ventas/route";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
+import { sendBoletaEmail } from "@/lib/email";
 
 function makeRequest(body: object) {
   return new NextRequest("http://localhost/api/ventas", {
@@ -508,5 +513,77 @@ describe("POST /api/ventas — procedencia", () => {
       procedencia: "whatsapp",
       total: 20000,
     });
+  });
+});
+
+describe("POST /api/ventas — toggle email boleta", () => {
+  // Setup que devuelve un cliente CON email
+  function setupWithClientEmail() {
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        }
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+      }
+      if (table === "ventas") {
+        return { ...mockChain, insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }) };
+      }
+      if (table === "clientes") {
+        // Devuelve rut + email para cubrir la query del hub-sync Y la query de email
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1", nombre: "Juan Test", email: "juan@test.com" }, error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { name: "PetShop", rut: null, resend_from_email: null, whatsapp_enabled: false }, error: null }) };
+      }
+      if (table === "fidelizacion") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }), upsert: jest.fn().mockResolvedValue({ error: null }) };
+      }
+      if (table === "lotes_producto") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), gt: jest.fn().mockReturnThis(), count: { exact: 0 } };
+      }
+      if (table === "venta_items") {
+        // insert().select() para crear items; select().eq() para la query de email
+        return {
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockResolvedValue({ data: [{ id: "vi-1", producto_id: PRODUCTO_ID, cantidad: 2 }], error: null }),
+          }),
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      return { ...mockChain, insert: jest.fn().mockReturnThis(), upsert: jest.fn().mockResolvedValue({ error: null }), select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRpc.mockResolvedValue({ error: null });
+  });
+
+  // I-55
+  it("I-55: enviarEmail=true con cliente con email → sendBoletaEmail es llamado", async () => {
+    setupWithClientEmail();
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID, enviarEmail: true }));
+    expect(sendBoletaEmail).toHaveBeenCalled();
+  });
+
+  // I-56
+  it("I-56: enviarEmail=false → sendBoletaEmail NO es llamado aunque el cliente tenga email", async () => {
+    setupWithClientEmail();
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID, enviarEmail: false }));
+    expect(sendBoletaEmail).not.toHaveBeenCalled();
+  });
+
+  // I-57
+  it("I-57: enviarEmail ausente → sendBoletaEmail NO es llamado", async () => {
+    setupHappyPath();
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
+    expect(sendBoletaEmail).not.toHaveBeenCalled();
   });
 });

@@ -166,3 +166,47 @@ describe("POS Store — persistencia en localStorage", () => {
     expect(last.state.procedencia).toBe("whatsapp");
   });
 });
+
+describe("POS Store — email recibo toggle", () => {
+  beforeEach(resetStore);
+
+  // S-14
+  it("S-14: enviarEmailRecibo inicia en false por defecto", () => {
+    expect(usePOSStore.getState().enviarEmailRecibo).toBe(false);
+  });
+
+  // S-15
+  it("S-15: setEnviarEmailRecibo(true) activa el flag", () => {
+    usePOSStore.getState().setEnviarEmailRecibo(true);
+    expect(usePOSStore.getState().enviarEmailRecibo).toBe(true);
+  });
+
+  // S-16
+  it("S-16: clearCart resetea enviarEmailRecibo a false", () => {
+    usePOSStore.getState().setEnviarEmailRecibo(true);
+    usePOSStore.getState().clearCart();
+    expect(usePOSStore.getState().enviarEmailRecibo).toBe(false);
+  });
+
+  // S-17
+  it("S-17: setCliente persiste clienteEmail en el estado", () => {
+    usePOSStore.getState().setCliente("cli-1", undefined, 0, "juan@test.com");
+    expect(usePOSStore.getState().clienteEmail).toBe("juan@test.com");
+  });
+
+  // S-18
+  it("S-18: clearCliente limpia clienteEmail", () => {
+    usePOSStore.getState().setCliente("cli-1", undefined, 0, "juan@test.com");
+    usePOSStore.getState().clearCliente();
+    expect(usePOSStore.getState().clienteEmail).toBeUndefined();
+  });
+
+  // S-19
+  it("S-19: clienteEmail se persiste en localStorage al agregar un item", () => {
+    usePOSStore.getState().setCliente("cli-1", undefined, 0, "juan@test.com");
+    usePOSStore.getState().addItem(ITEM_BASE);
+    const calls = localStorageMock.setItem.mock.calls;
+    const last = JSON.parse(calls[calls.length - 1][1]);
+    expect(last.state.clienteEmail).toBe("juan@test.com");
+  });
+});
