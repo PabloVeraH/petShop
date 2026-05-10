@@ -12,7 +12,7 @@ const MOCK_DATA = {
   totalPeriodo: 875136,
   totalTransacciones: 11,
   ticketPromedio: 79558,
-  ventasPorDia: [["2026-04-10", 100000]] as [string, number][],
+  ventasPorDia: [["2026-04-10", { total: 100000, transacciones: 3 }]] as [string, { total: number; transacciones: number }][],
   topProductos: [{ nombre: "Alimento Premium", cantidad: 5, revenue: 50000 }],
   topClientes: [{ nombre: "Juan Pérez", total: 50000, compras: 2 }],
   metodos: { efectivo: 500000 },
@@ -156,7 +156,8 @@ describe("ReportesTab — PieChart tooltip", () => {
 
     // Los paths de canales están en el primer SVG del DOM.
     // El primer path corresponde al canal con mayor total: pos (700 000 → 80%)
-    const firstCanalPath = document.querySelectorAll("svg")[0].querySelector("path")!;
+    // svg[0] = DayChart, svg[1] = PieChart canales
+    const firstCanalPath = document.querySelectorAll("svg")[1].querySelector("path")!;
     fireEvent.mouseEnter(firstCanalPath, { clientX: 100, clientY: 100 });
 
     await waitFor(() => expect(screen.getByText("$700.000")).toBeInTheDocument());
@@ -168,7 +169,8 @@ describe("ReportesTab — PieChart tooltip", () => {
     setup();
     await waitForData();
 
-    const firstCanalPath = document.querySelectorAll("svg")[0].querySelector("path")!;
+    // svg[0] = DayChart, svg[1] = PieChart canales
+    const firstCanalPath = document.querySelectorAll("svg")[1].querySelector("path")!;
     fireEvent.mouseEnter(firstCanalPath, { clientX: 100, clientY: 100 });
     await waitFor(() => expect(screen.getByText("$700.000")).toBeInTheDocument());
 
