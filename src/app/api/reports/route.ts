@@ -33,10 +33,12 @@ export async function GET(req: NextRequest) {
     .in("venta_id", (ventas ?? []).map((v) => v.id));
 
   // Ventas por día
-  const ventasPorDia: Record<string, number> = {};
+  const ventasPorDia: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventas ?? []) {
     const dia = v.created_at.split("T")[0];
-    ventasPorDia[dia] = (ventasPorDia[dia] ?? 0) + Number(v.total);
+    if (!ventasPorDia[dia]) ventasPorDia[dia] = { total: 0, transacciones: 0 };
+    ventasPorDia[dia].total += Number(v.total);
+    ventasPorDia[dia].transacciones += 1;
   }
 
   // Top productos
@@ -96,7 +98,7 @@ export async function GET(req: NextRequest) {
   const ultimos7 = Object.entries(ventasPorDia)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-7)
-    .map(([, v]) => v);
+    .map(([, v]) => v.total);
   const promedioDiario = ultimos7.length ? ultimos7.reduce((s, v) => s + v, 0) / ultimos7.length : 0;
   const prediccion7dias = Math.round(promedioDiario * 7);
 

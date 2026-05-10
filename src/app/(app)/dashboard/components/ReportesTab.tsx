@@ -7,7 +7,7 @@ interface ReportsData {
   totalPeriodo: number;
   totalTransacciones: number;
   ticketPromedio: number;
-  ventasPorDia: [string, number][];
+  ventasPorDia: [string, { total: number; transacciones: number }][];
   topProductos: { nombre: string; cantidad: number; revenue: number }[];
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
@@ -175,25 +175,154 @@ function PieChart({ slices }: { slices: PieSlice[] }) {
   );
 }
 
-function DayChart({ data }: { data: [string, number][] }) {
-  const max = Math.max(...data.map(([, v]) => v), 1);
+function DayChart({ data }: { data: [string, { total: number; transacciones: number }][] }) {
+  const [tooltip, setTooltip] = useState<{
+    day: string; total: number; transacciones: number; x: number; y: number;
+  } | null>(null);
+
+  if (data.length === 0)
+    return <div className="text-xs text-gray-400 text-center py-8">Sin datos</div>;
+
+  const VW = 600, VH = 130;
+  const padL = 8, padR = 8, padT = 22, padB = 22;
+  const innerW = VW - padL - padR;
+  const innerH = VH - padT - padB;
+
+  const maxTotal = Math.max(...data.map(([, v]) => v.total), 1);
+  const maxTx    = Math.max(...data.map(([, v]) => v.transacciones), 1);
+  const colW     = innerW / data.length;
+  const gap      = colW * 0.25;
+
+  const cols = data.map(([day, val], i) => ({
+    day,
+    total: val.total,
+    transacciones: val.transacciones,
+    bh:   Math.max((val.total / maxTotal) * innerH, val.total > 0 ? 2 : 0),
+    dotX: padL + i * colW + colW / 2,
+    dotY: padT + innerH - (val.transacciones / maxTx) * innerH,
+    i,
+  }));
+
   return (
-    <div className="flex items-end gap-1 h-28">
-      {data.map(([day, val], i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${day}: ${fmt(val)}`}>
+    <>
+      <div className="flex gap-4 mb-2 text-xs text-gray-400">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
+          Monto
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-4 h-0.5 bg-blue-400 inline-block rounded-full" />
+          <span className="w-2 h-2 rounded-full border-2 border-blue-400 bg-white inline-block" />
+          N° ventas
+        </span>
+      </div>
+
+      <div className="relative w-full">
+        <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: "140px" }}>
+          {/* Bars (monto) */}
+          {cols.map((c) => (
+            <rect
+              key={`bar-${c.i}`}
+              x={padL + c.i * colW + gap / 2}
+              y={padT + innerH - c.bh}
+              width={colW - gap}
+              height={c.bh}
+              rx="2"
+              fill="#22c55e"
+              opacity={tooltip?.day === c.day ? 0.7 : 1}
+            />
+          ))}
+
+          {/* Invisible hit areas covering full column */}
+          {cols.map((c) => (
+            <rect
+              key={`hit-${c.i}`}
+              x={padL + c.i * colW}
+              y={padT}
+              width={colW}
+              height={innerH}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={(e) =>
+                setTooltip({ day: c.day, total: c.total, transacciones: c.transacciones, x: e.clientX, y: e.clientY })
+              }
+              onMouseMove={(e) =>
+                setTooltip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : null))
+              }
+              onMouseLeave={() => setTooltip(null)}
+            />
+          ))}
+
+          {/* Line (transacciones) */}
+          {cols.length > 1 && (
+            <polyline
+              points={cols.map((c) => `${c.dotX},${c.dotY}`).join(" ")}
+              fill="none"
+              stroke="#60a5fa"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              style={{ pointerEvents: "none" }}
+            />
+          )}
+
+          {/* Dots */}
+          {cols.map((c) => (
+            <circle
+              key={`dot-${c.i}`}
+              cx={c.dotX}
+              cy={c.dotY}
+              r="4"
+              fill="white"
+              stroke="#60a5fa"
+              strokeWidth="2"
+              style={{ pointerEvents: "none" }}
+            />
+          ))}
+
+          {/* Count labels above each dot */}
+          {cols.map((c) => (
+            <text
+              key={`lbl-${c.i}`}
+              x={c.dotX}
+              y={c.dotY - 7}
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="600"
+              fill="#60a5fa"
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {c.transacciones}
+            </text>
+          ))}
+
+          {/* Day labels */}
+          {cols.map((c) => (
+            <text
+              key={`day-${c.i}`}
+              x={c.dotX}
+              y={VH - 4}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#9ca3af"
+              style={{ pointerEvents: "none" }}
+            >
+              {c.day.slice(5)}
+            </text>
+          ))}
+        </svg>
+
+        {tooltip && (
           <div
-            className="w-full bg-green-500 rounded-t"
-            style={{ height: `${Math.max((val / max) * 96, 2)}px` }}
-          />
-          <span className="text-[9px] text-gray-400 writing-mode-vertical">
-            {day.slice(5)}
-          </span>
-        </div>
-      ))}
-      {data.length === 0 && (
-        <div className="w-full text-center text-xs text-gray-400 self-center">Sin datos</div>
-      )}
-    </div>
+            className="fixed z-50 pointer-events-none bg-gray-900 text-white rounded-lg px-3 py-2 text-xs shadow-xl"
+            style={{ left: tooltip.x + 14, top: tooltip.y - 14 }}
+          >
+            <p className="font-semibold">{tooltip.day}</p>
+            <p>{fmt(tooltip.total)}</p>
+            <p>{tooltip.transacciones} venta{tooltip.transacciones !== 1 ? "s" : ""}</p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
