@@ -11,7 +11,7 @@ interface ReportsData {
   topProductos: { nombre: string; cantidad: number; revenue: number }[];
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
-  canales: Record<string, number>;
+  canales: Record<string, { total: number; transacciones: number }>;
   procedencias: Record<string, { total: number; transacciones: number }>;
   prediccion7dias: number;
   promedioDiario: number;
@@ -31,13 +31,20 @@ const CANALES = [
   { label: "Uber Eats", value: "ubereats" },
 ];
 
-const PROCEDENCIA_LABELS: Record<string, { label: string; color: string }> = {
-  presencial: { label: "Presencial", color: "bg-green-500" },
-  instagram:  { label: "Instagram",  color: "bg-pink-500" },
-  whatsapp:   { label: "WhatsApp",   color: "bg-emerald-500" },
-  facebook:   { label: "Facebook",   color: "bg-blue-600" },
-  tiktok:     { label: "TikTok",     color: "bg-gray-900" },
-  telefonico: { label: "Telefónico", color: "bg-amber-500" },
+const PROCEDENCIA_LABELS: Record<string, { label: string; color: string; hex: string }> = {
+  presencial: { label: "Presencial", color: "bg-green-500",   hex: "#22c55e" },
+  instagram:  { label: "Instagram",  color: "bg-pink-500",    hex: "#ec4899" },
+  whatsapp:   { label: "WhatsApp",   color: "bg-emerald-500", hex: "#10b981" },
+  facebook:   { label: "Facebook",   color: "bg-blue-600",    hex: "#2563eb" },
+  tiktok:     { label: "TikTok",     color: "bg-gray-900",    hex: "#111827" },
+  telefonico: { label: "Telefónico", color: "bg-amber-500",   hex: "#f59e0b" },
+};
+
+const CANAL_LABELS: Record<string, { label: string; hex: string }> = {
+  pos:       { label: "POS",       hex: "#8b5cf6" },
+  rappi:     { label: "Rappi",     hex: "#f97316" },
+  pedidosya: { label: "PedidosYa", hex: "#ef4444" },
+  ubereats:  { label: "Uber Eats", hex: "#16a34a" },
 };
 
 function fmt(n: number) {
@@ -63,6 +70,107 @@ function BarChart({ data, color = "bg-green-500" }: {
           <span className="text-xs text-gray-700 w-24 shrink-0">{fmt(d.value)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+interface PieSlice {
+  key: string;
+  label: string;
+  hex: string;
+  value: number;
+  tooltipLines: string[];
+}
+
+function PieChart({ slices }: { slices: PieSlice[] }) {
+  const [tooltip, setTooltip] = useState<{ slice: PieSlice; x: number; y: number } | null>(null);
+
+  const totalAll = slices.reduce((s, p) => s + p.value, 0);
+  if (totalAll === 0 || slices.length === 0)
+    return <div className="text-xs text-gray-400">Sin datos</div>;
+
+  const cx = 120, cy = 120, r = 105;
+  let angle = -Math.PI / 2;
+
+  const paths = slices.map((s) => {
+    const pct = Math.round((s.value / totalAll) * 100);
+    const sweep = (s.value / totalAll) * 2 * Math.PI;
+    const capped = sweep >= 2 * Math.PI - 0.001 ? 2 * Math.PI - 0.001 : sweep;
+    const start = angle;
+    const end = angle + capped;
+    angle += sweep;
+
+    const x1 = cx + r * Math.cos(start);
+    const y1 = cy + r * Math.sin(start);
+    const x2 = cx + r * Math.cos(end);
+    const y2 = cy + r * Math.sin(end);
+    const largeArc = capped > Math.PI ? 1 : 0;
+    const d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+
+    const mid = (start + end) / 2;
+    const lx = cx + r * 0.62 * Math.cos(mid);
+    const ly = cy + r * 0.62 * Math.sin(mid);
+
+    return { ...s, d, lx, ly, pct };
+  });
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-6 items-center">
+      <div className="shrink-0">
+        <svg width="240" height="240" viewBox="0 0 240 240">
+          {paths.map((p) => (
+            <path
+              key={p.key}
+              d={p.d}
+              fill={p.hex}
+              stroke="white"
+              strokeWidth="2"
+              className="cursor-pointer transition-opacity hover:opacity-80"
+              onMouseEnter={(e) => setTooltip({ slice: p, x: e.clientX, y: e.clientY })}
+              onMouseMove={(e) => setTooltip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : null))}
+              onMouseLeave={() => setTooltip(null)}
+            />
+          ))}
+          {paths.map((p) =>
+            p.pct >= 5 ? (
+              <text
+                key={`lbl-${p.key}`}
+                x={p.lx}
+                y={p.ly}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="12"
+                fontWeight="bold"
+                fill="white"
+                style={{ pointerEvents: "none", userSelect: "none" }}
+              >
+                {p.pct}%
+              </text>
+            ) : null,
+          )}
+        </svg>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {paths.map((p) => (
+          <div key={p.key} className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: p.hex }} />
+            <p className="text-sm text-gray-700">{p.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {tooltip && (
+        <div
+          className="fixed z-50 pointer-events-none bg-gray-900 text-white rounded-lg px-3 py-2 text-xs shadow-xl"
+          style={{ left: tooltip.x + 14, top: tooltip.y - 14 }}
+        >
+          <p className="font-semibold">{tooltip.slice.label}</p>
+          {tooltip.slice.tooltipLines.map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -209,61 +317,48 @@ export default function ReportesTab() {
             </div>
           </div>
 
-          {/* Ventas por canal */}
-          {data.canales && Object.keys(data.canales).length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Ventas por canal</h2>
-              <BarChart
-                data={Object.entries(data.canales).map(([k, v]) => ({ label: k, value: v }))}
-                color="bg-purple-500"
-              />
-              <div className="mt-4 space-y-1">
-                {Object.entries(data.canales).map(([canal, total]) => (
-                  <div key={canal} className="flex justify-between text-xs text-gray-600">
-                    <span className="capitalize">{canal}</span>
-                    <span>{fmt(total)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Ventas por procedencia */}
-          {data.procedencias && Object.keys(data.procedencias).length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Procedencia de ventas</h2>
-              <BarChart
-                data={Object.entries(data.procedencias)
-                  .sort((a, b) => b[1].total - a[1].total)
-                  .map(([k, v]) => ({
-                    label: PROCEDENCIA_LABELS[k]?.label ?? k,
-                    value: v.total,
-                  }))}
-                color="bg-pink-500"
-              />
-              <div className="mt-4 border-t border-gray-100 pt-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {Object.entries(data.procedencias)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .map(([proc, stats]) => {
-                      const cfg = PROCEDENCIA_LABELS[proc] ?? { label: proc, color: "bg-gray-400" };
-                      const totalAll = Object.values(data.procedencias).reduce((s, v) => s + v.total, 0);
-                      const pct = totalAll > 0 ? Math.round((stats.total / totalAll) * 100) : 0;
-                      return (
-                        <div key={proc} className="flex items-start gap-2 p-2 rounded-md bg-gray-50">
-                          <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${cfg.color}`} />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-700">{cfg.label}</p>
-                            <p className="text-sm font-bold text-gray-800">{fmt(stats.total)}</p>
-                            <p className="text-xs text-gray-400">
-                              {stats.transacciones} venta{stats.transacciones !== 1 ? "s" : ""} · {pct}%
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+          {/* Ventas por canal + Procedencia */}
+          {((data.canales && Object.keys(data.canales).length > 0) ||
+            (data.procedencias && Object.keys(data.procedencias).length > 0)) && (
+            <div className="grid grid-cols-2 gap-6">
+              {data.canales && Object.keys(data.canales).length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-4">Ventas por canal</h2>
+                  <PieChart
+                    slices={Object.entries(data.canales)
+                      .sort((a, b) => b[1].total - a[1].total)
+                      .map(([k, v]) => ({
+                        key: k,
+                        label: CANAL_LABELS[k]?.label ?? k,
+                        hex: CANAL_LABELS[k]?.hex ?? "#9ca3af",
+                        value: v.total,
+                        tooltipLines: [
+                          fmt(v.total),
+                          `${v.transacciones} venta${v.transacciones !== 1 ? "s" : ""}`,
+                        ],
+                      }))}
+                  />
                 </div>
-              </div>
+              )}
+              {data.procedencias && Object.keys(data.procedencias).length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-4">Procedencia de ventas</h2>
+                  <PieChart
+                    slices={Object.entries(data.procedencias)
+                      .sort((a, b) => b[1].total - a[1].total)
+                      .map(([k, v]) => ({
+                        key: k,
+                        label: PROCEDENCIA_LABELS[k]?.label ?? k,
+                        hex: PROCEDENCIA_LABELS[k]?.hex ?? "#9ca3af",
+                        value: v.total,
+                        tooltipLines: [
+                          fmt(v.total),
+                          `${v.transacciones} venta${v.transacciones !== 1 ? "s" : ""}`,
+                        ],
+                      }))}
+                  />
+                </div>
+              )}
             </div>
           )}
 

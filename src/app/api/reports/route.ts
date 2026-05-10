@@ -75,10 +75,12 @@ export async function GET(req: NextRequest) {
   }
 
   // Ventas por canal breakdown
-  const canales: Record<string, number> = {};
+  const canales: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventas ?? []) {
     const c = v.canal ?? "pos";
-    canales[c] = (canales[c] ?? 0) + Number(v.total);
+    if (!canales[c]) canales[c] = { total: 0, transacciones: 0 };
+    canales[c].total += Number(v.total);
+    canales[c].transacciones += 1;
   }
 
   // Ventas por procedencia breakdown
