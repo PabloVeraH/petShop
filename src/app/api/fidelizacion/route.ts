@@ -16,12 +16,27 @@ export async function GET(req: NextRequest) {
   const { data: cliente } = await supabase.from("clientes").select("id").eq("id", clienteId).eq("store_id", store_id).single();
   if (!cliente) return NextResponse.json(null);
 
-  const { data, error } = await supabase
-    .from("fidelizacion")
-    .select("total_historico, frecuencia_compras, descuento_actual")
-    .eq("cliente_id", clienteId)
-    .single();
+  const [{ data }, { data: store }] = await Promise.all([
+    supabase
+      .from("fidelizacion")
+      .select("total_historico, frecuencia_compras, descuento_actual")
+      .eq("cliente_id", clienteId)
+      .single(),
+    supabase
+      .from("stores")
+      .select("fidelizacion_niveles")
+      .eq("id", store_id)
+      .single(),
+  ]);
 
-  if (error) return NextResponse.json(null);
-  return NextResponse.json(data);
+  if (!data) return NextResponse.json(null);
+
+  const defaultNiveles = [
+    { monto: 50000, descuento: 5 },
+    { monto: 150000, descuento: 10 },
+    { monto: 300000, descuento: 20 },
+  ];
+  const niveles = (store?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? defaultNiveles;
+
+  return NextResponse.json({ ...data, niveles });
 }

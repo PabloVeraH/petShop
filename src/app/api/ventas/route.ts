@@ -423,18 +423,25 @@ const { count } = await supabase
 
   // Actualizar fidelización si hay cliente
   if (clienteId) {
-    const { data: fid } = await supabase
-      .from("fidelizacion")
-      .select("id, total_historico, frecuencia_compras")
-      .eq("cliente_id", clienteId)
-      .single();
+    const [{ data: fid }, { data: storeNiveles }] = await Promise.all([
+      supabase
+        .from("fidelizacion")
+        .select("id, total_historico, frecuencia_compras")
+        .eq("cliente_id", clienteId)
+        .single(),
+      supabase
+        .from("stores")
+        .select("fidelizacion_niveles")
+        .eq("id", store_id)
+        .single(),
+    ]);
 
     const nuevoTotal = Number(fid?.total_historico ?? 0) + total;
     const nuevaFrecuencia = (fid?.frecuencia_compras ?? 0) + 1;
-    const nuevoDescuento =
-      nuevoTotal >= 300_000 ? 20 :
-      nuevoTotal >= 150_000 ? 10 :
-      nuevoTotal >= 50_000  ?  5 : 0;
+    const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
+      { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
+    ]).sort((a, b) => b.monto - a.monto);
+    const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
 
     await supabase.from("fidelizacion").upsert(
       {

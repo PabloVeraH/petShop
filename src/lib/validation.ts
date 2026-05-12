@@ -172,6 +172,11 @@ export const PagoSchema = z.object({
   comprobante: z.string().optional(),
 });
 
+export const FidelizacionNivelSchema = z.object({
+  monto: z.number().int().positive("El monto debe ser mayor a 0"),
+  descuento: z.number().int().min(1).max(100, "El descuento debe estar entre 1 y 100"),
+});
+
 export const SettingsUpdateSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   rut: z.string().max(20).optional(),
@@ -185,6 +190,7 @@ export const SettingsUpdateSchema = z.object({
   email_reminder_enabled: z.boolean().optional(),
   email_reminder_dias_aviso: z.number().int().min(1).max(30).optional(),
   resend_from_email: z.string().email("Correo electrónico inválido").nullable().optional(),
+  fidelizacion_niveles: z.array(FidelizacionNivelSchema).max(5).optional(),
 });
 
 export const ClienteDeleteSchema = z.object({

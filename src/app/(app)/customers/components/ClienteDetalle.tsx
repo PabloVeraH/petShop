@@ -103,7 +103,7 @@ export default function ClienteDetalle({
     },
   });
 
-  const { data: fidelizacion } = useQuery<{ total_historico: number; frecuencia_compras: number; descuento_actual: number } | null>({
+  const { data: fidelizacion } = useQuery<{ total_historico: number; frecuencia_compras: number; descuento_actual: number; niveles: { monto: number; descuento: number }[] } | null>({
     queryKey: ["fidelizacion", cliente.id],
     queryFn: async () => {
       const res = await fetch(`/api/fidelizacion?clienteId=${cliente.id}`);
@@ -266,18 +266,16 @@ export default function ClienteDetalle({
               </p>
             </div>
             <div className="text-right text-xs text-green-600 space-y-0.5">
-              {fidelizacion.total_historico < 50_000 && (
-                <p>Próximo nivel: ${(50_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 5%</p>
-              )}
-              {fidelizacion.total_historico >= 50_000 && fidelizacion.total_historico < 150_000 && (
-                <p>Próximo nivel: ${(150_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 10%</p>
-              )}
-              {fidelizacion.total_historico >= 150_000 && fidelizacion.total_historico < 300_000 && (
-                <p>Próximo nivel: ${(300_000 - fidelizacion.total_historico).toLocaleString("es-CL")} para 20%</p>
-              )}
-              {fidelizacion.total_historico >= 300_000 && (
-                <p className="font-medium">Nivel máximo ✓</p>
-              )}
+              {(() => {
+                const niveles = [...(fidelizacion.niveles ?? [])].sort((a, b) => a.monto - b.monto);
+                const proximo = niveles.find((n) => fidelizacion.total_historico < n.monto);
+                if (proximo) {
+                  return (
+                    <p>Próximo nivel: ${(proximo.monto - fidelizacion.total_historico).toLocaleString("es-CL")} para {proximo.descuento}%</p>
+                  );
+                }
+                return <p className="font-medium">Nivel máximo ✓</p>;
+              })()}
             </div>
           </div>
         </div>

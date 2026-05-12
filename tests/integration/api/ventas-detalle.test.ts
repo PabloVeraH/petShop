@@ -251,6 +251,12 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       update: jest.fn().mockReturnThis(),
     };
 
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { fidelizacion_niveles: null }, error: null }),
+    };
+
     let callCount = 0;
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn((table: string) => {
@@ -261,6 +267,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
         if (table === "productos" && callCount === 4) return prodUpdateChain;
         if (table === "stock_movements") return insertChain;
         if (table === "fidelizacion") return fidelChain;
+        if (table === "stores") return storesChain;
         if (table === "ventas" && callCount > 4) return ventaUpdateChain;
       }),
     });
@@ -393,12 +400,19 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       }),
     };
 
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { fidelizacion_niveles: null }, error: null }),
+    };
+
     let callCount = 0;
     const mockFrom = jest.fn((table: string) => {
       callCount++;
       if (table === "ventas" && callCount === 1) return ventaChain;
       if (table === "venta_items") return itemsChain;
       if (table === "fidelizacion") return fidelChain;
+      if (table === "stores") return storesChain;
       if (table === "ventas") return updateChain;
     });
 

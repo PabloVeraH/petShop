@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+interface FidelizacionNivel {
+  monto: number;
+  descuento: number;
+}
+
 interface StoreSettings {
   id: string;
   name: string;
@@ -17,6 +22,7 @@ interface StoreSettings {
   email_reminder_enabled: boolean;
   email_reminder_dias_aviso: number;
   resend_from_email: string;
+  fidelizacion_niveles: FidelizacionNivel[];
 }
 
 export default function SettingsPage() {
@@ -245,6 +251,72 @@ export default function SettingsPage() {
               />
               <p className="text-xs text-gray-400 mt-1">Si está vacío, se usa el email por defecto del sistema</p>
             </div>
+          </div>
+        </section>
+
+        {/* Fidelización */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-1">Niveles de fidelización</h2>
+          <p className="text-xs text-gray-400 mb-4">Define los umbrales de compra acumulada y el descuento asociado a cada nivel.</p>
+          <div className="space-y-3">
+            {(settings.fidelizacion_niveles ?? []).map((nivel, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-sm text-gray-500 w-16 shrink-0">Nivel {i + 1}</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-sm text-gray-600">$</span>
+                  <input
+                    type="number"
+                    value={nivel.monto}
+                    onChange={(e) => {
+                      const nuevos = [...settings.fidelizacion_niveles];
+                      nuevos[i] = { ...nuevos[i], monto: parseInt(e.target.value) || 0 };
+                      setSettings({ ...settings, fidelizacion_niveles: nuevos });
+                    }}
+                    min={1}
+                    className="w-32 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-600">→</span>
+                  <input
+                    type="number"
+                    value={nivel.descuento}
+                    onChange={(e) => {
+                      const nuevos = [...settings.fidelizacion_niveles];
+                      nuevos[i] = { ...nuevos[i], descuento: parseInt(e.target.value) || 0 };
+                      setSettings({ ...settings, fidelizacion_niveles: nuevos });
+                    }}
+                    min={1}
+                    max={100}
+                    className="w-20 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-600">%</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nuevos = settings.fidelizacion_niveles.filter((_, j) => j !== i);
+                      setSettings({ ...settings, fidelizacion_niveles: nuevos });
+                    }}
+                    className="text-xs text-red-400 hover:text-red-600 ml-1"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+            {(settings.fidelizacion_niveles ?? []).length < 5 && (
+              <button
+                type="button"
+                onClick={() => setSettings({
+                  ...settings,
+                  fidelizacion_niveles: [
+                    ...(settings.fidelizacion_niveles ?? []),
+                    { monto: 0, descuento: 0 },
+                  ],
+                })}
+                className="text-sm text-green-600 hover:underline"
+              >
+                + Agregar nivel
+              </button>
+            )}
           </div>
         </section>
 

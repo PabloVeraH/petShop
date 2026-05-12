@@ -230,19 +230,26 @@ export async function POST(req: NextRequest) {
   }
 
   if (venta.cliente_id) {
-    const { data: fid } = await supabase
-      .from("fidelizacion")
-      .select("id, total_historico, frecuencia_compras")
-      .eq("cliente_id", venta.cliente_id)
-      .single();
+    const [{ data: fid }, { data: storeNiveles }] = await Promise.all([
+      supabase
+        .from("fidelizacion")
+        .select("id, total_historico, frecuencia_compras")
+        .eq("cliente_id", venta.cliente_id)
+        .single(),
+      supabase
+        .from("stores")
+        .select("fidelizacion_niveles")
+        .eq("id", venta_store_id)
+        .single(),
+    ]);
 
     if (fid) {
       const nuevoTotal = Math.max(0, Number(fid.total_historico) - montoTotal);
       const nuevaFrecuencia = fid.frecuencia_compras; // No decrementamos aquí, solo en anulación total
-      const nuevoDescuento =
-        nuevoTotal >= 300_000 ? 20 :
-        nuevoTotal >= 150_000 ? 10 :
-        nuevoTotal >= 50_000 ? 5 : 0;
+      const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
+        { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
+      ]).sort((a, b) => b.monto - a.monto);
+      const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
 
       await supabase.from("fidelizacion").update({
         total_historico: nuevoTotal,
