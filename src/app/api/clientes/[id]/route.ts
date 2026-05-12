@@ -19,7 +19,7 @@ export async function GET(
     .from("clientes")
     .select(`
       id, store_id, rut, nombre, email, telefono,
-      mascotas(id, nombre, tipo, raza, peso_kg, alimento_habitual_id)
+      mascotas(id, nombre, tipo, raza, peso_kg, alimento_habitual_id, gramos_porcion, veces_dia)
     `)
     .eq("id", id)
     .eq("store_id", store_id)
