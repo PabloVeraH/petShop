@@ -587,3 +587,144 @@ describe("POST /api/ventas — toggle email boleta", () => {
     expect(sendBoletaEmail).not.toHaveBeenCalled();
   });
 });
+
+// ── Suite: consumo alertas desde mascotas (migración 032) ────────────────────
+
+const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174040";
+const ITEM_CON_MASCOTA = { producto_id: PRODUCTO_ID, cantidad: 1, mascota_id: MASCOTA_ID };
+
+function setupConsumoAlerta({
+  gramos_porcion,
+  veces_dia,
+}: { gramos_porcion: number | null; veces_dia: number | null }) {
+  const upsertConsumoAlerta = jest.fn().mockResolvedValue({ error: null });
+  const updateMascota       = jest.fn().mockResolvedValue({ error: null });
+
+  let productosCall = 0;
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "productos") {
+      productosCall++;
+      if (productosCall === 1) {
+        // Price lookup: .select().in().eq()
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+        };
+      }
+      if (productosCall === 2) {
+        // Alimento check para el item con mascota: .select().eq().single()
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { peso_gramos: 3000, categorias: { es_alimento: true } },
+            error: null,
+          }),
+        };
+      }
+      // Tercera llamada: sync de stock post-venta .select().eq().in()
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    }
+    if (table === "mascotas") {
+      return {
+        select: jest.fn().mockReturnThis(),
+        update: jest.fn(() => ({ eq: updateMascota })),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { cliente_id: CLIENTE_ID, gramos_porcion, veces_dia },
+          error: null,
+        }),
+      };
+    }
+    if (table === "consumo_alertas") {
+      return { upsert: upsertConsumoAlerta };
+    }
+    if (table === "venta_items") {
+      // insert(...).select() debe resolver con datos para que ventaItem sea encontrado
+      const ventaItemChain = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockResolvedValue({
+          data: [{ id: "vi-1", producto_id: PRODUCTO_ID, cantidad: ITEM_CON_MASCOTA.cantidad }],
+          error: null,
+        }),
+      };
+      ventaItemChain.insert.mockReturnValue(ventaItemChain);
+      return ventaItemChain;
+    }
+    if (table === "ventas") {
+      return {
+        ...mockChain,
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: DB_VENTA, error: null }),
+      };
+    }
+    if (table === "stores") {
+      return {
+        ...mockChain,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5 }, error: null }),
+      };
+    }
+    return {
+      ...mockChain,
+      insert: jest.fn().mockReturnThis(),
+      upsert: jest.fn().mockResolvedValue({ error: null }),
+      update: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      gt: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+  });
+
+  return { upsertConsumoAlerta, updateMascota };
+}
+
+describe("POST /api/ventas — consumo alertas desde mascotas (I-58/I-59)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRpc.mockResolvedValue({ error: null });
+  });
+
+  it("I-58: crea consumo_alerta y actualiza alimento_habitual cuando mascota tiene gramos_porcion", async () => {
+    const { upsertConsumoAlerta } = setupConsumoAlerta({ gramos_porcion: 25, veces_dia: 3 });
+
+    await POST(makeRequest({
+      items: [ITEM_CON_MASCOTA],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+    }));
+
+    expect(upsertConsumoAlerta).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mascota_id: MASCOTA_ID,
+        producto_id: PRODUCTO_ID,
+        store_id: STORE_ID,
+        cliente_id: CLIENTE_ID,
+        enviado: false,
+      }),
+      expect.objectContaining({ onConflict: "mascota_id,producto_id" })
+    );
+  });
+
+  it("I-59: NO crea consumo_alerta cuando mascota no tiene gramos_porcion configurado", async () => {
+    const { upsertConsumoAlerta } = setupConsumoAlerta({ gramos_porcion: null, veces_dia: null });
+
+    await POST(makeRequest({
+      items: [ITEM_CON_MASCOTA],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+    }));
+
+    expect(upsertConsumoAlerta).not.toHaveBeenCalled();
+  });
+});

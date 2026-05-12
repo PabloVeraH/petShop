@@ -33,34 +33,12 @@ interface AlimentoCheckItem {
   peso_gramos: number | null;
 }
 
-interface ConsumoConfig {
-  mascota_id: string;
-  producto_id: string;
-  gramos_porcion: number;
-  veces_dia: number;
-}
-
 async function getAlimentoCheck(ids: string[]): Promise<AlimentoCheckItem[]> {
   if (ids.length === 0) return [];
   const params = new URLSearchParams({ ids: ids.join(",") });
   const res = await fetch(`/api/inventario/alimento-check?${params}`);
   if (!res.ok) return [];
   return res.json();
-}
-
-async function getConsumoConfigsCliente(clienteId: string): Promise<ConsumoConfig[]> {
-  const params = new URLSearchParams({ clienteId });
-  const res = await fetch(`/api/consumo-configs/cliente?${params}`);
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function saveConsumoConfig(config: { mascota_id: string; producto_id: string; gramos_porcion: number; veces_dia: number }) {
-  await fetch("/api/consumo-configs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(config),
-  });
 }
 
 interface ModalClienteProps {
@@ -106,20 +84,9 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     enabled: cartProductIds.length > 0 && !!cliente?.id,
   });
 
-  const { data: configsExistentes } = useQuery({
-    queryKey: ["consumo-configs-cliente", cliente?.id],
-    queryFn: () => getConsumoConfigsCliente(cliente!.id),
-    enabled: !!cliente?.id,
-  });
-
+  // Mascotas sin consumo configurado que compraron alimento
   const necesitaPrompt = mascotas && alimentosEnCarrito && mascotas.length > 0 && alimentosEnCarrito.length > 0
-    ? mascotas.flatMap((mascota) =>
-        alimentosEnCarrito
-          .filter((prod) => !configsExistentes?.some(
-            (c) => c.mascota_id === mascota.id && c.producto_id === prod.id
-          ))
-          .map((prod) => ({ mascota, prod }))
-      )
+    ? mascotas.filter((m) => !m.gramos_porcion)
     : [];
 
   const { mutate: registrarCliente, isPending: registrando } = useMutation({
@@ -144,17 +111,17 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
   const handleConfirm = async () => {
     if (!cliente) return;
 
-    const saves: Promise<void>[] = [];
-    for (const key of Object.keys(porciones)) {
-      const [mascotaId, productoId] = key.split("|");
-      const valor = Number(porciones[key]);
-      if (valor > 0) {
-        saves.push(saveConsumoConfig({
-          mascota_id: mascotaId,
-          producto_id: productoId,
-          gramos_porcion: valor,
-          veces_dia: 1,
-        }).then(() => undefined));
+    const saves: Promise<Response>[] = [];
+    for (const [mascotaId, valor] of Object.entries(porciones)) {
+      const gramos = Number(valor);
+      if (gramos > 0) {
+        saves.push(
+          fetch(`/api/mascotas/${mascotaId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ gramos_porcion: gramos, veces_dia: 1 }),
+          })
+        );
       }
     }
     await Promise.allSettled(saves);
@@ -282,27 +249,24 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
                     Si nos indicas cuánto come tu mascota, te avisaremos cuando el alimento esté por acabarse.
                   </p>
                   <div className="space-y-3">
-                    {necesitaPrompt.map(({ mascota, prod }) => {
-                      const key = `${mascota.id}|${prod.id}`;
-                      return (
-                        <div key={key}>
-                          <p className="text-xs font-medium text-gray-700">
-                            {mascota.nombre} ({mascota.tipo}) — {prod.nombre}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <input
-                              type="number"
-                              placeholder="gramos/día"
-                              value={porciones[key] ?? ""}
-                              onChange={(e) => setPorciones((p) => ({ ...p, [key]: e.target.value }))}
-                              className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
-                              min="1"
-                            />
-                            <span className="text-xs text-gray-500">g/día</span>
-                          </div>
+                    {necesitaPrompt.map((mascota) => (
+                      <div key={mascota.id}>
+                        <p className="text-xs font-medium text-gray-700">
+                          {mascota.nombre} ({mascota.tipo})
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input
+                            type="number"
+                            placeholder="gramos/día"
+                            value={porciones[mascota.id] ?? ""}
+                            onChange={(e) => setPorciones((p) => ({ ...p, [mascota.id]: e.target.value }))}
+                            className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                            min="1"
+                          />
+                          <span className="text-xs text-gray-500">g/día</span>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

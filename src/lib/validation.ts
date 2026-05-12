@@ -59,6 +59,8 @@ export const MascotaCreateSchema = z.object({
   raza: z.string().max(50).optional(),
   peso_kg: z.number().positive().max(100).optional(),
   alimento_habitual_id: UUIDSchema.optional(),
+  gramos_porcion: z.number().positive().optional(),
+  veces_dia: z.number().int().positive().optional(),
 });
 
 export const ClienteUpdateSchema = z.object({
@@ -133,6 +135,8 @@ export const MascotaUpdateSchema = z.object({
   raza: z.string().max(50).optional(),
   peso_kg: z.number().positive().max(100).optional(),
   alimento_habitual_id: UUIDSchema.optional(),
+  gramos_porcion: z.number().positive().optional(),
+  veces_dia: z.number().int().positive().optional(),
 });
 
 export const VentaItemSchema = z.object({
@@ -255,12 +259,6 @@ export const CuentasPagarUpdateSchema = z.object({
   estado: z.enum(["pendiente", "pagada", "vencida"]),
 });
 
-export const ConsumoConfigSchema = z.object({
-  mascota_id: UUIDSchema,
-  producto_id: UUIDSchema,
-  gramos_porcion: z.number().positive(),
-  veces_dia: z.number().int().positive(),
-});
 
 export const MascotaGetSchema = z.object({
   id: UUIDSchema,

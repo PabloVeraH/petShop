@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("mascotas")
-    .select("id, cliente_id, nombre, tipo, raza, peso_kg, alimento_habitual_id")
+    .select("id, cliente_id, nombre, tipo, raza, peso_kg, alimento_habitual_id, gramos_porcion, veces_dia")
     .eq("cliente_id", clienteId);
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { cliente_id, nombre, tipo, raza, peso_kg, alimento_habitual_id } = parsed.data;
+  const { cliente_id, nombre, tipo, raza, peso_kg, alimento_habitual_id, gramos_porcion, veces_dia } = parsed.data;
 
   // Verify cliente belongs to store
   const { data: cliente } = await supabase
@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
       raza: raza ?? null,
       peso_kg: peso_kg ?? null,
       alimento_habitual_id: alimento_habitual_id ?? null,
+      gramos_porcion: gramos_porcion ?? null,
+      veces_dia: veces_dia ?? null,
     })
     .select()
     .single();

@@ -292,3 +292,70 @@ describe("ModalCliente — botones", () => {
     expect(screen.getByRole("button", { name: "Confirmar" })).not.toBeDisabled();
   });
 });
+
+// ── Suite 5: prompt de consumo (migración 032) ────────────────────────────────
+// necesitaPrompt se basa en mascotas sin gramos_porcion, no por producto
+
+describe("ModalCliente — prompt de porción diaria", () => {
+  const CLIENTE = { id: "cli-1", nombre: "Juan Pérez", rut: "15.855.267-1", email: null, telefono: null };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetClienteByRUT.mockResolvedValue(CLIENTE);
+  });
+
+  it("MC-23: NO muestra prompt si la mascota ya tiene gramos_porcion configurado", async () => {
+    mockGetMascotasByCliente.mockResolvedValue([
+      { id: "m-1", nombre: "Grizzly", tipo: "perro", gramos_porcion: 25, veces_dia: 3 },
+    ]);
+    // Simula alimento en carrito
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("alimento-check")) {
+        return Promise.resolve({ ok: true, json: async () => [{ id: "p-1", nombre: "Pro Plan", peso_gramos: 3000 }] });
+      }
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+
+    const { usePOSStore } = require("@/stores/pos");
+    (usePOSStore as jest.Mock).mockReturnValue({
+      setCliente: mockSetCliente,
+      clearCliente: mockClearCliente,
+      items: [{ producto_id: "p-1", cantidad: 1 }],
+    });
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+    expect(screen.queryByText(/Porción diaria de alimento/i)).not.toBeInTheDocument();
+  });
+
+  it("MC-24: muestra prompt de porción para mascota SIN gramos_porcion cuando hay alimento en carrito", async () => {
+    mockGetMascotasByCliente.mockResolvedValue([
+      { id: "m-1", nombre: "Grizzly", tipo: "perro", gramos_porcion: null, veces_dia: null },
+    ]);
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("alimento-check")) {
+        return Promise.resolve({ ok: true, json: async () => [{ id: "p-1", nombre: "Pro Plan", peso_gramos: 3000 }] });
+      }
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+
+    const { usePOSStore } = require("@/stores/pos");
+    (usePOSStore as jest.Mock).mockReturnValue({
+      setCliente: mockSetCliente,
+      clearCliente: mockClearCliente,
+      items: [{ producto_id: "p-1", cantidad: 1 }],
+    });
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Porción diaria de alimento/i)).toBeInTheDocument()
+    );
+    // Aparece en el selector de mascotas Y en el prompt → getAllByText
+    expect(screen.getAllByText("Grizzly (perro)").length).toBeGreaterThanOrEqual(1);
+  });
+});

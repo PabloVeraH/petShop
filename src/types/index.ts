@@ -30,6 +30,8 @@ export interface Mascota {
   raza?: string;
   peso_kg?: number;
   alimento_habitual_id?: string;
+  gramos_porcion?: number;
+  veces_dia?: number;
 }
 
 export interface VentaItem {

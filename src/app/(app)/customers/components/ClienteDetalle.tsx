@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { formatRUT } from "@/lib/validation";
 import ModalMascotaCreate from "./ModalMascotaCreate";
-import ConsumoConfigSection from "./ConsumoConfigSection";
 import type { Cliente } from "@/types";
 
 type MascotaItem = {
@@ -14,10 +13,12 @@ type MascotaItem = {
   tipo: string;
   raza?: string | null;
   peso_kg?: number | null;
+  gramos_porcion?: number | null;
+  veces_dia?: number | null;
 };
 
 type EditClienteForm = { nombre: string; email: string; telefono: string };
-type EditMascotaForm = { nombre: string; tipo: string; raza: string; peso_kg: string };
+type EditMascotaForm = { nombre: string; tipo: string; raza: string; peso_kg: string; gramos_porcion: string; veces_dia: string };
 
 type VentaItem = {
   id: string;
@@ -41,7 +42,7 @@ export default function ClienteDetalle({
   const [editingCliente, setEditingCliente] = useState(false);
   const [clienteForm, setClienteForm] = useState<EditClienteForm>({ nombre: "", email: "", telefono: "" });
   const [editingMascota, setEditingMascota] = useState<MascotaItem | null>(null);
-  const [mascotaForm, setMascotaForm] = useState<EditMascotaForm>({ nombre: "", tipo: "", raza: "", peso_kg: "" });
+  const [mascotaForm, setMascotaForm] = useState<EditMascotaForm>({ nombre: "", tipo: "", raza: "", peso_kg: "", gramos_porcion: "", veces_dia: "" });
   const [formError, setFormError] = useState("");
   const queryClient = useQueryClient();
 
@@ -66,16 +67,25 @@ export default function ClienteDetalle({
   });
 
   const { mutate: guardarMascota, isPending: savingMascota } = useMutation({
-    mutationFn: () =>
-      fetch(`/api/mascotas/${editingMascota!.id}`, {
+    mutationFn: () => {
+      const body: Record<string, unknown> = {
+        nombre: mascotaForm.nombre,
+        tipo: mascotaForm.tipo,
+        raza: mascotaForm.raza,
+        peso_kg: mascotaForm.peso_kg ? Number(mascotaForm.peso_kg) : undefined,
+        gramos_porcion: mascotaForm.gramos_porcion ? Number(mascotaForm.gramos_porcion) : undefined,
+        veces_dia: mascotaForm.veces_dia ? Number(mascotaForm.veces_dia) : undefined,
+      };
+      return fetch(`/api/mascotas/${editingMascota!.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mascotaForm),
+        body: JSON.stringify(body),
       }).then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error ?? "Error al guardar");
         return d;
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cliente-detalle", cliente.id] });
       setEditingMascota(null);
@@ -188,6 +198,20 @@ export default function ClienteDetalle({
                           className="w-full border border-gray-300 rounded px-2 py-1 text-xs mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
                       </div>
                     ))}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-gray-600">Gramos/porción</label>
+                        <input type="number" min="1" value={mascotaForm.gramos_porcion}
+                          onChange={(e) => setMascotaForm((f) => ({ ...f, gramos_porcion: e.target.value }))}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-gray-600">Veces/día</label>
+                        <input type="number" min="1" value={mascotaForm.veces_dia}
+                          onChange={(e) => setMascotaForm((f) => ({ ...f, veces_dia: e.target.value }))}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+                      </div>
+                    </div>
                     {formError && <p className="text-xs text-red-500">{formError}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => guardarMascota()} disabled={savingMascota}>
@@ -205,16 +229,20 @@ export default function ClienteDetalle({
                       <span className="text-gray-400 ml-2 text-xs">
                         {m.tipo}{m.raza ? ` · ${m.raza}` : ""}{m.peso_kg ? ` · ${m.peso_kg}kg` : ""}
                       </span>
+                      {m.gramos_porcion && m.veces_dia && (
+                        <span className="text-blue-500 ml-2 text-xs">
+                          · {m.gramos_porcion}g × {m.veces_dia}/día
+                        </span>
+                      )}
                     </div>
                     <button
-                      onClick={() => { setMascotaForm({ nombre: m.nombre, tipo: m.tipo ?? "", raza: m.raza ?? "", peso_kg: m.peso_kg ? String(m.peso_kg) : "" }); setFormError(""); setEditingMascota(m); }}
+                      onClick={() => { setMascotaForm({ nombre: m.nombre, tipo: m.tipo ?? "", raza: m.raza ?? "", peso_kg: m.peso_kg ? String(m.peso_kg) : "", gramos_porcion: m.gramos_porcion ? String(m.gramos_porcion) : "", veces_dia: m.veces_dia ? String(m.veces_dia) : "" }); setFormError(""); setEditingMascota(m); }}
                       className="text-xs text-blue-500 hover:underline ml-2 shrink-0"
                     >
                       Editar
                     </button>
                   </div>
                 )}
-                <ConsumoConfigSection mascotaId={m.id} />
               </div>
             ))}
           </div>
