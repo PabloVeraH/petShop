@@ -14,8 +14,8 @@ const navItems = [
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },
-  { href: "/suppliers", label: "Compras & Proveedores", roles: ["storeAdmin", "systemAdmin"] },
-  
+  { href: "/suppliers", label: "Proveedores", roles: ["storeAdmin", "systemAdmin"] },
+
   { href: "/contabilidad", label: "Libro Diario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/canales", label: "Canales", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/settings", label: "Configuración", roles: ["storeAdmin", "systemAdmin"] },
