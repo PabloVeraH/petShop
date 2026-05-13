@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       codigo_barra: codigo_barra?.trim() || null,
       activo: true,
     })
-    .select()
+    .select("*, categorias(nombre)")
     .single();
 
   if (error) {
@@ -102,6 +102,12 @@ export async function POST(req: NextRequest) {
     codigo_barra: data.codigo_barra ?? null,
     precio: Number(data.precio),
     stock: data.stock,
+    tipo_animal: data.tipo_animal ?? undefined,
+    peso_gramos: data.peso_gramos ?? undefined,
+    precio_oferta: data.precio_oferta ? Number(data.precio_oferta) : undefined,
+    en_oferta: data.en_oferta ?? false,
+    categoria: (data.categorias as unknown as { nombre: string } | null)?.nombre ?? undefined,
+    imagen_url: data.imagen_url ?? null,
     activo: true,
   }]);
 

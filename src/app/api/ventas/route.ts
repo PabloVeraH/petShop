@@ -403,7 +403,7 @@ const { count } = await supabase
   const syncedProductoIds = itemsConPrecio.map((i) => i.producto_id);
   const { data: productosActualizados } = await supabase
     .from("productos")
-    .select("id, nombre, marca, codigo_barra, precio, stock, activo")
+    .select("id, nombre, marca, codigo_barra, precio, stock, activo, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
     .eq("store_id", store_id)
     .in("id", syncedProductoIds);
 
@@ -416,6 +416,12 @@ const { count } = await supabase
         codigo_barra: p.codigo_barra ?? null,
         precio: Number(p.precio),
         stock: p.stock,
+        tipo_animal: p.tipo_animal ?? undefined,
+        peso_gramos: p.peso_gramos ?? undefined,
+        precio_oferta: p.precio_oferta ? Number(p.precio_oferta) : undefined,
+        en_oferta: p.en_oferta ?? false,
+        categoria: (p.categorias as unknown as { nombre: string } | null)?.nombre ?? undefined,
+        imagen_url: p.imagen_url ?? null,
         activo: p.activo ?? true,
       }))
     );

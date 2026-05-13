@@ -44,7 +44,7 @@ export async function PATCH(
     .from("productos")
     .update({ stock: nuevoStock })
     .eq("id", id)
-    .select("id, nombre, marca, precio, stock, codigo_barra")
+    .select("id, nombre, marca, precio, stock, codigo_barra, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
     .single();
 
   if (error) {
@@ -85,6 +85,12 @@ export async function PATCH(
     codigo_barra: updated.codigo_barra ?? null,
     precio: Number(updated.precio),
     stock: updated.stock,
+    tipo_animal: updated.tipo_animal ?? undefined,
+    peso_gramos: updated.peso_gramos ?? undefined,
+    precio_oferta: updated.precio_oferta ? Number(updated.precio_oferta) : undefined,
+    en_oferta: updated.en_oferta ?? false,
+    categoria: (updated.categorias as unknown as { nombre: string } | null)?.nombre ?? undefined,
+    imagen_url: updated.imagen_url ?? null,
     activo: true,
   }]);
 

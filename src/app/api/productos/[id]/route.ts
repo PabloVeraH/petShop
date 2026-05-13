@@ -61,7 +61,7 @@ export async function PATCH(
     .update(updates)
     .eq("id", id)
     .eq("store_id", store_id)
-    .select()
+    .select("*, categorias(nombre)")
     .single();
 
   if (error) {
@@ -73,7 +73,6 @@ export async function PATCH(
   }
 
   if (data) {
-    // If fecha_vencimiento was just set and product has stock with no lotes, create LOTE-0
     if (data.fecha_vencimiento && data.stock > 0 && updates.tiene_vencimiento) {
       const { count } = await supabase
         .from("lotes_producto")
@@ -103,6 +102,12 @@ export async function PATCH(
       codigo_barra: data.codigo_barra ?? null,
       precio: Number(data.precio),
       stock: data.stock,
+      tipo_animal: data.tipo_animal ?? undefined,
+      peso_gramos: data.peso_gramos ?? undefined,
+      precio_oferta: data.precio_oferta ? Number(data.precio_oferta) : undefined,
+      en_oferta: data.en_oferta ?? false,
+      categoria: (data.categorias as unknown as { nombre: string } | null)?.nombre ?? undefined,
+      imagen_url: data.imagen_url ?? null,
       activo: data.activo ?? true,
     }]);
   }
@@ -127,7 +132,7 @@ export async function DELETE(
     .update({ activo: false })
     .eq("id", id)
     .eq("store_id", store_id)
-    .select("id, nombre, marca, precio, stock, codigo_barra")
+    .select("id, nombre, marca, precio, stock, codigo_barra, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -140,6 +145,12 @@ export async function DELETE(
       codigo_barra: data.codigo_barra ?? null,
       precio: Number(data.precio),
       stock: data.stock,
+      tipo_animal: data.tipo_animal ?? undefined,
+      peso_gramos: data.peso_gramos ?? undefined,
+      precio_oferta: data.precio_oferta ? Number(data.precio_oferta) : undefined,
+      en_oferta: data.en_oferta ?? false,
+      categoria: (data.categorias as unknown as { nombre: string } | null)?.nombre ?? undefined,
+      imagen_url: data.imagen_url ?? null,
       activo: false,
     }]);
   }
