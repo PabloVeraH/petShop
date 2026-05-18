@@ -4,6 +4,26 @@ import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 import { AdminUserCreateFullSchema } from "@/lib/validation";
 
+type ClerkApiError = {
+  errors: { code?: string; longMessage?: string; message?: string }[];
+  status?: number;
+};
+
+function isClerkApiError(err: unknown): err is ClerkApiError {
+  return (
+    err !== null &&
+    typeof err === "object" &&
+    "errors" in err &&
+    Array.isArray((err as ClerkApiError).errors)
+  );
+}
+
+function isEmailTakenError(err: ClerkApiError): boolean {
+  return err.errors.some(
+    (e) => e.code === "form_identifier_exists" || e.code === "form_password_pwned"
+  );
+}
+
 export async function POST(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
@@ -32,27 +52,42 @@ export async function POST(req: NextRequest) {
   try {
     const client = await clerkClient();
 
-    // Create user in Clerk
-    const newUser = await client.users.createUser({
-      emailAddress: [email],
-      password,
-      firstName,
-      lastName,
-    });
+    // Try to create the user; if the email already exists in this Clerk instance
+    // (e.g. shared with another platform using the same keys), look them up instead.
+    let clerkUser: Awaited<ReturnType<typeof client.users.createUser>>;
+    try {
+      clerkUser = await client.users.createUser({
+        emailAddress: [email],
+        password,
+        firstName,
+        lastName,
+      });
+    } catch (createErr: unknown) {
+      if (isClerkApiError(createErr) && isEmailTakenError(createErr)) {
+        // User already exists in this Clerk instance — reuse it
+        const existing = await client.users.getUserList({ emailAddress: [email] });
+        if (!existing.data.length) {
+          return NextResponse.json(
+            { error: "El email ya existe en Clerk pero no se pudo recuperar el usuario" },
+            { status: 409 }
+          );
+        }
+        clerkUser = existing.data[0] as typeof clerkUser;
+      } else {
+        throw createErr;
+      }
+    }
 
     // Update metadata based on role
     if (role === "systemAdmin") {
-      await client.users.updateUserMetadata(newUser.id, {
-        publicMetadata: {
-          systemAdmin: true,
-        },
+      await client.users.updateUserMetadata(clerkUser.id, {
+        publicMetadata: { systemAdmin: true },
       });
 
-      // Upsert in Supabase
       const supabase = createServiceClient();
       await supabase.from("clerk_users").upsert(
         {
-          clerk_id: newUser.id,
+          clerk_id: clerkUser.id,
           email,
           nombre,
           system_admin: true,
@@ -61,8 +96,7 @@ export async function POST(req: NextRequest) {
         { onConflict: "clerk_id" }
       );
     } else {
-      // storeAdmin or storeWorker
-      await client.users.updateUserMetadata(newUser.id, {
+      await client.users.updateUserMetadata(clerkUser.id, {
         publicMetadata: {
           storeId,
           storeAdmin: role === "storeAdmin",
@@ -70,11 +104,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Upsert in Supabase
       const supabase = createServiceClient();
       await supabase.from("clerk_users").upsert(
         {
-          clerk_id: newUser.id,
+          clerk_id: clerkUser.id,
           email,
           nombre,
           rut: rut ?? null,
@@ -88,8 +121,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, clerkId: newUser.id });
+    return NextResponse.json({ ok: true, clerkId: clerkUser.id });
   } catch (error: unknown) {
+    if (isClerkApiError(error) && error.errors.length > 0) {
+      const clerkError = error.errors[0];
+      const message = clerkError.longMessage ?? clerkError.message ?? "Error de Clerk";
+      return NextResponse.json({ error: message }, { status: 422 });
+    }
     const message = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: message }, { status: 500 });
   }
