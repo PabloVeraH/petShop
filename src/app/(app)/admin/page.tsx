@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { UsuariosCard } from "@/components/admin/UsuariosCard";
 import { LicenciaCard } from "@/components/admin/LicenciaCard";
+import { AuditoriaCard } from "@/components/admin/AuditoriaCard";
 
 type AdminRole = "systemAdmin" | "storeAdmin" | "storeWorker" | null;
 
@@ -27,7 +28,7 @@ type Store = {
 export default function AdminPage() {
   const router = useRouter();
   const { userId, sessionClaims } = useAuth();
-  const [activeSection, setActiveSection] = useState<"usuarios" | "licencia">("usuarios");
+  const [activeSection, setActiveSection] = useState<"usuarios" | "licencia" | "auditoria">("usuarios");
   const [role, setRole] = useState<AdminRole>(null);
 
   // Determine role
@@ -99,6 +100,13 @@ export default function AdminPage() {
         <div>
           <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Licencia y Acceso</h1>
           <LicenciaCard />
+        </div>
+      )}
+
+      {activeSection === "auditoria" && (
+        <div>
+          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Auditor铆a del Sistema</h1>
+          <AuditoriaCard role={role} />
         </div>
       )}
     </AdminLayout>
