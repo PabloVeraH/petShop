@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -63,6 +64,17 @@ export async function GET(req: NextRequest) {
       ].join(",") + "\n";
     }
   }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "EXPORT",
+    entityType: "report_export",
+    changeDescription: `Exportación de ${tipo} generada`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return new NextResponse(csv, {
     headers: {

@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraCreateSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -56,7 +57,21 @@ export async function POST(req: NextRequest) {
       notas: notas || null,
     })
     .select().single();
-  if (ordenError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (ordenError) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "CREATE",
+      entityType: "orden_compra",
+      changeDescription: "Error creando orden de compra",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: ordenError.message,
+    }).catch(() => {});
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 
   const { error: itemsError } = await supabase.from("ordenes_compra_items").insert(
     items.map(i => ({
@@ -68,7 +83,35 @@ export async function POST(req: NextRequest) {
       subtotal: null,
     }))
   );
-  if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (itemsError) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "CREATE",
+      entityType: "orden_compra",
+      entityId: orden.id,
+      changeDescription: "Error creando items de orden de compra",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: itemsError.message,
+    }).catch(() => {});
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "orden_compra",
+    entityId: orden.id,
+    newValues: { proveedor_id, total: orden.total },
+    changeDescription: `Orden de compra creada`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json(orden);
 }

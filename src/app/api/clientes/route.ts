@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { validateRUT, formatRUT } from "@/lib/validation";
 import { z } from "zod";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -87,6 +88,19 @@ export async function POST(req: NextRequest) {
 
   // Auto-create fidelizacion entry
   await supabase.from("fidelizacion").insert({ cliente_id: cliente.id });
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "cliente",
+    entityId: cliente.id,
+    newValues: { rut: cliente.rut, nombre: cliente.nombre, email: cliente.email },
+    changeDescription: `Cliente "${cliente.nombre}" creado`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json(cliente, { status: 201 });
 }

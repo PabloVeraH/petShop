@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 const UpdateProveedorSchema = z.object({
   nombre: z.string().min(1).max(255).optional(),
@@ -75,5 +76,19 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "proveedor",
+    entityId: id,
+    newValues: parsed.data,
+    changeDescription: `Proveedor actualizado: ${Object.keys(parsed.data).join(", ")}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
+
   return NextResponse.json(data);
 }

@@ -12,6 +12,7 @@ import {
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 const QuerySchema = z.object({
   formato: z.enum(["pdf", "excel"]).default("pdf"),
@@ -35,6 +36,17 @@ export async function GET(req: NextRequest) {
 
   const { formato, producto_id, seccion } = parsed.data;
   const supabase = createServiceClient();
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: ctx.storeId,
+    userId: ctx.userId,
+    action: "EXPORT",
+    entityType: "report_export_full",
+    changeDescription: `Exportación completa ${seccion} en formato ${formato}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   if (formato === "excel") {
     let prediccion: PrediccionReportData | null = null;

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus } from "@/lib/admin-check";
 import { CategoriaUpdateSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 async function requireAdmin(sessionClaims: unknown): Promise<{ storeId: string } | null> {
   const admin = getAdminStatus(sessionClaims as Parameters<typeof getAdminStatus>[0]);
@@ -51,11 +52,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: ctx.storeId,
+    userId,
+    action: "UPDATE",
+    entityType: "categoria",
+    entityId: id,
+    newValues: updates,
+    changeDescription: `Categoría actualizada: ${Object.keys(updates).join(", ")}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
+
   return NextResponse.json(data);
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { sessionClaims, userId } = await auth();
@@ -67,6 +81,13 @@ export async function DELETE(
   const { id } = await params;
   const supabase = createServiceClient();
 
+  const { data: categoriaActual } = await supabase
+    .from("categorias")
+    .select("id, nombre, descripcion, activo, es_alimento")
+    .eq("id", id)
+    .eq("store_id", ctx.storeId)
+    .single();
+
   const { error } = await supabase
     .from("categorias")
     .update({ activo: false })
@@ -74,5 +95,19 @@ export async function DELETE(
     .eq("store_id", ctx.storeId);
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: ctx.storeId,
+    userId,
+    action: "DELETE",
+    entityType: "categoria",
+    entityId: id,
+    oldValues: categoriaActual ?? undefined,
+    changeDescription: `Categoría "${categoriaActual?.nombre ?? id}" eliminada (soft delete)`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
+
   return new NextResponse(null, { status: 204 });
 }

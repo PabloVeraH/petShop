@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
 import { crearAsiento, lineasNotaCredito } from "@/lib/contabilidad/generador-asientos";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -155,7 +156,34 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (ncError || !nc) return NextResponse.json({ error: "Error creando nota de crédito" }, { status: 500 });
+  if (ncError || !nc) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: venta_store_id,
+      userId: ctx.userId,
+      action: "CREATE",
+      entityType: "nota_credito",
+      changeDescription: `Error creando nota de crédito para devolución de venta ${ventaId}`,
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: ncError?.message ?? "Unknown error",
+    }).catch(() => {});
+    return NextResponse.json({ error: "Error creando nota de crédito" }, { status: 500 });
+  }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: venta_store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "nota_credito",
+    entityId: nc.id,
+    newValues: { monto_total: montoTotal, motivo: motivo ?? null, tipo_reembolso: tipoReembolso },
+    changeDescription: `Nota de crédito creada por devolución de venta ${ventaId}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   const { error: itemsError } = await supabase.from("nota_credito_items").insert(
     itemsConDetalles.map((item) => ({

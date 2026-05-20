@@ -3,6 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
 import { AdminUserAssignSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 // GET /api/admin/users?storeId=xxx  — lista usuarios de una tienda
 export async function GET(req: NextRequest) {
@@ -81,6 +82,19 @@ export async function POST(req: NextRequest) {
     },
     { onConflict: "clerk_id" }
   );
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId,
+    userId: admin!.userId,
+    action: "CREATE",
+    entityType: "usuario",
+    entityId: target.id,
+    newValues: { email, role },
+    changeDescription: `Usuario ${email} creado con rol ${role}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, clerkId: target.id });
 }

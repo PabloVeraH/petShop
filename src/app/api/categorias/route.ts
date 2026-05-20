@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus } from "@/lib/admin-check";
 import { CategoriaCreateSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET() {
   const ctx = await getStoreId();
@@ -52,11 +53,36 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId,
+      userId,
+      action: "CREATE",
+      entityType: "categoria",
+      changeDescription: "Error creando categoría",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: error.message,
+    }).catch(() => {});
     if (error.code === "23505") {
       return NextResponse.json({ error: "Ya existe una categoría con ese nombre" }, { status: 409 });
     }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId,
+    userId,
+    action: "CREATE",
+    entityType: "categoria",
+    entityId: data.id,
+    newValues: { nombre: parsed.data.nombre, descripcion: parsed.data.descripcion },
+    changeDescription: `Categoría "${parsed.data.nombre}" creada`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
 }

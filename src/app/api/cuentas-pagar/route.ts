@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { CuentasPagarUpdateSchema } from "@/lib/validation";
 import { crearAsiento, lineasPagoProveedor } from "@/lib/contabilidad/generador-asientos";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -44,6 +45,14 @@ export async function PATCH(req: NextRequest) {
   const { estado } = parsed.data;
 
   const supabase = createServiceClient();
+
+  const { data: cuentaAnterior } = await supabase
+    .from("cuentas_pagar")
+    .select("id, estado")
+    .eq("id", id)
+    .eq("store_id", store_id)
+    .single();
+
   const { data, error } = await supabase
     .from("cuentas_pagar")
     .update({ estado })
@@ -51,7 +60,36 @@ export async function PATCH(req: NextRequest) {
     .eq("store_id", store_id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  if (error) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "cuenta_pagar",
+      entityId: id,
+      changeDescription: "Error actualizando cuenta por pagar",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: error.message,
+    }).catch(() => {});
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "cuenta_pagar",
+    entityId: id,
+    oldValues: cuentaAnterior ? { estado: cuentaAnterior.estado } : undefined,
+    newValues: { estado },
+    changeDescription: `Cuenta por pagar marcada como ${estado}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   if (estado === "pagada" && data) {
     crearAsiento({

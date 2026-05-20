@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { ProductoUpdateSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,6 +15,13 @@ export async function PATCH(
   const supabase = createServiceClient();
 
   const { id } = await params;
+
+  const { data: productoActual } = await supabase
+    .from("productos")
+    .select("*")
+    .eq("id", id)
+    .eq("store_id", store_id)
+    .single();
 
   const body = await req.json();
   const parsed = ProductoUpdateSchema.safeParse(body);
@@ -65,12 +73,39 @@ export async function PATCH(
     .single();
 
   if (error) {
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "producto",
+      entityId: id,
+      changeDescription: "Error actualizando producto",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: error.message,
+    }).catch(() => {});
     if (error.code === "23505") {
       const msg = error.message?.includes("codigo_barra") ? "El código de barra ya existe" : "El SKU ya existe";
       return NextResponse.json({ error: msg }, { status: 409 });
     }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "producto",
+    entityId: id,
+    oldValues: productoActual ?? undefined,
+    newValues: updates,
+    changeDescription: `Producto actualizado: ${Object.keys(updates).join(", ")}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   if (data) {
     if (data.fecha_vencimiento && data.stock > 0 && updates.tiene_vencimiento) {
@@ -116,7 +151,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const ctx = await getStoreId();
@@ -136,6 +171,19 @@ export async function DELETE(
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "DELETE",
+    entityType: "producto",
+    entityId: id,
+    oldValues: data ?? undefined,
+    changeDescription: `Producto "${data?.nombre ?? id}" eliminado (soft delete)`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   if (data) {
     syncProductsToHub([{

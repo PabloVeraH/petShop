@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { SaldosFavorUsageSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -83,6 +84,19 @@ export async function POST(req: NextRequest) {
   if (updateError) {
     return NextResponse.json({ error: "Error updating balance" }, { status: 500 });
   }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "CREATE",
+    entityType: "saldo_favor",
+    entityId: pago?.id,
+    newValues: { clienteId, ventaId, monto },
+    changeDescription: `Uso de saldo a favor: $${monto} para venta ${ventaId}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json({
     ok: true,

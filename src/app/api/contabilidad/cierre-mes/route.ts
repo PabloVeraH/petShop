@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { crearAsiento, lineasCierreCOGS } from "@/lib/contabilidad/generador-asientos";
 import { CUENTAS } from "@/lib/contabilidad/types";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 const CierreMesSchema = z.object({
   mes: z.number().int().min(1).max(12),
@@ -96,6 +97,17 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+
+  const { ipAddress, userAgent } = getRequestMetadata(req);
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "SETTINGS",
+    entityType: "cierre_mes",
+    changeDescription: `Cierre de mes ${periodo}`,
+    ipAddress,
+    userAgent,
+  }).catch(() => {});
 
   return NextResponse.json({
     mes_cerrado: periodo,

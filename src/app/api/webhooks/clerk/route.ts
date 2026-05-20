@@ -65,5 +65,23 @@ export async function POST(req: NextRequest) {
     await supabase.from("clerk_users").delete().eq("clerk_id", event.data.id);
   }
 
+  if (event.type === "session.created") {
+    const sessionData = event.data as unknown as { user_id: string; id: string };
+    const { data: clerkUser } = await supabase
+      .from("clerk_users")
+      .select("store_id")
+      .eq("clerk_id", sessionData.user_id)
+      .single();
+
+    if (clerkUser?.store_id) {
+      await supabase.from("user_sessions").insert({
+        store_id: clerkUser.store_id,
+        user_id: sessionData.user_id,
+        clerk_session_id: sessionData.id,
+        event_type: "session.created",
+      });
+    }
+  }
+
   return NextResponse.json({ received: true });
 }
