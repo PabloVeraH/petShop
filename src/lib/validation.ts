@@ -421,3 +421,36 @@ export const LoteUpdateSchema = z.object({
 
 export type LoteCreateInput = z.infer<typeof LoteCreateSchema>;
 export type LoteUpdateInput = z.infer<typeof LoteUpdateSchema>;
+
+export const AuditLogsQuerySchema = z.object({
+  store_id: UUIDSchema.optional(),
+  user_id: z.string().optional(),
+  action: z.enum(["CREATE", "UPDATE", "DELETE", "LOGIN_FAILED", "EXPORT", "SETTINGS", "BAN_USER", "UNBAN_USER"]).optional(),
+  entity_type: z.string().max(50).optional(),
+  result: z.enum(["success", "failure", "partial"]).optional(),
+  desde: z.string().datetime().optional(),
+  hasta: z.string().datetime().optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const ErrorLogsQuerySchema = z.object({
+  store_id: UUIDSchema.optional(),
+  severity: z.enum(["INFO", "WARNING", "ERROR", "CRITICAL"]).optional(),
+  resolved: z.enum(["true", "false"]).optional(),
+  endpoint: z.string().max(200).optional(),
+  desde: z.string().datetime().optional(),
+  hasta: z.string().datetime().optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const UserSessionsQuerySchema = z.object({
+  store_id: UUIDSchema.optional(),
+  user_id: z.string().optional(),
+  event_type: z.enum(["session.created", "session.ended", "session.removed"]).optional(),
+  desde: z.string().datetime().optional(),
+  hasta: z.string().datetime().optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});

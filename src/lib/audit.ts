@@ -1,6 +1,6 @@
 // src/lib/audit.ts
 import { createServiceClient } from "./supabase";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { logSecurityAlert } from "./security-alerts";
 
 export interface AuditLogInput {
@@ -64,4 +64,59 @@ export function getChangedFields(oldObj: any, newObj: any): string {
     }
   }
   return changes.join(", ");
+}
+
+export interface ErrorLogInput {
+  storeId?: string;
+  userId?: string;
+  errorCode?: string;
+  errorMessage: string;
+  stackTrace?: string;
+  context?: Record<string, unknown>;
+  severity?: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+  endpoint?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
+export async function logError(input: ErrorLogInput) {
+  const supabase = createServiceClient();
+
+  const { error } = await supabase.from("error_logs").insert({
+    store_id: input.storeId ?? null,
+    user_id: input.userId ?? null,
+    error_code: input.errorCode ?? null,
+    error_message: input.errorMessage,
+    stack_trace: input.stackTrace ?? null,
+    context: input.context ?? null,
+    severity: input.severity ?? "ERROR",
+    endpoint: input.endpoint ?? null,
+    ip_address: input.ipAddress ?? null,
+    user_agent: input.userAgent ?? null,
+  });
+
+  if (error) {
+    console.error("[logError] Failed to save error log:", error.message);
+  }
+}
+
+export async function handleRouteError(
+  err: unknown,
+  ctx: { storeId?: string; userId?: string; endpoint: string; req?: NextRequest }
+): Promise<NextResponse> {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  const meta = ctx.req ? getRequestMetadata(ctx.req) : {};
+
+  await logError({
+    storeId: ctx.storeId,
+    userId: ctx.userId,
+    errorMessage: message,
+    stackTrace: stack,
+    severity: "ERROR",
+    endpoint: ctx.endpoint,
+    ...meta,
+  });
+
+  return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 }
