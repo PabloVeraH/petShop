@@ -362,6 +362,13 @@ describe("Protección de stock en PATCH /api/productos/[id]", () => {
   it("422 al intentar actualizar stock si el producto tiene lotes activos", async () => {
     // Cadena: .select().eq().eq().eq()  → tercer eq resuelve con count > 0
     mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: { id: "some-product-id", nombre: "Test", stock: 5 }, error: null }),
+        };
+      }
       if (table === "lotes_producto") {
         return {
           select: jest.fn().mockReturnValue({
