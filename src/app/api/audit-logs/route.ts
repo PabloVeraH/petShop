@@ -47,8 +47,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
+  const logs = data ?? [];
+
+  // Enrich with user emails from clerk_users
+  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))];
+  let emailMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from("clerk_users")
+      .select("clerk_id, email")
+      .in("clerk_id", userIds);
+    if (users) {
+      emailMap = Object.fromEntries(users.map((u) => [u.clerk_id, u.email]));
+    }
+  }
+
   return NextResponse.json({
-    data: data ?? [],
+    data: logs.map((l) => ({ ...l, user_email: emailMap[l.user_id] ?? null })),
     count: count ?? 0,
     offset,
     limit,

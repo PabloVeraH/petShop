@@ -53,14 +53,26 @@ function chain(data: unknown[] = [], count?: number) {
     eq: jest.fn(),
     gte: jest.fn(),
     lte: jest.fn(),
+    in: jest.fn(),
     order: jest.fn(),
     range: jest.fn(),
     throwOnError: jest.fn(),
   };
-  ["select", "eq", "gte", "lte"].forEach(k => c[k].mockReturnValue(c));
+  ["select", "eq", "gte", "lte", "in"].forEach(k => c[k].mockReturnValue(c));
   c.order.mockReturnValue(c);
   c.range.mockReturnValue(c);
   c.throwOnError.mockReturnValue(resolved);
+  return c;
+}
+
+function userChain(users: { clerk_id: string; email: string }[] = []) {
+  const resolved = Promise.resolve({ data: users, error: null });
+  const c: Record<string, jest.Mock> = {
+    select: jest.fn(),
+    in: jest.fn(),
+  };
+  c.select.mockReturnValue(c);
+  c.in.mockReturnValue(resolved);
   return c;
 }
 
@@ -117,7 +129,10 @@ describe("GET /api/audit-logs", () => {
     });
 
     const logs = [auditLog(), auditLog({ id: "log-002", action: "UPDATE" })];
-    mockFrom.mockReturnValue(chain(logs, 2));
+    const auditC = chain(logs, 2);
+    mockFrom.mockImplementation((table: string) =>
+      table === "clerk_users" ? userChain() : auditC
+    );
 
     const { GET } = await import("@/app/api/audit-logs/route");
     const res = await GET(makeUrl("/api/audit-logs"));
@@ -169,7 +184,9 @@ describe("GET /api/audit-logs", () => {
 
     const logs = [auditLog({ store_id: OTHER_STORE })];
     const c = chain(logs, 1);
-    mockFrom.mockReturnValue(c);
+    mockFrom.mockImplementation((table: string) =>
+      table === "clerk_users" ? userChain() : c
+    );
 
     const { GET } = await import("@/app/api/audit-logs/route");
     const res = await GET(makeUrl("/api/audit-logs", { store_id: OTHER_STORE }));
@@ -196,7 +213,9 @@ describe("GET /api/audit-logs", () => {
 
     const filteredLogs = [auditLog({ action: "DELETE", entity_type: "venta" })];
     const c = chain(filteredLogs, 1);
-    mockFrom.mockReturnValue(c);
+    mockFrom.mockImplementation((table: string) =>
+      table === "clerk_users" ? userChain() : c
+    );
 
     const { GET } = await import("@/app/api/audit-logs/route");
     const res = await GET(makeUrl("/api/audit-logs", {
@@ -228,7 +247,9 @@ describe("GET /api/audit-logs", () => {
 
     const logs = [auditLog({ created_at: "2026-01-10T10:00:00Z" })];
     const c = chain(logs, 1);
-    mockFrom.mockReturnValue(c);
+    mockFrom.mockImplementation((table: string) =>
+      table === "clerk_users" ? userChain() : c
+    );
 
     const { GET } = await import("@/app/api/audit-logs/route");
     const res = await GET(makeUrl("/api/audit-logs", {
@@ -256,7 +277,9 @@ describe("GET /api/audit-logs", () => {
 
     const logs = [auditLog({ id: "log-051" }), auditLog({ id: "log-052" })];
     const c = chain(logs, 200);
-    mockFrom.mockReturnValue(c);
+    mockFrom.mockImplementation((table: string) =>
+      table === "clerk_users" ? userChain() : c
+    );
 
     const { GET } = await import("@/app/api/audit-logs/route");
     const res = await GET(makeUrl("/api/audit-logs", {

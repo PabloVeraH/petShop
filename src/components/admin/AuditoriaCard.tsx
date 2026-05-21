@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminRole } from "@/hooks/useAdminAuth";
 
@@ -8,6 +8,7 @@ type AuditLog = {
   id: string;
   store_id: string;
   user_id: string;
+  user_email: string | null;
   action: string;
   entity_type: string;
   entity_id: string | null;
@@ -111,8 +112,14 @@ interface AuditoriaCardProps {
 export function AuditoriaCard({ role }: AuditoriaCardProps) {
   const [activeTab, setActiveTab] = useState<"audit" | "errors" | "sessions">("audit");
   const [page, setPage] = useState(0);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [modalLog, setModalLog] = useState<AuditLog | ErrorLog | null>(null);
   const limit = 50;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setModalLog(null); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   const [auditFilters, setAuditFilters] = useState<AuditFilters>({
     user_id: "",
@@ -220,7 +227,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
       })
       .then((json) => {
         const data: AuditLog[] = json.data;
-        const headers = ["Fecha", "Usuario", "Acci贸n", "Entidad", "ID Entidad", "Descripci贸n", "IP", "Resultado", "Error"];
+        const headers = ["Fecha", "Usuario", "Acción", "Entidad", "ID Entidad", "Descripción", "IP", "Resultado", "Error"];
         const rows = data.map((log) => [
           new Date(log.created_at).toLocaleString("es-CL"),
           log.user_id,
@@ -267,7 +274,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
         {(["audit", "errors", "sessions"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => { setActiveTab(tab); setPage(0); setExpandedRow(null); }}
+            onClick={() => { setActiveTab(tab); setPage(0); setModalLog(null); }}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab
                 ? "text-[#1a5f3f] border-b-2 border-[#d4a574]"
@@ -456,9 +463,9 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-[#666]">Fecha/Hora</th>
                 <th className="px-4 py-3 text-left font-medium text-[#666]">Usuario</th>
-                <th className="px-4 py-3 text-left font-medium text-[#666]">Acci贸n</th>
+                <th className="px-4 py-3 text-left font-medium text-[#666]">Acción</th>
                 <th className="px-4 py-3 text-left font-medium text-[#666]">Entidad</th>
-                <th className="px-4 py-3 text-left font-medium text-[#666]">Descripci贸n</th>
+                <th className="px-4 py-3 text-left font-medium text-[#666]">Descripción</th>
                 <th className="px-4 py-3 text-left font-medium text-[#666]">IP</th>
                 <th className="px-4 py-3 text-left font-medium text-[#666]">Resultado</th>
                 {isSystemAdmin && <th className="px-4 py-3 text-left font-medium text-[#666]">Store ID</th>}
@@ -466,9 +473,11 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
             </thead>
             <tbody>
               {(auditData?.data ?? []).map((log) => (
-                <tr key={log.id} className="border-t border-[rgba(45,52,54,0.06)] hover:bg-[#faf9f7] cursor-pointer" onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                <tr key={log.id} className="border-t border-[rgba(45,52,54,0.06)] hover:bg-[#faf9f7] cursor-pointer" onClick={() => setModalLog(log)}>
                   <td className="px-4 py-3 whitespace-nowrap">{new Date(log.created_at).toLocaleString("es-CL")}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{log.user_id.slice(0, 12)}...</td>
+                  <td className="px-4 py-3 text-xs" title={log.user_id}>
+                    {log.user_email ?? `${log.user_id.slice(0, 12)}…`}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"}`}>
                       {log.action}
@@ -485,28 +494,6 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
                   {isSystemAdmin && <td className="px-4 py-3 font-mono text-xs">{log.store_id.slice(0, 8)}...</td>}
                 </tr>
               ))}
-              {(auditData?.data ?? []).map((log) =>
-                expandedRow === log.id ? (
-                  <tr key={`${log.id}-expand`} className="bg-[#faf9f7]">
-                    <td colSpan={isSystemAdmin ? 8 : 7} className="px-4 py-4">
-                      <div className="grid grid-cols-2 gap-4 text-xs font-mono">
-                        <div>
-                          <div className="font-semibold text-[#666] mb-1">old_values:</div>
-                          <pre className="bg-white p-3 rounded-md overflow-auto max-h-48">
-                            {log.old_values ? JSON.stringify(log.old_values, null, 2) : "null"}
-                          </pre>
-                        </div>
-                        <div>
-                          <div className="font-semibold text-[#666] mb-1">new_values:</div>
-                          <pre className="bg-white p-3 rounded-md overflow-auto max-h-48">
-                            {log.new_values ? JSON.stringify(log.new_values, null, 2) : "null"}
-                          </pre>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null
-              )}
             </tbody>
           </table>
         </div>
@@ -529,7 +516,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
             </thead>
             <tbody>
               {(errorData?.data ?? []).map((err) => (
-                <tr key={err.id} className="border-t border-[rgba(45,52,54,0.06)] hover:bg-[#faf9f7] cursor-pointer" onClick={() => setExpandedRow(expandedRow === err.id ? null : err.id)}>
+                <tr key={err.id} className="border-t border-[rgba(45,52,54,0.06)] hover:bg-[#faf9f7] cursor-pointer" onClick={() => setModalLog(err)}>
                   <td className="px-4 py-3 whitespace-nowrap">{new Date(err.created_at).toLocaleString("es-CL")}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${SEVERITY_COLORS[err.severity] || "bg-gray-100 text-gray-800"}`}>
@@ -552,32 +539,6 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
                   </td>
                 </tr>
               ))}
-              {(errorData?.data ?? []).map((err) =>
-                expandedRow === err.id ? (
-                  <tr key={`${err.id}-expand`} className="bg-[#faf9f7]">
-                    <td colSpan={7} className="px-4 py-4">
-                      <div className="space-y-3 text-xs">
-                        <div>
-                          <div className="font-semibold text-[#666] mb-1">error_message:</div>
-                          <pre className="bg-white p-3 rounded-md overflow-auto max-h-32">{err.error_message}</pre>
-                        </div>
-                        {err.stack_trace && (
-                          <div>
-                            <div className="font-semibold text-[#666] mb-1">stack_trace:</div>
-                            <pre className="bg-white p-3 rounded-md overflow-auto max-h-48">{err.stack_trace}</pre>
-                          </div>
-                        )}
-                        {err.context && (
-                          <div>
-                            <div className="font-semibold text-[#666] mb-1">context:</div>
-                            <pre className="bg-white p-3 rounded-md overflow-auto max-h-48">{JSON.stringify(err.context, null, 2)}</pre>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : null
-              )}
             </tbody>
           </table>
         </div>
@@ -637,6 +598,76 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
           </button>
         </div>
       </div>
+      {/* Detail Modal */}
+      {modalLog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setModalLog(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(45,52,54,0.08)]">
+              <h3 className="text-base font-semibold text-[#2d3436]">
+                {"action" in modalLog ? `Detalle — ${modalLog.action}` : `Error — ${modalLog.severity}`}
+              </h3>
+              <button
+                onClick={() => setModalLog(null)}
+                className="text-[#666] hover:text-[#2d3436] text-xl leading-none"
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4 text-xs font-mono">
+              {"action" in modalLog ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">old_values</div>
+                      <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-56 whitespace-pre-wrap break-all">
+                        {modalLog.old_values ? JSON.stringify(modalLog.old_values, null, 2) : "null"}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">new_values</div>
+                      <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-56 whitespace-pre-wrap break-all">
+                        {modalLog.new_values ? JSON.stringify(modalLog.new_values, null, 2) : "null"}
+                      </pre>
+                    </div>
+                  </div>
+                  {modalLog.user_agent && (
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">user_agent</div>
+                      <p className="text-[#2d3436] break-all">{modalLog.user_agent}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <div className="font-semibold text-[#666] mb-1 font-sans">error_message</div>
+                    <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-32 whitespace-pre-wrap break-all">{modalLog.error_message}</pre>
+                  </div>
+                  {modalLog.stack_trace && (
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">stack_trace</div>
+                      <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-56 whitespace-pre-wrap break-all">{modalLog.stack_trace}</pre>
+                    </div>
+                  )}
+                  {modalLog.context && (
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">context</div>
+                      <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-56 whitespace-pre-wrap break-all">{JSON.stringify(modalLog.context, null, 2)}</pre>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
