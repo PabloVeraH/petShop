@@ -34,7 +34,7 @@ export default function AdminPage() {
   // Determine role
   useEffect(() => {
     if (!userId) return;
-    
+
     const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
     let userRole: AdminRole = null;
 
@@ -105,7 +105,7 @@ export default function AdminPage() {
 
       {activeSection === "auditoria" && (
         <div>
-          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Auditor铆a del Sistema</h1>
+          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Auditoría del Sistema</h1>
           <AuditoriaCard role={role} />
         </div>
       )}

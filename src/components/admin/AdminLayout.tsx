@@ -56,11 +56,11 @@ export function AdminLayout({ role, activeSection, onSectionChange, children }: 
             />
           )}
 
-          {/* Auditor铆a - only for systemAdmin and storeAdmin */}
+          {/* Auditoría - only for systemAdmin and storeAdmin */}
           {(role === "systemAdmin" || role === "storeAdmin") && (
             <NavItem
               icon="📋"
-              label="Auditor铆a"
+              label="Auditoría"
               isActive={activeSection === "auditoria"}
               onClick={() => onSectionChange("auditoria")}
               collapsed={!sidebarOpen}
