@@ -65,7 +65,11 @@ export async function POST(req: NextRequest) {
     await supabase.from("clerk_users").delete().eq("clerk_id", event.data.id);
   }
 
-  if (event.type === "session.created") {
+  if (
+    event.type === "session.created" ||
+    event.type === "session.ended" ||
+    event.type === "session.removed"
+  ) {
     const sessionData = event.data as unknown as { user_id: string; id: string };
     const { data: clerkUser } = await supabase
       .from("clerk_users")
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
         store_id: clerkUser.store_id,
         user_id: sessionData.user_id,
         clerk_session_id: sessionData.id,
-        event_type: "session.created",
+        event_type: event.type,
       });
     }
   }
