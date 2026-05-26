@@ -77,34 +77,20 @@ function flatQueryMock(resolvedData: object | null) {
   return m;
 }
 
-/**
- * Mock de lotes_producto para el query de COUNT.
- * Cadena: .select().eq().eq().eq().gt()  → resuelve con { count }
- */
-function lotesCountMock(count: number) {
-  return {
-    select: jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            gt: jest.fn().mockResolvedValue({ count, data: null, error: null }),
-          }),
-        }),
-      }),
-    }),
-  };
-}
+const DB_VENTA_FIFO = {
+  id: VENTA_ID, total: 20000, subtotal: 20000, impuesto: 0, descuento: 0,
+  estado: "pagada", created_at: new Date().toISOString(), numero_comprobante: "V-001",
+};
 
 /**
- * Configura mockFrom para un request de venta completo.
- * - productos: llamada 1 → .select().in().eq()  (precio)
- *              llamada 2 → .select().eq().in()  (hub-sync)
+ * Configura mockFrom para un request de venta.
+ * El stored procedure crear_venta_tx gestiona ventas, items, pagos, stock y lotes
+ * internamente; el route solo consulta productos (precio + hub-sync) y stores (config).
  */
-function buildVentaMock({ tieneLoots = false, cantidad = 2 }: { tieneLoots?: boolean; cantidad?: number } = {}) {
+function buildVentaMock() {
   let productosCall = 0;
 
   mockFrom.mockImplementation((table: string) => {
-    // ── productos ── (dos llamadas con cadenas distintas)
     if (table === "productos") {
       productosCall++;
       const m = { select: jest.fn(), in: jest.fn(), eq: jest.fn() };
@@ -125,82 +111,34 @@ function buildVentaMock({ tieneLoots = false, cantidad = 2 }: { tieneLoots?: boo
       return m;
     }
 
-    // ── ventas ──
-    if (table === "ventas") {
-      return {
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: {
-                id: VENTA_ID, subtotal: 20000, impuesto: 0,
-                descuento: 0, total: 20000, estado: "completada",
-                created_at: new Date().toISOString(), numero_comprobante: "V-001",
-              },
-              error: null,
-            }),
-          }),
-        }),
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        }),
-      };
-    }
-
-    // ── venta_items ──
-    if (table === "venta_items") {
-      return {
-        insert: jest.fn().mockReturnValue({
-          select: jest.fn().mockResolvedValue({
-            data: [{ id: VENTA_ITEM_ID, producto_id: PRODUCTO_ID, cantidad }],
-            error: null,
-          }),
-        }),
-      };
-    }
-
-    // ── pagos ──
-    if (table === "pagos") {
-      return { insert: jest.fn().mockResolvedValue({ error: null }) };
-    }
-
-    // ── lotes_producto ──
-    if (table === "lotes_producto") {
-      return lotesCountMock(tieneLoots ? 1 : 0);
-    }
-
-    // ── stock_movements ──
-    if (table === "stock_movements") {
-      return { insert: jest.fn().mockResolvedValue({ error: null }) };
-    }
-
-    // ── stores (opcional, sólo si cliente) ──
     if (table === "stores") {
       return {
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null }),
       };
     }
 
-    return {};
+    // catch-all para audit_logs, etc.
+    return flatQueryMock(null);
   });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("Checkout con producto que tiene lotes (FIFO)", () => {
+// La lógica FIFO (deducir_stock_fifo / decrement_stock) es ahora interna al stored
+// procedure crear_venta_tx. Estos tests verifican que el route invoca el SP con los
+// datos correctos y responde apropiadamente ante errores de stock.
+
+describe("Checkout — venta delega stock al stored procedure crear_venta_tx", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // mockReset limpia la cola de "Once" pendientes de tests anteriores
     mockRpc.mockReset();
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: DB_VENTA_FIFO, error: null });
+    buildVentaMock();
   });
 
-  it("descuenta del lote más antiguo primero", async () => {
-    buildVentaMock({ tieneLoots: true });
-
+  it("descuenta stock vía crear_venta_tx con store_id, items y método de pago", async () => {
     const res = await VentaPost(makeVentaRequest({
       items:       [{ producto_id: PRODUCTO_ID, cantidad: 2 }],
       metodoPago:  "efectivo",
@@ -209,18 +147,20 @@ describe("Checkout con producto que tiene lotes (FIFO)", () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("deducir_stock_fifo", expect.objectContaining({
-      p_producto_id:   PRODUCTO_ID,
-      p_store_id:      STORE_ID,
-      p_cantidad:      2,
-      p_venta_item_id: VENTA_ITEM_ID,
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_store_id:    STORE_ID,
+      p_metodo_pago: "efectivo",
+      p_items: expect.arrayContaining([
+        expect.objectContaining({ producto_id: PRODUCTO_ID, cantidad: 2 }),
+      ]),
     }));
   });
 
-  it("422 si stock total de lotes es insuficiente", async () => {
-    buildVentaMock({ tieneLoots: true, cantidad: 999 });
-    // Primera llamada a rpc será deducir_stock_fifo → falla
-    mockRpc.mockResolvedValueOnce({ error: { message: "Stock insuficiente: disponible 0 vigentes, requerido 999" } });
+  it("422 si el stored procedure devuelve error de stock insuficiente", async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Stock insuficiente: disponible 0 vigentes, requerido 999" },
+    });
 
     const res = await VentaPost(makeVentaRequest({
       items:       [{ producto_id: PRODUCTO_ID, cantidad: 999 }],
@@ -232,43 +172,20 @@ describe("Checkout con producto que tiene lotes (FIFO)", () => {
     expect(res.status).toBe(422);
   });
 
-  it("crea registros en venta_item_lotes cuando hay lotes", async () => {
-    buildVentaMock({ tieneLoots: true });
-
+  it("pasa items con precio calculado desde BD (no del body)", async () => {
     const res = await VentaPost(makeVentaRequest({
-      items:       [{ producto_id: PRODUCTO_ID, cantidad: 2 }],
+      items:       [{ producto_id: PRODUCTO_ID, cantidad: 2, precio_unitario: 1 }],
       metodoPago:  "efectivo",
       canal:       "pos",
       procedencia: "presencial",
     }));
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("deducir_stock_fifo", expect.objectContaining({
-      p_venta_item_id: VENTA_ITEM_ID,
-    }));
-  });
-});
-
-describe("Checkout con producto SIN lotes", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockRpc.mockResolvedValue({ error: null });
-  });
-
-  it("usa lógica de deducción existente (decrement_stock)", async () => {
-    buildVentaMock({ tieneLoots: false });
-
-    const res = await VentaPost(makeVentaRequest({
-      items:       [{ producto_id: PRODUCTO_ID, cantidad: 2 }],
-      metodoPago:  "efectivo",
-      canal:       "pos",
-      procedencia: "presencial",
-    }));
-
-    expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("decrement_stock", expect.objectContaining({
-      p_producto_id: PRODUCTO_ID,
-      p_cantidad:    2,
+    // precio_unitario debe ser 10000 (de BD), no 1 (del body)
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_items: expect.arrayContaining([
+        expect.objectContaining({ precio_unitario: 10000 }),
+      ]),
     }));
   });
 });

@@ -82,7 +82,6 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const parsed = VentaCreateSchema.safeParse(body);
-
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
@@ -92,7 +91,6 @@ export async function POST(req: NextRequest) {
   const enviarEmail = body.enviarEmail === true;
   const descuento_pct = descuentoPct ?? 0;
 
-  // Additional validation for transaction numbers (only for non-NC rest payments)
   if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion && !pagoNc) {
     return NextResponse.json(
       { error: `número de transacción requerido para ${metodoPago}` },
@@ -109,12 +107,9 @@ export async function POST(req: NextRequest) {
     .eq("store_id", store_id);
 
   if (precioError || !productosDB || productosDB.length !== productoIds.length) {
-    return NextResponse.json(
-      { error: "Uno o más productos no encontrados" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Uno o más productos no encontrados" }, { status: 400 });
   }
-  // precio ya incluye IVA (precio al público)
+
   const precioMap = Object.fromEntries(productosDB.map((p) => [
     p.id,
     p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio),
@@ -126,22 +121,17 @@ export async function POST(req: NextRequest) {
     subtotal: precioMap[item.producto_id] * item.cantidad,
   }));
 
-  // precio_unitario ya incluye IVA (precio al público)
-  const subtotal: number = itemsConPrecio.reduce(
-    (sum: number, i: { subtotal: number }) => sum + i.subtotal,
-    0
-  );
+  const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
   const descuentoMonto = (subtotal * descuento_pct) / 100;
   const total = Math.round((subtotal - descuentoMonto) * 100) / 100;
   const montoNetoVenta = Math.round((total / 1.19) * 100) / 100;
   const impuesto = Math.round((total - montoNetoVenta) * 100) / 100;
 
-  // ── Validar NC si se paga con voucher ────────────────────────────────────
-  let ncData: { id: string; monto_total: number; venta_id: string | null } | null = null;
+  // Validar NC antes de abrir la transacción
   if (pagoNc) {
     const { data: nc } = await supabase
       .from("notas_credito")
-      .select("id, numero_nc, monto_total, fecha_vencimiento, estado, venta_id")
+      .select("id, monto_total, fecha_vencimiento, estado")
       .eq("id", pagoNc.nota_credito_id)
       .eq("store_id", store_id)
       .single();
@@ -154,258 +144,90 @@ export async function POST(req: NextRequest) {
     if (pagoNc.monto > Number(nc.monto_total)) {
       return NextResponse.json({ error: "Monto NC no coincide" }, { status: 400 });
     }
-    ncData = { id: nc.id, monto_total: Number(nc.monto_total), venta_id: nc.venta_id };
   }
-  // ─────────────────────────────────────────────────────────────────────────
+
+  // Fetch store config (needed by RPC for consumo_alertas y fidelizacion)
+  const { data: storeConfig } = await supabase
+    .from("stores")
+    .select("name, email_reminder_dias_aviso, fidelizacion_niveles, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, rut, resend_from_email")
+    .eq("id", store_id)
+    .single();
+
+  const diasAviso = storeConfig?.email_reminder_dias_aviso ?? 5;
+  const fidelizacionNiveles = (storeConfig?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
+    { monto: 50000, descuento: 5 },
+    { monto: 150000, descuento: 10 },
+    { monto: 300000, descuento: 20 },
+  ];
 
   const hoy = new Date();
   const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
-   const metodoPagoVenta = pagoNc
-     ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
-     : metodoPago;
+  // ── Transacción ACID en una sola llamada RPC ──────────────────────────────
+  const { data: ventaResult, error: txError } = await supabase.rpc("crear_venta_tx", {
+    p_store_id:             store_id,
+    p_items:                itemsConPrecio,
+    p_cliente_id:           clienteId ?? null,
+    p_worker_clerk_id:      workerClerkId ?? null,
+    p_subtotal:             subtotal,
+    p_descuento_pct:        descuento_pct,
+    p_impuesto:             impuesto,
+    p_total:                total,
+    p_metodo_pago:          metodoPago,
+    p_canal:                canal,
+    p_procedencia:          procedencia,
+    p_numero_comprobante:   numero_comprobante,
+    p_pago_nc:              pagoNc ?? null,
+    p_numero_transaccion:   numeroTransaccion ?? null,
+    p_fidelizacion_niveles: fidelizacionNiveles,
+    p_dias_aviso:           diasAviso,
+  });
 
-   const { data: venta, error: ventaError } = await supabase
-     .from("ventas")
-     .insert({
-       store_id,
-       cliente_id: clienteId ?? null,
-       worker_clerk_id: workerClerkId ?? null,
-       subtotal,
-       descuento: descuento_pct,
-       impuesto,
-       total,
-       metodo_pago: metodoPagoVenta,
-       canal,
-       procedencia,
-       estado: "completada",
-       numero_comprobante,
-     })
-     .select()
-     .single();
-
-   if (ventaError) {
-     await logAudit({
-       storeId: store_id,
-       userId: ctx.userId || "unknown",
-       action: "CREATE",
-       entityType: "venta",
-       newValues: { items, clienteId, workerClerkId, metodoPago, descuento: descuento_pct, numeroTransaccion },
-       ipAddress: (await getRequestMetadata(req)).ipAddress,
-       userAgent: (await getRequestMetadata(req)).userAgent,
-       result: "failure",
-       errorMessage: ventaError.message,
-     });
-     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-   }
-
-   // Log successful venta creation
-   await logAudit({
-     storeId: store_id,
-     userId: ctx.userId || "unknown",
-     action: "CREATE",
-     entityType: "venta",
-     entityId: venta.id,
-     newValues: venta,
-     changeDescription: `Venta creada por $${venta.total} con ${items.length} items`,
-     ipAddress: (await getRequestMetadata(req)).ipAddress,
-     userAgent: (await getRequestMetadata(req)).userAgent,
-     result: "success",
-   });
-
-const { data: ventaItems, error: itemsError } = await supabase
-     .from("venta_items")
-     .insert(
-       itemsConPrecio.map((item: {
-         producto_id: string;
-         cantidad: number;
-         precio_unitario: number;
-         subtotal: number;
-         mascota_id?: string;
-       }) => ({
-         venta_id: venta.id,
-         producto_id: item.producto_id,
-         cantidad: item.cantidad,
-         precio_unitario: item.precio_unitario,
-         subtotal: item.subtotal,
-         mascota_id: item.mascota_id ?? null,
-       }))
-     )
-     .select();
-
-   if (itemsError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-
-  // Registrar pago(s)
-  if (pagoNc && ncData) {
-    const pagosInsert = [
-      {
-        store_id,
-        venta_id: venta.id,
-        metodo: "nota_credito",
-        monto: pagoNc.monto,
-        nota_credito_id: ncData.id,
-        numero_transaccion: pagoNc.numero_nc,
-      },
-    ];
-
-    const montoResto = Math.round((total - pagoNc.monto) * 100) / 100;
-    if (montoResto > 0) {
-      pagosInsert.push({
-        store_id,
-        venta_id: venta.id,
-        metodo: metodoPago,
-        monto: montoResto,
-        nota_credito_id: null as unknown as string,
-        numero_transaccion: numeroTransaccion ?? null as unknown as string,
-      });
-    }
-
-    const { error: pagoError } = await supabase.from("pagos").insert(pagosInsert);
-    if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
-
-    // Marcar NC como usada
-    await supabase
-      .from("notas_credito")
-      .update({ estado: "usada" })
-      .eq("id", ncData.id);
-
-    // Deducir de saldos_a_favor si la NC tiene cliente de origen
-    if (ncData.venta_id) {
-      const { data: ventaOrigen } = await supabase
-        .from("ventas")
-        .select("cliente_id")
-        .eq("id", ncData.venta_id)
-        .single();
-
-      if (ventaOrigen?.cliente_id) {
-        const { data: saldo } = await supabase
-          .from("saldos_a_favor")
-          .select("saldo_disponible")
-          .eq("cliente_id", ventaOrigen.cliente_id)
-          .eq("store_id", store_id)
-          .single();
-
-        if (saldo) {
-          const nuevoSaldo = Math.max(0, Number(saldo.saldo_disponible) - pagoNc.monto);
-          await supabase
-            .from("saldos_a_favor")
-            .update({ saldo_disponible: nuevoSaldo, updated_at: new Date().toISOString() })
-            .eq("cliente_id", ventaOrigen.cliente_id)
-            .eq("store_id", store_id);
-        }
-      }
-    }
-  } else {
-    const { error: pagoError } = await supabase.from("pagos").insert({
-      store_id,
-      venta_id: venta.id,
-      metodo: metodoPago,
-      monto: total,
-      numero_transaccion: numeroTransaccion ?? null,
+  if (txError) {
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId || "unknown",
+      action: "CREATE",
+      entityType: "venta",
+      newValues: { items, clienteId, workerClerkId, metodoPago, descuento: descuento_pct, numeroTransaccion },
+      ipAddress: (await getRequestMetadata(req)).ipAddress,
+      userAgent: (await getRequestMetadata(req)).userAgent,
+      result: "failure",
+      errorMessage: txError.message,
     });
-    if (pagoError) return NextResponse.json({ error: "Error registrando pago" }, { status: 500 });
+    const isStockError = txError.message.toLowerCase().includes("stock") || txError.message.toLowerCase().includes("insuficiente");
+    return NextResponse.json(
+      { error: isStockError ? "Stock insuficiente para completar la venta." : "Error interno del servidor" },
+      { status: isStockError ? 422 : 500 }
+    );
   }
 
-  // Actualizar estado de venta a pagada
-  await supabase.from("ventas").update({ estado: "pagada" }).eq("id", venta.id);
+  const venta = ventaResult as Record<string, unknown>;
+  const metodoPagoVenta = pagoNc
+    ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
+    : metodoPago;
 
-for (const item of itemsConPrecio as { producto_id: string; cantidad: number; mascota_id?: string }[]) {
-     const ventaItem = (ventaItems ?? []).find(vi => vi.producto_id === item.producto_id && vi.cantidad === item.cantidad);
-     if (!ventaItem) continue;
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId || "unknown",
+    action: "CREATE",
+    entityType: "venta",
+    entityId: venta.id as string,
+    newValues: venta,
+    changeDescription: `Venta creada por $${venta.total} con ${items.length} items`,
+    ipAddress: (await getRequestMetadata(req)).ipAddress,
+    userAgent: (await getRequestMetadata(req)).userAgent,
+    result: "success",
+  });
 
-const { count } = await supabase
-        .from("lotes_producto")
-        .select("id", { count: "exact", head: true })
-        .eq("producto_id", item.producto_id)
-        .eq("store_id", store_id)
-        .eq("activo", true)
-        .gt("cantidad_actual", 0);
+  // ── Fire-and-forget: hub sync, WhatsApp, email, contabilidad ─────────────
 
-      if ((count ?? 0) > 0) {
-       const { error: fifoError } = await supabase.rpc("deducir_stock_fifo", {
-         p_producto_id:   item.producto_id,
-         p_store_id:      store_id,
-         p_cantidad:      item.cantidad,
-         p_venta_item_id: ventaItem.id,
-       });
-       if (fifoError) return NextResponse.json({ error: "Stock insuficiente para completar la venta." }, { status: 422 });
-     } else {
-       await supabase.rpc("decrement_stock", {
-         p_producto_id: item.producto_id,
-         p_cantidad:    item.cantidad,
-       });
-     }
-
-     await supabase.from("stock_movements").insert({
-       producto_id: item.producto_id,
-       tipo: "salida",
-       cantidad: -item.cantidad,
-       referencia_id: venta.id,
-       notas: `Venta ${venta.id}`,
-     });
-
-    // Calcular alerta de consumo si hay mascota vinculada
-    if (item.mascota_id) {
-      const { data: producto } = await supabase
-        .from("productos")
-        .select("peso_gramos, categorias(es_alimento)")
-        .eq("id", item.producto_id)
-        .single();
-
-      const cats = producto?.categorias as { es_alimento: boolean }[] | null;
-      const cat = Array.isArray(cats) ? cats[0] : cats;
-      if (!cat?.es_alimento || !producto?.peso_gramos) continue;
-
-      const { data: mascota } = await supabase
-        .from("mascotas")
-        .select("cliente_id, gramos_porcion, veces_dia")
-        .eq("id", item.mascota_id)
-        .single();
-
-      if (!mascota?.gramos_porcion || !mascota.veces_dia || mascota.gramos_porcion <= 0) continue;
-
-      const consumoDiario = mascota.gramos_porcion * mascota.veces_dia;
-      const totalGramos = item.cantidad * producto.peso_gramos;
-      const diasEstimados = Math.round(totalGramos / consumoDiario);
-      const fechaTermino = new Date();
-      fechaTermino.setDate(fechaTermino.getDate() + diasEstimados);
-      const fechaTerminoStr = fechaTermino.toISOString().split("T")[0];
-
-      const { data: storeConfig } = await supabase
-        .from("stores")
-        .select("email_reminder_dias_aviso")
-        .eq("id", store_id)
-        .single();
-      const diasAviso = storeConfig?.email_reminder_dias_aviso ?? 5;
-
-      await supabase.from("consumo_alertas").upsert(
-        {
-          store_id,
-          cliente_id: mascota.cliente_id,
-          mascota_id: item.mascota_id,
-          producto_id: item.producto_id,
-          fecha_estimada_termino: fechaTerminoStr,
-          dias_aviso: diasAviso,
-          enviado: false,
-        },
-        { onConflict: "mascota_id,producto_id" }
-      );
-
-      // Actualizar el alimento habitual de la mascota al producto comprado
-      await supabase
-        .from("mascotas")
-        .update({ alimento_habitual_id: item.producto_id })
-        .eq("id", item.mascota_id);
-    }
-  }
-
-  // Sync stock al hub (fire-and-forget) - independientemente de si hay cliente
-  const syncedProductoIds = itemsConPrecio.map((i) => i.producto_id);
+  // Sync stock al hub
   const { data: productosActualizados } = await supabase
     .from("productos")
     .select("id, nombre, marca, codigo_barra, precio, stock, activo, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
     .eq("store_id", store_id)
-    .in("id", syncedProductoIds);
+    .in("id", productoIds);
 
   if (productosActualizados && productosActualizados.length > 0) {
     syncProductsToHub(
@@ -427,41 +249,7 @@ const { count } = await supabase
     );
   }
 
-  // Actualizar fidelización si hay cliente
-  if (clienteId) {
-    const [{ data: fid }, { data: storeNiveles }] = await Promise.all([
-      supabase
-        .from("fidelizacion")
-        .select("id, total_historico, frecuencia_compras")
-        .eq("cliente_id", clienteId)
-        .single(),
-      supabase
-        .from("stores")
-        .select("fidelizacion_niveles")
-        .eq("id", store_id)
-        .single(),
-    ]);
-
-    const nuevoTotal = Number(fid?.total_historico ?? 0) + total;
-    const nuevaFrecuencia = (fid?.frecuencia_compras ?? 0) + 1;
-    const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
-      { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
-    ]).sort((a, b) => b.monto - a.monto);
-    const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
-
-    await supabase.from("fidelizacion").upsert(
-      {
-        cliente_id: clienteId,
-        total_historico: nuevoTotal,
-        frecuencia_compras: nuevaFrecuencia,
-        descuento_actual: nuevoDescuento,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "cliente_id" }
-    );
-  }
-
-  // Sync compra al hub (fire-and-forget) si el cliente tiene RUT
+  // Sync compra al hub si el cliente tiene RUT
   if (clienteId) {
     const { data: clienteRut } = await supabase
       .from("clientes")
@@ -471,51 +259,41 @@ const { count } = await supabase
     if (clienteRut?.rut) syncPurchaseToHub(clienteRut.rut, total);
   }
 
-  // Auto-send WhatsApp receipt if store has it enabled and cliente has phone
-  if (clienteId) {
-    const { data: store } = await supabase
-      .from("stores")
-      .select("name, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token")
-      .eq("id", store_id)
+  // WhatsApp receipt
+  if (clienteId && storeConfig?.whatsapp_enabled && storeConfig.whatsapp_phone_number_id && storeConfig.whatsapp_access_token) {
+    const { data: cliente } = await supabase
+      .from("clientes")
+      .select("nombre, telefono")
+      .eq("id", clienteId)
       .single();
 
-    if (store?.whatsapp_enabled && store.whatsapp_phone_number_id && store.whatsapp_access_token) {
-      const { data: cliente } = await supabase
-        .from("clientes")
-        .select("nombre, telefono")
-        .eq("id", clienteId)
-        .single();
+    if (cliente?.telefono) {
+      const { data: ventaItemsWA } = await supabase
+        .from("venta_items")
+        .select("cantidad, subtotal, productos(nombre)")
+        .eq("venta_id", venta.id as string);
 
-      if (cliente?.telefono) {
-        const { data: ventaItemsWA } = await supabase
-          .from("venta_items")
-          .select("cantidad, subtotal, productos(nombre)")
-          .eq("venta_id", venta.id);
+      const waItems = (ventaItemsWA ?? []).map((i) => {
+        const prod = i.productos as unknown as { nombre: string } | null;
+        return { nombre: prod?.nombre ?? "Producto", cantidad: i.cantidad, subtotal: Number(i.subtotal) };
+      });
 
-        const waItems = (ventaItemsWA ?? []).map((i) => {
-          const prod = i.productos as unknown as { nombre: string } | null;
-          return { nombre: prod?.nombre ?? "Producto", cantidad: i.cantidad, subtotal: Number(i.subtotal) };
-        });
-
-        const msg = buildReceiptMessage({
-          storeName: store.name,
+      await sendWhatsAppText(
+        { phoneNumberId: storeConfig.whatsapp_phone_number_id, accessToken: storeConfig.whatsapp_access_token },
+        cliente.telefono,
+        buildReceiptMessage({
+          storeName: storeConfig.name,
           numeroComprobante: numero_comprobante,
           clienteNombre: cliente.nombre,
           items: waItems,
           total,
-          metodoPago: metodoPago,
-        });
-
-        await sendWhatsAppText(
-          { phoneNumberId: store.whatsapp_phone_number_id, accessToken: store.whatsapp_access_token },
-          cliente.telefono,
-          msg
-        );
-      }
+          metodoPago,
+        })
+      );
     }
   }
 
-  // Auto-send email receipt if vendedor activó el toggle y el cliente tiene email (fire-and-forget)
+  // Email receipt
   if (enviarEmail && clienteId) {
     const { data: clienteParaEmail } = await supabase
       .from("clientes")
@@ -524,16 +302,10 @@ const { count } = await supabase
       .single();
 
     if (clienteParaEmail?.email) {
-      const { data: storeParaEmail } = await supabase
-        .from("stores")
-        .select("name, rut, resend_from_email")
-        .eq("id", store_id)
-        .single();
-
       const { data: itemsParaEmail } = await supabase
         .from("venta_items")
         .select("cantidad, precio_unitario, subtotal, productos(nombre)")
-        .eq("venta_id", venta.id);
+        .eq("venta_id", venta.id as string);
 
       const montoRestoEmail = pagoNc ? Math.round((total - pagoNc.monto) * 100) / 100 : 0;
       const pagosEmail: Array<{ metodo: string; monto: number; numero_transaccion?: string }> = pagoNc
@@ -547,12 +319,12 @@ const { count } = await supabase
 
       sendBoletaEmail({
         to: clienteParaEmail.email,
-        fromEmail: storeParaEmail?.resend_from_email ?? undefined,
+        fromEmail: storeConfig?.resend_from_email ?? undefined,
         boleta: {
           numeroComprobante: numero_comprobante,
-          fecha: venta.created_at ?? new Date().toISOString(),
-          storeName: storeParaEmail?.name ?? "Tienda",
-          storeRut: storeParaEmail?.rut ?? undefined,
+          fecha: (venta.created_at as string) ?? new Date().toISOString(),
+          storeName: storeConfig?.name ?? "Tienda",
+          storeRut: storeConfig?.rut ?? undefined,
           cliente: { nombre: clienteParaEmail.nombre, rut: clienteParaEmail.rut ?? undefined },
           items: (itemsParaEmail ?? []).map((i) => ({
             nombre: (i.productos as unknown as { nombre: string } | null)?.nombre ?? "Producto",
@@ -571,30 +343,28 @@ const { count } = await supabase
     }
   }
 
-  // Generar asiento contable (fire-and-forget — no bloquea la respuesta)
+  // Asiento contable
   const montoNeto = Math.round((total / 1.19) * 100) / 100;
   const ivaCalc = Math.round((total - montoNeto) * 100) / 100;
 
-  const lineasAsiento = pagoNc
-    ? lineasVentaConNc({
-        montoNeto,
-        iva: ivaCalc,
-        total,
-        montoNc: pagoNc.monto,
-        montoResto: Math.round((total - pagoNc.monto) * 100) / 100,
-        metodoPagoResto: metodoPago,
-      })
-    : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total });
-
   crearAsiento({
     storeId: store_id,
-    fecha: venta.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+    fecha: (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0],
     tipoMovimiento: "VENTA",
     canal,
-    referenciaId: venta.id,
-    referenciaNomero: venta.numero_comprobante,
+    referenciaId: venta.id as string,
+    referenciaNomero: venta.numero_comprobante as string,
     descripcion: `Venta ${canal.toUpperCase()} ${metodoPagoVenta} - ${venta.numero_comprobante}`,
-    lineas: lineasAsiento,
+    lineas: pagoNc
+      ? lineasVentaConNc({
+          montoNeto,
+          iva: ivaCalc,
+          total,
+          montoNc: pagoNc.monto,
+          montoResto: Math.round((total - pagoNc.monto) * 100) / 100,
+          metodoPagoResto: metodoPago,
+        })
+      : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 
