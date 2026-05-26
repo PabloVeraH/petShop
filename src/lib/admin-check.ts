@@ -25,10 +25,10 @@ export function requireSystemAdmin(admin: AdminContext | null) {
 }
 
 export function requireStoreAdmin(admin: AdminContext | null, requiredStoreId?: string) {
-  if (!admin?.isStoreAdmin) {
+  if (!admin?.isStoreAdmin && !admin?.isSystemAdmin) {
     throw new Error("Store admin required");
   }
-  if (requiredStoreId && admin.storeId !== requiredStoreId) {
+  if (requiredStoreId && admin.storeId !== requiredStoreId && !admin.isSystemAdmin) {
     throw new Error("Unauthorized store");
   }
 }

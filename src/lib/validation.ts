@@ -454,3 +454,16 @@ export const UserSessionsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
+
+// AI Optimizer schemas
+export const OptimizadorVencimientosRequestSchema = z.object({
+  diasAlerta: z.number().int().min(1).max(365).optional().default(30),
+});
+
+export const AiConfigUpdateSchema = z.object({
+  store_id:        z.string().uuid(),
+  openrouter_model: z.string().min(3).max(100),
+});
+
+export type OptimizadorVencimientosRequestInput = z.infer<typeof OptimizadorVencimientosRequestSchema>;
+export type AiConfigUpdateInput = z.infer<typeof AiConfigUpdateSchema>;

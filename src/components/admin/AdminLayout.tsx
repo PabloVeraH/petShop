@@ -5,8 +5,8 @@ import { AdminRole } from "@/hooks/useAdminAuth";
 
 interface AdminLayoutProps {
   role: AdminRole;
-  activeSection: "usuarios" | "licencia" | "auditoria";
-  onSectionChange: (section: "usuarios" | "licencia" | "auditoria") => void;
+  activeSection: "usuarios" | "licencia" | "auditoria" | "ia";
+  onSectionChange: (section: "usuarios" | "licencia" | "auditoria" | "ia") => void;
   children: React.ReactNode;
 }
 
@@ -56,16 +56,27 @@ export function AdminLayout({ role, activeSection, onSectionChange, children }: 
             />
           )}
 
-          {/* Auditoría - only for systemAdmin and storeAdmin */}
-          {(role === "systemAdmin" || role === "storeAdmin") && (
-            <NavItem
-              icon="📋"
-              label="Auditoría"
-              isActive={activeSection === "auditoria"}
-              onClick={() => onSectionChange("auditoria")}
-              collapsed={!sidebarOpen}
-            />
-          )}
+           {/* Auditoría - only for systemAdmin and storeAdmin */}
+           {(role === "systemAdmin" || role === "storeAdmin") && (
+             <NavItem
+               icon="📋"
+               label="Auditoría"
+               isActive={activeSection === "auditoria"}
+               onClick={() => onSectionChange("auditoria")}
+               collapsed={!sidebarOpen}
+             />
+           )}
+
+           {/* IA - only for systemAdmin */}
+           {role === "systemAdmin" && (
+             <NavItem
+               icon="🤖"
+               label="IA"
+               isActive={activeSection === "ia"}
+               onClick={() => onSectionChange("ia")}
+               collapsed={!sidebarOpen}
+             />
+           )}
         </nav>
 
         {/* Toggle button */}

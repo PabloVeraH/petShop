@@ -8,6 +8,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { UsuariosCard } from "@/components/admin/UsuariosCard";
 import { LicenciaCard } from "@/components/admin/LicenciaCard";
 import { AuditoriaCard } from "@/components/admin/AuditoriaCard";
+import { IAConfigSection } from "@/components/admin/IAConfigSection";
 
 type AdminRole = "systemAdmin" | "storeAdmin" | "storeWorker" | null;
 
@@ -23,12 +24,13 @@ type Store = {
   license_start_date: string | null;
   license_end_date: string | null;
   license_warning_days: number;
+  openrouter_model: string | null;
 };
 
 export default function AdminPage() {
   const router = useRouter();
   const { userId, sessionClaims } = useAuth();
-  const [activeSection, setActiveSection] = useState<"usuarios" | "licencia" | "auditoria">("usuarios");
+  const [activeSection, setActiveSection] = useState<"usuarios" | "licencia" | "auditoria" | "ia">("usuarios");
   const [role, setRole] = useState<AdminRole>(null);
 
   // Determine role
@@ -50,7 +52,7 @@ export default function AdminPage() {
     }
   }, [userId, sessionClaims, router]);
 
-  const { data: stores, isLoading: storesLoading } = useQuery<Store[]>({
+  const { data: stores = [], isLoading: storesLoading } = useQuery<Store[]>({
     queryKey: ["admin-stores"],
     queryFn: () =>
       fetch("/api/admin/stores").then(async (r) => {
@@ -107,6 +109,13 @@ export default function AdminPage() {
         <div>
           <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Auditoría del Sistema</h1>
           <AuditoriaCard role={role} />
+        </div>
+      )}
+
+      {activeSection === "ia" && role === "systemAdmin" && stores && (
+        <div>
+          <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Configuración de IA</h1>
+          <IAConfigSection stores={stores} />
         </div>
       )}
     </AdminLayout>

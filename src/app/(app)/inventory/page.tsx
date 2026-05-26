@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { LotesPanel } from "./components/LotesPanel";
 import { CategoriasTab } from "./components/CategoriasTab";
+import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
 
 type Producto = {
   id: string;
@@ -40,7 +41,7 @@ type Categoria = {
   nombre: string;
 };
 
-type Tab = "productos" | "categorias";
+type Tab = "productos" | "categorias" | "optimizador";
 type AjusteModal = { producto: Producto; tipo: "entrada" | "salida" } | null;
 type HistorialModal = Producto | null;
 
@@ -257,7 +258,7 @@ export default function InventoryPage() {
 
       {isAdmin && (
         <div className="flex border-b border-gray-200">
-          {(["productos", "categorias"] as Tab[]).map((t) => (
+          {(["productos", "categorias", "optimizador"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -267,13 +268,14 @@ export default function InventoryPage() {
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
-              {t === "productos" ? "Productos" : "Categorías"}
+              {t === "productos" ? "Productos" : t === "categorias" ? "Categorías" : "Optimizador Vencimientos con IA"}
             </button>
           ))}
         </div>
       )}
 
-      {tab === "categorias" && <CategoriasTab />}
+       {tab === "categorias" && <CategoriasTab />}
+       {tab === "optimizador" && <OptimizadorVencimientosTab />}
 
       {tab === "productos" && (
       <>

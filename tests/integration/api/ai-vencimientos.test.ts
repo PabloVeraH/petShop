@@ -1,0 +1,201 @@
+/**
+ * Tests I-AI-01 a I-AI-07: POST /api/ai/vencimientos/optimizar
+ */
+import { NextRequest } from "next/server";
+
+const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
+const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
+
+const mockFrom = jest.fn();
+const mockGetStoreId = jest.fn();
+const mockAuth = jest.fn();
+const mockAnalizarIA = jest.fn();
+
+jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+jest.mock("@/lib/openrouter", () => ({ analizarVencimientosConIA: mockAnalizarIA }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
+jest.mock("@/lib/audit", () => ({
+  logAudit: jest.fn().mockResolvedValue(undefined),
+  getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
+}));
+
+import { POST } from "@/app/api/ai/vencimientos/optimizar/route";
+
+// Fixture de producto DB
+const DB_PRODUCTO = {
+  id: PRODUCTO_ID, nombre: "Royal Canin", sku: "RC-001",
+  stock: 5, precio: 25000, costo: null,
+  fecha_vencimiento: "2026-06-01",
+};
+
+const DB_RECOMENDACION = {
+  producto_id: PRODUCTO_ID, urgencia: "alta", estrategia: "descuento",
+  descuento_sugerido_pct: 30, precio_oferta_sugerido: 17500,
+  razon: "Vence en 7 días.", mensaje_whatsapp: "Oferta 30% off!",
+};
+
+function makeRequest(body = {}) {
+  return new NextRequest("http://localhost/api/ai/vencimientos/optimizar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+// Setup de mocks para storeAdmin
+function setupStoreAdmin() {
+  mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  mockAuth.mockResolvedValue({
+    sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+  });
+  process.env.OPENROUTER_API_KEY = "sk-test-key";
+}
+
+describe("POST /api/ai/vencimientos/optimizar", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.OPENROUTER_API_KEY;
+  });
+
+  // I-AI-01
+  it("I-AI-01: rechaza no autenticado con 401", async () => {
+    mockGetStoreId.mockResolvedValue(null);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(401);
+  });
+
+  // I-AI-02
+  it("I-AI-02: rechaza storeWorker con 403", async () => {
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeWorker: true, storeId: STORE_ID } },
+    });
+    process.env.OPENROUTER_API_KEY = "sk-test";
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(403);
+  });
+
+  // I-AI-03
+  it("I-AI-03: retorna 503 si OPENROUTER_API_KEY no está configurada", async () => {
+    setupStoreAdmin();
+    // no configurar env.OPENROUTER_API_KEY
+    delete process.env.OPENROUTER_API_KEY;
+    // mock stores para que no falle en la query
+    mockFrom.mockImplementation(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+    }));
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(503);
+  });
+
+  // I-AI-04: sin productos próximos a vencer → respuesta vacía
+  it("I-AI-04: retorna recomendaciones vacías si no hay productos próximos a vencer", async () => {
+    setupStoreAdmin();
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(), order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.recomendaciones).toHaveLength(0);
+    expect(mockAnalizarIA).not.toHaveBeenCalled();
+  });
+
+  // I-AI-05: flujo exitoso
+  it("I-AI-05: llama a analizarVencimientosConIA y retorna recomendaciones", async () => {
+    setupStoreAdmin();
+    mockAnalizarIA.mockResolvedValue([DB_RECOMENDACION]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: "z-ai/glm-4.5-air:free" }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      // venta_items
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+    const res = await POST(makeRequest({ diasAlerta: 30 }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.recomendaciones).toHaveLength(1);
+    expect(body.recomendaciones[0].urgencia).toBe("alta");
+    expect(body.modelo_usado).toBe("z-ai/glm-4.5-air:free");
+  });
+
+  // I-AI-06: velocidad de ventas incluida en datos al LLM
+  it("I-AI-06: incluye unidades_vendidas_30d calculadas correctamente", async () => {
+    setupStoreAdmin();
+    mockAnalizarIA.mockResolvedValue([]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      // venta_items: 3 unidades vendidas
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({
+          data: [{ producto_id: PRODUCTO_ID, cantidad: 2 }, { producto_id: PRODUCTO_ID, cantidad: 1 }],
+          error: null,
+        }),
+      };
+    });
+    await POST(makeRequest());
+    expect(mockAnalizarIA).toHaveBeenCalledWith(
+      expect.any(String), expect.any(String),
+      expect.arrayContaining([expect.objectContaining({ unidades_vendidas_30d: 3 })]),
+      expect.any(String),
+    );
+  });
+
+  // I-AI-07: error del LLM → 502
+  it("I-AI-07: retorna 502 si el LLM lanza error", async () => {
+    setupStoreAdmin();
+    mockAnalizarIA.mockRejectedValue(new Error("API key inválida"));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toContain("API key inválida");
+  });
+});
