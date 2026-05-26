@@ -44,7 +44,7 @@ describe("lib/hub-sync (con HUB_URL y HUB_SYNC_SECRET, sin STORE_ID)", () => {
     const { syncProductsToHub } = require("@/lib/hub-sync");
     syncProductsToHub([BASE_PRODUCT]);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/sync/catalog",
+      "http://localhost:3001/functions/v1/sync-catalog",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ store_id: undefined, productos: [BASE_PRODUCT] }),
@@ -63,11 +63,11 @@ describe("lib/hub-sync (con HUB_URL, HUB_SYNC_SECRET y STORE_ID)", () => {
     mockFetch.mockClear();
   });
 
-  it("U-16: con HUB_URL hace POST a /api/sync/catalog", () => {
+  it("U-16: con HUB_URL hace POST a /functions/v1/sync-catalog", () => {
     const { syncProductsToHub } = require("@/lib/hub-sync");
     syncProductsToHub([BASE_PRODUCT]);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/sync/catalog",
+      "http://localhost:3001/functions/v1/sync-catalog",
       expect.objectContaining({ method: "POST" })
     );
   });
@@ -157,7 +157,7 @@ describe("lib/hub-sync (con HUB_URL, HUB_SYNC_SECRET y STORE_ID)", () => {
     const today = new Date().toISOString().split("T")[0];
     syncPurchaseToHub("11.111.111-1", 25000);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/sync/purchase",
+      "http://localhost:3001/functions/v1/sync-purchase",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
@@ -175,7 +175,7 @@ describe("lib/hub-sync (con HUB_URL, HUB_SYNC_SECRET y STORE_ID)", () => {
     const today = new Date().toISOString().split("T")[0];
     syncPurchaseToHub("11.111.111-1", 25000);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/sync/purchase",
+      "http://localhost:3001/functions/v1/sync-purchase",
       expect.objectContaining({
         method: "POST",
       })

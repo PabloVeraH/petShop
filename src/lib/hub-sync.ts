@@ -36,7 +36,7 @@ export function syncProductsToHub(
   const elegibles = productos.filter((p) => p.activo === false || p.precio >= 1000);
   if (elegibles.length === 0) return;
 
-  fetch(`${HUB_URL}/api/sync/catalog`, {
+  fetch(`${HUB_URL}/functions/v1/sync-catalog`, {
     method: "POST",
     headers: hubHeaders(),
     body: JSON.stringify({ store_id: STORE_ID, productos: elegibles }),
@@ -46,7 +46,7 @@ export function syncProductsToHub(
 export function syncPurchaseToHub(rut: string, monto: number) {
   if (!HUB_URL || !HUB_SYNC_SECRET) return;
 
-  fetch(`${HUB_URL}/api/sync/purchase`, {
+  fetch(`${HUB_URL}/functions/v1/sync-purchase`, {
     method: "POST",
     headers: hubHeaders(),
     body: JSON.stringify({

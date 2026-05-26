@@ -13,7 +13,8 @@ const mockSyncProductsToHub = jest.fn();
 const mockSyncPurchaseToHub = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
-const mockRpc = jest.fn().mockResolvedValue({ error: null });
+const DB_VENTA_HUB = { id: "v1", total: 30000, numero_comprobante: "V-001", created_at: new Date().toISOString() };
+const mockRpc = jest.fn().mockResolvedValue({ data: DB_VENTA_HUB, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
@@ -129,7 +130,7 @@ describe("H-04: POST /api/ventas sincroniza historial de compras al hub", () => 
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: DB_VENTA_HUB, error: null });
 
     mockFrom.mockImplementation(buildVentasMockFrom());
   });
@@ -151,7 +152,7 @@ describe("H-05: hub caído no impide crear la venta", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: DB_VENTA_HUB, error: null });
     // syncPurchaseToHub simula error (fetch falla internamente)
     mockSyncPurchaseToHub.mockImplementation(() => {
       // fire-and-forget: lanza internamente pero no propaga
@@ -242,7 +243,7 @@ describe("H-06a: POST /api/ventas con cliente sin RUT sincroniza stock pero no h
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: DB_VENTA_HUB, error: null });
     mockFrom.mockImplementation(buildVentasMockFrom(null));
   });
 
@@ -265,7 +266,7 @@ describe("H-06b: POST /api/ventas con cliente sincroniza stock e historial", () 
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ data: DB_VENTA_HUB, error: null });
     mockFrom.mockImplementation(buildVentasMockFrom());
   });
 
