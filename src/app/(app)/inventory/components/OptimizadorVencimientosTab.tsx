@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, AlertCircle, Copy, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface RecomendacionVencimiento {
   producto_id: string;
@@ -50,6 +51,7 @@ export function OptimizadorVencimientosTab() {
   const [errorAplicar, setErrorAplicar] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [detalle, setDetalle] = useState<RecomendacionVencimiento | null>(null);
 
   useEffect(() => {
     fetch("/api/ai/vencimientos/optimizar")
@@ -228,7 +230,11 @@ export function OptimizadorVencimientosTab() {
                 </thead>
                 <tbody>
                   {resultado.recomendaciones.map((rec) => (
-                    <tr key={rec.producto_id} className="border-b hover:bg-muted/50">
+                    <tr
+                      key={rec.producto_id}
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => setDetalle(rec)}
+                    >
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium">{rec.razon}</p>
@@ -259,7 +265,7 @@ export function OptimizadorVencimientosTab() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-2 items-start">
                           <Button
                             variant="outline"
@@ -306,6 +312,53 @@ export function OptimizadorVencimientosTab() {
             </div>
           </CardContent>
         </Card>
+      )}
+      {detalle && (
+        <Dialog open={!!detalle} onOpenChange={(open) => { if (!open) setDetalle(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Badge className={URGENCIA_COLORS[detalle.urgencia]}>{detalle.urgencia}</Badge>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {ESTRATEGIA_LABELS[detalle.estrategia]} · {detalle.descuento_sugerido_pct}% off · {Math.max(0, detalle.dias_hasta_vencer)} días · stock {detalle.stock}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Análisis</p>
+                <p className="text-sm">{detalle.razon}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Mensaje WhatsApp</p>
+                <p className="text-sm whitespace-pre-wrap">{detalle.mensaje_whatsapp}</p>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <span className="text-sm text-muted-foreground">
+                  Precio oferta: <strong>${detalle.precio_oferta_sugerido.toLocaleString()}</strong>
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopiarWhatsApp(detalle.mensaje_whatsapp, detalle.producto_id)}
+                  >
+                    {copied === detalle.producto_id ? <CheckCircle2 className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+                    Copiar WA
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { handleAplicarDescuento(detalle); setDetalle(null); }}
+                    disabled={aplicados.has(detalle.producto_id) || aplicando.has(detalle.producto_id)}
+                  >
+                    {aplicados.has(detalle.producto_id) ? "✓ Aplicado" : `Aplicar descuento (${detalle.descuento_sugerido_pct}%)`}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
