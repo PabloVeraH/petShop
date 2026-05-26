@@ -41,6 +41,14 @@ const CANALES = [
     icono: "/logos/ubereats.png",
     useImage: true,
   },
+  {
+    id: "instagram",
+    nombre: "Instagram",
+    descripcion: "Publica posts, historias y carruseles",
+    color: "bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-400",
+    icono: "/logos/instagram.jpeg",
+    useImage: true,
+  },
 ];
 
 export default function CanalesPage() {
@@ -133,12 +141,22 @@ export default function CanalesPage() {
                   )}
 
                   {configurado && canal.id !== "pos" && (
-                    <button
-                      onClick={() => router.push(`/canales/${canal.id}`)}
-                      className="mt-3 text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      Ver configuración →
-                    </button>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        onClick={() => router.push(`/canales/${canal.id}`)}
+                        className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700"
+                      >
+                        Ver configuración
+                      </button>
+                      {canal.id === "instagram" && activo && (
+                        <button
+                          onClick={() => router.push("/canales/instagram/posts")}
+                          className="px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600"
+                        >
+                          Gestionar publicaciones
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -154,6 +172,7 @@ export default function CanalesPage() {
           <li>• <strong>Rappi</strong>: Integración completa con marketplace</li>
           <li>• <strong>PedidosYa</strong>: Sincronización de productos y pedidos</li>
           <li>• <strong>Uber Eats</strong>: Gestión de inventario y órdenes</li>
+          <li>• <strong>Instagram</strong>: Publicaciones, historias y carruseles con product tagging</li>
         </ul>
       </div>
     </div>

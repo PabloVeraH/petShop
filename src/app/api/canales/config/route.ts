@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   const configSchema = z.object({
-    canal_id: z.enum(["rappi", "pedidosya", "ubereats"]),
+    canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
     credenciales: z.record(z.string(), z.unknown()),
   });
 
@@ -56,10 +56,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
+    console.error("[POST /api/canales/config] Error:", error);
     if (error.code === "23505") {
       return NextResponse.json({ error: "Canal ya configurado" }, { status: 409 });
     }
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Error interno del servidor" }, { status: 500 });
   }
 
   await logAudit({
@@ -87,7 +88,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createServiceClient();
 
   const updateSchema = z.object({
-    canal_id: z.enum(["rappi", "pedidosya", "ubereats"]),
+    canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
     credenciales: z.record(z.string(), z.unknown()).optional(),
     activo: z.boolean().optional(),
   });
@@ -123,7 +124,8 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: "Canal no encontrado" }, { status: 404 });
+    console.error("[PATCH /api/canales/config] Error:", error);
+    return NextResponse.json({ error: error.message || "Canal no encontrado" }, { status: error.code === "PGRST116" ? 404 : 500 });
   }
 
   await logAudit({

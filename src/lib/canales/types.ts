@@ -3,7 +3,7 @@
  * Define la interfaz común que implementan todos los adaptadores de canales
  */
 
-export type CanalId = "pos" | "rappi" | "pedidosya" | "ubereats";
+export type CanalId = "pos" | "rappi" | "pedidosya" | "ubereats" | "instagram";
 
 export type EstadoOrdenCanal =
   | "pending"      // recibida, aún no aceptada
@@ -139,6 +139,7 @@ export const VENTANA_ACEPTACION: Record<CanalId, number> = {
   rappi: 5,      // 5 minutos
   pedidosya: 5,  // ~5 minutos
   ubereats: 8,   // 8 minutos
+  instagram: 0,  // N/A (no order-based)
 };
 
 // Cuentas contables por canal
@@ -147,6 +148,7 @@ export const CUENTAS_POR_COBRAR: Record<CanalId, string> = {
   rappi: "110401",
   pedidosya: "110402",
   ubereats: "110403",
+  instagram: "110404",
 };
 
 export const CUENTAS_COMISION: Record<CanalId, string> = {
@@ -154,4 +156,5 @@ export const CUENTAS_COMISION: Record<CanalId, string> = {
   rappi: "510101",
   pedidosya: "510102",
   ubereats: "510103",
+  instagram: "510104",
 };

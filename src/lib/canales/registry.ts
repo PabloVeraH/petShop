@@ -9,6 +9,7 @@ import { PosChannel } from "./pos/adapter";
 import { RappiChannel } from "./rappi/adapter";
 import { PedidosYaChannel } from "./pedidosya/adapter";
 import { UberEatsChannel } from "./ubereats/adapter";
+import { InstagramChannel } from "./instagram/adapter";
 
 // Todos los adaptadores disponibles (se cargan dinámicamente según ENABLED_CHANNELS)
 const ALL_ADAPTERS: Record<CanalId, IExternalChannel> = {
@@ -16,6 +17,7 @@ const ALL_ADAPTERS: Record<CanalId, IExternalChannel> = {
   rappi: new RappiChannel(),
   pedidosya: new PedidosYaChannel(),
   ubereats: new UberEatsChannel(),
+  instagram: new InstagramChannel(),
 };
 
 // Determinar qué canales están habilitados según ENABLED_CHANNELS
