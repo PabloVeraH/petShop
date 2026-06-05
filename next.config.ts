@@ -11,7 +11,7 @@ const cspDirectives = [
     "https://clerk.accounts.dev https://*.clerk.accounts.dev",
   ].filter(Boolean).join(" "),
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com",
+  "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.tile.openstreetmap.org",
   "font-src 'self' data:",
   [
     "connect-src 'self'",
@@ -19,6 +19,7 @@ const cspDirectives = [
     "https://api.clerk.com https://*.clerk.accounts.dev",
     "https://clerk-telemetry.com",
     "https://graph.facebook.com",
+    "https://photon.komoot.io",
   ].join(" "),
   isDev ? "worker-src 'self' blob:" : "worker-src 'self'",
   "frame-src 'none'",
@@ -38,7 +39,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    value: "camera=(), microphone=(), geolocation=(self)",
   },
   {
     key: "Content-Security-Policy",
