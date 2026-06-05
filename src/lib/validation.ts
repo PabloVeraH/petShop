@@ -191,6 +191,9 @@ export const SettingsUpdateSchema = z.object({
   email_reminder_dias_aviso: z.number().int().min(1).max(30).optional(),
   resend_from_email: z.string().email("Correo electrónico inválido").nullable().optional(),
   fidelizacion_niveles: z.array(FidelizacionNivelSchema).max(5).optional(),
+  ciudad: z.string().max(100).optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lon: z.number().min(-180).max(180).nullable().optional(),
 });
 
 export const ClienteDeleteSchema = z.object({
@@ -467,3 +470,16 @@ export const AiConfigUpdateSchema = z.object({
 
 export type OptimizadorVencimientosRequestInput = z.infer<typeof OptimizadorVencimientosRequestSchema>;
 export type AiConfigUpdateInput = z.infer<typeof AiConfigUpdateSchema>;
+
+// POS Recommender
+export const POSRecomendadorRequestSchema = z.object({
+  clienteId:     z.string().uuid().optional(),
+  mascotaId:     z.string().uuid().optional(),
+  itemsCarrito: z.array(z.object({
+    producto_id: z.string().uuid(),
+    nombre:      z.string(),
+    categoria:   z.string().optional(),
+  })).max(50),
+});
+
+export type POSRecomendadorRequestInput = z.infer<typeof POSRecomendadorRequestSchema>;

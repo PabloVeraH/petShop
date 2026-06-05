@@ -23,6 +23,9 @@ interface StoreSettings {
   email_reminder_dias_aviso: number;
   resend_from_email: string;
   fidelizacion_niveles: FidelizacionNivel[];
+  ciudad: string;
+  lat: number | null;
+  lon: number | null;
 }
 
 export default function SettingsPage() {
@@ -134,6 +137,65 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </section>
+
+        {/* Ubicación */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-1">Ubicación de la tienda</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Se usa para obtener el clima local y mejorar las recomendaciones IA en el POS.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+              <input
+                type="text"
+                value={settings.ciudad ?? ""}
+                onChange={(e) => setSettings({ ...settings, ciudad: e.target.value })}
+                placeholder="Santiago"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Latitud</label>
+              <input
+                type="number"
+                step="0.000001"
+                value={settings.lat ?? ""}
+                onChange={(e) => setSettings({ ...settings, lat: e.target.value ? parseFloat(e.target.value) : null })}
+                placeholder="-33.450000"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Longitud</label>
+              <input
+                type="number"
+                step="0.000001"
+                value={settings.lon ?? ""}
+                onChange={(e) => setSettings({ ...settings, lon: e.target.value ? parseFloat(e.target.value) : null })}
+                placeholder="-70.670000"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!navigator.geolocation) return;
+              navigator.geolocation.getCurrentPosition(
+                (pos) => setSettings({
+                  ...settings,
+                  lat: parseFloat(pos.coords.latitude.toFixed(6)),
+                  lon: parseFloat(pos.coords.longitude.toFixed(6)),
+                }),
+                () => {}
+              );
+            }}
+            className="mt-3 text-sm text-green-600 hover:underline"
+          >
+            Usar mi ubicación actual
+          </button>
         </section>
 
         {/* WhatsApp */}
