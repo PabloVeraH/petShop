@@ -1,17 +1,8 @@
 {
-  "builds": [
+  "crons": [
     {
-      "src": "next.config.mjs",
-      "use": "@vercel/next"
+      "path": "/api/cron/email-alerts",
+      "schedule": "0 9 * * *"
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
-  ],
-  "env": {
-    "NEXT_PUBLIC_APP_URL": "https://tu-app.vercel.app"
-  }
+  ]
 }
