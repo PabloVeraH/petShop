@@ -51,7 +51,7 @@ requireSystemAdmin(admin);   // o requireStoreAdmin(admin)
 
 ## Base de datos (Supabase proyecto wnxrdbnvreofrrmhcybc)
 
-22 migraciones en `/migrations/`. Tablas principales:
+43 migraciones en `/migrations/`. Tablas principales:
 
 ```
 stores          — config de tienda (settings, licencia, email reminder)
@@ -106,7 +106,7 @@ NEXT_PUBLIC_APP_URL
 
 ## Tests
 
-518 tests, 0 fallos. Ejecutar con `npm test`.  
+929 tests, 0 fallos. Ejecutar con `npm test`.  
 Patrón: TDD London School (mock-first). Ver `tests/` para ejemplos.  
 Suite de integración en `tests/integration/api/`.
 

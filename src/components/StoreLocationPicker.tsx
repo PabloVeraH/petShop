@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
+import type { FlyTarget } from "./MapWithPin";
 
 interface PhotonFeature {
   geometry: { coordinates: [number, number] };
@@ -32,7 +33,15 @@ interface Props {
   onChange: (data: LocationData) => void;
 }
 
-const MapWithPin = dynamic(() => import("./MapWithPin"), {
+interface MapWithPinProps {
+  lat: number;
+  lon: number;
+  flyTarget?: FlyTarget;
+  onPinMoved: (lat: number, lon: number) => void;
+  onMapClick: (lat: number, lon: number) => void;
+}
+
+const MapWithPin = dynamic<MapWithPinProps>(() => import("./MapWithPin"), {
   ssr: false,
   loading: () => (
     <div className="h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">
@@ -59,6 +68,17 @@ export function extractCity(props: PhotonFeature["properties"]): string {
   return props.city ?? props.locality ?? props.district ?? props.state ?? props.name ?? "";
 }
 
+async function reverseGeocode(lat: number, lon: number): Promise<{ direccion: string; ciudad: string } | null> {
+  const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`);
+  const data = await res.json();
+  const feature: PhotonFeature | undefined = data.features?.[0];
+  if (!feature) return null;
+  return {
+    direccion: buildDisplayAddress(feature.properties),
+    ciudad: extractCity(feature.properties),
+  };
+}
+
 const DEFAULT_LAT = -33.45;
 const DEFAULT_LON = -70.67;
 
@@ -68,6 +88,9 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showPinMovedDialog, setShowPinMovedDialog] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [flyTarget, setFlyTarget] = useState<FlyTarget | undefined>(undefined);
+  // Stores the new coords while the confirmation dialog is open
+  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lon: number } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const searchPhoton = useCallback(async (q: string) => {
@@ -104,21 +127,62 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
     setQuery(displayAddr);
     setSuggestions([]);
     setShowSuggestions(false);
+    setFlyTarget({ lat: featureLat, lon: featureLon, key: Date.now() });
     onChange({ direccion: displayAddr, ciudad: city, lat: featureLat, lon: featureLon });
   };
 
+  // Pin dragged: always update coords, then ask about address
   const handlePinMoved = (newLat: number, newLon: number) => {
     onChange({ direccion: query, ciudad, lat: newLat, lon: newLon });
+    setPendingCoords({ lat: newLat, lon: newLon });
     setShowPinMovedDialog(true);
   };
 
-  const handlePinMovedResponse = (modifyAddress: boolean) => {
-    setShowPinMovedDialog(false);
-    if (modifyAddress) {
-      setQuery("");
-      setSuggestions([]);
+  // Map click: if empty → reverse geocode inline; if not empty → ask via dialog
+  const handleMapClick = useCallback(async (newLat: number, newLon: number) => {
+    onChange({ direccion: query, ciudad, lat: newLat, lon: newLon });
+
+    if (!query.trim()) {
+      setLoadingSuggestions(true);
+      try {
+        const result = await reverseGeocode(newLat, newLon);
+        if (result) {
+          setQuery(result.direccion);
+          onChange({ direccion: result.direccion, ciudad: result.ciudad, lat: newLat, lon: newLon });
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    } else {
+      setPendingCoords({ lat: newLat, lon: newLon });
+      setShowPinMovedDialog(true);
     }
-  };
+  }, [query, ciudad, onChange]);
+
+  // Confirmation dialog response: if accepted → reverse geocode pending coords
+  const handlePinMovedResponse = useCallback(async (modifyAddress: boolean) => {
+    setShowPinMovedDialog(false);
+    const coords = pendingCoords;
+    setPendingCoords(null);
+
+    if (modifyAddress && coords) {
+      setQuery("");
+      setLoadingSuggestions(true);
+      try {
+        const result = await reverseGeocode(coords.lat, coords.lon);
+        if (result) {
+          setQuery(result.direccion);
+          onChange({ direccion: result.direccion, ciudad: result.ciudad, lat: coords.lat, lon: coords.lon });
+        }
+      } catch {
+        // silently fail — address stays empty, coords remain updated
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }
+  }, [pendingCoords, onChange]);
 
   const currentLat = lat ?? DEFAULT_LAT;
   const currentLon = lon ?? DEFAULT_LON;
@@ -166,8 +230,18 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
         />
       </div>
 
+      <p className="text-xs text-gray-400">
+        Haz clic en el mapa para mover el pin, o arrástralo a la posición exacta.
+      </p>
+
       <div className="h-64 rounded-lg overflow-hidden border border-gray-200">
-        <MapWithPin lat={currentLat} lon={currentLon} onPinMoved={handlePinMoved} />
+        <MapWithPin
+          lat={currentLat}
+          lon={currentLon}
+          flyTarget={flyTarget}
+          onPinMoved={handlePinMoved}
+          onMapClick={handleMapClick}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -193,26 +267,37 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
         </div>
       </div>
 
+      {/* Popup modal for pin position change confirmation */}
       {showPinMovedDialog && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-          <p className="text-sm text-amber-800 mb-3">
-            Ha movido el pin de la posición original. ¿Desea modificar la dirección?
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => handlePinMovedResponse(true)}
-              className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700"
-            >
-              Sí, modificar dirección
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePinMovedResponse(false)}
-              className="px-3 py-1.5 text-sm bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              No, mantener dirección
-            </button>
+        <div
+          className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-moved-title"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 id="pin-moved-title" className="text-base font-semibold text-gray-800 mb-2">
+              Posición modificada
+            </h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Ha movido el pin de la posición original. ¿Desea actualizar la dirección con la nueva ubicación?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => handlePinMovedResponse(false)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                No, mantener
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePinMovedResponse(true)}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Sí, actualizar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -224,6 +309,7 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
           navigator.geolocation.getCurrentPosition((pos) => {
             const newLat = parseFloat(pos.coords.latitude.toFixed(6));
             const newLon = parseFloat(pos.coords.longitude.toFixed(6));
+            setFlyTarget({ lat: newLat, lon: newLon, key: Date.now() });
             onChange({ direccion: query, ciudad, lat: newLat, lon: newLon });
           });
         }}

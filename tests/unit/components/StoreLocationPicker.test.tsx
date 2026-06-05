@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 /**
- * Tests UI-01 a UI-09: StoreLocationPicker component
+ * Tests UI-01 a UI-14: StoreLocationPicker component
  */
 import "@testing-library/jest-dom";
 import React from "react";
@@ -13,10 +13,13 @@ jest.mock("next/dynamic", () =>
       lat,
       lon,
       onPinMoved,
+      onMapClick,
     }: {
       lat: number;
       lon: number;
+      flyTarget?: unknown;
       onPinMoved: (lat: number, lon: number) => void;
+      onMapClick: (lat: number, lon: number) => void;
     }) => (
       <div data-testid="mock-map" data-lat={lat} data-lon={lon}>
         <button
@@ -25,6 +28,13 @@ jest.mock("next/dynamic", () =>
           onClick={() => onPinMoved(lat + 0.01, lon + 0.01)}
         >
           Simulate drag
+        </button>
+        <button
+          data-testid="simulate-map-click"
+          type="button"
+          onClick={() => onMapClick(lat + 0.02, lon + 0.02)}
+        >
+          Simulate click
         </button>
       </div>
     );
@@ -168,22 +178,26 @@ it("UI-05: muestra sugerencias de Photon y al seleccionar llama onChange con dat
 });
 
 // UI-06
-it("UI-06: mover el pin muestra el diálogo de confirmación", async () => {
+it("UI-06: mover el pin muestra el diálogo de confirmación como popup modal", async () => {
   render(<StoreLocationPicker {...defaultProps} lat={-36.827} lon={-73.051} />);
+
+  // Dialog must not exist before pin is moved
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByTestId("simulate-pin-drag"));
 
-  await waitFor(() =>
-    expect(
-      screen.getByText(/Ha movido el pin de la posición original/)
-    ).toBeInTheDocument()
-  );
-  expect(screen.getByText("Sí, modificar dirección")).toBeInTheDocument();
-  expect(screen.getByText("No, mantener dirección")).toBeInTheDocument();
+  await waitFor(() => {
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+  expect(screen.getByText(/Ha movido el pin de la posición original/)).toBeInTheDocument();
+  expect(screen.getByText("Sí, actualizar")).toBeInTheDocument();
+  expect(screen.getByText("No, mantener")).toBeInTheDocument();
 });
 
 // UI-07
-it("UI-07: responder Sí al diálogo limpia el campo de dirección", async () => {
+it("UI-07: responder Sí activa reverse geocoding y rellena la dirección con la nueva ubicación", async () => {
   render(
     <StoreLocationPicker
       {...defaultProps}
@@ -194,15 +208,31 @@ it("UI-07: responder Sí al diálogo limpia el campo de dirección", async () =>
   );
 
   fireEvent.click(screen.getByTestId("simulate-pin-drag"));
-  await waitFor(() => screen.getByText("Sí, modificar dirección"));
-  fireEvent.click(screen.getByText("Sí, modificar dirección"));
+  await waitFor(() => screen.getByText("Sí, actualizar"));
+  fireEvent.click(screen.getByText("Sí, actualizar"));
 
-  expect(screen.queryByDisplayValue("Dirección original")).not.toBeInTheDocument();
-  expect(screen.queryByText(/Ha movido el pin/)).not.toBeInTheDocument();
+  // Dialog must close immediately
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  );
+
+  // Must call reverse geocoding
+  await waitFor(() =>
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("photon.komoot.io/reverse")
+    )
+  );
+
+  // Address must NOT be the original, and must NOT be empty
+  const input = screen.getByPlaceholderText("Ej: Pinares 579, Chiguayante");
+  await waitFor(() => {
+    expect(input).not.toHaveValue("Dirección original");
+    expect(input).not.toHaveValue("");
+  });
 });
 
 // UI-08
-it("UI-08: responder No al diálogo cierra el diálogo y conserva la dirección", async () => {
+it("UI-08: responder No cierra el diálogo, conserva la dirección y no llama reverse geocoding", async () => {
   render(
     <StoreLocationPicker
       {...defaultProps}
@@ -213,11 +243,14 @@ it("UI-08: responder No al diálogo cierra el diálogo y conserva la dirección"
   );
 
   fireEvent.click(screen.getByTestId("simulate-pin-drag"));
-  await waitFor(() => screen.getByText("No, mantener dirección"));
-  fireEvent.click(screen.getByText("No, mantener dirección"));
+  await waitFor(() => screen.getByText("No, mantener"));
+  fireEvent.click(screen.getByText("No, mantener"));
 
   expect(screen.getByDisplayValue("Dirección original")).toBeInTheDocument();
-  expect(screen.queryByText(/Ha movido el pin/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(global.fetch).not.toHaveBeenCalledWith(
+    expect.stringContaining("photon.komoot.io/reverse")
+  );
 });
 
 // UI-09
@@ -240,6 +273,113 @@ it("UI-09: mover el pin llama a onChange con las nuevas coordenadas", async () =
       lon: expect.closeTo(-73.041, 2),
     })
   );
+});
+
+// UI-10: click en mapa con dirección vacía → reverse geocoding → rellena dirección
+it("UI-10: click en mapa con dirección vacía hace reverse geocoding y rellena la dirección", async () => {
+  const onChange = jest.fn();
+  render(<StoreLocationPicker {...defaultProps} onChange={onChange} lat={-36.827} lon={-73.051} />);
+
+  fireEvent.click(screen.getByTestId("simulate-map-click"));
+
+  await waitFor(() =>
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("photon.komoot.io/reverse")
+    )
+  );
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledTimes(2)
+  );
+  // Second call should have the geocoded address
+  const secondCall = onChange.mock.calls[1][0];
+  expect(secondCall).toHaveProperty("direccion");
+  expect(secondCall.direccion.length).toBeGreaterThan(0);
+});
+
+// UI-11: click en mapa con dirección ya cargada → muestra diálogo de confirmación
+it("UI-11: click en mapa con dirección existente muestra el diálogo de confirmación", async () => {
+  render(
+    <StoreLocationPicker
+      {...defaultProps}
+      direccion="Dirección existente"
+      lat={-36.827}
+      lon={-73.051}
+    />
+  );
+
+  fireEvent.click(screen.getByTestId("simulate-map-click"));
+
+  await waitFor(() =>
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+  );
+  // Should NOT call reverse geocoding before confirmation
+  expect(global.fetch).not.toHaveBeenCalledWith(
+    expect.stringContaining("photon.komoot.io/reverse")
+  );
+});
+
+// UI-12: click en mapa actualiza lat/lon vía onChange
+it("UI-12: click en mapa llama a onChange con las nuevas coordenadas", async () => {
+  const onChange = jest.fn();
+  render(
+    <StoreLocationPicker
+      {...defaultProps}
+      onChange={onChange}
+      lat={-36.827}
+      lon={-73.051}
+    />
+  );
+
+  fireEvent.click(screen.getByTestId("simulate-map-click"));
+
+  expect(onChange).toHaveBeenCalledWith(
+    expect.objectContaining({
+      lat: expect.closeTo(-36.807, 2),
+      lon: expect.closeTo(-73.031, 2),
+    })
+  );
+});
+
+// UI-13: el popup tiene atributos de accesibilidad correctos
+it("UI-13: el popup de confirmación tiene role=dialog y aria-modal=true", async () => {
+  render(<StoreLocationPicker {...defaultProps} lat={-36.827} lon={-73.051} />);
+
+  fireEvent.click(screen.getByTestId("simulate-pin-drag"));
+
+  await waitFor(() => {
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveAttribute("aria-labelledby", "pin-moved-title");
+  });
+  expect(screen.getByText("Posición modificada")).toBeInTheDocument();
+});
+
+// UI-14: confirmar tras click en mapa también activa reverse geocoding
+it("UI-14: confirmar diálogo tras click en mapa activa reverse geocoding y rellena la dirección", async () => {
+  render(
+    <StoreLocationPicker
+      {...defaultProps}
+      direccion="Dirección existente"
+      lat={-36.827}
+      lon={-73.051}
+    />
+  );
+
+  fireEvent.click(screen.getByTestId("simulate-map-click"));
+  await waitFor(() => screen.getByText("Sí, actualizar"));
+  fireEvent.click(screen.getByText("Sí, actualizar"));
+
+  await waitFor(() =>
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("photon.komoot.io/reverse")
+    )
+  );
+
+  const input = screen.getByPlaceholderText("Ej: Pinares 579, Chiguayante");
+  await waitFor(() => {
+    expect(input).not.toHaveValue("Dirección existente");
+    expect(input).not.toHaveValue("");
+  });
 });
 
 // Unit tests for utility functions
