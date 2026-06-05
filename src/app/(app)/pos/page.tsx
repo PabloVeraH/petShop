@@ -9,6 +9,7 @@ import SearchProductos from "./components/SearchProductos";
 import Carrito from "./components/Carrito";
 import ModalCliente from "./components/ModalCliente";
 import ModalPago from "./components/ModalPago";
+import RecomendacionesIA from "./components/RecomendacionesIA";
 import { Button } from "@/components/ui/button";
 
 export default function POSPage() {
@@ -94,11 +95,13 @@ export default function POSPage() {
             {clienteId ? "✓ Cliente seleccionado" : "+ Agregar cliente"}
           </Button>
 
-          {clienteId && mascotaId && (
-            <p className="text-xs text-center text-green-600">Mascota vinculada ✓</p>
-          )}
+           {clienteId && mascotaId && (
+             <p className="text-xs text-center text-green-600">Mascota vinculada ✓</p>
+           )}
 
-          <Button
+           <RecomendacionesIA />
+
+           <Button
             onClick={() => setShowPagoModal(true)}
             disabled={items.length === 0}
             className="w-full"
