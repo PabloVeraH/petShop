@@ -194,6 +194,7 @@ export const SettingsUpdateSchema = z.object({
   ciudad: z.string().max(100).optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lon: z.number().min(-180).max(180).nullable().optional(),
+  direccion: z.string().max(300).nullable().optional(),
 });
 
 export const ClienteDeleteSchema = z.object({

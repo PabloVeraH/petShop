@@ -72,6 +72,38 @@ describe("GET /api/settings", () => {
   });
 });
 
+describe("GET /api/settings — ubicación", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // I-94
+  it("I-94: GET devuelve campo direccion junto con lat, lon y ciudad", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        ciudad: "Concepción",
+        lat: -36.827,
+        lon: -73.051,
+        direccion: "Pinares 579, Chiguayante, Concepción, Chile",
+        whatsapp_access_token: "",
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.direccion).toBe("Pinares 579, Chiguayante, Concepción, Chile");
+    expect(body.ciudad).toBe("Concepción");
+    expect(body.lat).toBe(-36.827);
+    expect(body.lon).toBe(-73.051);
+  });
+});
+
 describe("PATCH /api/settings", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -166,5 +198,92 @@ describe("PATCH /api/settings", () => {
       body: JSON.stringify({ fidelizacion_niveles: niveles }),
     }));
     expect(res.status).toBe(400);
+  });
+
+  // I-95
+  it("I-95: PATCH guarda direccion, ciudad, lat y lon juntos", async () => {
+    const capturedUpdates: Record<string, unknown>[] = [];
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { capturedUpdates.push(data); return c; }),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID }, error: null }),
+      };
+      return c;
+    });
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        direccion: "Pinares 579, Chiguayante, Concepción, Chile",
+        ciudad: "Concepción",
+        lat: -36.827,
+        lon: -73.051,
+      }),
+    }));
+    expect(res.status).toBe(200);
+    const updateData = capturedUpdates[0] ?? {};
+    expect(updateData).toHaveProperty("direccion", "Pinares 579, Chiguayante, Concepción, Chile");
+    expect(updateData).toHaveProperty("ciudad", "Concepción");
+    expect(updateData).toHaveProperty("lat", -36.827);
+    expect(updateData).toHaveProperty("lon", -73.051);
+  });
+
+  // I-96
+  it("I-96: PATCH rechaza lat fuera de rango (-90 a 90)", async () => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat: 95 }),
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  // I-97
+  it("I-97: PATCH rechaza lon fuera de rango (-180 a 180)", async () => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lon: -200 }),
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  // I-98
+  it("I-98: PATCH rechaza direccion con más de 300 caracteres", async () => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direccion: "A".repeat(301) }),
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  // I-99
+  it("I-99: PATCH acepta direccion null para limpiar el campo", async () => {
+    const capturedUpdates: Record<string, unknown>[] = [];
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { capturedUpdates.push(data); return c; }),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID }, error: null }),
+      };
+      return c;
+    });
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direccion: null }),
+    }));
+    expect(res.status).toBe(200);
+    const updateData = capturedUpdates[0] ?? {};
+    expect(updateData).toHaveProperty("direccion", null);
   });
 });
