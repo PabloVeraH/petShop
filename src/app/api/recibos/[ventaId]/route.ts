@@ -115,9 +115,14 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
       const precio = Number(item.precio_unitario);
       const subtotal = Number(item.subtotal);
 
+      // Mostrar cantidad diferente para granel
+      const cantidadDisplay = item.es_granel
+        ? `${item.gramos}g a $${precio.toLocaleString("es-CL")}/kg`
+        : `${cantidad} x $${precio.toLocaleString("es-CL")}`;
+
       return `      <tr>
-        <td>${prod?.nombre ?? "Producto"}</td>
-        <td style="text-align: center">${cantidad}</td>
+        <td>${prod?.nombre ?? "Producto"}${item.es_granel ? " (Granel)" : ""}</td>
+        <td style="text-align: center">${cantidadDisplay}</td>
         <td style="text-align: right">$${precio.toLocaleString("es-CL")}</td>
         <td style="text-align: right">$${subtotal.toLocaleString("es-CL")}</td>
       </tr>`;

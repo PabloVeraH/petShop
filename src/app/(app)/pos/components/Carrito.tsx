@@ -83,43 +83,64 @@ export default function Carrito() {
             }`}
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium truncate">{item.nombre}</p>
-                {isVencido(item) && (
-                  <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    ✕ Vencido
+              {item.es_granel ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{item.nombre}</p>
+                  <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    Granel
                   </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {item.en_oferta && item.precio_oferta ? (
-                  <>
-                    <span className="line-through">${item.precio.toLocaleString("es-CL")}</span>
-                    {" → "}
-                    <span className="font-bold text-green-600">
-                      ${getPrecioDisplay(item).toLocaleString("es-CL")} c/u
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{item.nombre}</p>
+                  {isVencido(item) && (
+                    <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+                      ✕ Vencido
                     </span>
-                  </>
-                ) : (
-                  <span>${item.precio.toLocaleString("es-CL")} c/u</span>
-                )}
+                  )}
+                </div>
+              )}
+              <div className="text-xs text-gray-500 mt-0.5">
+                {item.es_granel
+                  ? `${item.gramos}g · ${item.precio.toLocaleString("es-CL")}/kg`
+                  : item.en_oferta && item.precio_oferta ? (
+                    <>
+                      <span className="line-through">${item.precio.toLocaleString("es-CL")}</span>
+                      {" → "}
+                      <span className="font-bold text-green-600">
+                        ${getPrecioDisplay(item).toLocaleString("es-CL")} c/u
+                      </span>
+                    </>
+                  ) : (
+                    <span>${item.precio.toLocaleString("es-CL")} c/u</span>
+                  )}
               </div>
             </div>
 
+            {/* Botones: granel solo muestra eliminar */}
             <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => updateQuantity(item.id, item.cantidad - 1)}
-                className="w-6 h-6 text-xs flex items-center justify-center hover:bg-gray-200 rounded"
-              >
-                −
-              </button>
-              <span className="text-xs w-5 text-center font-medium">{item.cantidad}</span>
-              <button
-                onClick={() => updateQuantity(item.id, item.cantidad + 1)}
-                className="w-6 h-6 text-xs flex items-center justify-center hover:bg-gray-200 rounded"
-              >
-                +
-              </button>
+              {!item.es_granel && (
+                <>
+                  <button
+                    onClick={() => updateQuantity(item.id, item.cantidad - 1)}
+                    className="w-6 h-6 text-xs flex items-center justify-center hover:bg-gray-200 rounded"
+                  >
+                    −
+                  </button>
+                  <span className="text-xs w-5 text-center font-medium">{item.cantidad}</span>
+                  <button
+                    onClick={() => updateQuantity(item.id, item.cantidad + 1)}
+                    className="w-6 h-6 text-xs flex items-center justify-center hover:bg-gray-200 rounded"
+                  >
+                    +
+                  </button>
+                </>
+              )}
+              {item.es_granel && (
+                <span className="text-xs font-medium text-blue-700 mr-1">
+                  ${item.subtotal.toLocaleString("es-CL")}
+                </span>
+              )}
               <button
                 onClick={() => removeItem(item.id)}
                 className="w-6 h-6 text-xs flex items-center justify-center hover:bg-red-100 text-red-500 rounded ml-1"

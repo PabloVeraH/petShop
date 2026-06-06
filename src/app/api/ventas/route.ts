@@ -100,26 +100,50 @@ export async function POST(req: NextRequest) {
 
   // Retrieve prices from productos — do not trust client-supplied prices
   const productoIds: string[] = items.map((i: { producto_id: string }) => i.producto_id);
+  const uniqueProductoIds = [...new Set(productoIds)];
   const { data: productosDB, error: precioError } = await supabase
     .from("productos")
-    .select("id, precio, precio_oferta, en_oferta")
-    .in("id", productoIds)
+    .select("id, precio, precio_oferta, en_oferta, precio_venta_kg")
+    .in("id", uniqueProductoIds)
     .eq("store_id", store_id);
 
-  if (precioError || !productosDB || productosDB.length !== productoIds.length) {
+  if (precioError || !productosDB || productosDB.length !== uniqueProductoIds.length) {
     return NextResponse.json({ error: "Uno o más productos no encontrados" }, { status: 400 });
   }
 
-  const precioMap = Object.fromEntries(productosDB.map((p) => [
-    p.id,
-    p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio),
-  ]));
+   const precioMap: Record<string, number> = {};
+   productosDB.forEach(p => {
+     // Si el item en el carrito es granel, usar precio_venta_kg
+     const itemDelCarrito = items.find(i => i.producto_id === p.id);
+     if (itemDelCarrito?.es_granel && p.precio_venta_kg) {
+       precioMap[p.id] = Number(p.precio_venta_kg);
+     } else {
+       precioMap[p.id] = p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio);
+     }
+   });
 
-  const itemsConPrecio = items.map((item: { producto_id: string; cantidad: number; mascota_id?: string }) => ({
-    ...item,
-    precio_unitario: precioMap[item.producto_id],
-    subtotal: precioMap[item.producto_id] * item.cantidad,
-  }));
+   const itemsConPrecio = items.map((item: {
+     producto_id: string;
+     cantidad: number;     // kg para granel, unidades enteras para normal
+     mascota_id?: string;
+     es_granel?: boolean;
+     gramos?: number;
+   }) => {
+     const precio = precioMap[item.producto_id];
+     const subtotal = item.es_granel
+       ? item.cantidad * precio    // cantidad=kg, precio=precio_venta_kg
+       : precio * item.cantidad;
+
+     return {
+       producto_id:     item.producto_id,
+       cantidad:        item.cantidad,
+       precio_unitario: precio,
+       subtotal,
+       mascota_id:      item.mascota_id ?? null,
+       es_granel:       item.es_granel ?? false,
+       gramos:          item.gramos ?? null,
+     };
+   });
 
   const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
   const descuentoMonto = (subtotal * descuento_pct) / 100;

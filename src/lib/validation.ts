@@ -100,8 +100,8 @@ export const ProductoCreateSchema = z.object({
   sku: z.string().min(1, "El SKU es obligatorio").max(50),
   precio: z.number().positive("El precio debe ser mayor a 0"),
   costo: z.number().nonnegative("El costo no puede ser negativo").optional(),
-  stock: z.number().int().nonnegative("El stock no puede ser negativo").optional(),
-  stock_minimo: z.number().int().nonnegative("El stock mínimo no puede ser negativo").optional(),
+  stock: z.number().nonnegative("El stock no puede ser negativo").optional(),
+  stock_minimo: z.number().nonnegative("El stock mínimo no puede ser negativo").optional(),
   marca: z.string().max(50).optional(),
   peso_gramos: z.number().int().positive("El peso debe ser mayor a 0").optional(),
   fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)").optional(),
@@ -110,15 +110,19 @@ export const ProductoCreateSchema = z.object({
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).optional(),
-});
+  precio_venta_kg: z.number().positive("El precio por kg debe ser mayor a 0").nullable().optional(),
+}).refine(
+  (data) => !(data.precio_venta_kg && !data.peso_gramos),
+  { message: "El peso por unidad (gramos) es obligatorio para productos granel", path: ["peso_gramos"] }
+);
 
 export const ProductoUpdateSchema = z.object({
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   sku: z.string().min(1, "El SKU es obligatorio").max(50).optional(),
   precio: z.number().positive("El precio debe ser mayor a 0").optional(),
   costo: z.number().nonnegative("El costo no puede ser negativo").optional(),
-  stock: z.number().int().nonnegative("El stock no puede ser negativo").optional(),
-  stock_minimo: z.number().int().nonnegative("El stock mínimo no puede ser negativo").optional(),
+  stock: z.number().nonnegative("El stock no puede ser negativo").optional(),
+  stock_minimo: z.number().nonnegative("El stock mínimo no puede ser negativo").optional(),
   marca: z.string().max(50).optional(),
   peso_gramos: z.number().int().positive("El peso debe ser mayor a 0").optional(),
   fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)").optional(),
@@ -127,7 +131,11 @@ export const ProductoUpdateSchema = z.object({
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).nullable().optional(),
-});
+  precio_venta_kg: z.number().positive("El precio por kg debe ser mayor a 0").nullable().optional(),
+}).refine(
+  (data) => !(data.precio_venta_kg && !data.peso_gramos),
+  { message: "El peso por unidad (gramos) es obligatorio para productos granel", path: ["peso_gramos"] }
+);
 
 export const MascotaUpdateSchema = z.object({
   nombre: z.string().min(2).max(50).optional(),
@@ -141,9 +149,11 @@ export const MascotaUpdateSchema = z.object({
 
 export const VentaItemSchema = z.object({
   producto_id: UUIDSchema,
-  cantidad: z.number().int().positive(),
+  cantidad: z.number().positive(),          // decimal for granel (kg), integer for normal
   precioUnitario: z.number().positive().optional(),
   mascota_id: UUIDSchema.optional(),
+  es_granel: z.boolean().optional(),
+  gramos: z.number().int().positive().optional(),
 });
 
 export const VentaCreateSchema = z.object({

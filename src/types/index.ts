@@ -4,13 +4,15 @@ export interface Producto {
   nombre: string;
   sku: string;
   precio: number | null;
-  stock: number;
+  stock: number;           // ahora NUMERIC en BD, sigue siendo number en TS
   stock_minimo: number;
   fecha_vencimiento?: string | null;
   dias_alerta_expira?: number;
   precio_oferta?: number | null;
   en_oferta?: boolean;
   codigo_barra?: string | null;
+  precio_venta_kg?: number | null;  // <-- NUEVO
+  peso_gramos?: number | null;      // <-- asegurarse que ya esté
 }
 
 export interface Cliente {

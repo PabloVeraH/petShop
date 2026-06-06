@@ -13,6 +13,8 @@ export default function SearchProductos() {
   const [search, setSearch] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
+  const [gramosInput, setGramosInput] = useState<string>("");
   const { addItem, mascotaId } = usePOSStore();
   const queryClient = useQueryClient();
 
@@ -39,6 +41,28 @@ export default function SearchProductos() {
       precio_oferta: prod.precio_oferta,
       en_oferta: prod.en_oferta,
     });
+  }
+
+  function addGranelToCart(prod: Producto) {
+    const gramos = parseInt(gramosInput, 10);
+    if (!prod.precio_venta_kg || gramos <= 0 || isNaN(gramos)) return;
+
+    const kg = gramos / 1000;
+    const subtotal = Math.round(kg * prod.precio_venta_kg);
+
+    addItem({
+      producto_id: prod.id,
+      nombre: prod.nombre,
+      precio: prod.precio_venta_kg,   // precio por kg = "precio unitario"
+      cantidad: kg,                    // kg vendidos (ej: 0.5 para 500g)
+      subtotal,
+      mascota_id: mascotaId,
+      es_granel: true,
+      gramos,                          // para mostrar en recibo y carrito
+    });
+
+    setGranelProductoId(null);
+    setGramosInput("");
   }
 
   async function handleBarcodeEnter(barcode: string) {
@@ -93,11 +117,10 @@ export default function SearchProductos() {
 
   const getVencimientoStatus = (prod: Producto | undefined) => {
     if (!prod?.fecha_vencimiento) return null;
-    const hoy = new Date().toISOString().split("T")[0];
-    if (prod.fecha_vencimiento < hoy) return "vencido";
     const diasRestantes = Math.ceil(
-      (new Date(prod.fecha_vencimiento).getTime() - new Date(hoy).getTime()) / 86400000
+      (new Date(prod.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
     );
+    if (diasRestantes < 0) return "vencido";
     if (diasRestantes <= (prod.dias_alerta_expira ?? 30)) return "proximo";
     return null;
   };
@@ -150,68 +173,123 @@ export default function SearchProductos() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[60vh] lg:max-h-96 overflow-y-auto">
         {productos?.map((prod) => {
+          const tieneGranel = (prod.precio_venta_kg ?? 0) > 0;
+          const isGranelActivo = granelProductoId === prod.id;
           const vencStatus = getVencimientoStatus(prod);
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
           const sinPrecio = precioFinal === null || precioFinal === undefined;
 
           return (
-            <button
-              key={prod.id}
-              onClick={() => addProductoToCart(prod)}
-              disabled={sinPrecio}
-              className={`text-left rounded border p-4 transition-colors min-h-[72px] ${
-                sinPrecio
-                  ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
-                  : vencStatus === "vencido"
-                  ? "bg-red-50 border-red-200 hover:bg-red-100 active:bg-red-100"
-                  : vencStatus === "proximo"
-                  ? "bg-amber-50 border-amber-200 hover:bg-amber-100 active:bg-amber-100"
-                  : "border-gray-200 hover:bg-green-50 hover:border-green-200 active:bg-green-100"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
-                {sinPrecio && (
-                  <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
-                    Sin precio
-                  </span>
-                )}
-                {!sinPrecio && vencStatus === "vencido" && (
-                  <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">
-                    ✕ Vencido
-                  </span>
-                )}
-                {!sinPrecio && vencStatus === "proximo" && (
-                  <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
-                    ⚠ Próximo
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex flex-col">
-                  {sinPrecio ? (
-                    <span className="text-sm text-gray-400">—</span>
-                  ) : prod.en_oferta && prod.precio_oferta ? (
-                    <>
-                      <span className="text-xs text-gray-500 line-through">
-                        ${(prod.precio ?? 0).toLocaleString("es-CL")}
-                      </span>
-                      <span className="text-sm font-bold text-green-700">
-                        ${precioFinal!.toLocaleString("es-CL")}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-sm font-bold text-green-700">
-                      ${precioFinal!.toLocaleString("es-CL")}
+            <div key={prod.id} className="relative rounded border bg-white shadow-sm hover:shadow-md transition-shadow">
+              <button
+                onClick={() => {
+                  if (isGranelActivo) return; // si granel abierto, ignorar click en fondo
+                  addProductoToCart(prod);
+                }}
+                disabled={sinPrecio}
+                className={`text-left w-full p-4 transition-colors ${
+                  sinPrecio
+                    ? "opacity-60 cursor-not-allowed"
+                    : vencStatus === "vencido"
+                    ? "bg-red-50 hover:bg-red-100"
+                    : vencStatus === "proximo"
+                    ? "bg-amber-50 hover:bg-amber-100"
+                    : "hover:bg-green-50"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
+                  {sinPrecio && (
+                    <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                      Sin precio
                     </span>
                   )}
                 </div>
-                <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                  Stock: {prod.stock}
-                </Badge>
-              </div>
-            </button>
+                <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex flex-col">
+                    {sinPrecio ? (
+                      <span className="text-sm text-gray-400">—</span>
+                    ) : prod.en_oferta && prod.precio_oferta ? (
+                      <>
+                        <span className="text-xs text-gray-500 line-through">
+                          ${(prod.precio ?? 0).toLocaleString("es-CL")}
+                        </span>
+                        <span className="text-sm font-bold text-green-700">
+                          ${precioFinal!.toLocaleString("es-CL")}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-bold text-green-700">
+                        ${precioFinal!.toLocaleString("es-CL")}
+                      </span>
+                    )}
+                  </div>
+                  <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
+                    Stock: {prod.stock}
+                  </Badge>
+                </div>
+                {tieneGranel && (
+                  <span className="text-xs text-blue-600 mt-2 block">
+                    Granel: ${prod.precio_venta_kg!.toLocaleString("es-CL")}/kg
+                  </span>
+                )}
+              </button>
+
+              {/* Toggle + input granel */}
+              {tieneGranel && (
+                <div className="border-t border-blue-100 px-3 py-2 bg-blue-50">
+                  {!isGranelActivo ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setGranelProductoId(prod.id);
+                        setGramosInput("");
+                      }}
+                      className="text-xs text-blue-600 hover:underline font-medium"
+                    >
+                      Vender a granel
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Gramos"
+                        value={gramosInput}
+                        onChange={(e) => setGramosInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addGranelToCart(prod)}
+                        autoFocus
+                        className="w-24 text-sm border border-blue-300 rounded px-2 py-1"
+                      />
+                      {gramosInput && Number(gramosInput) > 0 && (
+                        <span className="text-xs text-gray-600">
+                          = ${Math.round(
+                            (Number(gramosInput) / 1000) * prod.precio_venta_kg!
+                          ).toLocaleString("es-CL")}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => addGranelToCart(prod)}
+                        disabled={!gramosInput || Number(gramosInput) <= 0}
+                        className="text-xs bg-blue-600 text-white rounded px-2 py-1 disabled:opacity-50"
+                      >
+                        Agregar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setGranelProductoId(null); setGramosInput(""); }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

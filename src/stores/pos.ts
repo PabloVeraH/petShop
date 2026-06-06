@@ -6,12 +6,15 @@ interface CartItem {
   producto_id: string;
   nombre: string;
   precio: number;
-  cantidad: number;
+  cantidad: number;          // para granel = kg vendidos (ej: 0.5)
   mascota_id?: string;
   subtotal: number;
   fecha_vencimiento?: string | null;
   precio_oferta?: number | null;
   en_oferta?: boolean;
+  // Campos granel:
+  es_granel?: boolean;       // true si la venta es a granel
+  gramos?: number;           // gramos indicados por el vendedor (solo display/recibo)
 }
 
 interface PagoNc {
@@ -65,8 +68,18 @@ export const usePOSStore = create<POSStore>()(
       enviarEmailRecibo: false,
 
       addItem: (item) => {
+        // Items granel NUNCA se fusionan — cada pesada es una línea distinta
+        if (item.es_granel) {
+          set((state) => ({
+            items: [...state.items, { id: crypto.randomUUID(), ...item }],
+          }));
+          return;
+        }
+        // lógica existente para items normales...
         const existing = get().items.find(
-          (i) => i.producto_id === item.producto_id && i.mascota_id === item.mascota_id
+          (i) => i.producto_id === item.producto_id &&
+                 i.mascota_id === item.mascota_id &&
+                 !i.es_granel
         );
         if (existing) {
           set((state) => ({

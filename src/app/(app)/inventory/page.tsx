@@ -34,6 +34,7 @@ type Producto = {
   en_oferta: boolean;
   categoria_id: string | null;
   codigo_barra: string | null;
+  precio_venta_kg: number | null;
 };
 
 type Categoria = {
@@ -68,6 +69,7 @@ type ProductoForm = {
   en_oferta: boolean;
   categoria_id: string;
   codigo_barra: string;
+  precio_venta_kg: string;
 };
 
 const EMPTY_FORM: ProductoForm = {
@@ -75,6 +77,7 @@ const EMPTY_FORM: ProductoForm = {
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
   fecha_vencimiento: "", dias_alerta_expira: "30", precio_oferta: "", en_oferta: false,
   categoria_id: "", codigo_barra: "",
+  precio_venta_kg: "",
 };
 
 async function getInventario(search: string, soloAlertas: boolean, soloVencimientos: boolean): Promise<Producto[]> {
@@ -181,6 +184,7 @@ export default function InventoryPage() {
           en_oferta: form.en_oferta,
           categoria_id: form.categoria_id || null,
           codigo_barra: form.codigo_barra || null,
+          precio_venta_kg: form.precio_venta_kg ? Number(form.precio_venta_kg) : null,
         }),
       });
       const data = await res.json();
@@ -217,6 +221,7 @@ export default function InventoryPage() {
       en_oferta: p.en_oferta ?? false,
       categoria_id: p.categoria_id ?? "",
       codigo_barra: p.codigo_barra ?? "",
+      precio_venta_kg: p.precio_venta_kg != null ? String(p.precio_venta_kg) : "",
     });
     setFormError("");
     setShowForm(true);
@@ -454,6 +459,17 @@ export default function InventoryPage() {
                   placeholder="Precio rebajado c/IVA"
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio venta por kg (granel)</label>
+                <input type="number" step="0.01" value={form.precio_venta_kg} onChange={(e) => setForm(f => ({ ...f, precio_venta_kg: e.target.value }))}
+                  placeholder="3500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              {form.precio_venta_kg && Number(form.precio_venta_kg) > 0 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Este producto podrá venderse a granel en el POS
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
