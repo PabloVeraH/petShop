@@ -21,8 +21,8 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
   const totalCredito = input.lineas.reduce((s, l) => s + (l.credito ?? 0), 0);
 
   // Round to avoid floating point drift
-  const td = Math.round(totalDebito * 100) / 100;
-  const tc = Math.round(totalCredito * 100) / 100;
+  const td = Math.round(totalDebito);
+  const tc = Math.round(totalCredito);
   const balanceado = td === tc;
 
   if (!balanceado) {
@@ -234,8 +234,8 @@ export function lineasNotaCredito(params: {
   tipoReembolso: string;
   metodoReembolso?: string;
 }): LineaAsiento[] {
-  const montoNeto = Math.round((params.monto / 1.19) * 100) / 100;
-  const ivaDevuelto = Math.round((params.monto - montoNeto) * 100) / 100;
+  const montoNeto = Math.round(params.monto / 1.19);
+  const ivaDevuelto = params.monto - montoNeto;
 
   let cuentaCredito;
   if (params.tipoReembolso === "saldo_a_favor") {

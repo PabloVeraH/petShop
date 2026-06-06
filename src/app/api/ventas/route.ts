@@ -147,9 +147,9 @@ export async function POST(req: NextRequest) {
 
   const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
   const descuentoMonto = (subtotal * descuento_pct) / 100;
-  const total = Math.round((subtotal - descuentoMonto) * 100) / 100;
-  const montoNetoVenta = Math.round((total / 1.19) * 100) / 100;
-  const impuesto = Math.round((total - montoNetoVenta) * 100) / 100;
+  const total = Math.round(subtotal - descuentoMonto);
+  const montoNetoVenta = Math.round(total / 1.19);
+  const impuesto = total - montoNetoVenta;
 
   // Validar NC antes de abrir la transacción
   if (pagoNc) {
@@ -331,7 +331,7 @@ export async function POST(req: NextRequest) {
         .select("cantidad, precio_unitario, subtotal, productos(nombre)")
         .eq("venta_id", venta.id as string);
 
-      const montoRestoEmail = pagoNc ? Math.round((total - pagoNc.monto) * 100) / 100 : 0;
+      const montoRestoEmail = pagoNc ? Math.round(total - pagoNc.monto) : 0;
       const pagosEmail: Array<{ metodo: string; monto: number; numero_transaccion?: string }> = pagoNc
         ? [
             { metodo: "nota_credito", monto: pagoNc.monto, numero_transaccion: pagoNc.numero_nc },
@@ -368,8 +368,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Asiento contable
-  const montoNeto = Math.round((total / 1.19) * 100) / 100;
-  const ivaCalc = Math.round((total - montoNeto) * 100) / 100;
+  const montoNeto = Math.round(total / 1.19);
+  const ivaCalc = total - montoNeto;
 
   crearAsiento({
     storeId: store_id,
