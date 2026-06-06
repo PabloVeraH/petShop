@@ -120,8 +120,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cantidad devuelta excede el disponible" }, { status: 400 });
     }
 
-    // precio_unitario ya incluye IVA
-    const subtotal = Math.round(item.cantidadDevuelta * Number(ventaItem.precio_unitario) * 100) / 100;
+    // precio_unitario ya incluye IVA — redondear a pesos enteros (CLP sin centavos)
+    const subtotal = Math.round(item.cantidadDevuelta * Number(ventaItem.precio_unitario));
     montoTotal += subtotal;
     itemsConDetalles.push({
       ventaItemId: item.ventaItemId,
