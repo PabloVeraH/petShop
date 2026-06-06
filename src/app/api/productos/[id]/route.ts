@@ -30,7 +30,12 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  if (parsed.data.stock !== undefined) {
+  // Only block stock edits when the value actually changes — if the form sends the same
+  // stock value it read, there's no real change and no need to guard against lot products.
+  const stockCambia = parsed.data.stock !== undefined &&
+    Number(parsed.data.stock) !== Number(productoActual?.stock);
+
+  if (stockCambia) {
     const { count } = await supabase
       .from("lotes_producto")
       .select("*", { count: "exact", head: true })
@@ -63,6 +68,7 @@ export async function PATCH(
   if (parsed.data.en_oferta !== undefined) updates.en_oferta = parsed.data.en_oferta;
   if (parsed.data.categoria_id !== undefined) updates.categoria_id = parsed.data.categoria_id;
   if (parsed.data.codigo_barra !== undefined) updates.codigo_barra = parsed.data.codigo_barra?.trim() || null;
+  if (parsed.data.precio_venta_kg !== undefined) updates.precio_venta_kg = parsed.data.precio_venta_kg;
 
   const { data, error } = await supabase
     .from("productos")
