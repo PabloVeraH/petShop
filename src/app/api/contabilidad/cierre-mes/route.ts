@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
           tipoMovimiento: "CIERRE_MES",
           referenciaNomero: periodo,
           descripcion: `Cierre ${periodo} - Costo de ventas`,
-          lineas: lineasCierreCOGS(Math.round(costoTotal * 100) / 100),
+          lineas: lineasCierreCOGS(Math.round(costoTotal)),
           usuarioId: ctx.userId ?? undefined,
           creadoPor: "cierre_automatico",
         });

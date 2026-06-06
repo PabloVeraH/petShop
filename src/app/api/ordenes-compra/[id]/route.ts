@@ -207,8 +207,8 @@ export async function PATCH(
     }
 
     // Calcular totales reales y actualizar la OC
-    const impuesto = totalNeto * 0.19;
-    const total = totalNeto * 1.19;
+    const impuesto = Math.round(totalNeto * 0.19);
+    const total = totalNeto + impuesto;
 
     const { data: orden, error: ordenError } = await supabase
       .from("ordenes_compra")

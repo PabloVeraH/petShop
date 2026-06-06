@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     if (ventasConAsiento.has(venta.id)) continue;
 
     const total = Number(venta.total);
-    const montoNeto = Math.round((total / 1.19) * 100) / 100;
-    const iva = Math.round((total - montoNeto) * 100) / 100;
+    const montoNeto = Math.round(total / 1.19);
+    const iva = total - montoNeto;
 
     const id = await crearAsiento({
       storeId: store_id,

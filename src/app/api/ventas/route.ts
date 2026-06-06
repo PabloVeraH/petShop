@@ -385,7 +385,7 @@ export async function POST(req: NextRequest) {
           iva: ivaCalc,
           total,
           montoNc: pagoNc.monto,
-          montoResto: Math.round((total - pagoNc.monto) * 100) / 100,
+          montoResto: Math.round(total - pagoNc.monto),
           metodoPagoResto: metodoPago,
         })
       : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),

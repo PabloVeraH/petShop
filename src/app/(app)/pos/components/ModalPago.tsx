@@ -76,7 +76,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   const modoNc = metodoPago === "nota_credito" || (!!pagoNc && metodoPago !== "nota_credito");
 
   const montoNc = pagoNc?.monto ?? 0;
-  const montoResto = Math.round((tot - montoNc) * 100) / 100;
+  const montoResto = Math.round(tot - montoNc);
 
   const sortedWorkers = workers
     ? [
