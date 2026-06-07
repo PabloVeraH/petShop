@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus } from "@/lib/admin-check";
 import { AuditLogsQuerySchema } from "@/lib/validation";
@@ -59,6 +59,30 @@ export async function GET(req: NextRequest) {
       .in("clerk_id", userIds);
     if (users) {
       emailMap = Object.fromEntries(users.map((u) => [u.clerk_id, u.email]));
+    }
+
+    // Fallback: fetch from Clerk API for users not yet in clerk_users and backfill them
+    const missingIds = userIds.filter((id) => !emailMap[id]);
+    if (missingIds.length > 0) {
+      try {
+        const client = await clerkClient();
+        const { data: clerkUsers } = await client.users.getUserList({ userId: missingIds, limit: missingIds.length });
+        const toUpsert: { clerk_id: string; email: string; nombre: string }[] = [];
+        for (const cu of clerkUsers) {
+          const email = cu.emailAddresses[0]?.emailAddress ?? cu.id;
+          const nombre = [cu.firstName, cu.lastName].filter(Boolean).join(" ") || email;
+          emailMap[cu.id] = email;
+          toUpsert.push({ clerk_id: cu.id, email, nombre });
+        }
+        if (toUpsert.length > 0) {
+          supabase
+            .from("clerk_users")
+            .upsert(toUpsert, { onConflict: "clerk_id", ignoreDuplicates: false })
+            .then(() => {}, () => {});
+        }
+      } catch {
+        // Non-critical: display falls back to user_id if Clerk API is unavailable
+      }
     }
   }
 
