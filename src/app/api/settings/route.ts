@@ -21,6 +21,7 @@ export async function GET() {
   return NextResponse.json({
     ...data,
     whatsapp_access_token: data?.whatsapp_access_token ? "••••••••" : "",
+    whatsapp_webhook_verify_token: data?.whatsapp_webhook_verify_token ? "••••••••" : "",
   });
 }
 
@@ -65,7 +66,9 @@ export async function PATCH(req: NextRequest) {
   if (email !== undefined) updateData.email = email;
   if (whatsapp_enabled !== undefined) updateData.whatsapp_enabled = whatsapp_enabled;
   if (whatsapp_phone_number_id !== undefined) updateData.whatsapp_phone_number_id = whatsapp_phone_number_id;
-  if (whatsapp_webhook_verify_token !== undefined) updateData.whatsapp_webhook_verify_token = whatsapp_webhook_verify_token;
+  if (whatsapp_webhook_verify_token !== undefined && whatsapp_webhook_verify_token !== "••••••••") {
+    updateData.whatsapp_webhook_verify_token = whatsapp_webhook_verify_token;
+  }
   if (whatsapp_access_token !== undefined && whatsapp_access_token !== "••••••••") {
     updateData.whatsapp_access_token = whatsapp_access_token;
   }

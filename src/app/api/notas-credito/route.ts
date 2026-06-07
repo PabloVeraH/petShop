@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
       .from("venta_items")
       .select("id, producto_id, cantidad, precio_unitario")
       .eq("id", item.ventaItemId)
+      .eq("venta_id", ventaId)
       .single();
 
     if (!ventaItem) {
@@ -110,8 +111,9 @@ export async function POST(req: NextRequest) {
 
     const { data: devolucionesPrevias } = await supabase
       .from("nota_credito_items")
-      .select("cantidad_devuelta")
-      .eq("venta_item_id", item.ventaItemId);
+      .select("cantidad_devuelta, notas_credito!inner(venta_id)")
+      .eq("venta_item_id", item.ventaItemId)
+      .eq("notas_credito.venta_id", ventaId);
 
     const yaDevuelto = (devolucionesPrevias ?? []).reduce((sum, r) => sum + r.cantidad_devuelta, 0);
     const disponible = ventaItem.cantidad - yaDevuelto;
