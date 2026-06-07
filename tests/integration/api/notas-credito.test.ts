@@ -44,14 +44,19 @@ function makeFromWithPrevios(
     }
     if (table === "nota_credito_items") {
       let selectMode = false;
+      let eqCount = 0;
       const ncChain: Record<string, any> = {
         select: jest.fn(() => { selectMode = true; return ncChain; }),
         insert: jest.fn().mockResolvedValue({ error: null }),
-        eq: jest.fn(() =>
-          selectMode
-            ? Promise.resolve({ data: previosDevueltos, error: null })
-            : ncChain
-        ),
+        eq: jest.fn(() => {
+          if (selectMode) {
+            eqCount++;
+            return eqCount >= 2
+              ? Promise.resolve({ data: previosDevueltos, error: null })
+              : ncChain;
+          }
+          return ncChain;
+        }),
       };
       return ncChain;
     }
@@ -473,6 +478,159 @@ describe("POST /api/notas-credito", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
+  });
+
+  // SEC-01: IDOR — ventaItemId de otra venta debe ser rechazado (item no encontrado)
+  it("SEC-01: ventaItemId que no pertenece al ventaId → 400 item no encontrado", async () => {
+    const FOREIGN_ITEM_ID = "f00e4567-e89b-12d3-a456-426614174f00";
+    const venta = { id: VENTA_ID, cliente_id: null, estado: "completada" };
+
+    // El mock de venta_items devuelve null cuando se filtra por venta_id
+    // (simula que el item existe en otra venta, pero no en esta)
+    mockFrom.mockImplementation((table: string) => {
+      const chain: Record<string, jest.Mock> = {
+        select: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+        upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+        limit: jest.fn().mockResolvedValue({ data: null, error: null }),
+        gt: jest.fn().mockReturnThis(),
+      };
+      if (table === "ventas") {
+        chain.single.mockResolvedValue({ data: venta, error: null });
+      }
+      if (table === "venta_items") {
+        // Devuelve null — simula que el .eq("venta_id", ventaId) no encontró el item
+        chain.single.mockResolvedValue({ data: null, error: null });
+      }
+      return chain;
+    });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: FOREIGN_ITEM_ID, cantidadDevuelta: 1 }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/no encontrado/i);
+  });
+
+  // SEC-02: IDOR — ventaItemId válido pero perteneciente a otra venta del mismo store
+  it("SEC-02: ventaItemId de otra venta del mismo store → 400 item no encontrado", async () => {
+    const ANOTHER_VENTA_ID = "999e4567-e89b-12d3-a456-426614174999";
+    const ITEM_FROM_OTHER_VENTA = "888e4567-e89b-12d3-a456-426614174888";
+    const venta = { id: VENTA_ID, cliente_id: null, estado: "completada" };
+
+    mockFrom.mockImplementation((table: string) => {
+      const chain: Record<string, jest.Mock> = {
+        select: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+        upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+        limit: jest.fn().mockResolvedValue({ data: null, error: null }),
+        gt: jest.fn().mockReturnThis(),
+      };
+      if (table === "ventas") {
+        chain.single.mockResolvedValue({ data: venta, error: null });
+      }
+      if (table === "venta_items") {
+        // El item pertenece a ANOTHER_VENTA_ID, no a VENTA_ID
+        // Con el fix, el .eq("venta_id", ventaId) filtra y devuelve null
+        chain.single.mockResolvedValue({ data: null, error: null });
+      }
+      return chain;
+    });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ITEM_FROM_OTHER_VENTA, cantidadDevuelta: 1 }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/no encontrado/i);
+  });
+
+  // SEC-03: La consulta a venta_items DEBE incluir el filtro de venta_id
+  it("SEC-03: la consulta a venta_items incluye eq('venta_id') para prevenir IDOR", async () => {
+    const ITEM_ID = "423e4567-e89b-12d3-a456-426614174003";
+    const venta = { id: VENTA_ID, cliente_id: null, estado: "completada" };
+    const ventaItem = { id: ITEM_ID, producto_id: "p1", cantidad: 5, precio_unitario: 1000 };
+
+    const eqCalls: string[][] = [];
+
+    mockFrom.mockImplementation((table: string) => {
+      const chain: Record<string, jest.Mock> = {
+        select: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn((col: string, val: string) => {
+          if (table === "venta_items") eqCalls.push([col, val]);
+          return chain;
+        }),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+        upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+        limit: jest.fn().mockResolvedValue({ data: null, error: null }),
+        gt: jest.fn().mockReturnThis(),
+      };
+      if (table === "ventas") {
+        chain.single.mockResolvedValue({ data: venta, error: null });
+      }
+      if (table === "venta_items") {
+        chain.single.mockResolvedValue({ data: ventaItem, error: null });
+      }
+      if (table === "notas_credito") {
+        chain.insert.mockReturnThis();
+        chain.single.mockResolvedValue({ data: { id: "nc1", numero_nc: "NC-TEST" }, error: null });
+      }
+      if (table === "nota_credito_items") {
+        chain.insert.mockResolvedValue({ error: null });
+        // Primer .eq() retorna chain, segundo .eq() resuelve con datos vacíos
+        chain.eq
+          .mockReturnValueOnce(chain)
+          .mockReturnValueOnce(Promise.resolve({ data: [], error: null }));
+      }
+      return chain;
+    });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ITEM_ID, cantidadDevuelta: 1, restituirStock: false }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    // Verificar que la consulta a venta_items incluyó el filtro de venta_id
+    const ventaIdFilter = eqCalls.find(([col]) => col === "venta_id");
+    expect(ventaIdFilter).toBeDefined();
+    expect(ventaIdFilter![1]).toBe(VENTA_ID);
   });
 });
 

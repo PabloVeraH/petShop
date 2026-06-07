@@ -286,4 +286,69 @@ describe("PATCH /api/settings", () => {
     const updateData = capturedUpdates[0] ?? {};
     expect(updateData).toHaveProperty("direccion", null);
   });
+
+  // SEC-04: GET debe enmascarar whatsapp_webhook_verify_token
+  it("SEC-04: GET enmascara whatsapp_webhook_verify_token", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        whatsapp_webhook_verify_token: "secret-webhook-token-123",
+        whatsapp_enabled: true,
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.whatsapp_webhook_verify_token).toBe("••••••••");
+    expect(body.whatsapp_enabled).toBe(true); // otros campos normales
+  });
+
+  // SEC-05: PATCH con placeholder no actualiza whatsapp_webhook_verify_token
+  it("SEC-05: PATCH con placeholder de webhook token no actualiza DB", async () => {
+    const capturedUpdates: Record<string, unknown>[] = [];
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { capturedUpdates.push(data); return c; }),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID }, error: null }),
+      };
+      return c;
+    });
+    const { PATCH } = await import("@/app/api/settings/route");
+    await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ whatsapp_webhook_verify_token: "••••••••" }),
+    }));
+    // El captured update data NO debe contener whatsapp_webhook_verify_token
+    const updateData = capturedUpdates[0] ?? {};
+    expect(updateData).not.toHaveProperty("whatsapp_webhook_verify_token");
+  });
+
+  // SEC-06: GET enmascara ambos tokens simultáneamente
+  it("SEC-06: GET enmascara tanto access_token como verify_token al mismo tiempo", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        whatsapp_access_token: "EAAxxxxx",
+        whatsapp_webhook_verify_token: "verify-secret-xyz",
+        whatsapp_enabled: true,
+        whatsapp_phone_number_id: "12345",
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.whatsapp_access_token).toBe("••••••••");
+    expect(body.whatsapp_webhook_verify_token).toBe("••••••••");
+    expect(body.whatsapp_phone_number_id).toBe("12345");
+    expect(body.whatsapp_enabled).toBe(true);
+  });
 });
