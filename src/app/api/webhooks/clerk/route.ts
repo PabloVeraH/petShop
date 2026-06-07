@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 
 type ClerkWebhookEvent = {
@@ -71,20 +72,52 @@ export async function POST(req: NextRequest) {
     event.type === "session.removed"
   ) {
     const sessionData = event.data as unknown as { user_id: string; id: string };
-    const { data: clerkUser } = await supabase
+
+    let { data: clerkUser } = await supabase
       .from("clerk_users")
       .select("store_id")
       .eq("clerk_id", sessionData.user_id)
       .single();
 
-    if (clerkUser?.store_id) {
-      await supabase.from("user_sessions").insert({
-        store_id: clerkUser.store_id,
-        user_id: sessionData.user_id,
-        clerk_session_id: sessionData.id,
-        event_type: event.type,
-      });
+    // If user is not yet in clerk_users, resolve from Clerk API and backfill
+    if (!clerkUser) {
+      try {
+        const client = await clerkClient();
+        const cu = await client.users.getUser(sessionData.user_id);
+        const email = cu.emailAddresses[0]?.emailAddress ?? sessionData.user_id;
+        const nombre = [cu.firstName, cu.lastName].filter(Boolean).join(" ") || email;
+        const meta = cu.publicMetadata as Record<string, unknown>;
+        const storeId = (meta?.storeId as string) ?? null;
+
+        await supabase.from("clerk_users").upsert(
+          {
+            clerk_id: cu.id,
+            email,
+            nombre,
+            system_admin: Boolean(meta?.systemAdmin),
+            store_admin: Boolean(meta?.storeAdmin),
+            store_worker: Boolean(meta?.storeWorker),
+            store_id: storeId,
+            is_disabled: cu.banned ?? false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "clerk_id" }
+        );
+
+        clerkUser = { store_id: storeId };
+      } catch {
+        // Proceed with null store_id if Clerk API is unavailable
+        clerkUser = { store_id: null };
+      }
     }
+
+    // Always record the session; store_id is nullable for system admins
+    await supabase.from("user_sessions").insert({
+      store_id: clerkUser.store_id ?? null,
+      user_id: sessionData.user_id,
+      clerk_session_id: sessionData.id,
+      event_type: event.type,
+    });
   }
 
   return NextResponse.json({ received: true });
