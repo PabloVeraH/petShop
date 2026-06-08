@@ -17,7 +17,10 @@
     ],
     "deny": [
       "Read(./.env)",
-      "Read(./.env.*)"
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*id_rsa*)",
+      "Read(./**/*id_ed25519*)"
     ]
   },
   "hooks": {
@@ -55,9 +58,25 @@
           {
             "type": "command",
             "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE '\\.(tsx?)$' || exit 0; cd \"${CLAUDE_PROJECT_DIR:-.}\" && out=$(npm run typecheck 2>&1); code=$?; if [ $code -ne 0 ]; then echo \"$out\"; exit 2; fi",
-            "timeout": 60,
-            "asyncRewake": true,
+            "timeout": 30000,
             "statusMessage": "TypeScript check..."
+          },
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'tests/.*\\.test\\.ts$' || exit 0; rel=$(echo \"$f\" | sed \"s|${CLAUDE_PROJECT_DIR:-.}/||\"); cd \"${CLAUDE_PROJECT_DIR:-.}\" && npx jest \"$rel\" --no-coverage 2>&1 | tail -15",
+            "timeout": 90000,
+            "statusMessage": "Ejecutando tests afectados..."
+          },
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'src/app/api/.*\\.ts$' || exit 0; helper=\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/security-scanner.sh\"; [ -x \"$helper\" ] && sh \"$helper\" \"$f\" 2>&1 | head -20 || exit 0",
+            "timeout": 10000,
+            "statusMessage": "Revisión de seguridad..."
+          },
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'migrations/.*\\.sql$' || exit 0; nombre=$(basename \"$f\"); echo \"[migración] $nombre editada — recuerda aplicarla con mcp__supabase__apply_migration\"",
+            "timeout": 2000
           }
         ]
       },
@@ -117,6 +136,11 @@
             "type": "command",
             "command": "sh -c 'exec node \"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/auto-memory-hook.mjs\" sync'",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && errs=$(npm run typecheck --silent 2>&1 | grep -c 'error TS' || true); [ \"$errs\" -gt 0 ] && echo \"[stop] $errs errores TypeScript pendientes — revisar antes del próximo commit\" || true",
+            "timeout": 30000
           }
         ]
       }
@@ -198,7 +222,7 @@
       "shell": "bash"
     },
     "modelPreferences": {
-      "default": "claude-opus-4-6",
+      "default": "claude-sonnet-4-6",
       "routing": "claude-haiku-4-5-20251001"
     },
     "agentTeams": {
