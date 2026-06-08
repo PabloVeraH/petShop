@@ -42,7 +42,7 @@ requireSystemAdmin(admin);   // o requireStoreAdmin(admin)
 
 ## Convenciones críticas
 
-- **Zod** para validar body antes de tocar la BD — schemas en `src/lib/validation.ts`
+- **Zod** para validar body antes de tocar la BD — schemas en `src/lib/validation/` (dominio: primitives, clientes, inventario, ventas, supply-chain, admin); importar desde `@/lib/validation`
 - **logAudit()** en `src/lib/audit.ts` para acciones sensibles (PATCH, DELETE, SETTINGS)
 - **Multi-tenant**: SIEMPRE filtrar queries por `store_id`. Nunca SELECT sin WHERE store_id.
 - Endpoints de admin requieren `requireSystemAdmin` o `requireStoreAdmin`
@@ -51,42 +51,55 @@ requireSystemAdmin(admin);   // o requireStoreAdmin(admin)
 
 ## Base de datos (Supabase proyecto wnxrdbnvreofrrmhcybc)
 
-43 migraciones en `/migrations/`. Tablas principales:
+44 migraciones en `/migrations/`. Tablas principales:
 
 ```
-stores          — config de tienda (settings, licencia, email reminder)
-clerk_users     — usuarios sincronizados desde Clerk (roles, is_disabled)
-productos       — catálogo (stock, codigo_barra, categoria_id, fecha_vencimiento)
-categorias      — categorías (es_alimento flag)
-ventas          — transacciones POS (incluye canal de origen)
-clientes        — clientes con fidelización
-pagos           — pagos por venta (1:N, multi-método)
-notas_credito   — devoluciones
-saldos_a_favor  — crédito de cliente
-ordenes_compra  — órdenes a proveedores
-cuentas_pagar   — deudas a proveedores (tipo: pendiente/pagada/custom)
-audit_logs      — auditoría de cambios
-journal_entries — asientos contables
-chart_of_accounts — plan de cuentas (27 cuentas base)
-canal_ordenes   — órdenes de canales externos (Rappi, PedidosYa, UberEats)
+stores              — config de tienda (settings, licencia, fidelizacion_niveles)
+clerk_users         — usuarios sincronizados desde Clerk (roles, is_disabled)
+user_sessions       — sesiones Clerk grabadas (store_id nullable para systemAdmin)
+productos           — catálogo (stock, codigo_barra, categoria_id, fecha_vencimiento)
+lotes               — lotes de productos con trazabilidad FIFO
+venta_item_lotes    — qué lotes se usaron en cada item de venta
+categorias          — categorías (es_alimento flag)
+ventas              — transacciones POS (incluye canal de origen)
+venta_items         — items de cada venta (cantidad, precio_unitario)
+clientes            — clientes con fidelización
+pagos               — pagos por venta (1:N, multi-método)
+notas_credito       — devoluciones
+nota_credito_items  — items devueltos (IDOR-protected: doble eq por store_id)
+saldos_a_favor      — crédito de cliente
+ordenes_compra      — órdenes a proveedores
+cuentas_pagar       — deudas a proveedores (tipo: pendiente/pagada/custom)
+proveedores         — proveedores
+proveedor_productos — asociación proveedor-producto (costo, tiempo_entrega_dias)
+consumo_alertas     — alertas de agotamiento estimado por mascota/cliente
+stock_movements     — historial de movimientos de stock
+audit_logs          — auditoría de cambios
+journal_entries     — asientos contables
+chart_of_accounts   — plan de cuentas (27 cuentas base)
+canal_ordenes       — órdenes de canales externos (Rappi, PedidosYa, UberEats)
 ```
 
 ## Módulos implementados
 
-| Módulo | Rutas | Estado |
-|--------|-------|--------|
-| Auth + Admin panel | `/admin`, `/api/admin/**` | ✅ |
-| POS | `/pos`, `/api/ventas`, `/api/pagos` | ✅ |
-| Inventario | `/inventory`, `/api/productos`, `/api/inventario` | ✅ |
-| Clientes | `/api/clientes` | ✅ |
+| Módulo | Rutas principales | Estado |
+|--------|-------------------|--------|
+| Auth + Admin | `/admin`, `/api/admin/**`, `/api/user-sessions`, `/api/audit-logs`, `/api/error-logs` | ✅ |
+| POS | `/pos`, `/api/ventas`, `/api/pagos`, `/api/recibos` | ✅ |
+| Inventario + Lotes | `/inventory`, `/api/productos/**`, `/api/inventario`, `/api/lotes`, `/api/stock-movements` | ✅ |
+| Clientes + Mascotas | `/api/clientes`, `/api/mascotas` | ✅ |
 | Devoluciones | `/api/notas-credito`, `/api/saldos-a-favor` | ✅ |
+| Fidelización | `/api/fidelizacion` | ✅ |
 | Contabilidad | `/contabilidad`, `/api/contabilidad/**` | ✅ |
-| Vencimientos | `/api/dashboard/vencimientos`, cron | ✅ |
-| Categorías | `/categorias`, `/api/categorias` | ✅ |
-| Hub de canales | `/canales`, `/api/canales/**` | ✅ parcial |
-| Supply Chain | `/admin?section=supply-chain`, `/api/ordenes-compra`, `/api/cuentas-pagar` | ✅ |
-| Email reminder | `/api/cron/check-vencimientos` | ✅ (migración 021) |
-| Control de licencia | `/api/admin/license`, `/sistema-suspendido` | 🔧 pendiente (migración 022) |
+| Workers / Vendedores | `/vendedores`, `/api/workers`, `/api/workers/[id]/ventas` | ✅ |
+| Supply Chain | `/api/ordenes-compra`, `/api/cuentas-pagar`, `/api/proveedores`, `/api/proveedor-productos` | ✅ |
+| Categorías | `/api/categorias` | ✅ |
+| Hub de canales | `/canales`, `/api/canales/**`, `/api/hub-sync` | ✅ parcial |
+| Analytics | `/api/analytics/**`, `/api/recompras`, `/api/reports`, `/api/dashboard/**` | ✅ |
+| Cron jobs | `/api/cron/check-vencimientos`, `/api/cron/audit-cleanup`, `/api/cron/email-alerts`, `/api/cron/stock-reservas-expiry` | ✅ |
+| Webhooks | `/api/webhooks/clerk`, `/api/webhooks/rappi` | ✅ |
+| Control de licencia | `/api/admin/license`, `/api/license`, `/sistema-suspendido` | 🔧 pendiente |
+| IA / Recomendador | `/api/ai/**` | ✅ parcial |
 
 ## Variables de entorno requeridas
 
@@ -106,14 +119,43 @@ NEXT_PUBLIC_APP_URL
 
 ## Tests
 
-929 tests, 0 fallos. Ejecutar con `npm test`.  
-Patrón: TDD London School (mock-first). Ver `tests/` para ejemplos.  
-Suite de integración en `tests/integration/api/`.
+**959 tests, 0 fallos.** Ejecutar con `npm test`.  
+Patrón: TDD London School (mock-first). Ver `tests/` para ejemplos.
+
+```bash
+npm test                   # todos (99 suites en 3 proyectos: unit/integration/components)
+npm run test:unit          # solo tests/unit/**
+npm run test:integration   # solo tests/integration/**
+npm run test:components    # solo tests/components/**
+npm run test:coverage      # con thresholds: 70% líneas/funciones, 60% ramas
+```
+
+IDs de test: `I-NNN` integración, `SEC-NN` seguridad, `U-NN` unitario, `PROP-NN` propiedad.  
+Registro completo en `docs/spec-registry.md`.  
+Tests de propiedades (fast-check) en `tests/unit/lib/property-invariants.test.ts`.
 
 ## Antes de hacer cambios
 
-1. Leer el archivo antes de editarlo (`Read` tool)
-2. Si es nueva funcionalidad: crear migración en `migrations/` y ejecutar en Supabase
-3. Agregar schema Zod en `src/lib/validation.ts`
-4. Agregar `logAudit()` en cambios sensibles
-5. Ejecutar `npm run build && npm test` al finalizar
+1. **Leer el archivo antes de editarlo** (`Read` tool — siempre)
+2. **Nueva migración**: crear en `migrations/` → aplicar con `mcp__supabase__apply_migration`
+3. **Nuevo schema Zod**: agregar al módulo de dominio correcto en `src/lib/validation/` (no en `validation.ts` directamente)
+4. **logAudit()**: obligatorio en PATCH, DELETE y cambios de settings
+5. **store_id**: todo SELECT/INSERT/UPDATE de datos de tienda debe llevar `.eq("store_id", store_id)`
+6. **Al terminar**: `npm run build && npm test` — deben pasar los 959 tests
+
+## Patrones de seguridad — no romper
+
+```typescript
+// IDOR en nota_credito_items — doble eq para validar ownership
+.from("nota_credito_items")
+  .select("cantidad_devuelta, notas_credito!inner(venta_id)")
+  .eq("venta_item_id", item.ventaItemId)
+  .eq("notas_credito.venta_id", ventaId)   // ← NO eliminar este eq
+
+// Clerk session.created — siempre insertar aunque clerk_user no exista
+await supabase.from("user_sessions").insert({
+  store_id: clerkUser.store_id ?? null,    // nullable — no omitir
+  user_id: sessionData.user_id,
+  ...
+})
+```
