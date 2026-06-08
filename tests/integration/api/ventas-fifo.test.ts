@@ -219,10 +219,14 @@ describe("Devolución con trazabilidad de lotes", () => {
         };
       }
       if (table === "nota_credito_items") {
+        // Route chains two .eq() calls (IDOR security check): .eq("venta_item_id",...).eq("notas_credito.venta_id",...)
+        const nciChain = {
+          eq: jest.fn().mockReturnThis(),
+          then: (resolve: (v: { data: never[]; error: null }) => unknown) =>
+            resolve({ data: [], error: null }),
+        };
         return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-          }),
+          select: jest.fn().mockReturnValue(nciChain),
           insert: jest.fn().mockResolvedValue({ error: null }),
         };
       }

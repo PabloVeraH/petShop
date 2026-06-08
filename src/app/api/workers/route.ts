@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { WorkerUpdateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -68,12 +69,14 @@ export async function PATCH(req: NextRequest) {
   const { storeId } = ctx;
   const supabase = createServiceClient();
 
-  const { clerk_id, rut, meta_ventas } = await req.json();
-  if (!clerk_id) return NextResponse.json({ error: "clerk_id requerido" }, { status: 400 });
+  const body = await req.json();
+  const wParsed = WorkerUpdateSchema.safeParse(body);
+  if (!wParsed.success) return NextResponse.json({ error: wParsed.error.issues[0].message }, { status: 400 });
+  const { clerk_id, rut, meta_ventas } = wParsed.data;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (rut !== undefined) updates.rut = rut || null;
-  if (meta_ventas !== undefined) updates.meta_ventas = meta_ventas ? Number(meta_ventas) : null;
+  if (rut !== undefined) updates.rut = rut ?? null;
+  if (meta_ventas !== undefined) updates.meta_ventas = meta_ventas ?? null;
 
   const { error } = await supabase
     .from("clerk_users")

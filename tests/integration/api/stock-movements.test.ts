@@ -9,7 +9,7 @@ import * as supabaseModule from "@/lib/supabase";
 
 describe("GET /api/stock-movements", () => {
   const mockStoreId = "store-1";
-  const mockProductId = "prod-1";
+  const mockProductId = "123e4567-e89b-12d3-a456-426614174010";
 
   beforeEach(() => {
     jest.clearAllMocks();

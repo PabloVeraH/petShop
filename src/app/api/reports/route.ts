@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { ReportsQuerySchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -8,10 +9,11 @@ export async function GET(req: NextRequest) {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  const periodo = req.nextUrl.searchParams.get("periodo") ?? "30"; // days
-  const canal = req.nextUrl.searchParams.get("canal"); // optional filter
+  const qParsed = ReportsQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
+  if (!qParsed.success) return NextResponse.json({ error: qParsed.error.issues[0].message }, { status: 400 });
+  const { periodo, canal } = qParsed.data;
   const desde = new Date();
-  desde.setDate(desde.getDate() - Number(periodo));
+  desde.setDate(desde.getDate() - periodo);
 
   let query = supabase
     .from("ventas")

@@ -1,14 +1,16 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { FidelizacionQuerySchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
 
-  const clienteId = req.nextUrl.searchParams.get("clienteId");
-  if (!clienteId) return NextResponse.json({ error: "clienteId requerido" }, { status: 400 });
+  const parsed = FidelizacionQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  const { clienteId } = parsed.data;
 
   const supabase = createServiceClient();
 

@@ -63,7 +63,7 @@ describe("POST /api/webhooks/clerk — session.created", () => {
   });
 
   // I-252
-  it("I-252: session.created sin clerk_user → no inserta", async () => {
+  it("I-252: session.created sin clerk_user → inserta sesión con store_id null", async () => {
     const event = {
       type: "session.created",
       data: { user_id: "unknown_user", id: "sess_unknown" },
@@ -89,6 +89,11 @@ describe("POST /api/webhooks/clerk — session.created", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: "unknown_user",
+      store_id: null,
+      clerk_session_id: "sess_unknown",
+      event_type: "session.created",
+    }));
   });
 });
