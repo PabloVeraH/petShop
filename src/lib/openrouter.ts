@@ -57,8 +57,9 @@ Reglas:
 Productos:
 ${JSON.stringify(productos, null, 2)}
 
-Devuelve ÚNICAMENTE un array JSON válido con una entrada por producto. Sin texto adicional ni markdown.
-Esquema de cada entrada:
+Devuelve ÚNICAMENTE un objeto JSON con la clave "recomendaciones" que contiene un array con una entrada por producto. Sin texto adicional ni markdown.
+Ejemplo de estructura: {"recomendaciones": [...]}
+Esquema de cada entrada del array:
 {
   "producto_id": "string (uuid)",
   "urgencia": "alta" | "media" | "baja",
