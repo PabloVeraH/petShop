@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data: stores, error } = await supabase
     .from("stores")
-    .select("id, name, rut, email, phone, created_at, whatsapp_enabled")
+    .select("id, name, rut, email, phone, created_at, whatsapp_enabled, openrouter_model")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
