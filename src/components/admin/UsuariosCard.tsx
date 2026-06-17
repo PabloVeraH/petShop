@@ -7,6 +7,7 @@ import { AdminRole, canCreateUser, canDeleteUser } from "@/hooks/useAdminAuth";
 interface StoreUser {
   clerk_id: string;
   email: string;
+  nombre: string | null;
   store_admin: boolean;
   store_worker: boolean;
   system_admin: boolean;
@@ -25,12 +26,42 @@ interface UsuariosCardProps {
 export function UsuariosCard({ store, role }: UsuariosCardProps) {
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editRole, setEditRole] = useState<string>("");
+  const [editNombre, setEditNombre] = useState<string>("");
+  const [editEmail, setEditEmail] = useState<string>("");
+  const [editError, setEditError] = useState<string>("");
   const canCreate = canCreateUser(role);
   const canDelete = canDeleteUser(role);
 
   const { data: users, isLoading } = useQuery<StoreUser[]>({
     queryKey: ["store-users", store.id],
     queryFn: () => fetch(`/api/admin/users?storeId=${store.id}`).then((r) => r.json()),
+  });
+
+  const editUserMutation = useMutation({
+    mutationFn: async ({ clerkId, newRole, newNombre, newEmail }: { clerkId: string; newRole: string; newNombre: string; newEmail: string }) => {
+      const res = await fetch(`/api/admin/users/${clerkId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role:   newRole,
+          nombre: newNombre || undefined,
+          email:  newEmail  || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      return data;
+    },
+    onSuccess: () => {
+      setEditingUserId(null);
+      setEditError("");
+      queryClient.invalidateQueries({ queryKey: ["store-users", store.id] });
+    },
+    onError: (e: Error) => {
+      setEditError(e.message);
+    },
   });
 
   const deleteUserMutation = useMutation({
@@ -85,27 +116,96 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
         ) : (users ?? []).length === 0 ? (
           <p className="text-xs text-[#999]">Sin usuarios</p>
         ) : (
-          (users ?? []).map((user) => (
-            <div
-              key={user.clerk_id}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-[rgba(212,165,116,0.03)] border-b border-[rgba(45,52,54,0.06)] last:border-0"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#2d3436]">{user.email}</span>
-                <RoleBadge user={user} />
+          (users ?? []).map((user) => {
+            const currentRole = user.system_admin ? "systemAdmin" : user.store_admin ? "storeAdmin" : "storeWorker";
+            const isEditing = editingUserId === user.clerk_id;
+            return (
+              <div
+                key={user.clerk_id}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-[rgba(212,165,116,0.03)] border-b border-[rgba(45,52,54,0.06)] last:border-0"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-[#2d3436] truncate block">{user.email}</span>
+                    {!isEditing && user.nombre && (
+                      <span className="text-xs text-[#888] truncate block">{user.nombre}</span>
+                    )}
+                  </div>
+                  {!isEditing && <RoleBadge user={user} />}
+                  {isEditing && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        placeholder="Email"
+                        className="px-2 py-1 border border-[rgba(45,52,54,0.2)] rounded-lg text-xs focus:border-[#d4a574] focus:outline-none bg-white w-44"
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={editNombre}
+                        onChange={(e) => setEditNombre(e.target.value)}
+                        placeholder="Nombre completo"
+                        className="px-2 py-1 border border-[rgba(45,52,54,0.2)] rounded-lg text-xs focus:border-[#d4a574] focus:outline-none bg-white w-36"
+                      />
+                      <select
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value)}
+                        className="px-2 py-1 border border-[rgba(45,52,54,0.2)] rounded-lg text-xs focus:border-[#d4a574] focus:outline-none bg-white"
+                      >
+                        <option value="storeWorker">storeWorker</option>
+                        <option value="storeAdmin">storeAdmin</option>
+                        <option value="systemAdmin">systemAdmin</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 ml-2 shrink-0">
+                  {canDelete && isEditing && (
+                    <>
+                      <button
+                        onClick={() => editUserMutation.mutate({ clerkId: user.clerk_id, newRole: editRole, newNombre: editNombre, newEmail: editEmail })}
+                        disabled={editUserMutation.isPending}
+                        className="px-2 py-1 text-xs font-medium bg-[#1a5f3f] text-white rounded-md hover:bg-[#0d4730] disabled:opacity-50 transition-colors"
+                        title="Guardar cambios"
+                      >
+                        {editUserMutation.isPending ? "..." : "Guardar"}
+                      </button>
+                      <button
+                        onClick={() => { setEditingUserId(null); setEditError(""); }}
+                        className="px-2 py-1 text-xs font-medium border border-[rgba(45,52,54,0.2)] text-[#666] rounded-md hover:bg-gray-50 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      {editError && (
+                        <span className="text-xs text-red-600 max-w-xs">{editError}</span>
+                      )}
+                    </>
+                  )}
+                  {canDelete && !isEditing && (
+                    <button
+                      onClick={() => { setEditingUserId(user.clerk_id); setEditRole(currentRole); setEditNombre(user.nombre ?? ""); setEditEmail(user.email); setEditError(""); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-md border border-[rgba(45,52,54,0.15)] text-[#555] hover:bg-[rgba(45,52,54,0.05)] hover:border-[rgba(45,52,54,0.3)] transition-all"
+                      title="Editar rol"
+                    >
+                      ✏
+                    </button>
+                  )}
+                  {canDelete && !isEditing && (
+                    <button
+                      onClick={() => deleteUserMutation.mutate(user.clerk_id)}
+                      disabled={deleteUserMutation.isPending}
+                      className="w-8 h-8 flex items-center justify-center rounded-md border border-[rgba(220,100,100,0.3)] text-[#dc6464] hover:bg-[rgba(220,100,100,0.1)] hover:border-[rgba(220,100,100,0.6)] transition-all disabled:opacity-50"
+                      title="Eliminar usuario"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
-              {canDelete && (
-                <button
-                  onClick={() => deleteUserMutation.mutate(user.clerk_id)}
-                  disabled={deleteUserMutation.isPending}
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-[rgba(220,100,100,0.3)] text-[#dc6464] hover:bg-[rgba(220,100,100,0.1)] hover:border-[rgba(220,100,100,0.6)] transition-all disabled:opacity-50"
-                  title="Eliminar usuario"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
