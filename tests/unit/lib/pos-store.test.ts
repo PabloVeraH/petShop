@@ -121,6 +121,47 @@ describe("POS Store — cálculos derivados", () => {
   });
 });
 
+describe("POS Store — cálculo IVA (impuesto)", () => {
+  beforeEach(resetStore);
+
+  // S-20
+  it("S-20: impuesto() es 19% del subtotal sin descuento", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 45928, subtotal: 45928 });
+    // 45928 * 0.19 = 8726.32 → redondeado 8726
+    expect(usePOSStore.getState().impuesto()).toBe(8726);
+  });
+
+  // S-21
+  it("S-21: impuesto() aplica 19% sobre total con descuento", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 10000, subtotal: 10000 });
+    usePOSStore.getState().setDescuento(10);
+    // total = 10000 - 10% = 9000; IVA = 9000 * 0.19 = 1710
+    expect(usePOSStore.getState().impuesto()).toBe(1710);
+  });
+
+  // S-22
+  it("S-22: impuesto() es 0 cuando el carrito está vacío", () => {
+    expect(usePOSStore.getState().impuesto()).toBe(0);
+  });
+
+  // S-23: consistencia con ModalPago (misma fórmula * 0.19)
+  it("S-23: impuesto() coincide con la fórmula del ModalPago (sub - desc) * 0.19", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 30000, subtotal: 30000 });
+    usePOSStore.getState().setDescuento(5);
+    const store = usePOSStore.getState();
+    const sub = store.subtotal();
+    const desc = (sub * store.descuento) / 100;
+    const expectedIva = Math.round((sub - desc) * 0.19);
+    expect(store.impuesto()).toBe(expectedIva);
+  });
+
+  // S-24: redondeo a pesos enteros
+  it("S-24: impuesto() siempre devuelve un entero (sin centavos)", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 1, subtotal: 1 });
+    expect(Number.isInteger(usePOSStore.getState().impuesto())).toBe(true);
+  });
+});
+
 describe("POS Store — guard precio null", () => {
   beforeEach(resetStore);
 
