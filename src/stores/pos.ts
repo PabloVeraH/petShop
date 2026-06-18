@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { IVA_RATE } from "@/lib/tax";
 
 interface CartItem {
   id: string;
@@ -166,12 +167,12 @@ export const usePOSStore = create<POSStore>()(
       // precio ya incluye IVA
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
 
-      // IVA contenido en el precio (extraído del total con descuento) — pesos enteros
+      // IVA = IVA_RATE del total con descuento (los precios son neto, IVA se calcula sobre ellos)
       impuesto: () => {
         const sub = get().subtotal();
         const desc = (sub * get().descuento) / 100;
         const t = sub - desc;
-        return Math.round(t - t / 1.19);
+        return Math.round(t * IVA_RATE);
       },
 
       // Total = subtotal - descuento (IVA ya incluido en el precio) — pesos enteros

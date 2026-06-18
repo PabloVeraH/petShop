@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePOSStore } from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { IVA_RATE } from "@/lib/tax";
 
 const METODOS_PAGO = [
   { value: "efectivo", label: "Efectivo" },
@@ -163,7 +164,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             )}
             <div className="flex justify-between text-gray-600">
               <span>IVA (19%)</span>
-              <span>${Math.round((sub - desc) * 0.19).toLocaleString("es-CL")}</span>
+              <span>${Math.round((sub - desc) * IVA_RATE).toLocaleString("es-CL")}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t pt-2">
               <span>Total</span>
