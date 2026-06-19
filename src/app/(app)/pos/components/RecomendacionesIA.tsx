@@ -33,10 +33,13 @@ export default function RecomendacionesIA() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       setError(null);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const res = await fetch("/api/ai/pos/recomendar", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
+          signal:  controller.signal,
           body: JSON.stringify({
             clienteId,
             mascotaId,
@@ -47,17 +50,19 @@ export default function RecomendacionesIA() {
             })),
           }),
         });
+        clearTimeout(timeoutId);
         if (!res.ok) {
-          // Silencio — no mostrar error al vendedor
           setRecs([]);
+          setError("Sin sugerencias disponibles");
           return;
         }
         const data = await res.json();
         setRecs(data.recomendaciones ?? []);
         setAgregados(new Set()); // reset al actualizar
       } catch {
-        // silencio
+        clearTimeout(timeoutId);
         setRecs([]);
+        setError("Sin sugerencias disponibles");
       } finally {
         setLoading(false);
       }
@@ -79,9 +84,9 @@ export default function RecomendacionesIA() {
     setAgregados((prev) => new Set(prev).add(rec.producto_id));
   }
 
-  // No renderizar si no hay cliente o si no hay nada que mostrar y no está cargando
+  // No renderizar si no hay cliente o si no hay nada que mostrar, no está cargando y no hay error
   if (!clienteId) return null;
-  if (!loading && recs.length === 0) return null;
+  if (!loading && recs.length === 0 && !error) return null;
 
   return (
     <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
@@ -92,7 +97,7 @@ export default function RecomendacionesIA() {
       )}
 
       {error && (
-        <p className="text-xs text-red-500">No se pudieron cargar sugerencias</p>
+        <p className="text-xs text-blue-400">{error}</p>
       )}
 
       {!loading && !error && recs.map((rec) => {

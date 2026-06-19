@@ -79,15 +79,14 @@ describe("RecomendacionesIA", () => {
     );
   });
 
-  // C-REC-05: error silencioso — no renderiza nada si la API falla
-  it("C-REC-05: no muestra nada si la API retorna error", async () => {
+  // C-REC-05: error de API muestra "Sin sugerencias disponibles" en vez de ocultar el panel
+  it("C-REC-05: muestra 'Sin sugerencias disponibles' si la API retorna error", async () => {
     mockClienteId = "cliente-1";
     mockFetch.mockResolvedValue({ ok: false, status: 502 });
-    const { container } = render(<RecomendacionesIA />);
+    render(<RecomendacionesIA />);
     act(() => jest.advanceTimersByTime(900));
     await waitFor(() => {
-      // El componente se oculta silenciosamente
-      expect(container.querySelector(".rounded-lg")).toBeNull();
+      expect(screen.getByText("Sin sugerencias disponibles")).toBeInTheDocument();
     });
   });
 
