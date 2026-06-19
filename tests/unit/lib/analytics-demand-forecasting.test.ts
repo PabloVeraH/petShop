@@ -1,4 +1,17 @@
-import { linearRegression, weightedMovingAverage, calculateSeasonality } from "@/lib/analytics/demand-forecasting";
+import { linearRegression, weightedMovingAverage, calculateSeasonality, predictDemand, MIN_DATOS_HISTORICOS } from "@/lib/analytics/demand-forecasting";
+
+// ── Mock Supabase ─────────────────────────────────────────────────────────────
+jest.mock("@/lib/supabase", () => ({
+  createServiceClient: jest.fn(() => ({
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      then: jest.fn(),
+    })),
+  })),
+}));
 
 describe("linearRegression", () => {
   it("calcula pendiente positiva para datos crecientes", () => {
@@ -28,6 +41,62 @@ describe("weightedMovingAverage", () => {
   it("devuelve array vacío si los datos son menores que periods", () => {
     const result = weightedMovingAverage([10, 20], 5);
     expect(result).toHaveLength(0);
+  });
+});
+
+describe("predictDemand — umbral mínimo de datos", () => {
+  const { createServiceClient } = require("@/lib/supabase");
+
+  beforeEach(() => jest.clearAllMocks());
+
+  function mockHistorico(rows: { fecha: string; cantidad: number; canal: string }[]) {
+    createServiceClient.mockReturnValue({
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: rows, error: null }),
+      })),
+    });
+  }
+
+  // DF-01: menos de MIN_DATOS_HISTORICOS → insuficienteDatos true
+  it(`DF-01: con menos de ${MIN_DATOS_HISTORICOS} registros retorna insuficienteDatos=true`, async () => {
+    const pocosRegistros = Array.from({ length: MIN_DATOS_HISTORICOS - 1 }, (_, i) => ({
+      fecha: `2024-01-0${i + 1}`,
+      cantidad: 5,
+      canal: "pos",
+    }));
+    mockHistorico(pocosRegistros);
+
+    const result = await predictDemand("prod-1", "store-1", 7);
+
+    expect(result.insuficienteDatos).toBe(true);
+    expect(result.confianza).toBe(0);
+    expect(result.prediccion.every(v => v === 0)).toBe(true);
+  });
+
+  // DF-02: sin registros → insuficienteDatos true
+  it("DF-02: sin registros históricos retorna insuficienteDatos=true", async () => {
+    mockHistorico([]);
+
+    const result = await predictDemand("prod-1", "store-1", 7);
+
+    expect(result.insuficienteDatos).toBe(true);
+  });
+
+  // DF-03: exactamente MIN_DATOS_HISTORICOS registros → NO insuficienteDatos
+  it(`DF-03: con exactamente ${MIN_DATOS_HISTORICOS} registros NO retorna insuficienteDatos`, async () => {
+    const suficientes = Array.from({ length: MIN_DATOS_HISTORICOS }, (_, i) => ({
+      fecha: `2024-01-${String(i + 1).padStart(2, "0")}`,
+      cantidad: 5,
+      canal: "pos",
+    }));
+    mockHistorico(suficientes);
+
+    const result = await predictDemand("prod-1", "store-1", 7);
+
+    expect(result.insuficienteDatos).toBeUndefined();
   });
 });
 

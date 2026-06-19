@@ -7,6 +7,7 @@ interface Prediccion {
   tendencia: "alta" | "baja" | "estable";
   confianza: number;
   estacionalidad: string[];
+  insuficienteDatos?: boolean;
 }
 
 interface ProductoBasico {
@@ -96,30 +97,35 @@ export default function PrediccionPage() {
             </p>
           )}
 
-          {prediccion.confianza === 0 && (
-            <p className="text-sm text-amber-600 mb-4">
-              Sin datos históricos suficientes. Poblar la tabla ventas_historico primero.
-            </p>
+          {prediccion.insuficienteDatos && (
+            <div className="bg-amber-50 border border-amber-200 rounded p-4 mb-4">
+              <p className="text-sm font-medium text-amber-800">Datos insuficientes para predicción</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Se necesitan al menos {10} registros históricos de ventas. Actualmente hay datos insuficientes para generar una proyección confiable.
+              </p>
+            </div>
           )}
 
-          <div className="bg-white border rounded overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-sm">Día</th>
-                  <th className="px-4 py-2 text-right text-sm">Unidades predichas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prediccion.prediccion.slice(0, 14).map((cant, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="px-4 py-2 text-sm">Día {i + 1}</td>
-                    <td className="px-4 py-2 text-right font-medium">{cant}</td>
+          {!prediccion.insuficienteDatos && (
+            <div className="bg-white border rounded overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-sm">Día</th>
+                    <th className="px-4 py-2 text-right text-sm">Unidades predichas</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {prediccion.prediccion.slice(0, 14).map((cant, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-4 py-2 text-sm">Día {i + 1}</td>
+                      <td className="px-4 py-2 text-right font-medium">{cant}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

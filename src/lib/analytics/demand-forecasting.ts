@@ -6,11 +6,14 @@ export interface SalesDataPoint {
   revenue: number;
 }
 
+export const MIN_DATOS_HISTORICOS = 10;
+
 export interface ForecastResult {
   prediccion: number[];
   tendencia: "alta" | "baja" | "estable";
   confianza: number;
   estacionalidad: string[];
+  insuficienteDatos?: boolean;
 }
 
 export function linearRegression(data: number[]): { slope: number; intercept: number } {
@@ -93,12 +96,13 @@ export async function predictDemand(
     .gte("fecha", desde.toISOString().split("T")[0])
     .order("fecha");
 
-  if (!historico?.length) {
+  if (!historico?.length || historico.length < MIN_DATOS_HISTORICOS) {
     return {
       prediccion: Array(dias).fill(0),
       tendencia: "estable",
       confianza: 0,
       estacionalidad: [],
+      insuficienteDatos: true,
     };
   }
 

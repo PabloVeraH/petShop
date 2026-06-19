@@ -97,12 +97,17 @@ export async function GET(req: NextRequest) {
   }
 
   // Predicción demanda: promedio diario de los últimos 7 días
+  // Requiere mínimo 10 transacciones para evitar proyecciones engañosas con pocos datos
+  const MIN_VENTAS_PREDICCION = 10;
+  const totalVentasCount = ventas?.length ?? 0;
   const ultimos7 = Object.entries(ventasPorDia)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-7)
     .map(([, v]) => v.total);
   const promedioDiario = ultimos7.length ? ultimos7.reduce((s, v) => s + v, 0) / ultimos7.length : 0;
-  const prediccion7dias = Math.round(promedioDiario * 7);
+  const prediccion7dias: number | null = totalVentasCount >= MIN_VENTAS_PREDICCION
+    ? Math.round(promedioDiario * 7)
+    : null;
 
   const totalPeriodo = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0);
   const totalTransacciones = ventas?.length ?? 0;

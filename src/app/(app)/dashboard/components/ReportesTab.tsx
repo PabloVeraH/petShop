@@ -13,7 +13,7 @@ interface ReportsData {
   metodos: Record<string, number>;
   canales: Record<string, { total: number; transacciones: number }>;
   procedencias: Record<string, { total: number; transacciones: number }>;
-  prediccion7dias: number;
+  prediccion7dias: number | null;
   promedioDiario: number;
 }
 
@@ -411,7 +411,11 @@ export default function ReportesTab() {
               { label: "Total Ventas período", value: fmt(data.totalPeriodo) },
               { label: "Cantidad de Ventas", value: data.totalTransacciones.toLocaleString("es-CL") },
               { label: "Venta promedio de Venta", value: fmt(data.ticketPromedio) },
-              { label: "Predicción prox. 7 días", value: fmt(data.prediccion7dias), sub: `~${fmt(data.promedioDiario)}/día` },
+              {
+                label: "Predicción prox. 7 días",
+                value: data.prediccion7dias != null ? fmt(data.prediccion7dias) : "Datos insuficientes",
+                sub: data.prediccion7dias != null ? `~${fmt(data.promedioDiario)}/día` : "Mínimo 10 ventas requeridas",
+              },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-white rounded-lg border border-gray-200 p-4">
                 <p className="text-xs text-gray-500 mb-1">{kpi.label}</p>
