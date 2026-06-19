@@ -201,6 +201,23 @@ describe("InventoryPage — lista de productos", () => {
     expect(screen.getByText("OK")).toBeInTheDocument();
   });
 
+  // C-15b: producto sin precio muestra badge 'Sin precio' en Estado
+  it("C-15b: producto sin precio muestra badge 'Sin precio' en Estado, no 'OK'", async () => {
+    const SIN_PRECIO = { ...PRODUCTO, id: "p5", nombre: "Collar", precio: null };
+    setupFetch([SIN_PRECIO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar")).toBeInTheDocument()
+    );
+
+    // El badge de Estado tiene data-variant="outline" (vs el span del precio que no lo tiene)
+    const badges = screen.getAllByText("Sin precio");
+    const estadoBadge = badges.find((el) => el.dataset.variant === "outline");
+    expect(estadoBadge).toBeDefined();
+    expect(screen.queryByText("OK")).not.toBeInTheDocument();
+  });
+
   // C-16: regresión — producto vencido con stock normal NO debe mostrar "OK"
   it("C-16: producto vencido con stock normal muestra 'Vencido' en Estado, no 'OK'", async () => {
     const ayer = new Date(Date.now() - 86400000).toISOString().split("T")[0];

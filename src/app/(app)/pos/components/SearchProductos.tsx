@@ -29,7 +29,7 @@ export default function SearchProductos() {
 
   function addProductoToCart(prod: Producto) {
     const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
-    if (precioFinal === null || precioFinal === undefined) return;
+    if (!precioFinal) return;
     addItem({
       producto_id: prod.id,
       nombre: prod.nombre,
@@ -79,9 +79,15 @@ export default function SearchProductos() {
     );
 
     if (exact) {
-      addProductoToCart(exact);
-      setSearch("");
-      inputStartRef.current = null;
+      const precioFinal = exact.en_oferta && exact.precio_oferta ? exact.precio_oferta : exact.precio;
+      if (!precioFinal) {
+        setScanError(`"${exact.nombre}" no tiene precio — asígnalo en inventario`);
+        setTimeout(() => setScanError(null), 4000);
+      } else {
+        addProductoToCart(exact);
+        setSearch("");
+        inputStartRef.current = null;
+      }
     } else {
       setScanError(`Código "${barcode}" no encontrado`);
       setTimeout(() => setScanError(null), 3000);
@@ -177,7 +183,7 @@ export default function SearchProductos() {
           const isGranelActivo = granelProductoId === prod.id;
           const vencStatus = getVencimientoStatus(prod);
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
-          const sinPrecio = precioFinal === null || precioFinal === undefined;
+          const sinPrecio = !precioFinal;
 
           return (
             <div key={prod.id} className="relative rounded border bg-white shadow-sm hover:shadow-md transition-shadow">

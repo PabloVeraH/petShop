@@ -158,4 +158,36 @@ describe("SearchProductos", () => {
 
     expect(mockAddItem).not.toHaveBeenCalled();
   });
+
+  // C-18: regresión — precio $0 también bloquea (no solo null/undefined)
+  it("C-18: producto con precio 0 muestra 'Sin precio' y deshabilita el botón", async () => {
+    mockGetProductos.mockResolvedValue([
+      prod({ id: "p6", nombre: "Precio Cero", precio: 0 }),
+    ]);
+    render(<SearchProductos />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Precio Cero")).toBeInTheDocument()
+    );
+
+    expect(screen.getByText("Sin precio")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Precio Cero/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Precio Cero/i }));
+    expect(mockAddItem).not.toHaveBeenCalled();
+  });
+
+  // C-19: regresión — precio $0 NO se agrega al carrito (guard interno)
+  it("C-19: addItem no se llama para precio $0 aunque se invoque addProductoToCart", async () => {
+    mockGetProductos.mockResolvedValue([
+      prod({ id: "p7", nombre: "Zero Price Guard", precio: 0 }),
+    ]);
+    render(<SearchProductos />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Zero Price Guard")).toBeInTheDocument()
+    );
+
+    // disabled button → addItem never called
+    expect(mockAddItem).not.toHaveBeenCalled();
+  });
 });

@@ -372,7 +372,9 @@ export default function InventoryPage() {
                         ? <Badge variant="destructive">Vencido</Badge>
                         : enAlerta
                           ? <Badge variant="destructive">Bajo stock</Badge>
-                          : <Badge variant="secondary">OK</Badge>}
+                          : !p.precio
+                            ? <Badge variant="outline" className="text-amber-700 border-amber-400">Sin precio</Badge>
+                            : <Badge variant="secondary">OK</Badge>}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
