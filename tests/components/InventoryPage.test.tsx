@@ -200,6 +200,36 @@ describe("InventoryPage — lista de productos", () => {
 
     expect(screen.getByText("OK")).toBeInTheDocument();
   });
+
+  // C-16: regresión — producto vencido con stock normal NO debe mostrar "OK"
+  it("C-16: producto vencido con stock normal muestra 'Vencido' en Estado, no 'OK'", async () => {
+    const ayer = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const PRODUCTO_VENCIDO = { ...PRODUCTO, id: "p3", nombre: "Pro Plan 3kg", fecha_vencimiento: ayer };
+    setupFetch([PRODUCTO_VENCIDO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Pro Plan 3kg")).toBeInTheDocument()
+    );
+
+    expect(screen.getByText("Vencido")).toBeInTheDocument();
+    expect(screen.queryByText("OK")).not.toBeInTheDocument();
+  });
+
+  // C-17: vencido tiene prioridad sobre bajo stock
+  it("C-17: producto vencido con bajo stock muestra 'Vencido', no 'Bajo stock'", async () => {
+    const ayer = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const VENCIDO_BAJO_STOCK = { ...PRODUCTO, id: "p4", nombre: "Pro Plan 1kg", stock: 2, stock_minimo: 5, fecha_vencimiento: ayer };
+    setupFetch([VENCIDO_BAJO_STOCK]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Pro Plan 1kg")).toBeInTheDocument()
+    );
+
+    expect(screen.getByText("Vencido")).toBeInTheDocument();
+    expect(screen.queryByText("Bajo stock")).not.toBeInTheDocument();
+  });
 });
 
 describe("InventoryPage — formulario de producto", () => {

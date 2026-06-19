@@ -368,9 +368,11 @@ export default function InventoryPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {enAlerta
-                        ? <Badge variant="destructive">Bajo stock</Badge>
-                        : <Badge variant="secondary">OK</Badge>}
+                      {vencStatus === 'vencido'
+                        ? <Badge variant="destructive">Vencido</Badge>
+                        : enAlerta
+                          ? <Badge variant="destructive">Bajo stock</Badge>
+                          : <Badge variant="secondary">OK</Badge>}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
