@@ -15,7 +15,12 @@ type Sugerencia = {
 
 export default function SugerenciasRecompra({ data }: { data: Sugerencia[] }) {
   if (!data.length) {
-    return <p className="text-xs text-gray-400">Sin sugerencias de recompra</p>;
+    return (
+      <div className="text-xs text-gray-400 space-y-0.5">
+        <p>Sin sugerencias activas</p>
+        <p>Aparecen cuando un producto vinculado a una mascota tiene menos de 14 días de stock estimado. Se calculan a partir del historial de compras.</p>
+      </div>
+    );
   }
 
   return (

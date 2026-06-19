@@ -10,7 +10,12 @@ type Alerta = {
 
 export default function AlertasConsumo({ data }: { data: Alerta[] }) {
   if (data.length === 0) {
-    return <p className="text-sm text-gray-400">Sin alertas de consumo</p>;
+    return (
+      <div className="text-sm text-gray-400 space-y-0.5">
+        <p>Sin alertas activas</p>
+        <p className="text-xs">Se generan automáticamente cuando una mascota registrada está próxima a agotar su alimento, basándose en el historial de compras y la porción diaria configurada.</p>
+      </div>
+    );
   }
 
   return (
