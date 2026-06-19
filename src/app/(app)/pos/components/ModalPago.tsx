@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePOSStore } from "@/stores/pos";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,11 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     pagoNc, setPayNc, clearPayNc,
     clienteEmail, enviarEmailRecibo, setEnviarEmailRecibo,
   } = usePOSStore();
+
+  // Garantiza un método por defecto aunque localStorage tenga datos de una versión anterior
+  useEffect(() => {
+    if (!metodoPago) setMetodoPago("efectivo");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: workers } = useQuery<Worker[]>({
     queryKey: ["workers"],

@@ -97,7 +97,7 @@ describe("POS Store — estado y acciones", () => {
     expect(state.items).toHaveLength(0);
     expect(state.descuento).toBe(0);
     expect(state.procedencia).toBe("presencial");
-    expect(state.metodoPago).toBeUndefined();
+    expect(state.metodoPago).toBe("efectivo");
     expect(state.clienteId).toBeUndefined();
   });
 });
@@ -261,17 +261,17 @@ describe("POS Store — email recibo toggle", () => {
   });
 
   // S-26: clearCart sí limpia el resto del estado
-  it("S-26: clearCart limpia items, clienteId y metodoPago pero mantiene el worker", () => {
+  it("S-26: clearCart limpia items y clienteId, resetea metodoPago a efectivo, mantiene el worker", () => {
     usePOSStore.getState().setWorker("clerk_xyz");
     usePOSStore.getState().addItem(ITEM_BASE);
     usePOSStore.getState().setCliente("cli-99", undefined, 0, "a@b.com");
-    usePOSStore.getState().setMetodoPago("efectivo");
+    usePOSStore.getState().setMetodoPago("credito");
     usePOSStore.getState().clearCart();
 
     const s = usePOSStore.getState();
     expect(s.items).toHaveLength(0);
     expect(s.clienteId).toBeUndefined();
-    expect(s.metodoPago).toBeUndefined();
+    expect(s.metodoPago).toBe("efectivo");
     expect(s.workerClerkId).toBe("clerk_xyz"); // worker se mantiene
   });
 });

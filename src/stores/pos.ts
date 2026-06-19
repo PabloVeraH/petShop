@@ -65,6 +65,7 @@ export const usePOSStore = create<POSStore>()(
       items: [],
       descuento: 0,
       fidelizacionDescuento: 0,
+      metodoPago: "efectivo",
       procedencia: "presencial",
       enviarEmailRecibo: false,
 
@@ -121,7 +122,7 @@ export const usePOSStore = create<POSStore>()(
           clienteEmail: undefined,
           mascotaId: undefined,
           // workerClerkId se mantiene — el mismo cajero atiende ventas consecutivas
-          metodoPago: undefined,
+          metodoPago: "efectivo",
           numeroTransaccion: undefined,
           descuento: 0,
           fidelizacionDescuento: 0,
