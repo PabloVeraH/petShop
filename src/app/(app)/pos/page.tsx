@@ -113,7 +113,7 @@ export default function POSPage() {
         </div>
 
         {/* Búsqueda — abajo en mobile, izquierda (2 cols) en desktop */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 h-full">
           <SearchProductos />
         </div>
       </div>

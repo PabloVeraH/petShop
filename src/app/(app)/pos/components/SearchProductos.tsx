@@ -133,7 +133,7 @@ export default function SearchProductos() {
   };
 
   return (
-    <div className="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-lg bg-white p-4 shadow-sm h-full">
       <div className="flex gap-2">
         <Input
           placeholder="Buscar por nombre, SKU o código de barra..."
@@ -189,7 +189,7 @@ export default function SearchProductos() {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 max-h-[60vh] lg:max-h-96 overflow-y-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 overflow-y-auto max-h-[60vh] lg:max-h-none flex-1 min-h-0">
         {productos?.map((prod) => {
           const tieneGranel = (prod.precio_venta_kg ?? 0) > 0;
           const isGranelActivo = granelProductoId === prod.id;
