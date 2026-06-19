@@ -1,4 +1,6 @@
+import { auth } from "@clerk/nextjs/server";
 import { getStoreId } from "@/lib/auth";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
@@ -8,6 +10,13 @@ export async function GET() {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  try { requireStoreAdmin(admin); } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -29,6 +38,13 @@ export async function PATCH(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  try { requireStoreAdmin(admin); } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceClient();
 
   const body = await req.json();

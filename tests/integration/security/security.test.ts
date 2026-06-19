@@ -7,8 +7,12 @@ import { NextRequest } from "next/server";
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
+const mockAuth = jest.fn().mockResolvedValue({
+  sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "123e4567-e89b-12d3-a456-426614174000" }, sub: "u1" },
+});
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
 jest.mock("@/lib/hub-sync", () => ({ syncPurchaseToHub: jest.fn() }));

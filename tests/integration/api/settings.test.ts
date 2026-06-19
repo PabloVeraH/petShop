@@ -1,20 +1,34 @@
 /**
- * Tests I-87 a I-89: GET y PATCH /api/settings
+ * Tests I-87 a I-89, SEC-04 a SEC-08: GET y PATCH /api/settings
  */
 import { NextRequest } from "next/server";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
 const mockGetStoreId = jest.fn();
+const mockAuth = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/audit", () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
+
+function mockAsAdmin() {
+  mockAuth.mockResolvedValue({
+    sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID }, sub: "u1" },
+  });
+}
+
+function mockAsWorker() {
+  mockAuth.mockResolvedValue({
+    sessionClaims: { publicMetadata: { storeWorker: true, storeId: STORE_ID }, sub: "u2" },
+  });
+}
 
 function chain() {
   const c: Record<string, jest.Mock> = {
@@ -32,6 +46,7 @@ describe("GET /api/settings", () => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     mockFrom.mockReturnValue(chain());
+    mockAsAdmin();
   });
 
   // I-87
@@ -77,6 +92,7 @@ describe("GET /api/settings — ubicación", () => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     mockFrom.mockReturnValue(chain());
+    mockAsAdmin();
   });
 
   // I-94
@@ -109,6 +125,7 @@ describe("PATCH /api/settings", () => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     mockFrom.mockReturnValue(chain());
+    mockAsAdmin();
   });
 
   // I-88
@@ -350,5 +367,37 @@ describe("PATCH /api/settings", () => {
     expect(body.whatsapp_webhook_verify_token).toBe("••••••••");
     expect(body.whatsapp_phone_number_id).toBe("12345");
     expect(body.whatsapp_enabled).toBe(true);
+  });
+});
+
+describe("Settings API — control de acceso por rol", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u2", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // SEC-07: storeWorker no puede leer settings (RUT y datos sensibles expuestos)
+  it("SEC-07: storeWorker recibe 403 en GET /api/settings", async () => {
+    mockAsWorker();
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe("Forbidden");
+  });
+
+  // SEC-08: storeWorker no puede modificar settings de la tienda
+  it("SEC-08: storeWorker recibe 403 en PATCH /api/settings", async () => {
+    mockAsWorker();
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Hack Store" }),
+    }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe("Forbidden");
   });
 });
