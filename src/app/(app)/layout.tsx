@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserButton, useAuth } from "@clerk/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LicenseProvider } from "@/components/LicenseProvider";
 
 const navItems = [
@@ -33,6 +33,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     queryFn: () => fetch("/api/settings").then((r) => r.json()),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Precarga el catálogo de productos cuando el usuario se autentica,
+  // para que la primera apertura del POS no muestre skeleton
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["productos", ""],
+      queryFn: () => fetch("/api/productos?search=").then((r) => r.json()),
+      staleTime: 30_000,
+    });
+  }, [queryClient]);
   const storeName = storeData?.name ?? "PetShop";
 
   const visibleNav = navItems.filter((item) =>

@@ -72,10 +72,13 @@ describe("SearchProductos", () => {
   });
 
   // C-01
-  it("C-01: muestra 'Cargando...' mientras la query está pendiente", () => {
+  it("C-01: muestra skeleton cards mientras la query está pendiente", () => {
     mockGetProductos.mockReturnValue(new Promise(() => {})); // never resolves
     render(<SearchProductos />, { wrapper: makeWrapper() });
-    expect(screen.getByText("Cargando...")).toBeInTheDocument();
+    // Skeleton renders 6 animated divs — not the old "Cargando..." text
+    const skeletons = document.querySelectorAll(".animate-pulse");
+    expect(skeletons.length).toBeGreaterThan(0);
+    expect(screen.queryByText("Cargando...")).not.toBeInTheDocument();
   });
 
   // C-02

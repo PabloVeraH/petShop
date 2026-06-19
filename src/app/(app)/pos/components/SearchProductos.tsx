@@ -8,6 +8,7 @@ import type { Producto } from "@/types";
 import { usePOSStore } from "@/stores/pos";
 import { getProductos } from "../api";
 import BarcodeScanner from "./BarcodeScanner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SearchProductos() {
   const [search, setSearch] = useState("");
@@ -156,7 +157,18 @@ export default function SearchProductos() {
       )}
 
       {isLoading && (
-        <p className="text-sm text-gray-400 py-4 text-center">Cargando...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded border bg-white shadow-sm p-4 space-y-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/3" />
+              <div className="flex justify-between items-center pt-1">
+                <Skeleton className="h-5 w-1/4" />
+                <Skeleton className="h-5 w-1/5" />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {isError && (
