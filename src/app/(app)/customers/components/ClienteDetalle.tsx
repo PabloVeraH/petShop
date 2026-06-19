@@ -309,6 +309,12 @@ export default function ClienteDetalle({
       {showMascotaModal && (
         <ModalMascotaCreate
           clienteId={cliente.id}
+          onCreated={(mascota) => {
+            queryClient.setQueryData<DetalleData>(
+              ["cliente-detalle", cliente.id],
+              (old) => old ? { ...old, mascotas: [...old.mascotas, mascota] } : old
+            );
+          }}
           onClose={() => {
             setShowMascotaModal(false);
             queryClient.invalidateQueries({ queryKey: ["cliente-detalle", cliente.id] });
