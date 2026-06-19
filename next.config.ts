@@ -17,6 +17,9 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(self)",
   },
+  // Deshabilitar el filtro XSS de IE/Edge antiguo: tiene bypasses conocidos
+  // y puede ser explotado como vector de ataque. La protección real la provee CSP.
+  { key: "X-XSS-Protection", value: "0" },
 ];
 
 const nextConfig: NextConfig = {
