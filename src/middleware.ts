@@ -4,6 +4,38 @@ import { apiGeneralLimit } from "@/middleware/rateLimit";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
 
+function buildCsp(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  const directives = [
+    "default-src 'self'",
+    // nonce + strict-dynamic: sin 'unsafe-inline' en producción
+    // strict-dynamic propaga confianza a scripts cargados dinámicamente (chunks de React/Next.js)
+    [
+      `script-src 'nonce-${nonce}' 'strict-dynamic'`,
+      isDev ? "'unsafe-eval'" : "",
+      "https://clerk.accounts.dev https://*.clerk.accounts.dev",
+    ].filter(Boolean).join(" "),
+    // style-src mantiene unsafe-inline: necesario para Tailwind + Next.js inline styles
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.tile.openstreetmap.org",
+    "font-src 'self' data:",
+    [
+      "connect-src 'self'",
+      "https://*.supabase.co wss://*.supabase.co",
+      "https://api.clerk.com https://*.clerk.accounts.dev",
+      "https://clerk-telemetry.com",
+      "https://graph.facebook.com",
+      "https://photon.komoot.io",
+    ].join(" "),
+    isDev ? "worker-src 'self' blob:" : "worker-src 'self'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ];
+  return directives.join("; ");
+}
+
 // No requieren autenticación de Clerk
 const publicRoutes = createRouteMatcher([
   "/auth/(.*)",
@@ -27,6 +59,14 @@ const skipLicenseCheck = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Generar nonce criptográfico por request para CSP
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const cspHeader = buildCsp(nonce);
+
+  // Propagar nonce al app (server components lo leen con next/headers)
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+
   // Rate limiting para todas las rutas /api
   if (req.nextUrl.pathname.startsWith("/api")) {
     const rateLimitResponse = await apiGeneralLimit(req);
@@ -71,6 +111,14 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/pos", req.url));
   }
 
+  // storeWorker solo puede acceder a /pos — todo lo demás redirige al POS
+  // Las rutas /api tienen sus propios guards; aquí solo protegemos páginas
+  const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
+  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/api/(.*)"]);
+  if (isStoreWorker && !workerAllowedRoutes(req)) {
+    return NextResponse.redirect(new URL("/pos", req.url));
+  }
+
   // Redirect desde raíz según rol
   if (req.nextUrl.pathname === "/" && userId) {
     if (isSystemAdmin) return NextResponse.redirect(new URL("/admin", req.url));
@@ -79,7 +127,10 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  return NextResponse.next();
+  // Respuesta normal: propagar nonce al app y añadir CSP al response
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", cspHeader);
+  return response;
 });
 
 export const config = {

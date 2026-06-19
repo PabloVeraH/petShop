@@ -1,33 +1,9 @@
 import type { NextConfig } from "next";
 
-const isDev = process.env.NODE_ENV === "development";
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
-const cspDirectives = [
-  "default-src 'self'",
-  [
-    "script-src 'self' 'unsafe-inline'",
-    isDev ? "'unsafe-eval'" : "",
-    "https://clerk.accounts.dev https://*.clerk.accounts.dev",
-  ].filter(Boolean).join(" "),
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.tile.openstreetmap.org",
-  "font-src 'self' data:",
-  [
-    "connect-src 'self'",
-    "https://*.supabase.co wss://*.supabase.co",
-    "https://api.clerk.com https://*.clerk.accounts.dev",
-    "https://clerk-telemetry.com",
-    "https://graph.facebook.com",
-    "https://photon.komoot.io",
-  ].join(" "),
-  isDev ? "worker-src 'self' blob:" : "worker-src 'self'",
-  "frame-src 'none'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-];
-
+// CSP se genera dinámicamente por request en src/middleware.ts (nonce-based).
+// Aquí solo van los headers estáticos de seguridad.
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   {
@@ -40,10 +16,6 @@ const securityHeaders = [
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(self)",
-  },
-  {
-    key: "Content-Security-Policy",
-    value: cspDirectives.join("; "),
   },
 ];
 

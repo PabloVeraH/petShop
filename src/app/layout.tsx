@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
@@ -14,13 +15,15 @@ export const metadata: Metadata = {
   description: "Sistema de punto de venta para pet shops",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? "";
+
   return (
-    <ClerkProvider>
+    <ClerkProvider nonce={nonce}>
       <html lang="es" className={`${inter.variable} h-full antialiased`}>
         <body className="min-h-full bg-gray-50">
           <Providers>{children}</Providers>
