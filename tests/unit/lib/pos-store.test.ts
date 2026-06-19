@@ -250,4 +250,28 @@ describe("POS Store — email recibo toggle", () => {
     const last = JSON.parse(calls[calls.length - 1][1]);
     expect(last.state.clienteEmail).toBe("juan@test.com");
   });
+
+  // S-25: regresión — clearCart NO debe borrar el worker (mismo cajero, ventas consecutivas)
+  it("S-25: clearCart preserva workerClerkId para ventas consecutivas", () => {
+    usePOSStore.getState().setWorker("clerk_abc123");
+    usePOSStore.getState().addItem(ITEM_BASE);
+    usePOSStore.getState().clearCart();
+
+    expect(usePOSStore.getState().workerClerkId).toBe("clerk_abc123");
+  });
+
+  // S-26: clearCart sí limpia el resto del estado
+  it("S-26: clearCart limpia items, clienteId y metodoPago pero mantiene el worker", () => {
+    usePOSStore.getState().setWorker("clerk_xyz");
+    usePOSStore.getState().addItem(ITEM_BASE);
+    usePOSStore.getState().setCliente("cli-99", undefined, 0, "a@b.com");
+    usePOSStore.getState().setMetodoPago("efectivo");
+    usePOSStore.getState().clearCart();
+
+    const s = usePOSStore.getState();
+    expect(s.items).toHaveLength(0);
+    expect(s.clienteId).toBeUndefined();
+    expect(s.metodoPago).toBeUndefined();
+    expect(s.workerClerkId).toBe("clerk_xyz"); // worker se mantiene
+  });
 });

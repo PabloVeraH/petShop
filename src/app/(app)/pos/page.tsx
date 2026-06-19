@@ -26,10 +26,10 @@ export default function POSPage() {
   const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, total, procedencia, pagoNc, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
 
   useEffect(() => {
-    if (userId && !isStoreAdmin) {
+    if (userId && !workerClerkId) {
       setWorker(userId);
     }
-  }, [userId, isStoreAdmin, setWorker]);
+  }, [userId, workerClerkId, setWorker]);
 
   const { mutate: procesarVenta, isPending } = useMutation({
     mutationFn: () =>

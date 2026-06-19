@@ -120,7 +120,7 @@ export const usePOSStore = create<POSStore>()(
           clienteId: undefined,
           clienteEmail: undefined,
           mascotaId: undefined,
-          workerClerkId: undefined,
+          // workerClerkId se mantiene — el mismo cajero atiende ventas consecutivas
           metodoPago: undefined,
           numeroTransaccion: undefined,
           descuento: 0,
