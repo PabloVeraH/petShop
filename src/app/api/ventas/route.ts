@@ -76,6 +76,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    return await postVenta(req);
+  } catch (e) {
+    console.error("[ventas POST] Unhandled error:", e);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+}
+
+async function postVenta(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -303,7 +312,7 @@ export async function POST(req: NextRequest) {
         return { nombre: prod?.nombre ?? "Producto", cantidad: i.cantidad, subtotal: Number(i.subtotal) };
       });
 
-      await sendWhatsAppText(
+      sendWhatsAppText(
         { phoneNumberId: storeConfig.whatsapp_phone_number_id, accessToken: storeConfig.whatsapp_access_token },
         cliente.telefono,
         buildReceiptMessage({
@@ -314,7 +323,7 @@ export async function POST(req: NextRequest) {
           total,
           metodoPago,
         })
-      );
+      ).catch((e) => console.error("[whatsapp] Error enviando recibo:", e));
     }
   }
 

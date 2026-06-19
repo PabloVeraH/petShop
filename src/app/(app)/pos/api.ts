@@ -54,8 +54,12 @@ export async function createVenta({
     body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, enviarEmail }),
   });
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error ?? "Error al crear venta");
+    const ct = res.headers.get("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      const data = await res.json();
+      throw new Error(data.error ?? `Error ${res.status}`);
+    }
+    throw new Error(`Error ${res.status}: respuesta inesperada del servidor. Intente de nuevo.`);
   }
   return res.json();
 }
