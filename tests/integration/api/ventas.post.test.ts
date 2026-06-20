@@ -534,7 +534,7 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
     // Prueba 1 del reporte: 0.8 kg × $10.000 = $8.000 (correcto)
     //                        0.8 kg × $56.000 = $44.800 (sobrecobro — bug)
     const res = await POST(makeRequest({
-      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.8, es_granel: true }],
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.8, es_granel: true, gramos: 800 }],
       metodoPago: "efectivo",
     }));
     expect(res.status).toBe(200);
@@ -559,7 +559,7 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
   // I-62: Prueba 2 del reporte — 0.2 kg × $10.000 = $2.000
   it("I-62: 0.2 kg granel a $10.000/kg resulta en total $2.000, no $11.200", async () => {
     const res = await POST(makeRequest({
-      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.2, es_granel: true }],
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.2, es_granel: true, gramos: 200 }],
       metodoPago: "efectivo",
     }));
     expect(res.status).toBe(200);
@@ -579,6 +579,43 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
         expect.objectContaining({ es_granel: true, gramos: 500 }),
       ]),
     }));
+  });
+
+  // I-64: REGRESIÓN — producto granel sin precio_venta_kg → 400 explícito, no sobrecobro silencioso
+  it("I-64: producto con es_granel pero sin precio_venta_kg en DB retorna 400", async () => {
+    // Simular producto sin precio_venta_kg configurado
+    const productoSinPrecioKg = { ...DB_PRODUCTO_GRANEL, precio_venta_kg: null };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [productoSinPrecioKg], error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false }, error: null }) };
+      }
+      return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/precio_venta_kg/);
+    // El RPC nunca debe ser llamado cuando el precio granel no está configurado
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-65: REGRESIÓN — es_granel=true sin gramos es rechazado por Zod antes de llegar a la BD
+  it("I-65: es_granel=true sin gramos retorna 400 por validación Zod", async () => {
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true }], // sin gramos
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/gramos/i);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 

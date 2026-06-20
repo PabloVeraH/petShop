@@ -122,15 +122,28 @@ async function postVenta(req: NextRequest) {
   }
 
    const precioMap: Record<string, number> = {};
+   const granelSinPrecioKg: string[] = [];
+
    productosDB.forEach(p => {
-     // Si el item en el carrito es granel, usar precio_venta_kg
      const itemDelCarrito = items.find(i => i.producto_id === p.id);
-     if (itemDelCarrito?.es_granel && p.precio_venta_kg) {
-       precioMap[p.id] = Number(p.precio_venta_kg);
+     if (itemDelCarrito?.es_granel) {
+       if (p.precio_venta_kg) {
+         precioMap[p.id] = Number(p.precio_venta_kg);
+       } else {
+         // Rechazar explícitamente — caer al precio de lista sería un sobrecargo silencioso
+         granelSinPrecioKg.push(p.id);
+       }
      } else {
        precioMap[p.id] = p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio);
      }
    });
+
+   if (granelSinPrecioKg.length > 0) {
+     return NextResponse.json(
+       { error: "Producto granel sin precio_venta_kg configurado — configure el precio por kg antes de vender a granel" },
+       { status: 400 }
+     );
+   }
 
    const itemsConPrecio = items.map((item: {
      producto_id: string;

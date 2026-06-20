@@ -8,6 +8,15 @@ export const VentaItemSchema = z.object({
   mascota_id: UUIDSchema.optional(),
   es_granel: z.boolean().optional(),
   gramos: z.number().int().positive().optional(),
+}).superRefine((val, ctx) => {
+  // Granel sin gramos → backend caería silenciosamente al precio de lista
+  if (val.es_granel && !val.gramos) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "gramos es requerido para ventas a granel (es_granel=true)",
+      path: ["gramos"],
+    });
+  }
 });
 
 export const VentaCreateSchema = z.object({
