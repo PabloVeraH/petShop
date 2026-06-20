@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { LicenseProvider } from "@/components/LicenseProvider";
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/dashboard", label: "Analitica", roles: ["storeAdmin", "systemAdmin"] },
-  { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
+  { href: "/customers", label: "Clientes", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },
@@ -24,9 +24,21 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { sessionClaims } = useAuth();
   const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("_denied") !== "1") return;
+    setAccessDenied(true);
+    // Limpiar el param de la URL sin agregar entrada al historial
+    router.replace(pathname, { scroll: false });
+    const t = setTimeout(() => setAccessDenied(false), 4500);
+    return () => clearTimeout(t);
+  }, [searchParams, pathname, router]);
 
   const { data: storeData } = useQuery<{ name: string }>({
     queryKey: ["store-name"],
@@ -125,6 +137,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="font-bold text-green-600">{storeName}</span>
         </div>
 
+        {/* Banner de acceso denegado — visible cuando el middleware redirige desde ruta no autorizada */}
+        {accessDenied && (
+          <div
+            role="alert"
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 shadow-md text-sm text-amber-800 flex items-center gap-2 max-w-sm print:hidden"
+          >
+            <span aria-hidden>&#9888;</span>
+            <span>No tienes permiso para acceder a esa sección.</span>
+          </div>
+        )}
         <main className="flex-1 p-4 lg:p-6 overflow-auto print:p-0">{children}</main>
       </div>
     </div>

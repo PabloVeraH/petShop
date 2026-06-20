@@ -121,7 +121,7 @@ export default clerkMiddleware(async (auth, req) => {
   const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
   const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/api/(.*)"]);
   if (isStoreWorker && !workerAllowedRoutes(req)) {
-    return NextResponse.redirect(new URL("/pos", req.url));
+    return NextResponse.redirect(new URL("/pos?_denied=1", req.url));
   }
 
   // Redirect desde raíz según rol
