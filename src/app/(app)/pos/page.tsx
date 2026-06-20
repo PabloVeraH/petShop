@@ -40,6 +40,8 @@ export default function POSPage() {
           precio_unitario: i.precio,
           subtotal: i.subtotal,
           mascota_id: i.mascota_id,
+          es_granel: i.es_granel,
+          gramos: i.gramos,
         })),
         clienteId,
         workerClerkId,

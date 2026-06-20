@@ -488,6 +488,100 @@ describe("POST /api/ventas — toggle email boleta", () => {
   });
 });
 
+// ── Precio granel — regresión I-60/I-61 ──────────────────────────────────────
+// Bug: es_granel no se propagaba desde el carrito al body del request, causando
+// que el backend usara precio de lista ($56.000) en lugar de precio_venta_kg ($10.000/kg)
+
+const DB_PRODUCTO_GRANEL = {
+  id: PRODUCTO_ID,
+  precio: 56000,          // precio de lista (envase completo)
+  precio_oferta: null,
+  en_oferta: false,
+  precio_venta_kg: 10000, // precio especial por kg
+};
+
+const DB_PRODUCTO_GRANEL_SYNC = {
+  id: PRODUCTO_ID, nombre: "Alimento granel", marca: null, codigo_barra: null,
+  precio: 56000, stock: 10, activo: true,
+};
+
+function setupGranel() {
+  let productosCall = 0;
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "productos") {
+      productosCall++;
+      if (productosCall === 1) {
+        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_GRANEL], error: null }) };
+      }
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_GRANEL_SYNC], error: null }) };
+    }
+    if (table === "stores") {
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null }) };
+    }
+    return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+  });
+}
+
+describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupGranel();
+    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+  });
+
+  // I-60: REGRESIÓN — item granel usa precio_venta_kg, no precio de lista
+  it("I-60: item es_granel usa precio_venta_kg ($10.000/kg) y no el precio de lista ($56.000)", async () => {
+    // Prueba 1 del reporte: 0.8 kg × $10.000 = $8.000 (correcto)
+    //                        0.8 kg × $56.000 = $44.800 (sobrecobro — bug)
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.8, es_granel: true }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_total: 8000, // 0.8 × 10000 — NO 44800 (0.8 × 56000)
+    }));
+  });
+
+  // I-61: mismo producto sin es_granel usa precio de lista
+  it("I-61: item sin es_granel del mismo producto usa precio de lista ($56.000)", async () => {
+    // 1 unidad × $56.000 = $56.000
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 1, es_granel: false }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_total: 56000,
+    }));
+  });
+
+  // I-62: Prueba 2 del reporte — 0.2 kg × $10.000 = $2.000
+  it("I-62: 0.2 kg granel a $10.000/kg resulta en total $2.000, no $11.200", async () => {
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.2, es_granel: true }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_total: 2000, // 0.2 × 10000 — NO 11200 (0.2 × 56000)
+    }));
+  });
+
+  // I-63: p_items recibe es_granel para que el stored procedure registre el tipo de venta
+  it("I-63: p_items enviado al RPC incluye es_granel:true para venta a granel", async () => {
+    await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_items: expect.arrayContaining([
+        expect.objectContaining({ es_granel: true, gramos: 500 }),
+      ]),
+    }));
+  });
+});
+
 // ── Consumo alertas desde mascotas ────────────────────────────────────────────
 
 const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174040";

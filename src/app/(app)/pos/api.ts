@@ -38,6 +38,8 @@ export async function createVenta({
     precio_unitario: number;
     subtotal: number;
     mascota_id?: string;
+    es_granel?: boolean;
+    gramos?: number;
   }[];
   clienteId?: string;
   workerClerkId?: string;
