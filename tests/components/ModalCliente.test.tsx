@@ -359,3 +359,50 @@ describe("ModalCliente — prompt de porción diaria", () => {
     expect(screen.getAllByText("Grizzly (perro)").length).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ── Suite 6: deduplicación de mascotas (REGRESIÓN) ───────────────────────────
+
+describe("ModalCliente — deduplicación de mascotas en dropdown (MC-25/MC-26)", () => {
+  const CLIENTE = { id: "cli-1", nombre: "María González", rut: "15.855.267-1", email: null, telefono: null };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Restaurar fetch tras clearAllMocks (borra la implementación del mock global)
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, json: async () => null });
+    mockGetClienteByRUT.mockResolvedValue(CLIENTE);
+  });
+
+  // MC-25: REGRESIÓN — el dropdown no debe mostrar "Luna (gato)" dos veces
+  it("MC-25: no muestra mascota duplicada cuando API devuelve dos registros con mismo nombre y tipo", async () => {
+    mockGetMascotasByCliente.mockResolvedValue([
+      { id: "m-dup-1", nombre: "Luna", tipo: "gato", gramos_porcion: null, veces_dia: null },
+      { id: "m-dup-2", nombre: "Luna", tipo: "gato", gramos_porcion: null, veces_dia: null },
+    ]);
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Luna (gato)").length).toBeGreaterThan(0));
+
+    // Debe aparecer solo UNA vez en el selector
+    expect(screen.getAllByText("Luna (gato)")).toHaveLength(1);
+  });
+
+  // MC-26: mascotas con mismo nombre pero distinto tipo sí se muestran ambas
+  it("MC-26: muestra ambas mascotas cuando tienen mismo nombre pero distinto tipo", async () => {
+    mockGetMascotasByCliente.mockResolvedValue([
+      { id: "m-1", nombre: "Luna", tipo: "gato",  gramos_porcion: null, veces_dia: null },
+      { id: "m-2", nombre: "Luna", tipo: "perro", gramos_porcion: null, veces_dia: null },
+    ]);
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Luna (gato)")).toBeInTheDocument());
+
+    expect(screen.getByText("Luna (gato)")).toBeInTheDocument();
+    expect(screen.getByText("Luna (perro)")).toBeInTheDocument();
+  });
+});

@@ -84,9 +84,11 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     enabled: cartProductIds.length > 0 && !!cliente?.id,
   });
 
-  // Mascotas sin consumo configurado que compraron alimento
+  // Mascotas sin consumo configurado que compraron alimento (deduplicadas por nombre+tipo)
   const necesitaPrompt = mascotas && alimentosEnCarrito && mascotas.length > 0 && alimentosEnCarrito.length > 0
-    ? mascotas.filter((m) => !m.gramos_porcion)
+    ? mascotas
+        .filter((m) => !m.gramos_porcion)
+        .filter((m, idx, arr) => arr.findIndex((x) => x.nombre === m.nombre && x.tipo === m.tipo) === idx)
     : [];
 
   const { mutate: registrarCliente, isPending: registrando } = useMutation({
@@ -223,7 +225,7 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
                 <div className="mt-3">
                   <p className="text-xs font-medium text-gray-600 mb-2">Mascota (opcional)</p>
                   <div className="space-y-1">
-                    {mascotas.map((m) => (
+                    {mascotas.filter((m, idx, arr) => arr.findIndex((x) => x.nombre === m.nombre && x.tipo === m.tipo) === idx).map((m) => (
                       <button
                         key={m.id}
                         onClick={() =>

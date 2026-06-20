@@ -133,6 +133,68 @@ describe("GET /api/mascotas", () => {
     expect(body[0].gramos_porcion).toBe(25);
     expect(body[0].veces_dia).toBe(3);
   });
+
+  // M-15: REGRESIÓN — duplicados por doble-guardado se filtran por (nombre, tipo)
+  it("M-15: deduplica mascotas con mismo nombre y tipo (doble-guardado accidental)", async () => {
+    const LUNA_1 = { ...DB_MASCOTA, id: "m-dup-1", nombre: "Luna", tipo: "gato" };
+    const LUNA_2 = { ...DB_MASCOTA, id: "m-dup-2", nombre: "Luna", tipo: "gato" };
+
+    const clientesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: CLIENTE_ID }, error: null }),
+    };
+    clientesChain.eq.mockReturnValue(clientesChain);
+
+    const mascotasChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [LUNA_1, LUNA_2], error: null }),
+    };
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clientes") return clientesChain;
+      if (table === "mascotas") return mascotasChain;
+      return mockChain;
+    });
+
+    const { GET } = await import("@/app/api/mascotas/route");
+    const res = await GET(makeGetRequest({ clienteId: CLIENTE_ID }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Solo debe aparecer una vez — la primera por orden de llegada
+    expect(body).toHaveLength(1);
+    expect(body[0].nombre).toBe("Luna");
+  });
+
+  // M-16: mascotas con mismo nombre pero distinto tipo SÍ aparecen ambas
+  it("M-16: no deduplica mascotas con mismo nombre pero distinto tipo", async () => {
+    const LUNA_GATO  = { ...DB_MASCOTA, id: "m-1", nombre: "Luna", tipo: "gato" };
+    const LUNA_PERRO = { ...DB_MASCOTA, id: "m-2", nombre: "Luna", tipo: "perro" };
+
+    const clientesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: CLIENTE_ID }, error: null }),
+    };
+    clientesChain.eq.mockReturnValue(clientesChain);
+
+    const mascotasChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [LUNA_GATO, LUNA_PERRO], error: null }),
+    };
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clientes") return clientesChain;
+      if (table === "mascotas") return mascotasChain;
+      return mockChain;
+    });
+
+    const { GET } = await import("@/app/api/mascotas/route");
+    const res = await GET(makeGetRequest({ clienteId: CLIENTE_ID }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveLength(2);
+  });
 });
 
 // ── POST /api/mascotas ────────────────────────────────────────────────────────

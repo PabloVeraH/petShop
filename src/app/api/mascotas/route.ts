@@ -29,7 +29,17 @@ export async function GET(req: NextRequest) {
     .eq("cliente_id", clienteId);
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Deduplicar por (nombre, tipo) — puede haber duplicados si el usuario guardó dos veces
+  const seen = new Set<string>();
+  const unique = (data ?? []).filter((m) => {
+    const key = `${m.nombre}|${m.tipo}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return NextResponse.json(unique);
 }
 
 export async function POST(req: NextRequest) {
