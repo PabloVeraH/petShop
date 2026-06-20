@@ -233,7 +233,7 @@ describe("GET /api/recibos/[ventaId]", () => {
       numero_comprobante: "20260417-TEST001",
       total: 50000,
       subtotal: 42016,
-      descuento: 2100,
+      descuento: 5,       // porcentaje (5%)
       impuesto: 7984,
       estado: "pagada",
       created_at: "2026-04-17T14:30:00Z",
@@ -308,7 +308,61 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("Producto B");
     expect(data.html).toContain("$50.000");
     expect(data.html).toContain("Subtotal:");
-    expect(data.html).toContain("Descuento:");
+    expect(data.html).toContain("Descuento (5%):");
     expect(data.html).toContain("IVA (19%):");
+  });
+
+  // REGRESIÓN: descuento almacenado como porcentaje debe mostrarse como monto en pesos
+  it("I-REC-10: descuento 10% sobre $44.800 muestra '(10%)' y '-$4.480' en el HTML, no '-$10'", async () => {
+    const mockVenta = {
+      id: mockVentaId,
+      store_id: mockStoreId,
+      numero_comprobante: "20260620-DESC001",
+      subtotal: 44800,
+      descuento: 10,       // porcentaje en DB
+      impuesto: 7654,
+      total: 40320,        // 44800 × 0.9
+      estado: "pagada",
+      created_at: "2026-06-20T10:00:00Z",
+      clientes: null,
+      worker: null,
+      venta_items: [
+        { cantidad: 1, precio_unitario: 44800, subtotal: 44800, productos: { nombre: "Alimento Pro Plan 3kg", sku: "PP3K" } },
+      ],
+    };
+
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+      order: jest.fn().mockReturnThis(),
+    };
+    let callCount = 0;
+    chain.single.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ data: mockVenta, error: null });
+      if (callCount === 2) return Promise.resolve({ data: { name: "PetShop", rut: null }, error: null });
+      return Promise.resolve({ data: null, error: null });
+    });
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [{ id: "p1", metodo: "efectivo", monto: 40320, numero_transaccion: null, created_at: "2026-06-20T10:00:00Z" }], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => table === "pagos" ? pagosChain : chain),
+    });
+
+    const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
+    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    // Label debe incluir el porcentaje
+    expect(data.html).toContain("Descuento (10%):");
+    // Monto debe ser pesos: 44800 × 10% = 4480
+    expect(data.html).toContain("$4.480");
+    // NO debe aparecer como si 10 fuera pesos
+    expect(data.html).not.toContain(">-$10<");
   });
 });

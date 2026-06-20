@@ -133,7 +133,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       return `• ${prod?.nombre ?? "Producto"} x${i.cantidad} = $${Math.round(i.subtotal).toLocaleString("es-CL")}`;
     }).join("\n")) +
     `\n\nSubtotal: $${Math.round(Number(data.subtotal)).toLocaleString("es-CL")}` +
-    (Number(data.descuento) > 0 ? `\nDescuento: -$${Math.round(Number(data.descuento)).toLocaleString("es-CL")}` : "") +
+    (Number(data.descuento) > 0 ? `\nDescuento (${Number(data.descuento)}%): -$${Math.round(Number(data.subtotal) * Number(data.descuento) / 100).toLocaleString("es-CL")}` : "") +
     `\nIVA: $${Math.round(Number(data.impuesto)).toLocaleString("es-CL")}` +
     `\n*TOTAL: $${Math.round(Number(data.total)).toLocaleString("es-CL")}*` +
     `\nMétodo: ${data.metodo_pago ?? "efectivo"}`
@@ -256,8 +256,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           </div>
           {Number(data.descuento) > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>Descuento</span>
-              <span>−${Math.round(Number(data.descuento)).toLocaleString("es-CL")}</span>
+              <span>Descuento ({Number(data.descuento)}%)</span>
+              <span>−${Math.round(Number(data.subtotal) * Number(data.descuento) / 100).toLocaleString("es-CL")}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-600">

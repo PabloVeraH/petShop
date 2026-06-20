@@ -130,7 +130,8 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     .join("");
 
   const subtotal = Number(venta.subtotal);
-  const descuento = Number(venta.descuento);
+  const descuentoPct = Number(venta.descuento); // almacenado como porcentaje (ej: 10)
+  const descuentoMonto = Math.round(subtotal * descuentoPct / 100);
   const impuesto = Number(venta.impuesto);
   const total = Number(venta.total);
 
@@ -363,11 +364,11 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
         <span>$${subtotal.toLocaleString("es-CL")}</span>
       </div>
       ${
-        descuento > 0
+        descuentoPct > 0
           ? `
       <div class="totales-fila">
-        <span>Descuento:</span>
-        <span>-$${descuento.toLocaleString("es-CL")}</span>
+        <span>Descuento (${descuentoPct}%):</span>
+        <span>-$${descuentoMonto.toLocaleString("es-CL")}</span>
       </div>
       `
           : ""

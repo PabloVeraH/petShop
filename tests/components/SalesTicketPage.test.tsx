@@ -108,6 +108,57 @@ import TicketPage from "@/app/(app)/sales/[id]/page";
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// ── Tests de descuento ────────────────────────────────────────────────────────
+
+describe("SalesTicketPage — display de descuento (C-23/C-24)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  // C-23: REGRESIÓN — descuento se almacena como % y debe mostrarse como monto en pesos
+  it("C-23: descuento 10% sobre subtotal $44.800 muestra '-$4.480', no '-$10'", async () => {
+    mockFetch({
+      ...VENTA_BASE,
+      subtotal: 44800,
+      descuento: 10,     // porcentaje almacenado en DB
+      impuesto: 7646,
+      total: 40320,      // 44800 × 0.9 = 40320
+      items: [makeItem("i1", "Alimento Pro Plan 3kg", 1, 44800)],
+    });
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Descuento (10%)")).toBeInTheDocument()
+    );
+    // Monto correcto: 44800 × 10% = 4480, NO "$10"
+    expect(screen.getByText("−$4.480")).toBeInTheDocument();
+    expect(screen.queryByText("−$10")).not.toBeInTheDocument();
+  });
+
+  // C-24: sin descuento no aparece la línea de descuento
+  it("C-24: venta sin descuento no muestra línea 'Descuento'", async () => {
+    mockFetch({
+      ...VENTA_BASE,
+      subtotal: 44800,
+      descuento: 0,
+      total: 44800,
+      items: [makeItem("i1", "Alimento Pro Plan 3kg", 1, 44800)],
+    });
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Alimento Pro Plan 3kg")).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/Descuento/)).not.toBeInTheDocument();
+  });
+});
+
+// ── Tests de devoluciones ─────────────────────────────────────────────────────
+
 describe("SalesTicketPage — badge Dev. X y disponibilidad de items", () => {
   beforeEach(() => jest.clearAllMocks());
 
