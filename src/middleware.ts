@@ -86,22 +86,27 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Verificar licencia para usuarios no-systemAdmin en rutas privadas
   if (!skipLicenseCheck(req) && !isSystemAdmin && storeId) {
-    const supabase = createServiceClient();
-    const { data: store } = await supabase
-      .from("stores")
-      .select("license_end_date, license_warning_days")
-      .eq("id", storeId)
-      .single();
+    try {
+      const supabase = createServiceClient();
+      const { data: store } = await supabase
+        .from("stores")
+        .select("license_end_date, license_warning_days")
+        .eq("id", storeId)
+        .single();
 
-    if (store) {
-      const { isAutoBlocked } = computeLicenseStatus({
-        license_end_date: store.license_end_date,
-        license_warning_days: store.license_warning_days,
-      });
+      if (store) {
+        const { isAutoBlocked } = computeLicenseStatus({
+          license_end_date: store.license_end_date,
+          license_warning_days: store.license_warning_days,
+        });
 
-      if (isAutoBlocked) {
-        return NextResponse.redirect(new URL("/sistema-suspendido", req.url));
+        if (isAutoBlocked) {
+          return NextResponse.redirect(new URL("/sistema-suspendido", req.url));
+        }
       }
+    } catch (licenseErr) {
+      // Fail-open: un error transitorio de DB no debe bloquear al usuario ni redirigir a login
+      console.error("[middleware] License check failed — allowing request through:", licenseErr);
     }
   }
 
