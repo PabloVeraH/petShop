@@ -23,7 +23,10 @@ export default function POSPage() {
   const isStoreAdmin = meta?.storeAdmin === true;
 
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, total, procedencia, pagoNc, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
+  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, procedencia, pagoNc, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
+  // Selector explícito para el total del botón: garantiza que Zustand re-renderice
+  // este valor cuando persist rehidrata desde localStorage (evita "Cobrar $0" en recarga)
+  const cartTotal = usePOSStore((state) => state.total());
 
   useEffect(() => {
     if (userId && !workerClerkId) {
@@ -108,9 +111,8 @@ export default function POSPage() {
             disabled={items.length === 0}
             className="w-full"
             size="lg"
-            suppressHydrationWarning
           >
-            Cobrar ${Math.round(total()).toLocaleString("es-CL")}
+            Cobrar ${cartTotal.toLocaleString("es-CL")}
           </Button>
         </div>
 
