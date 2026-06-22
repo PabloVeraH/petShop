@@ -283,4 +283,46 @@ describe("POS Store — email recibo toggle", () => {
     expect(s.metodoPago).toBe("efectivo");
     expect(s.workerClerkId).toBe("clerk_xyz"); // worker se mantiene
   });
+
+  // S-28: REGRESIÓN — setCliente con fidelizacionDescuento aplica descuento automáticamente
+  // Bug: el 10% de fidelización quedaba disponible en modal pero requería clic manual.
+  it("S-28: setCliente con fidelizacion 10% aplica descuento automáticamente", () => {
+    usePOSStore.getState().setCliente("cli-1", undefined, 10, "maria@test.com");
+    const s = usePOSStore.getState();
+    expect(s.fidelizacionDescuento).toBe(10);
+    expect(s.descuento).toBe(10); // ← auto-aplicado, no requiere clic
+  });
+
+  // S-29: setCliente con 0% de fidelización no altera el descuento (lo deja en 0)
+  it("S-29: setCliente sin fidelización resetea descuento a 0", () => {
+    usePOSStore.getState().setDescuento(15); // descuento manual previo
+    usePOSStore.getState().setCliente("cli-2", undefined, 0, "otro@test.com");
+    const s = usePOSStore.getState();
+    expect(s.fidelizacionDescuento).toBe(0);
+    expect(s.descuento).toBe(0); // el descuento manual previo se sobreescribe
+  });
+
+  // S-30: clearCliente resetea descuento junto con fidelizacionDescuento
+  it("S-30: clearCliente elimina el descuento de fidelización aplicado", () => {
+    usePOSStore.getState().setCliente("cli-1", undefined, 10, "maria@test.com");
+    expect(usePOSStore.getState().descuento).toBe(10);
+
+    usePOSStore.getState().clearCliente();
+    const s = usePOSStore.getState();
+    expect(s.clienteId).toBeUndefined();
+    expect(s.fidelizacionDescuento).toBe(0);
+    expect(s.descuento).toBe(0); // el descuento se elimina al quitar el cliente
+  });
+
+  // S-31: cambiar de cliente aplica el descuento del nuevo cliente
+  it("S-31: cambiar cliente sobrescribe descuento con el del nuevo cliente", () => {
+    usePOSStore.getState().addItem(ITEM_BASE); // necesario para activar rama de cambio de cliente
+    usePOSStore.getState().setCliente("cli-1", undefined, 10, "a@test.com");
+    expect(usePOSStore.getState().descuento).toBe(10);
+
+    usePOSStore.getState().setCliente("cli-2", undefined, 5, "b@test.com");
+    const s = usePOSStore.getState();
+    expect(s.fidelizacionDescuento).toBe(5);
+    expect(s.descuento).toBe(5); // nuevo cliente, nuevo descuento
+  });
 });

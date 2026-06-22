@@ -141,13 +141,14 @@ export const usePOSStore = create<POSStore>()(
             clienteEmail,
             mascotaId,
             fidelizacionDescuento,
+            descuento: fidelizacionDescuento, // auto-apply loyalty discount
           }));
         } else {
-          set({ clienteId, clienteEmail, mascotaId, fidelizacionDescuento });
+          set({ clienteId, clienteEmail, mascotaId, fidelizacionDescuento, descuento: fidelizacionDescuento });
         }
       },
 
-      clearCliente: () => set({ clienteId: undefined, clienteEmail: undefined, mascotaId: undefined, fidelizacionDescuento: 0 }),
+      clearCliente: () => set({ clienteId: undefined, clienteEmail: undefined, mascotaId: undefined, fidelizacionDescuento: 0, descuento: 0 }),
 
       setEnviarEmailRecibo: (enviarEmailRecibo) => set({ enviarEmailRecibo }),
 
