@@ -619,6 +619,47 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
   });
 });
 
+// ── IVA: fórmula de extracción (REGRESIÓN) ───────────────────────────────────
+// Bug: el backend usaba total × 0.19 (aditiva) en lugar de total × (0.19/1.19) (extracción),
+// sobreestimando el IVA registrado en BD. Los precios del catálogo ya incluyen IVA.
+
+describe("POST /api/ventas — IVA correcto enviado al RPC (I-66)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupHappyPath();
+    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+  });
+
+  // I-66: REGRESIÓN — Whiskas 1kg $15.458 → IVA persistido = $2.468, no $2.937
+  it("I-66: producto $15.458 con IVA incluido → p_impuesto = $2.468 (extracción, no aditiva)", async () => {
+    const productoWhiskas = { ...DB_PRODUCTO, precio: 15458, precio_oferta: null, en_oferta: false };
+    const productoWhiskasSync = { ...DB_PRODUCTO_SYNC, precio: 15458 };
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          // Price lookup: .select().in().eq()
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [productoWhiskas], error: null }) };
+        }
+        // Hub sync lookup: .select().eq().in()
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [productoWhiskasSync], error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null }) };
+      }
+      return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+
+    const res = await POST(makeRequest({ items: [{ producto_id: PRODUCTO_ID, cantidad: 1 }], metodoPago: "efectivo" }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_total:    15458,
+      p_impuesto: 2468,  // 15458 × (0.19/1.19) = 2467.79 → 2468  (NO 2937 = 15458×0.19)
+    }));
+  });
+});
+
 // ── Consumo alertas desde mascotas ────────────────────────────────────────────
 
 const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174040";

@@ -171,7 +171,7 @@ async function postVenta(req: NextRequest) {
   const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
   const descuentoMonto = (subtotal * descuento_pct) / 100;
   const total = Math.round(subtotal - descuentoMonto);
-  const impuesto = Math.round(total * IVA_RATE);
+  const impuesto = Math.round(total * IVA_RATE / (1 + IVA_RATE));
   const montoNetoVenta = total - impuesto;
 
   // Validar NC antes de abrir la transacción
@@ -391,7 +391,7 @@ async function postVenta(req: NextRequest) {
   }
 
   // Asiento contable
-  const ivaCalc = Math.round(total * IVA_RATE);
+  const ivaCalc = Math.round(total * IVA_RATE / (1 + IVA_RATE));
   const montoNeto = total - ivaCalc;
 
   crearAsiento({

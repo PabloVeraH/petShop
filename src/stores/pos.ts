@@ -168,12 +168,12 @@ export const usePOSStore = create<POSStore>()(
       // precio ya incluye IVA
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
 
-      // IVA = IVA_RATE del total con descuento (los precios son neto, IVA se calcula sobre ellos)
+      // IVA extraído del total con descuento — los precios ya incluyen IVA
       impuesto: () => {
         const sub = get().subtotal();
         const desc = (sub * get().descuento) / 100;
         const t = sub - desc;
-        return Math.round(t * IVA_RATE);
+        return Math.round(t * IVA_RATE / (1 + IVA_RATE));
       },
 
       // Total = subtotal - descuento (IVA ya incluido en el precio) — pesos enteros

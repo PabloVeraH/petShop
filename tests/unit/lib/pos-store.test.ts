@@ -125,18 +125,18 @@ describe("POS Store — cálculo IVA (impuesto)", () => {
   beforeEach(resetStore);
 
   // S-20
-  it("S-20: impuesto() es 19% del subtotal sin descuento", () => {
+  it("S-20: impuesto() extrae IVA del subtotal (precio ya incluye IVA)", () => {
     usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 45928, subtotal: 45928 });
-    // 45928 * 0.19 = 8726.32 → redondeado 8726
-    expect(usePOSStore.getState().impuesto()).toBe(8726);
+    // 45928 × (0.19/1.19) = 7333.47 → redondeado 7333
+    expect(usePOSStore.getState().impuesto()).toBe(7333);
   });
 
   // S-21
-  it("S-21: impuesto() aplica 19% sobre total con descuento", () => {
+  it("S-21: impuesto() extrae IVA del total con descuento", () => {
     usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 10000, subtotal: 10000 });
     usePOSStore.getState().setDescuento(10);
-    // total = 10000 - 10% = 9000; IVA = 9000 * 0.19 = 1710
-    expect(usePOSStore.getState().impuesto()).toBe(1710);
+    // total = 10000 - 10% = 9000; IVA = 9000 × (0.19/1.19) = 1436.97 → 1437
+    expect(usePOSStore.getState().impuesto()).toBe(1437);
   });
 
   // S-22
@@ -144,15 +144,24 @@ describe("POS Store — cálculo IVA (impuesto)", () => {
     expect(usePOSStore.getState().impuesto()).toBe(0);
   });
 
-  // S-23: consistencia con ModalPago (misma fórmula * 0.19)
-  it("S-23: impuesto() coincide con la fórmula del ModalPago (sub - desc) * 0.19", () => {
+  // S-23: consistencia con ModalPago — misma fórmula de extracción (sub - desc) × (0.19/1.19)
+  it("S-23: impuesto() coincide con la fórmula del ModalPago (sub - desc) × (0.19/1.19)", () => {
     usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 30000, subtotal: 30000 });
     usePOSStore.getState().setDescuento(5);
     const store = usePOSStore.getState();
     const sub = store.subtotal();
     const desc = (sub * store.descuento) / 100;
-    const expectedIva = Math.round((sub - desc) * 0.19);
+    const expectedIva = Math.round((sub - desc) * 0.19 / 1.19);
     expect(store.impuesto()).toBe(expectedIva);
+  });
+
+  // S-27: REGRESIÓN — Whiskas 1kg $15.458 → IVA = $2.468, no $2.937
+  // Bug: se usaba total × 0.19 (aditiva) en vez de total × (0.19/1.19) (extracción)
+  it("S-27: Whiskas 1kg $15.458 con IVA incluido → IVA extraído = $2.468", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 15458, subtotal: 15458 });
+    // extracción: 15458 × (0.19/1.19) = 2467.79 → 2468
+    // erróneo:    15458 × 0.19        = 2937.02 → 2937
+    expect(usePOSStore.getState().impuesto()).toBe(2468);
   });
 
   // S-24: redondeo a pesos enteros
