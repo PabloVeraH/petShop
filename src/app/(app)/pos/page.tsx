@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { usePOSStore } from "@/stores/pos";
@@ -28,11 +28,16 @@ export default function POSPage() {
   // este valor cuando persist rehidrata desde localStorage (evita "Cobrar $0" en recarga)
   const cartTotal = usePOSStore((state) => state.total());
 
+  // Rastrear para qué userId se inicializó workerClerkId — si el usuario autenticado
+  // cambia (sesión compartida, turno de vendedores), resetear al usuario actual aunque
+  // workerClerkId ya tenga valor de la sesión anterior persisted en localStorage.
+  const initializedWorkerForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (userId && !workerClerkId) {
-      setWorker(userId);
-    }
-  }, [userId, workerClerkId, setWorker]);
+    if (!userId) return;
+    if (initializedWorkerForRef.current === userId) return; // mismo usuario: no pisar selección manual de vendedor
+    initializedWorkerForRef.current = userId;
+    setWorker(userId);
+  }, [userId, setWorker]);
 
   const { mutate: procesarVenta, isPending } = useMutation({
     mutationFn: () =>

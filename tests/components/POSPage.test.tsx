@@ -1,5 +1,5 @@
 /**
- * Tests PP-01 a PP-03: POSPage — botón "Cobrar" reactivo al total del carrito
+ * Tests PP-01 a PP-04: POSPage — botón "Cobrar" reactivo al total del carrito
  * Regresión: el botón mostraba "Cobrar $0" al cargar la página con items persistidos
  * en localStorage, porque usePOSStore() sin selector no garantizaba re-render tras
  * la rehidratación de Zustand persist. Fix: cartTotal = usePOSStore(state => state.total())
@@ -132,5 +132,25 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     const button = screen.getByRole("button", { name: /Cobrar/i });
     expect(button).toHaveTextContent("Cobrar $0");
     expect(button).toBeDisabled();
+  });
+
+  // PP-04: REGRESIÓN — el vendedor activo siempre se asigna al montar, incluso si
+  // workerClerkId tiene un valor persistido de una sesión anterior (ej: admin previo).
+  // Bug: la condición `!workerClerkId` impedía sobreescribir el admin guardado en
+  // localStorage cuando un vendedor diferente iniciaba sesión en el mismo equipo.
+  it("PP-04: setWorker se llama con userId al montar aunque workerClerkId ya tenga valor previo", () => {
+    // Store con workerClerkId del admin de la sesión anterior
+    const store = makeMockStore();
+    const storeConWorkerPrevio = { ...store, workerClerkId: "admin-clerk-id-previo" };
+    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
+      if (typeof selector === "function") return selector(storeConWorkerPrevio);
+      return storeConWorkerPrevio;
+    });
+
+    render(<POSPage />, { wrapper: makeWrapper() });
+
+    // El userId del mock de Clerk es "user-123" (el vendedor actual)
+    // setWorker debe haberse llamado con el userId actual, no dejar el admin previo
+    expect(mockSetWorker).toHaveBeenCalledWith("user-123");
   });
 });
