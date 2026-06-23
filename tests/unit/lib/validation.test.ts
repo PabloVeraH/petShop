@@ -39,6 +39,61 @@ describe("lib/validation", () => {
     expect(validateRUT("11111111-1")).toBe(true);
   });
 
+  // ── Suite extendida: cobertura exhaustiva del algoritmo módulo-11 ────────────
+
+  // U-10: REGRESIÓN — body todo-ceros genera DV=0 matemáticamente correcto pero RUT 0
+  // no existe en Chile. Sin este guard, "00.000.000-0" pasaba la validación.
+  it("U-10: rechaza RUT con cuerpo todo-ceros (00.000.000-0 no existe en Chile)", () => {
+    expect(validateRUT("00.000.000-0")).toBe(false);
+    expect(validateRUT("00000000-0")).toBe(false);
+  });
+
+  // U-11: RUT de persona natural de 7 dígitos (cuerpo < 1.000.000)
+  it("U-11: acepta RUT de 7 dígitos (1.234.567-4)", () => {
+    expect(validateRUT("1.234.567-4")).toBe(true);
+    expect(validateRUT("12345674")).toBe(true); // sin formato
+  });
+
+  // U-12: DV en minúscula 'k' debe ser aceptado igual que 'K'
+  it("U-12: acepta DV 'k' en minúscula como equivalente a 'K'", () => {
+    expect(validateRUT("1.111.119-k")).toBe(true);
+    expect(validateRUT("76.354.771-k")).toBe(true);
+  });
+
+  // U-13: RUT de empresa con DV = K (76.354.771-K verificado)
+  it("U-13: acepta RUT de empresa con DV = K (76.354.771-K)", () => {
+    expect(validateRUT("76.354.771-K")).toBe(true);
+  });
+
+  // U-14: RUT de 8 dígitos en rango alto (17.456.789-1 del reporte del usuario)
+  it("U-14: acepta RUT de 8 dígitos en rango alto (17.456.789-1)", () => {
+    expect(validateRUT("17.456.789-1")).toBe(true);
+  });
+
+  // U-15: RUT con DV correcto para body 18.234.567 (DV real = 9, no 4)
+  it("U-15: acepta 18.234.567-9 (DV correcto) y rechaza 18.234.567-4 (DV incorrecto)", () => {
+    expect(validateRUT("18.234.567-9")).toBe(true);
+    expect(validateRUT("18.234.567-4")).toBe(false);
+  });
+
+  // U-16: RUT persona natural adicional verificado (5.126.663-3)
+  it("U-16: acepta 5.126.663-3", () => {
+    expect(validateRUT("5.126.663-3")).toBe(true);
+  });
+
+  // U-17: DV incorrecto en diferentes rangos
+  it("U-17: rechaza varios RUTs con DV incorrecto", () => {
+    expect(validateRUT("11.111.111-2")).toBe(false); // DV correcto es 1
+    expect(validateRUT("17.456.789-9")).toBe(false); // DV correcto es 1
+    expect(validateRUT("5.126.663-0")).toBe(false);  // DV correcto es 3
+  });
+
+  // U-18: formatos sin separadores (solo dígitos + DV)
+  it("U-18: acepta RUT sin puntos ni guión (solo dígitos y DV pegados)", () => {
+    expect(validateRUT("111111111")).toBe(true);   // 11.111.111-1 sin formato
+    expect(validateRUT("174567891")).toBe(true);   // 17.456.789-1 sin formato
+  });
+
   // U-05
   it("U-05: formatRUT formatea sin puntos ni guión a formato estándar", () => {
     expect(formatRUT("11111111-1")).toBe("11.111.111-1");

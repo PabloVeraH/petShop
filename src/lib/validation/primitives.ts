@@ -10,6 +10,10 @@ export function validateRUT(rut: string): boolean {
   const digits = clean.slice(0, -1);
   const dv = clean.slice(-1).toUpperCase();
 
+  // RUT cuerpo 0 no existe en Chile; el módulo-11 produce DV=0 para body todo-ceros,
+  // lo que generaría un falso positivo sin este guard.
+  if (parseInt(digits, 10) === 0) return false;
+
   let sum = 0;
   let multiplier = 2;
 
