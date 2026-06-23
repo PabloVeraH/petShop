@@ -113,7 +113,7 @@ async function postVenta(req: NextRequest) {
   const uniqueProductoIds = [...new Set(productoIds)];
   const { data: productosDB, error: precioError } = await supabase
     .from("productos")
-    .select("id, precio, precio_oferta, en_oferta, precio_venta_kg")
+    .select("id, nombre, precio, precio_oferta, en_oferta, precio_venta_kg, stock")
     .in("id", uniqueProductoIds)
     .eq("store_id", store_id);
 
@@ -142,6 +142,22 @@ async function postVenta(req: NextRequest) {
      return NextResponse.json(
        { error: "Producto granel sin precio_venta_kg configurado — configure el precio por kg antes de vender a granel" },
        { status: 400 }
+     );
+   }
+
+   // Validar stock antes de abrir la transacción — productos no-granel
+   const stockErrors: string[] = [];
+   for (const item of items) {
+     if (item.es_granel) continue;
+     const prod = productosDB.find((p) => p.id === item.producto_id);
+     if (prod && item.cantidad > prod.stock) {
+       stockErrors.push(`"${prod.nombre}": disponible ${prod.stock}, solicitado ${item.cantidad}`);
+     }
+   }
+   if (stockErrors.length > 0) {
+     return NextResponse.json(
+       { error: `Stock insuficiente — ${stockErrors.join("; ")}` },
+       { status: 422 }
      );
    }
 

@@ -181,6 +181,42 @@ describe("POS Store — guard precio null", () => {
   });
 });
 
+describe("POS Store — guard sobrestock", () => {
+  beforeEach(resetStore);
+
+  // S-32: REGRESIÓN — addItem no puede superar el stock disponible
+  // Bug: se podían agregar 7 unidades de un producto con stock 6 sin advertencia.
+  it("S-32: addItem no incrementa cuando ya se alcanzó el stock máximo", () => {
+    // Agregar hasta el stock máximo (stock: 2)
+    usePOSStore.getState().addItem({ ...ITEM_BASE, stock: 2 });
+    usePOSStore.getState().addItem({ ...ITEM_BASE, stock: 2 }); // llega a 2 (límite)
+    expect(usePOSStore.getState().items[0].cantidad).toBe(2);
+
+    // Intento adicional debe ser ignorado
+    usePOSStore.getState().addItem({ ...ITEM_BASE, stock: 2 });
+    expect(usePOSStore.getState().items[0].cantidad).toBe(2); // no cambió
+  });
+
+  // S-33: updateQuantity tampoco puede superar el stock
+  it("S-33: updateQuantity caps la cantidad al stock disponible", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, stock: 3 });
+    const id = usePOSStore.getState().items[0].id;
+
+    usePOSStore.getState().updateQuantity(id, 10); // pide 10, stock = 3
+    const item = usePOSStore.getState().items[0];
+    expect(item.cantidad).toBe(3);
+    expect(item.subtotal).toBe(3 * ITEM_BASE.precio);
+  });
+
+  // S-34: sin stock definido, no hay límite (comportamiento previo preservado)
+  it("S-34: sin campo stock, updateQuantity no tiene límite", () => {
+    usePOSStore.getState().addItem(ITEM_BASE); // sin stock
+    const id = usePOSStore.getState().items[0].id;
+    usePOSStore.getState().updateQuantity(id, 99);
+    expect(usePOSStore.getState().items[0].cantidad).toBe(99);
+  });
+});
+
 describe("POS Store — persistencia en localStorage", () => {
   beforeEach(resetStore);
 

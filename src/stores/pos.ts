@@ -13,6 +13,7 @@ interface CartItem {
   fecha_vencimiento?: string | null;
   precio_oferta?: number | null;
   en_oferta?: boolean;
+  stock?: number;            // unidades disponibles en el momento de agregar (guard de sobrestock)
   // Campos granel:
   es_granel?: boolean;       // true si la venta es a granel
   gramos?: number;           // gramos indicados por el vendedor (solo display/recibo)
@@ -84,6 +85,8 @@ export const usePOSStore = create<POSStore>()(
                  !i.es_granel
         );
         if (existing) {
+          // Guard sobrestock: si el stock es conocido y ya se alcanzó, ignorar silenciosamente
+          if (item.stock !== undefined && existing.cantidad >= item.stock) return;
           set((state) => ({
             items: state.items.map((i) =>
               i.id === existing.id
@@ -109,9 +112,12 @@ export const usePOSStore = create<POSStore>()(
           return;
         }
         set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, cantidad: quantity, subtotal: i.precio * quantity } : i
-          ),
+          items: state.items.map((i) => {
+            if (i.id !== id) return i;
+            // Guard sobrestock: no superar el stock disponible
+            const safeQty = i.stock !== undefined ? Math.min(quantity, i.stock) : quantity;
+            return { ...i, cantidad: safeQty, subtotal: i.precio * safeQty };
+          }),
         }));
       },
 

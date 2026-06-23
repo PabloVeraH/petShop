@@ -130,7 +130,13 @@ export default function Carrito() {
                   <span className="text-xs w-5 text-center font-medium">{item.cantidad}</span>
                   <button
                     onClick={() => updateQuantity(item.id, item.cantidad + 1)}
-                    className="w-6 h-6 text-xs flex items-center justify-center hover:bg-gray-200 rounded"
+                    disabled={item.stock !== undefined && item.cantidad >= item.stock}
+                    title={item.stock !== undefined && item.cantidad >= item.stock ? `Stock máximo: ${item.stock}` : undefined}
+                    className={`w-6 h-6 text-xs flex items-center justify-center rounded ${
+                      item.stock !== undefined && item.cantidad >= item.stock
+                        ? "opacity-30 cursor-not-allowed"
+                        : "hover:bg-gray-200"
+                    }`}
                   >
                     +
                   </button>

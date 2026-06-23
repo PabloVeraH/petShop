@@ -65,7 +65,7 @@ function makeRequest(body: object) {
 
 const VALID_ITEM = { producto_id: PRODUCTO_ID, cantidad: 2 };
 
-const DB_PRODUCTO = { id: PRODUCTO_ID, precio: 10000, precio_oferta: null, en_oferta: false };
+const DB_PRODUCTO = { id: PRODUCTO_ID, nombre: "Cama Mascota Talla M", precio: 10000, precio_oferta: null, en_oferta: false, stock: 10 };
 const DB_PRODUCTO_SYNC = { id: PRODUCTO_ID, nombre: "Test", marca: null, codigo_barra: null, precio: 10000, stock: 48, activo: true };
 // Respuesta simulada del RPC crear_venta_tx
 const DB_VENTA = {
@@ -733,5 +733,60 @@ describe("POST /api/ventas — consumo alertas desde mascotas (I-58/I-59)", () =
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
       p_items: expect.arrayContaining([expect.objectContaining({ mascota_id: MASCOTA_ID })]),
     }));
+  });
+});
+
+// ── Sobrestock ───────────────────────────────────────────────────────────────
+//
+// REGRESIÓN — I-67: el backend debe rechazar ventas que superen el stock disponible
+// Bug: el route no validaba stock antes de llamar al RPC. Un vendedor podía vender
+// 7 unidades de un producto con stock 6 sin ningún error.
+
+describe("POST /api/ventas — sobrestock (I-67)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // I-67: intentar vender más unidades de las disponibles → 422
+  it("I-67: rechaza venta con sobrestock → 422 con mensaje de error claro", async () => {
+    const PRODUCTO_STOCK_6 = { id: PRODUCTO_ID, nombre: "Cama Mascota Talla M", precio: 24990, precio_oferta: null, en_oferta: false, stock: 6 };
+
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return {
+            select: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockResolvedValue({ data: [PRODUCTO_STOCK_6], error: null }),
+          };
+        }
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        };
+      }
+      return {
+        ...mockChain,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    });
+
+    // Intentar vender 7 unidades con stock de 6
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 7 }],
+      metodoPago: "efectivo",
+    }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("Stock insuficiente");
+    expect(body.error).toContain("Cama Mascota Talla M");
+    // El RPC NO debe haberse llamado — el rechazo ocurre antes de la transacción
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

@@ -13,7 +13,7 @@ import type { Producto } from "@/types";
 const mockAddItem = jest.fn();
 
 jest.mock("@/stores/pos", () => ({
-  usePOSStore: jest.fn(() => ({ addItem: mockAddItem, mascotaId: undefined })),
+  usePOSStore: jest.fn(() => ({ addItem: mockAddItem, mascotaId: undefined, items: [] })),
 }));
 
 const mockGetProductos = jest.fn();

@@ -16,7 +16,8 @@ export default function SearchProductos() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
   const [gramosInput, setGramosInput] = useState<string>("");
-  const { addItem, mascotaId } = usePOSStore();
+  const [stockWarning, setStockWarning] = useState<string | null>(null);
+  const { addItem, mascotaId, items } = usePOSStore();
   const queryClient = useQueryClient();
 
   // Timestamp of the first character typed — used to detect pistola vs teclado
@@ -31,6 +32,16 @@ export default function SearchProductos() {
   function addProductoToCart(prod: Producto) {
     const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
     if (!precioFinal) return;
+
+    // Guard sobrestock: verificar cantidad ya en carrito vs stock disponible
+    const inCartItem = items.find((i) => i.producto_id === prod.id && !i.es_granel);
+    const inCartQty = inCartItem?.cantidad ?? 0;
+    if (inCartQty >= prod.stock) {
+      setStockWarning(`Stock máximo alcanzado: ${prod.stock} unidad${prod.stock !== 1 ? "es" : ""} disponible${prod.stock !== 1 ? "s" : ""}`);
+      setTimeout(() => setStockWarning(null), 3000);
+      return;
+    }
+
     addItem({
       producto_id: prod.id,
       nombre: prod.nombre,
@@ -41,6 +52,7 @@ export default function SearchProductos() {
       fecha_vencimiento: prod.fecha_vencimiento,
       precio_oferta: prod.precio_oferta,
       en_oferta: prod.en_oferta,
+      stock: prod.stock,
     });
   }
 
@@ -155,6 +167,9 @@ export default function SearchProductos() {
       {scanError && (
         <p className="text-sm text-red-500 font-medium">{scanError}</p>
       )}
+      {stockWarning && (
+        <p className="text-sm text-amber-600 font-medium">{stockWarning}</p>
+      )}
 
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
@@ -196,6 +211,8 @@ export default function SearchProductos() {
           const vencStatus = getVencimientoStatus(prod);
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
           const sinPrecio = !precioFinal;
+          const inCartQty = items.find((i) => i.producto_id === prod.id && !i.es_granel)?.cantidad ?? 0;
+          const sinStock = !tieneGranel && inCartQty >= prod.stock;
 
           return (
             <div key={prod.id} className="relative rounded border bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -204,9 +221,9 @@ export default function SearchProductos() {
                   if (isGranelActivo) return; // si granel abierto, ignorar click en fondo
                   addProductoToCart(prod);
                 }}
-                disabled={sinPrecio}
+                disabled={sinPrecio || sinStock}
                 className={`text-left w-full p-4 transition-colors ${
-                  sinPrecio
+                  sinPrecio || sinStock
                     ? "opacity-60 cursor-not-allowed"
                     : vencStatus === "vencido"
                     ? "bg-red-50 hover:bg-red-100"
