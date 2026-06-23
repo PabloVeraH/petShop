@@ -112,23 +112,28 @@ export default clerkMiddleware(async (auth, req) => {
   // Rutas solo para storeAdmin y systemAdmin
   const adminOnlyRoutes = createRouteMatcher(["/vendedores(.*)"]);
   if (adminOnlyRoutes(req) && !isSystemAdmin && !meta?.storeAdmin) {
-    return NextResponse.redirect(new URL("/pos", req.url));
+    const blockedPath = encodeURIComponent(req.nextUrl.pathname);
+    return NextResponse.redirect(new URL(`/pos?_denied=${blockedPath}`, req.url));
   }
 
-  // storeWorker puede acceder a /pos, /customers y /dashboard — todo lo demás redirige al POS
-  // Las rutas /api tienen sus propios guards; aquí solo protegemos páginas
-  const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
-  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)"]);
-  if (isStoreWorker && !workerAllowedRoutes(req)) {
-    return NextResponse.redirect(new URL("/pos?_denied=1", req.url));
-  }
-
-  // Redirect desde raíz según rol
+  // Redirect desde raíz según rol — ANTES del check de storeWorker para evitar falso positivo:
+  // sin este orden, un storeWorker que navega a "/" recibiría ?_denied aunque no intentó
+  // acceder a ninguna sección restringida, solo cargó la app desde la raíz.
   if (req.nextUrl.pathname === "/" && userId) {
     if (isSystemAdmin) return NextResponse.redirect(new URL("/admin", req.url));
     if (meta?.storeAdmin) return NextResponse.redirect(new URL("/dashboard", req.url));
     if (meta?.storeWorker) return NextResponse.redirect(new URL("/pos", req.url));
     return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // storeWorker puede acceder a /pos, /customers y /dashboard — todo lo demás redirige al POS
+  // Las rutas /api tienen sus propios guards; aquí solo protegemos páginas.
+  // _denied lleva la ruta bloqueada para que el banner UI muestre el nombre de la sección.
+  const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
+  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)"]);
+  if (isStoreWorker && !workerAllowedRoutes(req)) {
+    const blockedPath = encodeURIComponent(req.nextUrl.pathname);
+    return NextResponse.redirect(new URL(`/pos?_denied=${blockedPath}`, req.url));
   }
 
   // Respuesta normal: propagar nonce al app y añadir CSP al response

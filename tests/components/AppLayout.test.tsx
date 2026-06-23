@@ -138,9 +138,11 @@ describe("AppLayout — banner de acceso denegado (AL-04/AL-05)", () => {
     useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
   });
 
-  // AL-04: REGRESIÓN — cuando el middleware redirige con _denied=1, se muestra un banner explicativo
-  it("AL-04: muestra banner 'No tienes permiso' cuando URL contiene _denied=1", async () => {
-    mockSearchParamsMap = { _denied: "1" };
+  // AL-04: REGRESIÓN — cuando el middleware redirige con _denied=<path>, se muestra el banner
+  // con el nombre de la sección bloqueada (no "esa sección" genérico).
+  it("AL-04: muestra banner con nombre de sección cuando URL contiene _denied=<path>", async () => {
+    // El middleware envía la ruta bloqueada; el layout la decodifica y busca el label en navItems
+    mockSearchParamsMap = { _denied: "/inventory" };
 
     render(
       <AppLayout>
@@ -152,12 +154,13 @@ describe("AppLayout — banner de acceso denegado (AL-04/AL-05)", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toBeInTheDocument()
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("No tienes permiso para acceder a esa sección");
+    // "/inventory" mapea al navItem { label: "Inventario" }
+    expect(screen.getByRole("alert")).toHaveTextContent("No tienes permiso para acceder a Inventario");
   });
 
   // AL-05: la URL se limpia y router.replace es llamado al mostrar el banner
-  it("AL-05: router.replace es llamado con pathname sin _denied=1 al mostrar el banner", async () => {
-    mockSearchParamsMap = { _denied: "1" };
+  it("AL-05: router.replace es llamado con pathname limpio sin _denied al mostrar el banner", async () => {
+    mockSearchParamsMap = { _denied: "/inventory" };
 
     render(
       <AppLayout>
@@ -171,8 +174,8 @@ describe("AppLayout — banner de acceso denegado (AL-04/AL-05)", () => {
     expect(mockReplace).toHaveBeenCalledWith("/pos", { scroll: false });
   });
 
-  // AL-06: sin _denied=1 en URL, no se muestra ningún banner
-  it("AL-06: sin _denied=1 no aparece banner de acceso denegado", () => {
+  // AL-06: sin _denied en URL, no se muestra ningún banner
+  it("AL-06: sin _denied no aparece banner de acceso denegado", () => {
     mockSearchParamsMap = {};
 
     render(
