@@ -6,7 +6,11 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type NuevaMascota = { id: string; nombre: string; tipo: string; raza?: string | null; peso_kg?: number | null };
+type NuevaMascota = {
+  id: string; nombre: string; tipo: string;
+  raza?: string | null; peso_kg?: number | null;
+  gramos_porcion?: number | null; veces_dia?: number | null;
+};
 
 export default function ModalMascotaCreate({
   clienteId,
@@ -17,7 +21,7 @@ export default function ModalMascotaCreate({
   onClose: () => void;
   onCreated?: (mascota: NuevaMascota) => void;
 }) {
-  const [form, setForm] = useState({ nombre: "", tipo: "perro", raza: "", peso_kg: "" });
+  const [form, setForm] = useState({ nombre: "", tipo: "perro", raza: "", peso_kg: "", gramos_porcion: "", veces_dia: "" });
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
@@ -38,6 +42,8 @@ export default function ModalMascotaCreate({
           tipo: form.tipo,
           raza: form.raza.trim() || undefined,
           peso_kg: form.peso_kg ? Number(form.peso_kg) : undefined,
+          gramos_porcion: form.gramos_porcion ? Number(form.gramos_porcion) : undefined,
+          veces_dia: form.veces_dia ? Number(form.veces_dia) : undefined,
         }),
       });
       if (!res.ok) {
@@ -112,6 +118,28 @@ export default function ModalMascotaCreate({
                 value={form.peso_kg}
                 onChange={(e) => setForm((f) => ({ ...f, peso_kg: e.target.value }))}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Gramos/porción</label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="ej: 150"
+                  value={form.gramos_porcion}
+                  onChange={(e) => setForm((f) => ({ ...f, gramos_porcion: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Veces/día</label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="ej: 2"
+                  value={form.veces_dia}
+                  onChange={(e) => setForm((f) => ({ ...f, veces_dia: e.target.value }))}
+                />
+              </div>
             </div>
             {error && <p className="text-xs text-red-500">{error}</p>}
             <div className="flex gap-2 pt-1">

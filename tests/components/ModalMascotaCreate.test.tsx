@@ -1,5 +1,5 @@
 /**
- * Tests C-20 a C-22: ModalMascotaCreate — confirmación y refresco sin duplicados
+ * Tests C-20 a C-24: ModalMascotaCreate — confirmación, refresco y campos de porción diaria
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -126,5 +126,42 @@ describe("ModalMascotaCreate", () => {
     expect(onCreated).not.toHaveBeenCalled();
     // El formulario sigue visible para que el usuario corrija
     expect(screen.getByRole("button", { name: "Guardar" })).toBeInTheDocument();
+  });
+
+  // C-23: REGRESIÓN — los campos de porción diaria deben estar presentes en el formulario
+  // de CREACIÓN, no solo en el de edición. Bug original: el formulario solo pedía
+  // Nombre, Tipo, Raza y Peso; los datos de consumo solo eran accesibles al editar.
+  it("C-23: el formulario incluye campos 'Gramos/porción' y 'Veces/día'", () => {
+    render(
+      <ModalMascotaCreate clienteId="c1" onClose={jest.fn()} />,
+      { wrapper: makeWrapper() }
+    );
+
+    // Verificar presencia por label text y por placeholder (accesibilidad + funcionalidad)
+    expect(screen.getByText(/Gramos\/porción/i)).toBeInTheDocument();
+    expect(screen.getByText(/Veces\/día/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ej: 150")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ej: 2")).toBeInTheDocument();
+  });
+
+  // C-24: los valores de gramos_porcion y veces_dia se envían en el POST al guardar
+  it("C-24: al guardar, gramos_porcion y veces_dia se incluyen en el body del POST", async () => {
+    mockFetchSuccess();
+    render(
+      <ModalMascotaCreate clienteId="c1" onClose={jest.fn()} />,
+      { wrapper: makeWrapper() }
+    );
+
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Firulais" } });
+    fireEvent.change(screen.getByPlaceholderText("ej: 150"), { target: { value: "150" } });
+    fireEvent.change(screen.getByPlaceholderText("ej: 2"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.gramos_porcion).toBe(150);
+    expect(body.veces_dia).toBe(2);
   });
 });
