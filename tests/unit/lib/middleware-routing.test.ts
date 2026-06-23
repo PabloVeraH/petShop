@@ -210,4 +210,12 @@ describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
     expect(workerDirective).toBeDefined();
     expect(workerDirective).toContain("blob:");
   });
+
+  // MW-20: REGRESIÓN — frame-src permite challenges.cloudflare.com para Clerk Turnstile CAPTCHA
+  it("MW-20: CSP incluye challenges.cloudflare.com en frame-src (Clerk Turnstile)", () => {
+    const csp = buildCsp(NONCE, false);
+    const frameDirective = csp.split(";").find((d) => d.trim().startsWith("frame-src"));
+    expect(frameDirective).toBeDefined();
+    expect(frameDirective).toContain("challenges.cloudflare.com");
+  });
 });

@@ -27,7 +27,7 @@ export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "develo
       "https://photon.komoot.io",
     ].join(" "),
     "worker-src 'self' blob:",
-    "frame-src 'none'",
+    "frame-src https://challenges.cloudflare.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
