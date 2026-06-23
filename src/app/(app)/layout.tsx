@@ -27,7 +27,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { sessionClaims } = useAuth();
-  const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
+  const jwtMeta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
+  const jwtHasRole = Boolean(jwtMeta?.storeWorker || jwtMeta?.storeAdmin || jwtMeta?.systemAdmin);
+
+  // Fallback al DB cuando el JWT no trae rol (ej: usuario recién onboarding sin re-login)
+  const { data: dbMeta } = useQuery<Record<string, boolean>>({
+    queryKey: ["user-me"],
+    queryFn: () => fetch("/api/me").then((r) => r.json()),
+    enabled: !jwtHasRole,
+    staleTime: 60_000,
+  });
+
+  const meta = jwtHasRole ? jwtMeta : (dbMeta ?? jwtMeta);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
 
