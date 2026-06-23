@@ -74,23 +74,8 @@ describe("AppLayout — navegación por rol", () => {
     });
   });
 
-  // AL-01: REGRESIÓN — storeWorker no debe ver "Clientes" en el nav
-  // El enlace existía pero el middleware bloqueaba /customers, causando que no navegara a ningún lado.
-  it("AL-01: storeWorker no ve el enlace 'Clientes' en el menu", () => {
-    useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
-
-    render(
-      <AppLayout>
-        <div>Contenido</div>
-      </AppLayout>,
-      { wrapper: makeWrapper() }
-    );
-
-    expect(screen.queryByText("Clientes")).not.toBeInTheDocument();
-  });
-
-  // AL-02: storeWorker solo ve "POS" en el nav
-  it("AL-02: storeWorker solo ve 'POS' como enlace de navegación", () => {
+  // AL-01: storeWorker ve "Clientes" y "Analitica" en el nav (ampliado por decisión de negocio)
+  it("AL-01: storeWorker ve POS, Clientes y Analitica en el menu", () => {
     useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
 
     render(
@@ -101,11 +86,25 @@ describe("AppLayout — navegación por rol", () => {
     );
 
     expect(screen.getByText("POS")).toBeInTheDocument();
-    // Rutas de admin no visibles
-    expect(screen.queryByText("Analitica")).not.toBeInTheDocument();
+    expect(screen.getByText("Clientes")).toBeInTheDocument();
+    expect(screen.getByText("Analitica")).toBeInTheDocument();
+  });
+
+  // AL-02: storeWorker NO ve rutas de administración
+  it("AL-02: storeWorker no ve Inventario, Ventas ni Configuración", () => {
+    useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
+
+    render(
+      <AppLayout>
+        <div>Contenido</div>
+      </AppLayout>,
+      { wrapper: makeWrapper() }
+    );
+
     expect(screen.queryByText("Inventario")).not.toBeInTheDocument();
     expect(screen.queryByText("Ventas")).not.toBeInTheDocument();
     expect(screen.queryByText("Configuración")).not.toBeInTheDocument();
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
 
   // AL-03: storeAdmin ve todos los módulos excepto Admin

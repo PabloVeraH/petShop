@@ -115,10 +115,10 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/pos", req.url));
   }
 
-  // storeWorker solo puede acceder a /pos — todo lo demás redirige al POS
+  // storeWorker puede acceder a /pos, /customers y /dashboard — todo lo demás redirige al POS
   // Las rutas /api tienen sus propios guards; aquí solo protegemos páginas
   const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
-  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/api/(.*)"]);
+  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)"]);
   if (isStoreWorker && !workerAllowedRoutes(req)) {
     return NextResponse.redirect(new URL("/pos?_denied=1", req.url));
   }

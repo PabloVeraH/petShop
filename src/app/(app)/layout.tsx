@@ -9,8 +9,8 @@ import { LicenseProvider } from "@/components/LicenseProvider";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
-  { href: "/dashboard", label: "Analitica", roles: ["storeAdmin", "systemAdmin"] },
-  { href: "/customers", label: "Clientes", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/dashboard", label: "Analitica", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
+  { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },
