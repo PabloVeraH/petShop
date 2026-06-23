@@ -27,7 +27,7 @@ function buildCsp(nonce: string): string {
       "https://graph.facebook.com",
       "https://photon.komoot.io",
     ].join(" "),
-    isDev ? "worker-src 'self' blob:" : "worker-src 'self'",
+    "worker-src 'self' blob:",
     "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",
