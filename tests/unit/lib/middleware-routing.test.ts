@@ -1,10 +1,12 @@
 /**
- * Tests MW-01 a MW-13: lógica de routing por rol y license check (extraída del middleware)
+ * Tests MW-01 a MW-19: lógica de routing por rol, license check y CSP (extraída del middleware)
  * Verifica que storeWorker solo accede a /pos, admins no son bloqueados,
- * y que un error transitorio de Supabase en la verificación de licencia no bloquea al usuario.
+ * que un error transitorio de Supabase en la verificación de licencia no bloquea al usuario,
+ * y que el CSP generado es correcto en todos los entornos.
  */
 
 import { computeLicenseStatus } from "@/lib/license";
+import { buildCsp } from "@/middleware";
 
 // Replica la lógica de routing del middleware sin depender de Clerk ni Next.js
 function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker" | "none") {
@@ -179,5 +181,33 @@ describe("Middleware — license check fail-open", () => {
     });
     const result = await simulateLicenseCheck(fetchStore);
     expect(result).toBe("allowed");
+  });
+});
+
+// ── Suite 3: CSP worker-src blob: (REGRESIÓN) ────────────────────────────────
+//
+// Clerk crea un Web Worker desde una blob: URL para hacer polling del token de
+// sesión. La directiva worker-src del CSP debe incluir blob: en todos los
+// entornos (producción y desarrollo). Bug original: blob: solo estaba permitido
+// en desarrollo, bloqueando el login en producción.
+
+const NONCE = "test-nonce-abc123";
+
+describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
+
+  // MW-18: REGRESIÓN — worker-src incluye blob: en producción
+  it("MW-18: CSP de producción incluye blob: en worker-src (necesario para Clerk)", () => {
+    const csp = buildCsp(NONCE, false); // isDev = false → producción
+    const workerDirective = csp.split(";").find((d) => d.trim().startsWith("worker-src"));
+    expect(workerDirective).toBeDefined();
+    expect(workerDirective).toContain("blob:");
+  });
+
+  // MW-19: worker-src también incluye blob: en desarrollo (comportamiento previo preservado)
+  it("MW-19: CSP de desarrollo incluye blob: en worker-src", () => {
+    const csp = buildCsp(NONCE, true); // isDev = true → desarrollo
+    const workerDirective = csp.split(";").find((d) => d.trim().startsWith("worker-src"));
+    expect(workerDirective).toBeDefined();
+    expect(workerDirective).toContain("blob:");
   });
 });

@@ -4,8 +4,7 @@ import { apiGeneralLimit } from "@/middleware/rateLimit";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
 
-function buildCsp(nonce: string): string {
-  const isDev = process.env.NODE_ENV === "development";
+export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "development"): string {
   const directives = [
     "default-src 'self'",
     // nonce + strict-dynamic: sin 'unsafe-inline' en producción
