@@ -1,4 +1,6 @@
 import { getStoreId } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { getAdminStatus } from "@/lib/admin-check";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { startOfDay, endOfDay } from "date-fns";
@@ -6,27 +8,37 @@ import { startOfDay, endOfDay } from "date-fns";
 export async function GET() {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { storeId: store_id } = ctx;
+  const { storeId: store_id, userId } = ctx;
   const supabase = createServiceClient();
+
+  // Determinar si el usuario es un vendedor puro (sin rol admin)
+  const { sessionClaims } = await auth();
+  const adminCtx = getAdminStatus(sessionClaims);
+  const isWorkerOnly = !adminCtx?.isStoreAdmin && !adminCtx?.isSystemAdmin;
 
   const now = new Date();
   const dayStart = startOfDay(now).toISOString();
   const dayEnd = endOfDay(now).toISOString();
 
+  // Los vendedores solo ven sus propias ventas; admins ven toda la tienda
+  let ventasHoyBase = supabase
+    .from("ventas")
+    .select("id, total, descuento, metodo_pago, canal, procedencia")
+    .eq("store_id", store_id)
+    .neq("estado", "anulada")
+    .gte("created_at", dayStart)
+    .lte("created_at", dayEnd);
+  if (isWorkerOnly) ventasHoyBase = ventasHoyBase.eq("worker_clerk_id", userId);
+
+  let ultimasVentasBase = supabase
+    .from("ventas")
+    .select("id, total, created_at, estado, canal, clientes(nombre)")
+    .eq("store_id", store_id);
+  if (isWorkerOnly) ultimasVentasBase = ultimasVentasBase.eq("worker_clerk_id", userId);
+
   const [ventasHoyResult, ultimasVentasResult] = await Promise.all([
-    supabase
-      .from("ventas")
-      .select("id, total, descuento, metodo_pago, canal, procedencia")
-      .eq("store_id", store_id)
-      .neq("estado", "anulada")
-      .gte("created_at", dayStart)
-      .lte("created_at", dayEnd),
-    supabase
-      .from("ventas")
-      .select("id, total, created_at, estado, canal, clientes(nombre)")
-      .eq("store_id", store_id)
-      .order("created_at", { ascending: false })
-      .limit(10),
+    ventasHoyBase,
+    ultimasVentasBase.order("created_at", { ascending: false }).limit(10),
   ]);
 
   const ventasHoy = ventasHoyResult.data ?? [];
