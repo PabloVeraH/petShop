@@ -7,6 +7,8 @@ type ClerkWebhookEvent = {
   type: string;
   data: {
     id: string;
+    first_name: string | null;
+    last_name: string | null;
     email_addresses: { email_address: string }[];
     public_metadata: Record<string, unknown>;
     banned?: boolean;
@@ -47,10 +49,12 @@ export async function POST(req: NextRequest) {
   const meta = event.data.public_metadata;
 
   if (event.type === "user.created" || event.type === "user.updated") {
+    const nombre = [event.data.first_name, event.data.last_name].filter(Boolean).join(" ") || null;
     await supabase.from("clerk_users").upsert(
       {
         clerk_id: event.data.id,
         email: event.data.email_addresses[0]?.email_address ?? null,
+        ...(nombre ? { nombre } : {}),
         system_admin: Boolean(meta?.systemAdmin),
         store_admin: Boolean(meta?.storeAdmin),
         store_worker: Boolean(meta?.storeWorker),

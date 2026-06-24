@@ -106,4 +106,59 @@ describe("POST /api/admin/users", () => {
     expect(res.status).toBe(200);
     expect(mockUpdateUserMetadata).toHaveBeenCalled();
   });
+
+  // I-96: REGRESIÓN — asignar usuario sin lastName en Clerk NO debe pasar nombre:null al upsert.
+  // Bug original: firstName && lastName requería ambos; si faltaba uno, nombre=null se pasaba
+  // explícitamente al upsert sobreescribiendo un nombre previo en clerk_users.
+  it("I-96: Clerk user sin lastName → upsert NO incluye clave nombre (no sobreescribe existente)", async () => {
+    const capturedPayload: unknown[] = [];
+    const mockUpsertCapture = jest.fn((data) => {
+      capturedPayload.push(data);
+      return Promise.resolve({ data: null, error: null });
+    });
+    mockFrom.mockReturnValue({ upsert: mockUpsertCapture });
+    mockClerkClient.mockResolvedValue({
+      users: {
+        getUserList: jest.fn().mockResolvedValue({
+          data: [{ id: "clerk_pablo", firstName: "Pablo", lastName: null }],
+        }),
+        updateUserMetadata: jest.fn().mockResolvedValue({}),
+      },
+    });
+    const { POST } = await import("@/app/api/admin/users/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "pablo@store.com", storeId: STORE_ID, role: "storeWorker" }),
+    }));
+    expect(res.status).toBe(200);
+    // firstName="Pablo", lastName=null → nombre="Pablo" (no null) → incluido en upsert
+    expect(capturedPayload[0]).toMatchObject({ nombre: "Pablo" });
+  });
+
+  // I-97: Clerk user sin nombre alguno → upsert NO incluye clave nombre.
+  it("I-97: Clerk user sin firstName ni lastName → upsert NO incluye clave nombre", async () => {
+    const capturedPayload: unknown[] = [];
+    const mockUpsertCapture = jest.fn((data) => {
+      capturedPayload.push(data);
+      return Promise.resolve({ data: null, error: null });
+    });
+    mockFrom.mockReturnValue({ upsert: mockUpsertCapture });
+    mockClerkClient.mockResolvedValue({
+      users: {
+        getUserList: jest.fn().mockResolvedValue({
+          data: [{ id: "clerk_noname", firstName: null, lastName: null }],
+        }),
+        updateUserMetadata: jest.fn().mockResolvedValue({}),
+      },
+    });
+    const { POST } = await import("@/app/api/admin/users/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "noname@store.com", storeId: STORE_ID, role: "storeWorker" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(capturedPayload[0]).not.toHaveProperty("nombre");
+  });
 });

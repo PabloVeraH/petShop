@@ -74,6 +74,90 @@ describe("POST /api/webhooks/clerk", () => {
     expect(mockUpsert).toHaveBeenCalled();
   });
 
+  // I-107: REGRESIÓN — user.created con nombre en Clerk debe sincronizar nombre en clerk_users.
+  // Bug original: first_name/last_name no se extraían del payload, nombre quedaba null
+  // y el vendedor aparecía como "elfomaster@gmail.com" en el dropdown del POS.
+  it("I-107: user.created con first_name y last_name → upsert incluye nombre", async () => {
+    const event = {
+      type: "user.created",
+      data: {
+        id: "user_pablo",
+        first_name: "Pablo",
+        last_name: "Vera",
+        email_addresses: [{ email_address: "pablo@test.com" }],
+        public_metadata: { storeWorker: true, storeId: "store_xyz" },
+      },
+    };
+    mockVerify.mockReturnValue(event);
+    const capturedPayload: unknown[] = [];
+    mockFrom.mockReturnValue({
+      upsert: jest.fn((data) => { capturedPayload.push(data); return Promise.resolve({ data: null, error: null }); }),
+    });
+    const { POST } = await import("@/app/api/webhooks/clerk/route");
+    const res = await POST(new NextRequest("http://localhost/api/webhooks/clerk", {
+      method: "POST",
+      headers: svixHeaders(),
+      body: JSON.stringify(event),
+    }));
+    expect(res.status).toBe(200);
+    expect(capturedPayload[0]).toMatchObject({ nombre: "Pablo Vera" });
+  });
+
+  // I-108: REGRESIÓN — user.created sin nombre en Clerk NO debe pasar nombre al upsert
+  // (evita sobreescribir un nombre existente con null en updates subsiguientes).
+  it("I-108: user.created sin nombre en Clerk → upsert NO incluye clave nombre", async () => {
+    const event = {
+      type: "user.created",
+      data: {
+        id: "user_noname",
+        first_name: null,
+        last_name: null,
+        email_addresses: [{ email_address: "noname@test.com" }],
+        public_metadata: { storeWorker: true, storeId: "store_xyz" },
+      },
+    };
+    mockVerify.mockReturnValue(event);
+    const capturedPayload: unknown[] = [];
+    mockFrom.mockReturnValue({
+      upsert: jest.fn((data) => { capturedPayload.push(data); return Promise.resolve({ data: null, error: null }); }),
+    });
+    const { POST } = await import("@/app/api/webhooks/clerk/route");
+    const res = await POST(new NextRequest("http://localhost/api/webhooks/clerk", {
+      method: "POST",
+      headers: svixHeaders(),
+      body: JSON.stringify(event),
+    }));
+    expect(res.status).toBe(200);
+    expect(capturedPayload[0]).not.toHaveProperty("nombre");
+  });
+
+  // I-109: user.updated con nombre → nombre se actualiza en clerk_users.
+  it("I-109: user.updated con first_name y last_name → upsert incluye nombre actualizado", async () => {
+    const event = {
+      type: "user.updated",
+      data: {
+        id: "user_pablo",
+        first_name: "Pablo",
+        last_name: "Vera",
+        email_addresses: [{ email_address: "pablo@test.com" }],
+        public_metadata: { storeWorker: true, storeId: "store_xyz" },
+      },
+    };
+    mockVerify.mockReturnValue(event);
+    const capturedPayload: unknown[] = [];
+    mockFrom.mockReturnValue({
+      upsert: jest.fn((data) => { capturedPayload.push(data); return Promise.resolve({ data: null, error: null }); }),
+    });
+    const { POST } = await import("@/app/api/webhooks/clerk/route");
+    const res = await POST(new NextRequest("http://localhost/api/webhooks/clerk", {
+      method: "POST",
+      headers: svixHeaders(),
+      body: JSON.stringify(event),
+    }));
+    expect(res.status).toBe(200);
+    expect(capturedPayload[0]).toMatchObject({ nombre: "Pablo Vera" });
+  });
+
   // I-106
   it("I-106: user.deleted → delete de clerk_users", async () => {
     const event = {

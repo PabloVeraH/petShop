@@ -65,16 +65,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Sync clerk_users
+  // Sync clerk_users — nombre solo se incluye si Clerk lo tiene (no sobreescribir con null)
   const supabase = createServiceClient();
-  const nombre = target.firstName && target.lastName
-    ? `${target.firstName} ${target.lastName}`.trim()
-    : null;
+  const nombre = [target.firstName, target.lastName].filter(Boolean).join(" ") || null;
   await supabase.from("clerk_users").upsert(
     {
       clerk_id: target.id,
       email,
-      nombre,
+      ...(nombre ? { nombre } : {}),
       store_id: storeId,
       store_admin: role === "storeAdmin",
       store_worker: role === "storeWorker",
