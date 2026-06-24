@@ -231,7 +231,7 @@ async function postVenta(req: NextRequest) {
     p_store_id:             store_id,
     p_items:                itemsConPrecio,
     p_cliente_id:           clienteId ?? null,
-    p_worker_clerk_id:      workerClerkId ?? null,
+    p_worker_clerk_id:      workerClerkId ?? ctx.userId,
     p_subtotal:             subtotal,
     p_descuento_pct:        descuento_pct,
     p_impuesto:             impuesto,

@@ -660,6 +660,61 @@ describe("POST /api/ventas — IVA correcto enviado al RPC (I-66)", () => {
   });
 });
 
+// ── Worker clerk ID ────────────────────────────────────────────────────────────
+
+describe("POST /api/ventas — workerClerkId (I-68)", () => {
+  function setupWorkerCapture() {
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        }
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+      }
+      if (table === "stores") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5 }, error: null }) };
+      }
+      if (table === "clientes") {
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: {}, error: null }) };
+      }
+      return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupWorkerCapture();
+    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+  });
+
+  // I-68: workerClerkId se envía al RPC como p_worker_clerk_id
+  // Si se omite, debe usar el userId del token (ctx.userId) como fallback
+  it("I-68: workerClerkId proporcionado → se pasa al RPC; si se omite → fallback a ctx.userId", async () => {
+    await POST(makeRequest({
+      items: [VALID_ITEM],
+      metodoPago: "efectivo",
+      workerClerkId: "user-worker-123",
+    }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_worker_clerk_id: "user-worker-123",
+    }));
+
+    jest.clearAllMocks();
+    setupWorkerCapture();
+    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+
+    await POST(makeRequest({
+      items: [VALID_ITEM],
+      metodoPago: "efectivo",
+    }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_worker_clerk_id: "user-1", // fallback al userId autenticado
+    }));
+  });
+});
+
 // ── Consumo alertas desde mascotas ────────────────────────────────────────────
 
 const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174040";

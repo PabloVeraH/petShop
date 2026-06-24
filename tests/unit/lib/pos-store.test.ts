@@ -361,4 +361,18 @@ describe("POS Store — email recibo toggle", () => {
     expect(s.fidelizacionDescuento).toBe(5);
     expect(s.descuento).toBe(5); // nuevo cliente, nuevo descuento
   });
+
+  // S-35: setWorker permite cambiar de vendedor (simula el uso manual en el dropdown)
+  it("S-35: setWorker asigna correctamente el vendedor y se puede reasignar", () => {
+    usePOSStore.getState().setWorker("user-session-1");
+    expect(usePOSStore.getState().workerClerkId).toBe("user-session-1");
+
+    // Cambio manual a otro vendedor (vender en nombre de otro)
+    usePOSStore.getState().setWorker("user-other-2");
+    expect(usePOSStore.getState().workerClerkId).toBe("user-other-2");
+
+    // Se puede desasignar (Sin asignar)
+    usePOSStore.getState().setWorker(undefined);
+    expect(usePOSStore.getState().workerClerkId).toBeUndefined();
+  });
 });
