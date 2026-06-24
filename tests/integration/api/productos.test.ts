@@ -145,6 +145,19 @@ describe("POST /api/productos", () => {
     expect(res.status).toBe(201);
   });
 
+  // I-35: REGRESIÓN — codigo_barra null no debe causar 400
+  // Bug: ProductoCreateSchema.codigo_barra era z.string().optional() sin .nullable()
+  // El frontend envía null cuando el campo está vacío ("" || null).
+  it("I-35: POST con codigo_barra null → 201 (acepta null como string nullable)", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", sku: "SKU1", precio: 15000, stock: 0, activo: true, marca: null },
+      error: null,
+    });
+    const { POST } = await import("@/app/api/productos/route");
+    const res = await POST(req("/api/productos", "POST", { nombre: "Test", sku: "SKU1", precio: 15000, codigo_barra: null }));
+    expect(res.status).toBe(201);
+  });
+
   // I-32
   it("I-32: codigo_barra duplicado → 409 con mensaje diferenciado", async () => {
     mockSingle.mockResolvedValue({

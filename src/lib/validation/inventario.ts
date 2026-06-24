@@ -33,7 +33,7 @@ export const ProductoCreateSchema = z.object({
   precio_oferta: z.number().nonnegative("El precio de oferta no puede ser negativo").optional(),
   en_oferta: z.boolean().optional(),
   categoria_id: UUIDSchema.nullable().optional(),
-  codigo_barra: z.string().max(100).optional(),
+  codigo_barra: z.string().max(100).nullable().optional(),
   precio_venta_kg: z.number().positive("El precio por kg debe ser mayor a 0").nullable().optional(),
 }).refine(
   (data) => !(data.precio_venta_kg && !data.peso_gramos),

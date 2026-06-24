@@ -224,3 +224,27 @@ describe("ProductoCreateSchema con categoria_id", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("ProductoCreateSchema con codigo_barra", () => {
+  const BASE = { nombre: "Test", sku: "SKU-01", precio: 9990 };
+
+  it("U-CB-01: acepta codigo_barra string válido", () => {
+    expect(ProductoCreateSchema.safeParse({ ...BASE, codigo_barra: "7891234567890" }).success).toBe(true);
+  });
+
+  it("U-CB-02: acepta sin codigo_barra (campo opcional)", () => {
+    expect(ProductoCreateSchema.safeParse(BASE).success).toBe(true);
+  });
+
+  it("U-CB-03: acepta codigo_barra null (BUG: antes rechazaba con 'se esperaba texto, recibido nulo')", () => {
+    expect(ProductoCreateSchema.safeParse({ ...BASE, codigo_barra: null }).success).toBe(true);
+  });
+
+  it("U-CB-04: acepta codigo_barra string vacío", () => {
+    expect(ProductoCreateSchema.safeParse({ ...BASE, codigo_barra: "" }).success).toBe(true);
+  });
+
+  it("U-CB-05: rechaza codigo_barra > 100 caracteres", () => {
+    expect(ProductoCreateSchema.safeParse({ ...BASE, codigo_barra: "x".repeat(101) }).success).toBe(false);
+  });
+});
