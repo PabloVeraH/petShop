@@ -23,13 +23,10 @@ export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerPr
   const [scanning, setScanning] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Holds the ZXing stop handle so we can tear it down on unmount
+  const zxingStopRef = useRef<{ stop: () => void } | null>(null);
 
   useEffect(() => {
-    if (!window.BarcodeDetector) {
-      setError("Tu navegador no soporta detección de códigos de barras. Usa Chrome/Edge reciente.");
-      return;
-    }
-
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "environment" } })
       .then((stream) => {
@@ -45,35 +42,62 @@ export default function BarcodeScanner({ onDetected, onClose }: BarcodeScannerPr
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      zxingStopRef.current?.stop();
     };
   }, []);
 
   useEffect(() => {
-    if (!scanning || !window.BarcodeDetector) return;
+    if (!scanning || !videoRef.current || !streamRef.current) return;
 
-    const detector = new window.BarcodeDetector({
-      formats: ["ean_13", "ean_8", "code_128", "code_39", "upc_a", "upc_e"],
-    });
+    if (window.BarcodeDetector) {
+      // Native path — Chrome Android, Edge with Shape Detection API
+      const detector = new window.BarcodeDetector({
+        formats: ["ean_13", "ean_8", "code_128", "code_39", "upc_a", "upc_e"],
+      });
 
-    const scan = async () => {
-      if (!videoRef.current || videoRef.current.readyState < 2) {
-        rafRef.current = requestAnimationFrame(scan);
-        return;
-      }
-      try {
-        const barcodes = await detector.detect(videoRef.current);
-        if (barcodes.length > 0) {
-          onDetected(barcodes[0].rawValue);
+      const scan = async () => {
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          rafRef.current = requestAnimationFrame(scan);
           return;
         }
-      } catch {
-        // continue scanning
-      }
-      rafRef.current = requestAnimationFrame(scan);
-    };
+        try {
+          const barcodes = await detector.detect(videoRef.current);
+          if (barcodes.length > 0) {
+            onDetected(barcodes[0].rawValue);
+            return;
+          }
+        } catch {
+          // no barcode in frame — continue
+        }
+        rafRef.current = requestAnimationFrame(scan);
+      };
 
-    rafRef.current = requestAnimationFrame(scan);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+      rafRef.current = requestAnimationFrame(scan);
+      return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    }
+
+    // JS fallback — desktop Chrome, Firefox, Safari (loaded lazily to avoid bundle bloat)
+    const stream = streamRef.current;
+    const videoEl = videoRef.current;
+    let stopped = false;
+
+    import("@zxing/browser").then(({ BrowserMultiFormatReader }) => {
+      if (stopped) return;
+      const reader = new BrowserMultiFormatReader();
+      reader
+        .decodeFromStream(stream, videoEl, (result) => {
+          if (result) onDetected(result.getText());
+        })
+        .then((controls) => {
+          zxingStopRef.current = controls;
+        })
+        .catch(() => setError("No se pudo acceder a la cámara."));
+    });
+
+    return () => {
+      stopped = true;
+      zxingStopRef.current?.stop();
+    };
   }, [scanning, onDetected]);
 
   return (
