@@ -216,6 +216,50 @@ describe("PATCH /api/clientes/[id]", () => {
     expect(res.status).toBe(400);
   });
 
+  it("CG-12: PATCH con RUT válido normaliza y almacena el RUT formateado", async () => {
+    // 76.354.771-K: RUT de empresa verificado (DV=K matemáticamente correcto)
+    const readChain = chain({
+      single: jest.fn().mockResolvedValue({ data: { nombre: "Juan", email: null, telefono: null, rut: "76.354.771-K" }, error: null }),
+    });
+    const updateChain = chain({
+      single: jest.fn().mockResolvedValue({ data: { id: CLIENTE_ID, rut: "76.354.771-K" }, error: null }),
+    });
+
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? readChain : updateChain;
+    });
+
+    const { PATCH } = await import("@/app/api/clientes/[id]/route");
+    const res = await PATCH(
+      new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rut: "76354771-K" }),  // sin puntos → debe normalizarse
+      }),
+      makeParams(CLIENTE_ID)
+    );
+    expect(res.status).toBe(200);
+    // El handler debe haber llamado .update() con el RUT normalizado con puntos
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ rut: "76.354.771-K" })
+    );
+  });
+
+  it("CG-13: PATCH con RUT inválido retorna 400", async () => {
+    const { PATCH } = await import("@/app/api/clientes/[id]/route");
+    const res = await PATCH(
+      new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rut: "12.345.678-9" }),  // DV incorrecto
+      }),
+      makeParams(CLIENTE_ID)
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("CG-08: actualiza nombre del cliente y retorna 200", async () => {
     const readChain = chain({
       single: jest.fn().mockResolvedValue({ data: { nombre: "Viejo", email: null, telefono: null }, error: null }),

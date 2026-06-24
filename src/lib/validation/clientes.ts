@@ -10,6 +10,7 @@ export const ClienteCreateSchema = z.object({
 });
 
 export const ClienteUpdateSchema = z.object({
+  rut: RUTSchema.optional(),
   nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100).optional(),
   email: z.string().email("Correo electrónico inválido").optional(),
   telefono: z.string().max(20).optional(),

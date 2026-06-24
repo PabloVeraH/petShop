@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
-import { ClienteUpdateSchema } from "@/lib/validation";
+import { ClienteUpdateSchema, formatRUT } from "@/lib/validation";
 
 export async function GET(
   _req: NextRequest,
@@ -58,11 +58,11 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { nombre, email, telefono } = parsed.data;
+  const { nombre, email, telefono, rut } = parsed.data;
 
   const { data: originalCliente } = await supabase
     .from("clientes")
-    .select("nombre, email, telefono")
+    .select("nombre, email, telefono, rut")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
@@ -70,6 +70,7 @@ export async function PATCH(
   const auditOldValues = originalCliente ?? {};
 
   const updateData: Record<string, unknown> = {};
+  if (rut !== undefined) updateData.rut = formatRUT(rut);
   if (nombre !== undefined) updateData.nombre = nombre;
   if (email !== undefined) updateData.email = email;
   if (telefono !== undefined) updateData.telefono = telefono;

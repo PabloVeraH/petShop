@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { formatRUT } from "@/lib/validation";
+import { formatRUT, validateRUT } from "@/lib/validation";
+
+function autoFormatRUT(value: string): string {
+  const raw = value.replace(/\./g, "").replace(/-/g, "").replace(/[^0-9kK]/g, "").toUpperCase().slice(0, 9);
+  if (raw.length <= 3) return raw;
+  const body = raw.slice(0, -1);
+  const dv = raw.slice(-1);
+  return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}-${dv}`;
+}
 import ModalMascotaCreate from "./ModalMascotaCreate";
 import type { Cliente } from "@/types";
 
@@ -17,7 +25,7 @@ type MascotaItem = {
   veces_dia?: number | null;
 };
 
-type EditClienteForm = { nombre: string; email: string; telefono: string };
+type EditClienteForm = { rut: string; nombre: string; email: string; telefono: string };
 type EditMascotaForm = { nombre: string; tipo: string; raza: string; peso_kg: string; gramos_porcion: string; veces_dia: string };
 
 type VentaItem = {
@@ -40,7 +48,7 @@ export default function ClienteDetalle({
 }) {
   const [showMascotaModal, setShowMascotaModal] = useState(false);
   const [editingCliente, setEditingCliente] = useState(false);
-  const [clienteForm, setClienteForm] = useState<EditClienteForm>({ nombre: "", email: "", telefono: "" });
+  const [clienteForm, setClienteForm] = useState<EditClienteForm>({ rut: "", nombre: "", email: "", telefono: "" });
   const [editingMascota, setEditingMascota] = useState<MascotaItem | null>(null);
   const [mascotaForm, setMascotaForm] = useState<EditMascotaForm>({ nombre: "", tipo: "", raza: "", peso_kg: "", gramos_porcion: "", veces_dia: "" });
   const [formError, setFormError] = useState("");
@@ -112,6 +120,15 @@ export default function ClienteDetalle({
     },
   });
 
+  function handleGuardarCliente() {
+    if (!validateRUT(clienteForm.rut)) {
+      setFormError("RUT inválido");
+      return;
+    }
+    setFormError("");
+    guardarCliente();
+  }
+
   if (isLoading) return <p className="text-sm text-gray-400">Cargando...</p>;
   if (!data) return null;
 
@@ -120,6 +137,12 @@ export default function ClienteDetalle({
       {/* Header */}
       {editingCliente ? (
         <div className="space-y-2">
+          <div>
+            <label className="text-xs font-medium text-gray-600">RUT</label>
+            <input value={clienteForm.rut} onChange={(e) => setClienteForm((f) => ({ ...f, rut: autoFormatRUT(e.target.value) }))}
+              placeholder="11.111.111-1"
+              className="w-full border border-gray-300 rounded px-2 py-1 text-sm mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
           <div>
             <label className="text-xs font-medium text-gray-600">Nombre</label>
             <input value={clienteForm.nombre} onChange={(e) => setClienteForm((f) => ({ ...f, nombre: e.target.value }))}
@@ -137,7 +160,7 @@ export default function ClienteDetalle({
           </div>
           {formError && <p className="text-xs text-red-500">{formError}</p>}
           <div className="flex gap-2 pt-1">
-            <Button size="sm" onClick={() => guardarCliente()} disabled={savingCliente}>
+            <Button size="sm" onClick={handleGuardarCliente} disabled={savingCliente}>
               {savingCliente ? "Guardando..." : "Guardar"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => { setEditingCliente(false); setFormError(""); }}>
@@ -155,7 +178,7 @@ export default function ClienteDetalle({
               {data.telefono && <p className="text-xs text-gray-400">{data.telefono}</p>}
             </div>
             <button
-              onClick={() => { setClienteForm({ nombre: data.nombre, email: data.email ?? "", telefono: data.telefono ?? "" }); setFormError(""); setEditingCliente(true); }}
+              onClick={() => { setClienteForm({ rut: data.rut, nombre: data.nombre, email: data.email ?? "", telefono: data.telefono ?? "" }); setFormError(""); setEditingCliente(true); }}
               className="text-xs text-blue-500 hover:underline shrink-0 mt-1"
             >
               Editar
