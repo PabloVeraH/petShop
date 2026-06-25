@@ -125,12 +125,16 @@ describe("AppLayout — navegación por rol", () => {
   });
 });
 
-describe("AppLayout — banner de acceso denegado (AL-04/AL-05)", () => {
+// AL-04: REGRESIÓN — el layout ya NO muestra banner de acceso denegado.
+// El acceso denegado ahora se gestiona con una página dedicada (/acceso-denegado).
+// El middleware redirige a esa página; el layout se mantiene limpio.
+describe("AppLayout — sin banner de acceso denegado (AL-04)", () => {
   const { useAuth } = require("@clerk/nextjs");
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockPathname = "/pos";
+    mockSearchParamsMap = {};
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({ name: "PetShop Test" }),
@@ -138,53 +142,13 @@ describe("AppLayout — banner de acceso denegado (AL-04/AL-05)", () => {
     useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
   });
 
-  // AL-04: REGRESIÓN — cuando el middleware redirige con _denied=<path>, se muestra el banner
-  // con el nombre de la sección bloqueada (no "esa sección" genérico).
-  it("AL-04: muestra banner con nombre de sección cuando URL contiene _denied=<path>", async () => {
-    // El middleware envía la ruta bloqueada; el layout la decodifica y busca el label en navItems
-    mockSearchParamsMap = { _denied: "/inventory" };
-
+  it("AL-04: el layout no renderiza ningún banner de alerta, con o sin params en URL", () => {
     render(
       <AppLayout>
         <div>POS content</div>
       </AppLayout>,
       { wrapper: makeWrapper() }
     );
-
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toBeInTheDocument()
-    );
-    // "/inventory" mapea al navItem { label: "Inventario" }
-    expect(screen.getByRole("alert")).toHaveTextContent("No tienes permiso para acceder a Inventario");
-  });
-
-  // AL-05: la URL se limpia y router.replace es llamado al mostrar el banner
-  it("AL-05: router.replace es llamado con pathname limpio sin _denied al mostrar el banner", async () => {
-    mockSearchParamsMap = { _denied: "/inventory" };
-
-    render(
-      <AppLayout>
-        <div>POS content</div>
-      </AppLayout>,
-      { wrapper: makeWrapper() }
-    );
-
-    await waitFor(() => expect(mockReplace).toHaveBeenCalled());
-    // Debe llamar replace con la ruta limpia, sin el param
-    expect(mockReplace).toHaveBeenCalledWith("/pos", { scroll: false });
-  });
-
-  // AL-06: sin _denied en URL, no se muestra ningún banner
-  it("AL-06: sin _denied no aparece banner de acceso denegado", () => {
-    mockSearchParamsMap = {};
-
-    render(
-      <AppLayout>
-        <div>POS content</div>
-      </AppLayout>,
-      { wrapper: makeWrapper() }
-    );
-
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

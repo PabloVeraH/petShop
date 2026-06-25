@@ -113,7 +113,7 @@ export default clerkMiddleware(async (auth, req) => {
   const adminOnlyRoutes = createRouteMatcher(["/vendedores(.*)"]);
   if (adminOnlyRoutes(req) && !isSystemAdmin && !meta?.storeAdmin) {
     const blockedPath = encodeURIComponent(req.nextUrl.pathname);
-    return NextResponse.redirect(new URL(`/pos?_denied=${blockedPath}`, req.url));
+    return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
   }
 
   // Redirect desde raíz según rol — ANTES del check de storeWorker para evitar falso positivo:
@@ -126,14 +126,13 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  // storeWorker puede acceder a /pos, /customers y /dashboard — todo lo demás redirige al POS
-  // Las rutas /api tienen sus propios guards; aquí solo protegemos páginas.
-  // _denied lleva la ruta bloqueada para que el banner UI muestre el nombre de la sección.
+  // storeWorker puede acceder a /pos, /customers, /dashboard y /acceso-denegado — todo lo demás
+  // redirige a la página de acceso denegado. Las rutas /api tienen sus propios guards.
   const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
-  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)"]);
+  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)", "/acceso-denegado"]);
   if (isStoreWorker && !workerAllowedRoutes(req)) {
     const blockedPath = encodeURIComponent(req.nextUrl.pathname);
-    return NextResponse.redirect(new URL(`/pos?_denied=${blockedPath}`, req.url));
+    return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
   }
 
   // Respuesta normal: propagar nonce al app y añadir CSP al response

@@ -15,32 +15,31 @@ function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker" | "none") 
   return {};
 }
 
-// _denied lleva la ruta bloqueada URL-encoded, igual que el middleware real
+// Simula el routing del middleware con el nuevo destino de acceso denegado
 function simulateRouting(meta: Record<string, unknown>, pathname: string): string {
   const isSystemAdmin = Boolean(meta.systemAdmin);
   const isStoreWorker = Boolean(meta.storeWorker) && !Boolean(meta.storeAdmin) && !isSystemAdmin;
 
-  // Rutas admin-only (vendedores) — _denied lleva el path para UI informativa
+  // Rutas admin-only (vendedores) → página dedicada de acceso denegado
   if (pathname.startsWith("/vendedores") && !isSystemAdmin && !meta.storeAdmin) {
-    return `redirect:/pos?_denied=${encodeURIComponent(pathname)}`;
+    return `redirect:/acceso-denegado?from=${encodeURIComponent(pathname)}`;
   }
 
   // Root redirect — ANTES del check de storeWorker para evitar falso positivo:
-  // sin este orden, "/" dispararía _denied aunque el usuario no intentó nada restringido.
+  // sin este orden, "/" dispararía redirect aunque el usuario no intentó nada restringido.
   if (pathname === "/") {
-    if (isSystemAdmin)   return "redirect:/admin";
-    if (meta.storeAdmin) return "redirect:/dashboard";
+    if (isSystemAdmin)    return "redirect:/admin";
+    if (meta.storeAdmin)  return "redirect:/dashboard";
     if (meta.storeWorker) return "redirect:/pos";
     return "redirect:/dashboard";
   }
 
-  // storeWorker puede usar /pos, /customers, /dashboard y /api
-  // _denied lleva la ruta bloqueada para que el banner UI nombre la sección
-  const workerAllowed = ["/pos", "/customers", "/dashboard", "/api"].some(
+  // storeWorker puede usar /pos, /customers, /dashboard, /api y /acceso-denegado
+  const workerAllowed = ["/pos", "/customers", "/dashboard", "/api", "/acceso-denegado"].some(
     (p) => pathname.startsWith(p)
   );
   if (isStoreWorker && !workerAllowed) {
-    return `redirect:/pos?_denied=${encodeURIComponent(pathname)}`;
+    return `redirect:/acceso-denegado?from=${encodeURIComponent(pathname)}`;
   }
 
   return "allow";
@@ -55,17 +54,17 @@ describe("Middleware — routing por rol", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/dashboard")).toBe("allow");
   });
 
-  // MW-02: storeWorker es redirigido de /inventory — _denied lleva la ruta bloqueada
-  it("MW-02: storeWorker redirigido de /inventory, _denied incluye la ruta", () => {
+  // MW-02: storeWorker es redirigido de /inventory a la página de acceso denegado
+  it("MW-02: storeWorker redirigido de /inventory a /acceso-denegado con from", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/inventory")).toBe(
-      `redirect:/pos?_denied=${encodeURIComponent("/inventory")}`
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/inventory")}`
     );
   });
 
-  // MW-03: storeWorker es redirigido de /contabilidad — _denied lleva la ruta bloqueada
-  it("MW-03: storeWorker redirigido de /contabilidad, _denied incluye la ruta", () => {
+  // MW-03: storeWorker es redirigido de /contabilidad a la página de acceso denegado
+  it("MW-03: storeWorker redirigido de /contabilidad a /acceso-denegado con from", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/contabilidad")).toBe(
-      `redirect:/pos?_denied=${encodeURIComponent("/contabilidad")}`
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/contabilidad")}`
     );
   });
 
@@ -99,20 +98,20 @@ describe("Middleware — routing por rol", () => {
     expect(simulateRouting(buildMeta("systemAdmin"), "/vendedores")).toBe("allow");
   });
 
-  // MW-10: storeWorker redirigido de /vendedores — adminOnlyRoutes incluye _denied con la ruta
-  it("MW-10: storeWorker redirigido de /vendedores con _denied=/vendedores", () => {
+  // MW-10: storeWorker redirigido de /vendedores a la página de acceso denegado
+  it("MW-10: storeWorker redirigido de /vendedores a /acceso-denegado con from=/vendedores", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/vendedores")).toBe(
-      `redirect:/pos?_denied=${encodeURIComponent("/vendedores")}`
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/vendedores")}`
     );
   });
 
-  // MW-16: REGRESIÓN — redirect por acceso denegado incluye la ruta bloqueada (no solo "1")
-  it("MW-16: redirect por acceso denegado incluye la ruta bloqueada en _denied", () => {
+  // MW-16: REGRESIÓN — redirect a /acceso-denegado incluye la ruta bloqueada en from
+  it("MW-16: redirect por acceso denegado incluye la ruta bloqueada en from", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/sales")).toBe(
-      `redirect:/pos?_denied=${encodeURIComponent("/sales")}`
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/sales")}`
     );
     expect(simulateRouting(buildMeta("storeWorker"), "/admin")).toBe(
-      `redirect:/pos?_denied=${encodeURIComponent("/admin")}`
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`
     );
     // storeAdmin intentando rutas normales — no bloqueado
     expect(simulateRouting(buildMeta("storeAdmin"), "/sales")).toBe("allow");
@@ -133,11 +132,18 @@ describe("Middleware — routing por rol", () => {
     expect(result).not.toContain("_denied");
   });
 
-  // MW-22: cuando storeWorker accede a una ruta bloqueada, _denied lleva esa ruta específica
-  // para que el banner pueda mostrar "No tienes permiso para acceder a Configuración"
-  it("MW-22: _denied lleva la ruta exacta bloqueada para UI informativa", () => {
+  // MW-22: cuando storeWorker accede a una ruta bloqueada, from lleva esa ruta específica
+  // para que la página /acceso-denegado muestre "No tienes permiso para acceder a Configuración"
+  it("MW-22: from lleva la ruta exacta bloqueada para la página de acceso denegado", () => {
     const result = simulateRouting(buildMeta("storeWorker"), "/settings");
-    expect(result).toBe(`redirect:/pos?_denied=${encodeURIComponent("/settings")}`);
+    expect(result).toBe(`redirect:/acceso-denegado?from=${encodeURIComponent("/settings")}`);
+  });
+
+  // MW-23: REGRESIÓN — storeWorker puede acceder a /acceso-denegado sin loop infinito.
+  // Bug potencial: si /acceso-denegado no estuviera en workerAllowedRoutes, el middleware
+  // redirigiría a /acceso-denegado indefinidamente.
+  it("MW-23: storeWorker puede acceder a /acceso-denegado (no genera loop de redirección)", () => {
+    expect(simulateRouting(buildMeta("storeWorker"), "/acceso-denegado")).toBe("allow");
   });
 });
 
