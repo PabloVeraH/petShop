@@ -16,6 +16,17 @@ type Asiento = {
   esta_balanceado: boolean;
 };
 
+type CierreResultado = {
+  mes_cerrado: string;
+  desde: string;
+  hasta: string;
+  numero_asientos: number;
+  total_debitos: number;
+  total_creditos: number;
+  balanceado: boolean;
+  asientos_cierre: Array<{ tipo: string; id: string }>;
+};
+
 type LibroDiarioResumen = {
   periodo: string;
   desde: string;
@@ -65,6 +76,9 @@ export default function ContabilidadPage() {
   const [mes, setMes] = useState(String(hoy.getMonth() + 1).padStart(2, "0"));
   const [canal, setCanal] = useState("");
   const [tab, setTab] = useState<"libro" | "balance" | "resultado">("libro");
+  const [showCierreConfirm, setShowCierreConfirm] = useState(false);
+  const [cierreResult, setCierreResult] = useState<CierreResultado | null>(null);
+  const [cierreError, setCierreError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
@@ -96,15 +110,27 @@ export default function ContabilidadPage() {
   });
 
   const { mutate: cierreMes, isPending: cerrandoMes } = useMutation({
-    mutationFn: () =>
-      fetch("/api/contabilidad/cierre-mes", {
+    mutationFn: async () => {
+      const r = await fetch("/api/contabilidad/cierre-mes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mes: Number(mes), año: Number(año), calcular_costo_venta: true }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Error al cerrar el mes");
+      return data as CierreResultado;
+    },
+    onSuccess: (data) => {
+      setCierreResult(data);
+      setCierreError(null);
+      setShowCierreConfirm(false);
       queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
       queryClient.invalidateQueries({ queryKey: ["balance-prueba"] });
+    },
+    onError: (err: Error) => {
+      setCierreError(err.message);
+      setCierreResult(null);
+      setShowCierreConfirm(false);
     },
   });
 
@@ -127,7 +153,11 @@ export default function ContabilidadPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => cierreMes()}
+            onClick={() => {
+              setCierreResult(null);
+              setCierreError(null);
+              setShowCierreConfirm(true);
+            }}
             disabled={cerrandoMes || !mes}
           >
             {cerrandoMes ? "Cerrando..." : "Cierre de Mes"}
@@ -455,6 +485,94 @@ export default function ContabilidadPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* Banners de resultado cierre */}
+      {cierreResult && (
+        <div className="fixed bottom-6 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-green-700 font-bold text-sm">✓ Cierre realizado</span>
+            <button
+              onClick={() => setCierreResult(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-gray-700">
+            Período <strong>{cierreResult.mes_cerrado}</strong> cerrado correctamente.
+          </p>
+          <div className="text-xs text-gray-500 space-y-0.5">
+            <div>Asientos procesados: <strong>{cierreResult.numero_asientos}</strong></div>
+            <div>Balance: <strong className={cierreResult.balanceado ? "text-green-700" : "text-red-600"}>
+              {cierreResult.balanceado ? "Cuadrado ✓" : "Descuadrado ✗"}
+            </strong></div>
+            {cierreResult.asientos_cierre.length > 0 && (
+              <div>Asientos de cierre generados: <strong>{cierreResult.asientos_cierre.length}</strong></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {cierreError && (
+        <div className="fixed bottom-6 right-6 z-50 bg-white border border-red-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-red-700 font-bold text-sm">✗ Error en el cierre</span>
+            <button
+              onClick={() => setCierreError(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-gray-700">{cierreError}</p>
+        </div>
+      )}
+
+      {/* Modal confirmación cierre de mes */}
+      {showCierreConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full shadow-xl">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="text-amber-500 text-2xl leading-none">⚠</div>
+                <div>
+                  <h2 className="font-bold text-gray-900">Confirmar Cierre de Mes</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Estás por ejecutar el cierre contable del período{" "}
+                    <strong>{periodoLabel(año, mes)}</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 space-y-1">
+                <p className="font-medium">Esta operación:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-xs">
+                  <li>Genera el asiento de costo de ventas del período</li>
+                  <li>No puede deshacerse desde la interfaz</li>
+                  <li>Quedará registrada en el log de auditoría</li>
+                </ul>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowCierreConfirm(false)}
+                  disabled={cerrandoMes}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => cierreMes()}
+                  disabled={cerrandoMes}
+                >
+                  {cerrandoMes ? "Cerrando..." : "Confirmar cierre"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

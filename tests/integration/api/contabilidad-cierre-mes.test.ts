@@ -297,6 +297,69 @@ describe("POST /api/contabilidad/cierre-mes", () => {
     });
   });
 
+  describe("respuesta 201 incluye todos los campos de feedback", () => {
+    // REGRESIÓN: el cliente necesita mes_cerrado, numero_asientos, balanceado y
+    // asientos_cierre para mostrar el panel de resultado; si faltan, el feedback
+    // queda vacío aunque la operación haya sido exitosa.
+    it("REGRESIÓN: retorna mes_cerrado, numero_asientos, balanceado y asientos_cierre", async () => {
+      let callCount = 0;
+      const mockFrom = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({ data: null, error: null }),
+          };
+        }
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          gte: jest.fn().mockReturnThis(),
+          lte: jest.fn().mockResolvedValue({
+            data: [
+              { id: "e1", total_debito: 11900, total_credito: 11900 },
+              { id: "e2", total_debito: 5950, total_credito: 5950 },
+              { id: "e3", total_debito: 2380, total_credito: 2380 },
+            ],
+            error: null,
+          }),
+        };
+      });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
+
+      const res = await POST(makeRequest({ mes: 6, año: 2026, calcular_costo_venta: false }));
+      expect(res.status).toBe(201);
+
+      const body = await res.json();
+      // Todos los campos que el frontend usa para el banner de resultado
+      expect(body).toHaveProperty("mes_cerrado", "2026-06");
+      expect(body).toHaveProperty("desde", "2026-06-01");
+      expect(body).toHaveProperty("hasta", "2026-06-30");
+      expect(body).toHaveProperty("numero_asientos", 3);
+      expect(body).toHaveProperty("balanceado", true);
+      expect(body).toHaveProperty("asientos_cierre");
+      expect(Array.isArray(body.asientos_cierre)).toBe(true);
+    });
+
+    it("retorna error con status 409 cuando ya existe cierre (feedback de error para la UI)", async () => {
+      const mockFrom = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: "existing" }, error: null }),
+      });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
+
+      const res = await POST(makeRequest({ mes: 6, año: 2026 }));
+      expect(res.status).toBe(409);
+
+      const body = await res.json();
+      // El mensaje de error debe ser legible para mostrarlo en el banner de error
+      expect(typeof body.error).toBe("string");
+      expect(body.error.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("fechas correctas por mes", () => {
     it("calcula correctamente el último día de febrero (año bisiesto)", async () => {
       let callCount = 0;
