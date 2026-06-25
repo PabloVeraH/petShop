@@ -180,7 +180,8 @@ export async function PATCH(
           tipo: "entrada",
           cantidad: item.cantidad_recibida,
           referencia_id: id,
-          notas: `Recepción OC ${ordenBase.numero} — lote ${lote.id}`,
+          notas: `Recepción OC ${ordenBase.numero}`,
+          user_id: ctx.userId,
         });
       } else {
         // Sin fecha de vencimiento → stock directo
@@ -202,6 +203,7 @@ export async function PATCH(
           cantidad: item.cantidad_recibida,
           referencia_id: id,
           notas: `Recepción OC ${ordenBase.numero}`,
+          user_id: ctx.userId,
         });
       }
     }

@@ -52,6 +52,8 @@ type StockMovement = {
   cantidad: number;
   notas: string | null;
   created_at: string;
+  user_id?: string;
+  user_name?: string;
 };
 
 type ProductoForm = {
@@ -548,14 +550,15 @@ export default function InventoryPage() {
               )}
               {movimientos && movimientos.length > 0 && (
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-gray-500 border-b">
-                      <th className="text-left py-1">Fecha</th>
-                      <th className="text-left py-1">Tipo</th>
-                      <th className="text-right py-1">Cant.</th>
-                      <th className="text-left py-1 pl-3">Motivo</th>
-                    </tr>
-                  </thead>
+                    <thead>
+                      <tr className="text-xs text-gray-500 border-b">
+                        <th className="text-left py-1">Fecha</th>
+                        <th className="text-left py-1">Tipo</th>
+                        <th className="text-right py-1">Cant.</th>
+                        <th className="text-left py-1 pl-3">Motivo</th>
+                        <th className="text-left py-1 pl-3">Usuario</th>
+                      </tr>
+                    </thead>
                   <tbody>
                     {movimientos.map((m) => (
                       <tr key={m.id} className="border-b last:border-0">
@@ -571,6 +574,7 @@ export default function InventoryPage() {
                           {m.cantidad > 0 ? `+${m.cantidad}` : m.cantidad}
                         </td>
                         <td className="py-1.5 pl-3 text-gray-500 text-xs">{m.notas ?? "—"}</td>
+                        <td className="py-1.5 pl-3 text-gray-500 text-xs">{m.user_name ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>

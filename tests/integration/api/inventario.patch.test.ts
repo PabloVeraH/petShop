@@ -100,10 +100,15 @@ describe("PATCH /api/inventario/[id]", () => {
   });
 
   // I-55
-  it("I-55: ajuste crea registro en stock_movements", async () => {
-    const fromCalls: string[] = [];
+  it("I-55: ajuste crea registro en stock_movements con user_id", async () => {
+    const inserts: { table: string; data: Record<string, unknown> }[] = [];
+    const c = chain();
+    c.insert = jest.fn((data: Record<string, unknown>) => {
+      inserts.push({ table: "stock_movements", data });
+      return c;
+    });
     mockFrom.mockImplementation((table: string) => {
-      fromCalls.push(table);
+      if (table === "stock_movements") return c;
       return chain();
     });
     mockSingle
@@ -111,7 +116,14 @@ describe("PATCH /api/inventario/[id]", () => {
       .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, nombre: "X", marca: null, precio: 1000, stock: 10 }, error: null });
 
     await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
-    expect(fromCalls).toContain("stock_movements");
+    const movInsert = inserts.find((i) => i.table === "stock_movements");
+    expect(movInsert).toBeDefined();
+    expect(movInsert!.data).toMatchObject({
+      producto_id: PRODUCTO_ID,
+      tipo: "entrada",
+      cantidad: 5,
+      user_id: "u1",
+    });
   });
 
   // I-56

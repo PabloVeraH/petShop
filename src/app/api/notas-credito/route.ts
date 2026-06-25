@@ -234,6 +234,7 @@ export async function POST(req: NextRequest) {
         cantidad: item.cantidadDevuelta,
         referencia_id: nc.id,
         notas: `Devolución ${numero_nc}`,
+        user_id: ctx.userId,
       });
     }
   }

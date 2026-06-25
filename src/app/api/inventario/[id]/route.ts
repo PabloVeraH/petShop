@@ -99,6 +99,7 @@ export async function PATCH(
     tipo,
     cantidad: delta,
     notas: notas ?? `Ajuste manual ${tipo}`,
+    user_id: ctx.userId,
   });
 
   return NextResponse.json(updated);

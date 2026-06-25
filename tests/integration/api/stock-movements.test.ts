@@ -10,13 +10,27 @@ import * as supabaseModule from "@/lib/supabase";
 describe("GET /api/stock-movements", () => {
   const mockStoreId = "store-1";
   const mockProductId = "123e4567-e89b-12d3-a456-426614174010";
+  const mockUserId = "user_2abc123";
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ userId: mockUserId, storeId: mockStoreId });
   });
 
-  it("retorna movimientos de stock de un producto (últimos 50, DESC)", async () => {
+  function buildMovChain(data: any[]) {
+    const movChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn(function() { return this; }),
+    };
+    (movChain as any).then = function(resolve: any) {
+      return resolve({ data, error: null });
+    };
+    return movChain;
+  }
+
+  function buildProdChain() {
     const prodChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -25,43 +39,54 @@ describe("GET /api/stock-movements", () => {
         error: null,
       }),
     };
+    return prodChain;
+  }
 
-    const movChain = {
+  function makeClient(fromMock: jest.Mock) {
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: fromMock,
+    });
+  }
+
+  it("retorna movimientos de stock de un producto (últimos 50, DESC) con user_name enriquecido", async () => {
+    const prodChain = buildProdChain();
+    const movChain = buildMovChain([
+      {
+        id: "mov-1",
+        tipo: "entrada",
+        cantidad: 5,
+        notas: "Compra",
+        created_at: "2026-04-17T10:00:00Z",
+        user_id: mockUserId,
+      },
+      {
+        id: "mov-2",
+        tipo: "salida",
+        cantidad: 2,
+        notas: "Venta",
+        created_at: "2026-04-16T15:00:00Z",
+        user_id: null,
+      },
+    ]);
+
+    const usersChain = {
       select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn(function() { return this; }),
+      in: jest.fn().mockReturnThis(),
     };
-    (movChain as any).then = function(resolve: any) {
+    (usersChain as any).then = function(resolve: any) {
       return resolve({
-        data: [
-          {
-            id: "mov-1",
-            tipo: "entrada",
-            cantidad: 5,
-            notas: "Compra",
-            created_at: "2026-04-17T10:00:00Z",
-          },
-          {
-            id: "mov-2",
-            tipo: "salida",
-            cantidad: 2,
-            notas: "Venta",
-            created_at: "2026-04-16T15:00:00Z",
-          },
-        ],
+        data: [{ clerk_id: mockUserId, nombre: "Pablo Vera", email: "pablo@example.com" }],
         error: null,
       });
     };
 
     let callCount = 0;
-    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
-      from: jest.fn((table: string) => {
-        callCount++;
-        if (table === "productos") return prodChain;
-        if (table === "stock_movements") return movChain;
-      }),
-    });
+    makeClient(jest.fn((table: string) => {
+      callCount++;
+      if (table === "productos") return prodChain;
+      if (table === "stock_movements") return movChain;
+      if (table === "clerk_users") return usersChain;
+    }));
 
     const req = new NextRequest(`http://localhost/api/stock-movements?productoId=${mockProductId}`);
     const res = await GET(req);
@@ -71,6 +96,10 @@ describe("GET /api/stock-movements", () => {
     expect(Array.isArray(data)).toBe(true);
     expect(data).toHaveLength(2);
     expect(data[0].id).toBe("mov-1");
+    // Enrichment: known user → nombre
+    expect(data[0].user_name).toBe("Pablo Vera");
+    // Enrichment: null user_id → "Sistema"
+    expect(data[1].user_name).toBe("Sistema");
   });
 
   it("retorna 400 si falta productoId", async () => {

@@ -97,6 +97,7 @@ export async function PATCH(
         cantidad: item.cantidad,
         referencia_id: id,
         notas: `Anulación venta ${id.slice(0, 8)}`,
+        user_id: ctx.userId,
       });
     }
   }

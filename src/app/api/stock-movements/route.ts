@@ -22,11 +22,30 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("stock_movements")
-    .select("id, tipo, cantidad, notas, created_at")
+    .select("id, tipo, cantidad, notas, created_at, user_id")
     .eq("producto_id", productoId)
     .order("created_at", { ascending: false })
     .limit(50);
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Enrich with user names from clerk_users
+  const userIds = [...new Set((data ?? []).map((m) => m.user_id).filter(Boolean))] as string[];
+  const userMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from("clerk_users")
+      .select("clerk_id, nombre, email")
+      .in("clerk_id", userIds);
+    for (const u of users ?? []) {
+      userMap[u.clerk_id] = u.nombre ?? u.email;
+    }
+  }
+
+  const enriched = (data ?? []).map((m) => ({
+    ...m,
+    user_name: m.user_id ? (userMap[m.user_id] ?? "Usuario desconocido") : "Sistema",
+  }));
+
+  return NextResponse.json(enriched);
 }
