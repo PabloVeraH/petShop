@@ -1,5 +1,7 @@
 /**
- * Tests MP-01 a MP-05: ModalPago — toggle "Enviar boleta por mail al cliente"
+ * Tests MP-01 a MP-10: ModalPago
+ * - MP-01 a MP-05: toggle "Enviar boleta por mail al cliente"
+ * - MP-06 a MP-10: dropdown "Asignar a vendedor"
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -21,19 +23,23 @@ const mockClearPayNc           = jest.fn();
 // Variables mutables — se leen en la factory cada vez que el componente llama usePOSStore()
 let mockClienteEmail: string | undefined    = undefined;
 let mockEnviarEmailRecibo                   = false;
+let mockWorkerClerkId: string | undefined   = undefined;
+let mockDescuento                           = 0;
+let mockSubtotalValue                       = 10000;
+let mockTotalValue                          = 10000;
 
 jest.mock("@/stores/pos", () => ({
   usePOSStore: jest.fn(() => ({
-    subtotal:              () => 10000,
-    descuento:             0,
-    total:                 () => 10000,
+    subtotal:              () => mockSubtotalValue,
+    descuento:             mockDescuento,
+    total:                 () => mockTotalValue,
     metodoPago:            "efectivo",
     setMetodoPago:         mockSetMetodoPago,
     numeroTransaccion:     undefined,
     setNumeroTransaccion:  mockSetNumeroTransaccion,
     setDescuento:          mockSetDescuento,
     fidelizacionDescuento: 0,
-    workerClerkId:         undefined,
+    workerClerkId:         mockWorkerClerkId,
     setWorker:             mockSetWorker,
     procedencia:           "presencial",
     setProcedencia:        mockSetProcedencia,
@@ -61,11 +67,18 @@ jest.mock("@/components/ui/button", () => ({
   ),
 }));
 
-// Workers endpoint → lista vacía
-global.fetch = jest.fn().mockResolvedValue({
-  ok:   true,
-  json: async () => [],
-});
+// Workers endpoint — mutable por test
+let mockWorkers: Array<{
+  clerk_id: string; nombre: string | null; email: string;
+  ventas_mes: number; ventas_hoy: number;
+}> = [];
+
+global.fetch = jest.fn().mockImplementation(() =>
+  Promise.resolve({
+    ok:   true,
+    json: async () => mockWorkers,
+  })
+);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,6 +110,9 @@ describe("ModalPago — toggle email al cliente", () => {
     jest.clearAllMocks();
     mockClienteEmail      = undefined;
     mockEnviarEmailRecibo = false;
+    mockDescuento         = 0;
+    mockSubtotalValue     = 10000;
+    mockTotalValue        = 10000;
   });
 
   // MP-01
@@ -140,5 +156,106 @@ describe("ModalPago — toggle email al cliente", () => {
     expect(btn).toHaveTextContent("✓");
     fireEvent.click(btn);
     expect(mockSetEnviarEmailRecibo).toHaveBeenCalledWith(false);
+  });
+});
+
+// ── Asignar a vendedor ────────────────────────────────────────────────────────
+
+const WORKER_ACTUAL = { clerk_id: "user-actual", nombre: "Carlos Pérez", email: "carlos@test.com", ventas_mes: 5, ventas_hoy: 1 };
+const WORKER_OTRO   = { clerk_id: "user-otro",   nombre: "Ana López",   email: "ana@test.com",    ventas_mes: 3, ventas_hoy: 0 };
+
+describe("ModalPago — dropdown Asignar a vendedor (MP-06/MP-07/MP-08/MP-09)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail      = undefined;
+    mockEnviarEmailRecibo = false;
+    mockWorkerClerkId     = undefined;
+    mockWorkers           = [];
+    mockDescuento         = 0;
+    mockSubtotalValue     = 10000;
+    mockTotalValue        = 10000;
+  });
+
+  // MP-06
+  it("MP-06: dropdown se muestra cuando hay workers disponibles", async () => {
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+    expect(await screen.findByText("Asignar a vendedor")).toBeInTheDocument();
+  });
+
+  // MP-07
+  it("MP-07: worker pre-seleccionado cuando workerClerkId coincide", async () => {
+    mockWorkerClerkId = "user-actual";
+    mockWorkers = [WORKER_ACTUAL, WORKER_OTRO];
+    setup();
+    const select = (await screen.findByDisplayValue("Carlos Pérez")) as HTMLSelectElement;
+    expect(select.value).toBe("user-actual");
+  });
+
+  // MP-08
+  it("MP-08: cambiar selección llama setWorker con el clerk_id elegido", async () => {
+    mockWorkers = [WORKER_ACTUAL, WORKER_OTRO];
+    setup();
+    const select = (await screen.findByDisplayValue("Sin asignar")) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "user-otro" } });
+    expect(mockSetWorker).toHaveBeenCalledWith("user-otro");
+  });
+
+  // MP-09
+  it("MP-09: sin workerClerkId el select muestra 'Sin asignar'", async () => {
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+    const select = (await screen.findByDisplayValue("Sin asignar")) as HTMLSelectElement;
+    expect(select.value).toBe("");
+  });
+
+  // MP-10
+  it("MP-10: al seleccionar 'Sin asignar' llama setWorker(undefined)", async () => {
+    mockWorkerClerkId = "user-actual";
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+    const select = (await screen.findByDisplayValue("Carlos Pérez")) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "" } });
+    expect(mockSetWorker).toHaveBeenCalledWith(undefined);
+  });
+});
+
+// ── IVA breakdown — regresión ticket de venta ─────────────────────────────────
+
+describe("ModalPago — IVA breakdown correcto (MP-11/MP-12)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail      = undefined;
+    mockEnviarEmailRecibo = false;
+    mockWorkerClerkId     = undefined;
+    mockWorkers           = [];
+    mockDescuento         = 0;
+    mockSubtotalValue     = 10000;
+    mockTotalValue        = 10000;
+  });
+
+  // MP-11: sin descuento muestra "Neto (sin IVA)" y no muestra "Subtotal" duplicado igual al total
+  it("MP-11: sin descuento muestra 'Neto (sin IVA)' y no muestra 'Subtotal'", () => {
+    // subtotal=10000 (IVA-incl), total=10000, ivaAmount=round(10000*0.19/1.19)=1597, neto=8403
+    mockSubtotalValue = 10000;
+    mockTotalValue    = 10000;
+    mockDescuento     = 0;
+    setup();
+    expect(screen.getByText("Neto (sin IVA)")).toBeInTheDocument();
+    expect(screen.queryByText("Subtotal")).not.toBeInTheDocument();
+  });
+
+  // MP-12: con descuento muestra "Subtotal", "Descuento" y "Neto (sin IVA)"
+  it("MP-12: con descuento muestra 'Subtotal', 'Descuento' y 'Neto (sin IVA)'", () => {
+    // subtotal=10000, 10% desc → total=9000
+    mockSubtotalValue = 10000;
+    mockTotalValue    = 9000;
+    mockDescuento     = 10;
+    setup();
+    expect(screen.getByText("Subtotal")).toBeInTheDocument();
+    expect(screen.getByText(/Descuento \(10%\)/)).toBeInTheDocument();
+    expect(screen.getByText("Neto (sin IVA)")).toBeInTheDocument();
+    expect(screen.getByText("IVA (19%)")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
   });
 });

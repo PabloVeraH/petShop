@@ -71,6 +71,8 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   const sub = subtotal();
   const desc = (sub * descuento) / 100;
   const tot = Math.round(total());
+  const ivaAmount = Math.round(tot * IVA_RATE / (1 + IVA_RATE));
+  const neto = tot - ivaAmount;
 
   // NC local state
   const [ncCodigo, setNcCodigo] = useState("");
@@ -157,19 +159,25 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
         <div className="space-y-5">
           {/* Resumen */}
           <div className="rounded bg-gray-50 p-3 text-sm space-y-1">
-            <div className="flex justify-between text-gray-600">
-              <span>Subtotal</span>
-              <span>${sub.toLocaleString("es-CL")}</span>
-            </div>
             {descuento > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Descuento ({descuento}%)</span>
-                <span>−${Math.round(desc).toLocaleString("es-CL")}</span>
-              </div>
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span>${sub.toLocaleString("es-CL")}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Descuento ({descuento}%)</span>
+                  <span>−${Math.round(desc).toLocaleString("es-CL")}</span>
+                </div>
+              </>
             )}
             <div className="flex justify-between text-gray-600">
+              <span>Neto (sin IVA)</span>
+              <span>${neto.toLocaleString("es-CL")}</span>
+            </div>
+            <div className="flex justify-between text-gray-600">
               <span>IVA (19%)</span>
-              <span>${Math.round((sub - desc) * IVA_RATE / (1 + IVA_RATE)).toLocaleString("es-CL")}</span>
+              <span>${ivaAmount.toLocaleString("es-CL")}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t pt-2">
               <span>Total</span>

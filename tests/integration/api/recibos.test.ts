@@ -307,9 +307,123 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("Producto A");
     expect(data.html).toContain("Producto B");
     expect(data.html).toContain("$50.000");
-    expect(data.html).toContain("Subtotal:");
+    expect(data.html).toContain("Subtotal (c/IVA):");
     expect(data.html).toContain("Descuento (5%):");
+    expect(data.html).toContain("Neto (sin IVA):");
     expect(data.html).toContain("IVA (19%):");
+  });
+
+  // REGRESIÓN: sin descuento el recibo muestra Neto y no confunde Subtotal = Total
+  it("I-REC-11: sin descuento el recibo muestra 'Neto (sin IVA)' correcto y no duplica TOTAL como Subtotal", async () => {
+    // total=$34.918 con IVA incluido → neto=$29.343, iva=$5.575
+    const mockVenta = {
+      id: mockVentaId,
+      store_id: mockStoreId,
+      numero_comprobante: "20260624-NETO001",
+      subtotal: 34918, // precio con IVA (igual al total cuando no hay descuento)
+      descuento: 0,
+      impuesto: 5575,  // round(34918 * 19/119)
+      total: 34918,
+      estado: "pagada",
+      created_at: "2026-06-24T10:00:00Z",
+      worker_clerk_id: null,
+      clientes: null,
+      venta_items: [
+        { cantidad: 1, precio_unitario: 34918, subtotal: 34918, productos: { nombre: "Alimento Royal Canin 4kg", sku: "RC4K" } },
+      ],
+    };
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+      order: jest.fn().mockReturnThis(),
+    };
+    let callCount = 0;
+    chain.single.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ data: mockVenta, error: null });
+      if (callCount === 2) return Promise.resolve({ data: { name: "PetShop", rut: null }, error: null });
+      return Promise.resolve({ data: null, error: null });
+    });
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [{ id: "p1", metodo: "efectivo", monto: 34918, numero_transaccion: null, created_at: "2026-06-24T10:00:00Z" }], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => table === "pagos" ? pagosChain : chain),
+    });
+
+    const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
+    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    // Debe mostrar neto = 34918 - 5575 = 29343
+    expect(data.html).toContain("Neto (sin IVA):");
+    expect(data.html).toContain("$29.343");
+    expect(data.html).toContain("IVA (19%):");
+    expect(data.html).toContain("$5.575");
+    expect(data.html).toContain("$34.918");
+    // Sin descuento NO debe aparecer "Subtotal (c/IVA):"
+    expect(data.html).not.toContain("Subtotal (c/IVA):");
+  });
+
+  // REGRESIÓN: con descuento el recibo muestra Subtotal, Descuento, Neto y Total consistentes
+  it("I-REC-12: con descuento el recibo muestra subtotal c/IVA, descuento, neto y total coherentes", async () => {
+    // subtotal=$38.000, 10% desc → total=$34.200, impuesto=5.461, neto=28.739
+    const mockVenta = {
+      id: mockVentaId,
+      store_id: mockStoreId,
+      numero_comprobante: "20260624-DESC002",
+      subtotal: 38000, // precio con IVA antes del descuento
+      descuento: 10,
+      impuesto: 5461,  // round(34200 * 19/119)
+      total: 34200,    // round(38000 * 0.9)
+      estado: "pagada",
+      created_at: "2026-06-24T10:00:00Z",
+      worker_clerk_id: null,
+      clientes: null,
+      venta_items: [
+        { cantidad: 1, precio_unitario: 38000, subtotal: 38000, productos: { nombre: "Cama Deluxe XL", sku: "CDX" } },
+      ],
+    };
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+      order: jest.fn().mockReturnThis(),
+    };
+    let callCount = 0;
+    chain.single.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ data: mockVenta, error: null });
+      if (callCount === 2) return Promise.resolve({ data: { name: "PetShop", rut: null }, error: null });
+      return Promise.resolve({ data: null, error: null });
+    });
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [{ id: "p1", metodo: "debito", monto: 34200, numero_transaccion: "TRX123", created_at: "2026-06-24T10:00:00Z" }], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => table === "pagos" ? pagosChain : chain),
+    });
+
+    const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
+    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.html).toContain("Subtotal (c/IVA):");
+    expect(data.html).toContain("$38.000");
+    expect(data.html).toContain("Descuento (10%):");
+    expect(data.html).toContain("$3.800"); // 38000 * 10/100
+    expect(data.html).toContain("Neto (sin IVA):");
+    expect(data.html).toContain("$28.739"); // 34200 - 5461
+    expect(data.html).toContain("IVA (19%):");
+    expect(data.html).toContain("$5.461");
+    expect(data.html).toContain("$34.200"); // TOTAL
   });
 
   // REGRESIÓN: descuento almacenado como porcentaje debe mostrarse como monto en pesos
