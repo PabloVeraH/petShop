@@ -134,6 +134,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-277 | GET analytics/recompras-avanzadas retorna 401 sin auth | GET /api/analytics/recompras-avanzadas | integration |
 | I-278 | GET analytics/recompras-avanzadas delega a getReorderSuggestions | GET /api/analytics/recompras-avanzadas | integration |
 | I-279 | Venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × producto.costo | POST /api/ventas | integration |
+| I-280 | Descripcion del asiento contable incluye metodo de pago y nombre del cliente (sin UUID) | POST /api/ventas | integration |
 
 ## Seguridad (SEC-01 a SEC-10)
 

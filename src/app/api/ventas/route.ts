@@ -418,29 +418,37 @@ async function postVenta(req: NextRequest) {
 
   const cogsLineas = costoTotal > 0 ? lineasVentaCOGS(Math.round(costoTotal)) : [];
 
-  crearAsiento({
-    storeId: store_id,
-    fecha: (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0],
-    tipoMovimiento: "VENTA",
-    canal,
-    referenciaId: venta.id as string,
-    referenciaNomero: venta.numero_comprobante as string,
-    descripcion: `Venta ${canal.toUpperCase()} ${metodoPagoVenta} - ${venta.numero_comprobante}`,
-    lineas: [
-      ...(pagoNc
-        ? lineasVentaConNc({
-            montoNeto,
-            iva: ivaCalc,
-            total,
-            montoNc: pagoNc.monto,
-            montoResto: Math.round(total - pagoNc.monto),
-            metodoPagoResto: metodoPago,
-          })
-        : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total })),
-      ...cogsLineas,
-    ],
-    usuarioId: ctx.userId ?? undefined,
-  }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
+  (async () => {
+    let clienteNombre: string | undefined;
+    if (clienteId) {
+      const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
+      clienteNombre = cli?.nombre ?? undefined;
+    }
+
+    crearAsiento({
+      storeId: store_id,
+      fecha: (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+      tipoMovimiento: "VENTA",
+      canal,
+      referenciaId: venta.id as string,
+      referenciaNomero: venta.numero_comprobante as string,
+      descripcion: `Venta ${metodoPagoVenta}${clienteNombre ? ` a ${clienteNombre}` : ""}${canal !== "pos" ? ` (${canal.toUpperCase()})` : ""}`,
+      lineas: [
+        ...(pagoNc
+          ? lineasVentaConNc({
+              montoNeto,
+              iva: ivaCalc,
+              total,
+              montoNc: pagoNc.monto,
+              montoResto: Math.round(total - pagoNc.monto),
+              metodoPagoResto: metodoPago,
+            })
+          : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total })),
+        ...cogsLineas,
+      ],
+      usuarioId: ctx.userId ?? undefined,
+    }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
+  })();
 
   return NextResponse.json(venta);
 }

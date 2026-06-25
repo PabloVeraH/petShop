@@ -121,7 +121,7 @@ function setupHappyPath() {
         ...mockChain,
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1" }, error: null }),
+        single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1", nombre: "Carlos Rojas" }, error: null }),
       };
     }
     return {
@@ -134,7 +134,7 @@ function setupHappyPath() {
   });
 }
 
-// ── Validaciones ─────────────────────────────────────────────────────────────
+// ── Suite ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/ventas — validaciones", () => {
   beforeEach(() => {
@@ -232,6 +232,20 @@ describe("POST /api/ventas — flujo exitoso", () => {
       p_store_id: STORE_ID,
       p_cliente_id: CLIENTE_ID,
     }));
+  });
+
+  // I-280: descripcion del asiento incluye metodo de pago y nombre del cliente (sin UUID)
+  it("I-280: descripcion del asiento incluye metodo de pago y nombre del cliente (sin UUID)", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
+    expect(crearAsiento).toHaveBeenCalledWith(expect.objectContaining({
+      tipoMovimiento: "VENTA",
+    }));
+
+    const callArgs = (crearAsiento as jest.Mock).mock.calls[0][0];
+    expect(callArgs.descripcion).toBe("Venta efectivo a Carlos Rojas");
+    // No debe contener el numero_comprobante (UUID truncado)
+    expect(callArgs.descripcion).not.toContain("ABC12345");
+    expect(callArgs.descripcion).not.toContain("20260525");
   });
 
   // I-279: venta exitosa incluye líneas de COGS en el asiento contable
@@ -720,7 +734,7 @@ describe("POST /api/ventas — workerClerkId (I-68)", () => {
         return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5 }, error: null }) };
       }
       if (table === "clientes") {
-        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: {}, error: null }) };
+        return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { nombre: "Cliente Test" }, error: null }) };
       }
       return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
     });
@@ -786,7 +800,7 @@ function setupConsumoAlerta() {
         ...mockChain,
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1" }, error: null }),
+        single: jest.fn().mockResolvedValue({ data: { rut: "11111111-1", nombre: "Test Cliente" }, error: null }),
       };
     }
     return {

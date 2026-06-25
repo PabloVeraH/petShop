@@ -92,15 +92,26 @@ export async function PATCH(req: NextRequest) {
   }).catch(() => {});
 
   if (estado === "pagada" && data) {
-    crearAsiento({
-      storeId: store_id,
-      fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
-      tipoMovimiento: "PAGO_PROVEEDOR",
-      referenciaId: data.id,
-      descripcion: `Pago proveedor - Cuenta ${id}`,
-      lineas: lineasPagoProveedor(Number(data.monto)),
-      usuarioId: ctx.userId ?? undefined,
-    }).catch((e) => console.error("[contabilidad] Error asiento pago proveedor:", e));
+    (async () => {
+      let proveedorNombre: string | undefined;
+      const { data: cp } = await supabase
+        .from("cuentas_pagar")
+        .select("proveedores(nombre)")
+        .eq("id", data.id)
+        .single();
+      const rel = cp?.proveedores as unknown as { nombre: string } | null;
+      proveedorNombre = rel?.nombre ?? undefined;
+
+      crearAsiento({
+        storeId: store_id,
+        fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+        tipoMovimiento: "PAGO_PROVEEDOR",
+        referenciaId: data.id,
+        descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,
+        lineas: lineasPagoProveedor(Number(data.monto)),
+        usuarioId: ctx.userId ?? undefined,
+      }).catch((e) => console.error("[contabilidad] Error asiento pago proveedor:", e));
+    })();
   }
 
   return NextResponse.json(data);

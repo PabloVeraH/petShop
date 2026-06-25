@@ -34,13 +34,21 @@ export async function POST(req: NextRequest) {
     const montoNeto = Math.round(total / 1.19);
     const iva = total - montoNeto;
 
+    // Fetch client name for description
+    const { data: ventaDetalle } = await supabase
+      .from("ventas")
+      .select("clientes!inner(nombre)")
+      .eq("id", venta.id)
+      .maybeSingle();
+    const ventaCliente = ventaDetalle?.clientes as unknown as { nombre: string } | null;
+
     const id = await crearAsiento({
       storeId: store_id,
       fecha: venta.created_at.split("T")[0],
       tipoMovimiento: "VENTA",
       referenciaId: venta.id,
       referenciaNomero: venta.numero_comprobante,
-      descripcion: `Venta ${venta.metodo_pago} - ${venta.numero_comprobante}`,
+      descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
       lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
       creadoPor: "backfill",
     });
@@ -67,13 +75,22 @@ export async function POST(req: NextRequest) {
   for (const nc of notas ?? []) {
     if (ncConAsiento.has(nc.id)) continue;
 
+    // Fetch client name for description
+    const { data: ncDetalle } = await supabase
+      .from("notas_credito")
+      .select("ventas!inner(clientes!inner(nombre))")
+      .eq("id", nc.id)
+      .maybeSingle();
+    const ncVenta = ncDetalle?.ventas as unknown as { clientes: { nombre: string } } | null;
+    const ncCliente = ncVenta?.clientes?.nombre;
+
     const id = await crearAsiento({
       storeId: store_id,
       fecha: nc.created_at.split("T")[0],
       tipoMovimiento: "NOTA_CREDITO",
       referenciaId: nc.id,
       referenciaNomero: nc.numero_nc,
-      descripcion: `Nota de Crédito ${nc.numero_nc}`,
+      descripcion: `Devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
       lineas: lineasNotaCredito({ monto: Number(nc.monto_total), tipoReembolso: nc.tipo_reembolso }),
       creadoPor: "backfill",
     });
@@ -100,13 +117,21 @@ export async function POST(req: NextRequest) {
   for (const orden of ordenes ?? []) {
     if (comprasConAsiento.has(orden.id)) continue;
 
+    // Fetch supplier name for description
+    const { data: ocDetalle } = await supabase
+      .from("ordenes_compra")
+      .select("proveedores!inner(nombre)")
+      .eq("id", orden.id)
+      .maybeSingle();
+    const ocProveedor = ocDetalle?.proveedores as unknown as { nombre: string } | null;
+
     const id = await crearAsiento({
       storeId: store_id,
       fecha: orden.created_at.split("T")[0],
       tipoMovimiento: "COMPRA",
       referenciaId: orden.id,
       referenciaNomero: orden.numero,
-      descripcion: `Compra a proveedor - ${orden.numero}`,
+      descripcion: `Compra a ${ocProveedor?.nombre ?? "proveedor"}`,
       lineas: lineasCompra({ montoNeto: Number(orden.subtotal), iva: Number(orden.impuesto), total: Number(orden.total) }),
       creadoPor: "backfill",
     });

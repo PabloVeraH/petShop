@@ -290,17 +290,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  crearAsiento({
-    storeId: venta_store_id,
-    fecha: new Date().toISOString().split("T")[0],
-    tipoMovimiento: "NOTA_CREDITO",
-    canal: "pos",
-    referenciaId: nc.id,
-    referenciaNomero: numero_nc,
-    descripcion: `Nota de Crédito ${numero_nc}`,
-    lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
-    usuarioId: ctx.userId ?? undefined,
-  }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
+  (async () => {
+    let clienteNombre: string | undefined;
+    if (venta.cliente_id) {
+      const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", venta.cliente_id).single();
+      clienteNombre = cli?.nombre ?? undefined;
+    }
+
+    crearAsiento({
+      storeId: venta_store_id,
+      fecha: new Date().toISOString().split("T")[0],
+      tipoMovimiento: "NOTA_CREDITO",
+      canal: "pos",
+      referenciaId: nc.id,
+      referenciaNomero: numero_nc,
+      descripcion: `Devolución${clienteNombre ? ` a ${clienteNombre}` : ""}${motivo ? ` — ${motivo}` : ""}`,
+      lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
+      usuarioId: ctx.userId ?? undefined,
+    }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
+  })();
 
   return NextResponse.json({
     ok: true,
