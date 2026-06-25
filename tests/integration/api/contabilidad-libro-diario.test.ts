@@ -219,4 +219,38 @@ describe("GET /api/contabilidad/libro-diario", () => {
     const res = await GET(makeRequest({ mes: "6", año: "2026" }));
     expect(res.status).toBe(500);
   });
+
+  // I-LD-07 — REGRESIÓN: asientos con total_debito=0 y total_credito=0 deben
+  // exponerse en la respuesta con sus valores reales para que la UI pueda
+  // mostrar la advertencia ⚠ en lugar de ✓.
+  it(
+    "I-LD-07: REGRESIÓN — asientos $0/$0 se incluyen en la respuesta con " +
+      "sus montos reales para que la UI distinga 'balanceado sin movimiento'",
+    async () => {
+      const entryZero = makeEntry("je-zero", 43, "2026-06-15");
+      // Simular un asiento $0/$0 guardado previamente en la BD
+      const entryZeroWith = {
+        ...entryZero,
+        total_debito: 0,
+        total_credito: 0,
+        esta_balanceado: true,
+      };
+      const db = makeDb({ entries: [entryZeroWith], dbCount: 1 });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
+
+      const res = await GET(makeRequest({ mes: "6", año: "2026" }));
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.asientos).toHaveLength(1);
+
+      const asiento = body.asientos[0];
+      // El API expone los montos tal como están en la BD — la UI decide el indicador
+      expect(Number(asiento.total_debito)).toBe(0);
+      expect(Number(asiento.total_credito)).toBe(0);
+      expect(asiento.esta_balanceado).toBe(true);
+      // El resumen no los oculta: el total sigue siendo 1
+      expect(body.resumen.total_asientos).toBe(1);
+    }
+  );
 });

@@ -304,8 +304,10 @@ export default function ContabilidadPage() {
                               {fmt(Number(a.total_credito))}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {a.esta_balanceado ? (
+                              {a.esta_balanceado && (Number(a.total_debito) > 0 || Number(a.total_credito) > 0) ? (
                                 <span className="text-green-600 font-bold">✓</span>
+                              ) : a.esta_balanceado ? (
+                                <span className="text-amber-500 font-bold" title="Asiento sin movimiento económico ($0/$0)">⚠</span>
                               ) : (
                                 <span className="text-red-500 font-bold">✗</span>
                               )}

@@ -83,6 +83,12 @@ const LINEAS_DESCUADRADAS: CrearAsientoInput["lineas"] = [
   { cuentaCodigo: "410101", cuentaNombre: "Ventas", debito: 0, credito: 6000 }, // Dr ≠ Cr
 ];
 
+// Líneas con todos los montos en cero — balanceado pero sin movimiento económico
+const LINEAS_CERO: CrearAsientoInput["lineas"] = [
+  { cuentaCodigo: "210201", cuentaNombre: "Proveedores", debito: 0, credito: 0 },
+  { cuentaCodigo: "110201", cuentaNombre: "Banco", debito: 0, credito: 0 },
+];
+
 const INPUT_BASE: CrearAsientoInput = {
   storeId: "store-uuid-001",
   fecha: "2026-04-18",
@@ -110,6 +116,40 @@ describe("crearAsiento", () => {
 
       await crearAsiento({ ...INPUT_BASE, lineas: LINEAS_DESCUADRADAS });
 
+      expect(client.from).not.toHaveBeenCalled();
+    });
+
+    // REGRESIÓN — asiento #43 "Pago proveedor" con monto=0 marcado como "OK"
+    // Un asiento 0/0 está matemáticamente balanceado pero carece de movimiento
+    // económico y no debe persistirse ni mostrarse como válido.
+    it("REGRESIÓN: retorna null cuando todos los montos son cero (asiento $0/$0)", async () => {
+      const result = await crearAsiento({ ...INPUT_BASE, lineas: LINEAS_CERO });
+      expect(result).toBeNull();
+    });
+
+    it("no llama a Supabase cuando todos los montos son cero", async () => {
+      const client = makeSupabaseMock();
+      mockCreateServiceClient.mockReturnValue(client);
+
+      await crearAsiento({ ...INPUT_BASE, lineas: LINEAS_CERO });
+
+      expect(client.from).not.toHaveBeenCalled();
+    });
+
+    it("lineasPagoProveedor(0) produce asiento rechazado por monto cero", async () => {
+      const { lineasPagoProveedor } = require("@/lib/contabilidad/generador-asientos");
+      const client = makeSupabaseMock();
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const lineas = lineasPagoProveedor(0);
+      const result = await crearAsiento({
+        ...INPUT_BASE,
+        tipoMovimiento: "PAGO_PROVEEDOR",
+        descripcion: "Pago proveedor - Cuenta cero",
+        lineas,
+      });
+
+      expect(result).toBeNull();
       expect(client.from).not.toHaveBeenCalled();
     });
 

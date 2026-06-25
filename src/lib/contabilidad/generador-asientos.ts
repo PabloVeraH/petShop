@@ -30,6 +30,13 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
     return null;
   }
 
+  // Un asiento balanceado con $0/$0 no tiene movimiento económico — rechazar.
+  // Protege contra lineasPagoProveedor(0) y similares.
+  if (td === 0) {
+    console.error(`[contabilidad] Asiento rechazado: monto cero | ${input.descripcion}`);
+    return null;
+  }
+
   const numero = await nextNumeroAsiento(input.storeId);
 
   const { data: entry, error: entryErr } = await supabase
