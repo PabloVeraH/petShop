@@ -13,6 +13,14 @@ export async function GET(req: NextRequest) {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
+  const { data: store } = await supabase
+    .from("stores")
+    .select("name")
+    .eq("id", store_id)
+    .single();
+
+  const nombreEmpresa = store?.name ?? "";
+
   const mes = req.nextUrl.searchParams.get("mes");
   const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
 
@@ -44,6 +52,7 @@ export async function GET(req: NextRequest) {
 
   if (entryIds.length === 0) {
     return NextResponse.json({
+      empresa: { nombre: nombreEmpresa },
       periodo,
       desde,
       hasta,
@@ -73,6 +82,7 @@ export async function GET(req: NextRequest) {
   const utilidadNeta = utilidadBruta;
 
   return NextResponse.json({
+    empresa: { nombre: nombreEmpresa },
     periodo,
     desde,
     hasta,
