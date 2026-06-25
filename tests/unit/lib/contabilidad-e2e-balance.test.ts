@@ -1,5 +1,6 @@
 const {
   lineasVenta,
+  lineasVentaCOGS,
   lineasNotaCredito,
   lineasCompra,
   lineasPagoProveedor,
@@ -23,13 +24,16 @@ describe("E2E Balance Invariant", () => {
     it("acumulado de todos los asientos sigue balanceado", () => {
       const todasLasLineas = [
         ...lineasVenta({ metodoPago: "efectivo", montoNeto: 10000, iva: 1900, total: 11900 }),
+        ...lineasVentaCOGS(6000),
         ...lineasVenta({ metodoPago: "debito", montoNeto: 20000, iva: 3800, total: 23800 }),
+        ...lineasVentaCOGS(12000),
         ...lineasVenta({ metodoPago: "credito", montoNeto: 5000, iva: 950, total: 5950 }),
+        ...lineasVentaCOGS(3000),
         ...lineasNotaCredito({ monto: 2000, tipoReembolso: "caja" }),
         ...lineasNotaCredito({ monto: 1500, tipoReembolso: "saldo_a_favor" }),
         ...lineasCompra({ montoNeto: 15000, iva: 2850, total: 17850 }),
         ...lineasPagoProveedor(17850),
-        ...lineasCierreCOGS(12000),
+        ...lineasCierreCOGS(21000),
       ];
 
       const td = Math.round(totalDebito(todasLasLineas) * 100) / 100;
@@ -40,13 +44,13 @@ describe("E2E Balance Invariant", () => {
 
     it("cada asiento individual está balanceado", () => {
       const asientos = [
-        lineasVenta({ metodoPago: "efectivo", montoNeto: 8000, iva: 1520, total: 9520 }),
-        lineasVenta({ metodoPago: "transferencia", montoNeto: 3000, iva: 570, total: 3570 }),
+        [...lineasVenta({ metodoPago: "efectivo", montoNeto: 8000, iva: 1520, total: 9520 }), ...lineasVentaCOGS(4000)],
+        [...lineasVenta({ metodoPago: "transferencia", montoNeto: 3000, iva: 570, total: 3570 }), ...lineasVentaCOGS(1500)],
         lineasNotaCredito({ monto: 1000, tipoReembolso: "caja" }),
         lineasNotaCredito({ monto: 500, tipoReembolso: "saldo_a_favor" }),
         lineasCompra({ montoNeto: 6000, iva: 1140, total: 7140 }),
         lineasPagoProveedor(7140),
-        lineasCierreCOGS(5000),
+        lineasCierreCOGS(5500),
       ];
 
       asientos.forEach((lineas, i) => {

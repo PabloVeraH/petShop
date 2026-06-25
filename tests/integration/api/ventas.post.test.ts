@@ -50,7 +50,17 @@ jest.mock("@/lib/email", () => ({
   sendBoletaEmail: jest.fn().mockResolvedValue(true),
 }));
 
+jest.mock("@/lib/contabilidad/generador-asientos", () => {
+  const actual = jest.requireActual("@/lib/contabilidad/generador-asientos");
+  return {
+    ...actual,
+    crearAsiento: jest.fn().mockResolvedValue("asiento-uuid"),
+  };
+});
+
 import { POST } from "@/app/api/ventas/route";
+import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
+import { CUENTAS } from "@/lib/contabilidad/types";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 import { syncPurchaseToHub } from "@/lib/hub-sync";
 import { sendBoletaEmail } from "@/lib/email";
@@ -65,7 +75,7 @@ function makeRequest(body: object) {
 
 const VALID_ITEM = { producto_id: PRODUCTO_ID, cantidad: 2 };
 
-const DB_PRODUCTO = { id: PRODUCTO_ID, nombre: "Cama Mascota Talla M", precio: 10000, precio_oferta: null, en_oferta: false, stock: 10 };
+const DB_PRODUCTO = { id: PRODUCTO_ID, nombre: "Cama Mascota Talla M", precio: 10000, precio_oferta: null, en_oferta: false, stock: 10, costo: 4000 };
 const DB_PRODUCTO_SYNC = { id: PRODUCTO_ID, nombre: "Test", marca: null, codigo_barra: null, precio: 10000, stock: 48, activo: true };
 // Respuesta simulada del RPC crear_venta_tx
 const DB_VENTA = {
@@ -222,6 +232,39 @@ describe("POST /api/ventas — flujo exitoso", () => {
       p_store_id: STORE_ID,
       p_cliente_id: CLIENTE_ID,
     }));
+  });
+
+  // I-69: venta exitosa incluye líneas de COGS en el asiento contable
+  it("I-69: registro de venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × costo del producto", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
+
+    expect(crearAsiento).toHaveBeenCalledWith(expect.objectContaining({
+      tipoMovimiento: "VENTA",
+    }));
+
+    const callArgs = (crearAsiento as jest.Mock).mock.calls[0][0];
+    const lineasEnviadas = callArgs.lineas;
+
+    // Debe haber una línea debitando COGS (510101)
+    const lineaCOGS = lineasEnviadas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo
+    );
+    expect(lineaCOGS).toBeDefined();
+    expect(lineaCOGS.debito).toBe(8000); // 2 items × $4000 costo
+    expect(lineaCOGS.credito).toBe(0);
+
+    // Debe haber una línea creditando Inventario (111001)
+    const lineaInventario = lineasEnviadas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
+    );
+    expect(lineaInventario).toBeDefined();
+    expect(lineaInventario.credito).toBe(8000);
+    expect(lineaInventario.debito).toBe(0);
+
+    // El total de débitos = créditos (balanceado con COGS incluido)
+    const totalDebito = lineasEnviadas.reduce((s: number, l: { debito: number }) => s + l.debito, 0);
+    const totalCredito = lineasEnviadas.reduce((s: number, l: { credito: number }) => s + l.credito, 0);
+    expect(totalDebito).toBe(totalCredito);
   });
 
   // I-41: RPC recibe los items con precio de DB

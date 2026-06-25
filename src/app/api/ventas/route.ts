@@ -7,7 +7,7 @@ import { sendBoletaEmail } from "@/lib/email";
 import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
-import { crearAsiento, lineasVentaCanal, lineasVentaConNc } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaCanal, lineasVentaConNc, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -113,7 +113,7 @@ async function postVenta(req: NextRequest) {
   const uniqueProductoIds = [...new Set(productoIds)];
   const { data: productosDB, error: precioError } = await supabase
     .from("productos")
-    .select("id, nombre, precio, precio_oferta, en_oferta, precio_venta_kg, stock")
+    .select("id, nombre, precio, precio_oferta, en_oferta, precio_venta_kg, stock, costo")
     .in("id", uniqueProductoIds)
     .eq("store_id", store_id);
 
@@ -122,6 +122,7 @@ async function postVenta(req: NextRequest) {
   }
 
    const precioMap: Record<string, number> = {};
+   const costoMap: Record<string, number> = {};
    const granelSinPrecioKg: string[] = [];
 
    productosDB.forEach(p => {
@@ -130,12 +131,12 @@ async function postVenta(req: NextRequest) {
        if (p.precio_venta_kg) {
          precioMap[p.id] = Number(p.precio_venta_kg);
        } else {
-         // Rechazar explícitamente — caer al precio de lista sería un sobrecargo silencioso
          granelSinPrecioKg.push(p.id);
        }
      } else {
        precioMap[p.id] = p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio);
      }
+     costoMap[p.id] = Number(p.costo ?? 0);
    });
 
    if (granelSinPrecioKg.length > 0) {
@@ -185,6 +186,11 @@ async function postVenta(req: NextRequest) {
    });
 
   const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
+  const costoTotal: number = itemsConPrecio.reduce(
+    (sum: number, i: { producto_id: string; cantidad: number }) =>
+      sum + (i.cantidad * (costoMap[i.producto_id] ?? 0)),
+    0
+  );
   const descuentoMonto = (subtotal * descuento_pct) / 100;
   const total = Math.round(subtotal - descuentoMonto);
   const impuesto = Math.round(total * IVA_RATE / (1 + IVA_RATE));
@@ -410,6 +416,8 @@ async function postVenta(req: NextRequest) {
   const ivaCalc = Math.round(total * IVA_RATE / (1 + IVA_RATE));
   const montoNeto = total - ivaCalc;
 
+  const cogsLineas = costoTotal > 0 ? lineasVentaCOGS(Math.round(costoTotal)) : [];
+
   crearAsiento({
     storeId: store_id,
     fecha: (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0],
@@ -418,16 +426,19 @@ async function postVenta(req: NextRequest) {
     referenciaId: venta.id as string,
     referenciaNomero: venta.numero_comprobante as string,
     descripcion: `Venta ${canal.toUpperCase()} ${metodoPagoVenta} - ${venta.numero_comprobante}`,
-    lineas: pagoNc
-      ? lineasVentaConNc({
-          montoNeto,
-          iva: ivaCalc,
-          total,
-          montoNc: pagoNc.monto,
-          montoResto: Math.round(total - pagoNc.monto),
-          metodoPagoResto: metodoPago,
-        })
-      : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
+    lineas: [
+      ...(pagoNc
+        ? lineasVentaConNc({
+            montoNeto,
+            iva: ivaCalc,
+            total,
+            montoNc: pagoNc.monto,
+            montoResto: Math.round(total - pagoNc.monto),
+            metodoPagoResto: metodoPago,
+          })
+        : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total })),
+      ...cogsLineas,
+    ],
     usuarioId: ctx.userId ?? undefined,
   }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 

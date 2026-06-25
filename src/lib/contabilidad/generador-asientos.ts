@@ -331,6 +331,28 @@ export function lineasPagoProveedor(monto: number): LineaAsiento[] {
   ];
 }
 
+// Asiento de costo de venta por venta individual (perpetuo)
+export function lineasVentaCOGS(costoTotal: number): LineaAsiento[] {
+  return [
+    {
+      cuentaCodigo: CUENTAS.COGS.codigo,
+      cuentaNombre: CUENTAS.COGS.nombre,
+      cuentaTipo: CUENTAS.COGS.tipo,
+      debito: costoTotal,
+      credito: 0,
+      descripcionLinea: "COGS venta del período",
+    },
+    {
+      cuentaCodigo: CUENTAS.INVENTARIO.codigo,
+      cuentaNombre: CUENTAS.INVENTARIO.nombre,
+      cuentaTipo: CUENTAS.INVENTARIO.tipo,
+      debito: 0,
+      credito: costoTotal,
+      descripcionLinea: "Reducción de inventario por venta",
+    },
+  ];
+}
+
 // Asiento de cierre: COGS = costo de ventas del mes
 export function lineasCierreCOGS(costoTotal: number): LineaAsiento[] {
   return [

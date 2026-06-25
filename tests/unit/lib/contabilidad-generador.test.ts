@@ -1,5 +1,6 @@
 const {
   lineasVenta,
+  lineasVentaCOGS,
   lineasNotaCredito,
   lineasCompra,
   lineasPagoProveedor,
@@ -81,6 +82,61 @@ describe("Generador de Asientos Contables", () => {
 
       const lineaBanco = lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
       expect(lineaBanco?.debito).toBe(5950);
+    });
+  });
+
+  describe("lineasVentaCOGS - Costo de Venta por Venta Individual", () => {
+    it("debe crear líneas balanceadas para COGS de una venta", () => {
+      const lineas = lineasVentaCOGS(25000);
+
+      expect(lineas).toHaveLength(2);
+
+      const debitos = lineas.reduce((s, l) => s + l.debito, 0);
+      const creditos = lineas.reduce((s, l) => s + l.credito, 0);
+
+      expect(debitos).toBe(25000);
+      expect(creditos).toBe(25000);
+    });
+
+    it("debe debitar cuenta COGS (510101)", () => {
+      const lineas = lineasVentaCOGS(35000);
+
+      const lineaCOGS = lineas.find(
+        (l) => l.cuentaCodigo === CUENTAS.COGS.codigo
+      );
+      expect(lineaCOGS?.debito).toBe(35000);
+      expect(lineaCOGS?.credito).toBe(0);
+      expect(lineaCOGS?.descripcionLinea).toBe("COGS venta del período");
+    });
+
+    it("debe creditar cuenta Inventario (111001)", () => {
+      const lineas = lineasVentaCOGS(18000);
+
+      const lineaInventario = lineas.find(
+        (l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
+      );
+      expect(lineaInventario?.credito).toBe(18000);
+      expect(lineaInventario?.debito).toBe(0);
+      expect(lineaInventario?.descripcionLinea).toBe("Reducción de inventario por venta");
+    });
+
+    it("debe funcionar con costo cero", () => {
+      const lineas = lineasVentaCOGS(0);
+
+      expect(lineas).toHaveLength(2);
+      const debitos = lineas.reduce((s, l) => s + l.debito, 0);
+      const creditos = lineas.reduce((s, l) => s + l.credito, 0);
+      expect(debitos).toBe(0);
+      expect(creditos).toBe(0);
+    });
+
+    it("debe funcionar con montos grandes", () => {
+      const lineas = lineasVentaCOGS(99999999);
+
+      const debitos = lineas.reduce((s, l) => s + l.debito, 0);
+      const creditos = lineas.reduce((s, l) => s + l.credito, 0);
+      expect(debitos).toBe(99999999);
+      expect(creditos).toBe(99999999);
     });
   });
 
