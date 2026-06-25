@@ -146,6 +146,17 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | SEC-05 | PATCH con placeholder no actualiza webhook_verify_token | PATCH /api/settings | integration |
 | SEC-06 | GET settings enmascara ambos tokens simultáneamente | GET /api/settings | integration |
 
+## Órdenes de Compra — Componentes (COD-01 a COD-06)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|-----------|------|
+| COD-01 | Diálogo Nueva OC renderiza campos requeridos | CreateOrderDialog | component |
+| COD-02 | Permite agregar productos existentes a la OC | CreateOrderDialog | component |
+| COD-03 | Permite agregar productos nuevos (nombre libre) | CreateOrderDialog | component |
+| COD-04 | Botón Crear OC deshabilitado sin items | CreateOrderDialog | component |
+| COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
+| COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
+
 ## Tests unitarios (U-XX)
 
 | ID | Requisito | Lib | Tipo |
@@ -164,5 +175,6 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 - `SEC-NN` — test de seguridad
 - `U-NN` — test unitario de lib
 - `PROP-NN` — test de propiedad (fast-check)
+- `COD-NN` — test de componente de orden de compra
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

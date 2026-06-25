@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CreateOrderDialog from "@/components/orders/create-order-dialog";
 import * as XLSX from "xlsx";
 
 type Proveedor = { id: string; nombre: string; rut: string | null; contacto: string | null; telefono: string | null; email: string | null };
@@ -28,9 +29,7 @@ export default function SupplierHubPage() {
   const [editingProveedor, setEditingProveedor] = useState(false);
   const [showAddProd, setShowAddProd] = useState(false);
   const [prodForm, setProdForm] = useState({ producto_id: "", costo: "", tiempo_entrega_dias: "3" });
-  const [showCreateOrder, setShowCreateOrder] = useState(false);
-  const [orderForm, setOrderForm] = useState({ items: [] as Array<{ producto_id: string | null; nombre_nuevo: string; nombre: string; cantidad: string; esNuevo: boolean }> });
-  const [addingOrderItem, setAddingOrderItem] = useState({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
+  const [showCreateOrderDialog, setShowCreateOrderDialog] = useState(false);
   const [selectedOrden, setSelectedOrden] = useState<string | null>(null);
   const [showReceiving, setShowReceiving] = useState<string | null>(null);
   const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }>>({});
@@ -86,7 +85,7 @@ export default function SupplierHubPage() {
       const res = await fetch("/api/inventario?search=");
       return res.json();
     },
-    enabled: showAddProd || showCreateOrder,
+    enabled: showAddProd || showCreateOrderDialog,
   });
 
   // Phase 3: Calculate supplier performance (on-time delivery %)
@@ -205,28 +204,9 @@ export default function SupplierHubPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["proveedor", selected?.id] }),
   });
 
-  const { mutate: createOrden, isPending: creatingOrder } = useMutation({
-    mutationFn: async () => {
-      const items = orderForm.items.map(item => ({
-        producto_id: item.producto_id ?? undefined,
-        nombre_nuevo: item.esNuevo ? item.nombre_nuevo : undefined,
-        cantidad_solicitada: Number(item.cantidad),
-      }));
-      const res = await fetch("/api/ordenes-compra", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proveedor_id: selected!.id, items }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
-      setShowCreateOrder(false);
-      setOrderForm({ items: [] });
-      setAddingOrderItem({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
-    },
-  });
+  const handleOrderCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+  };
 
   const { data: ordenDetalle } = useQuery<OrdenCompra & { items: OrdenItem[] }>({
     queryKey: ["orden-detalle", selectedOrden],
@@ -341,42 +321,7 @@ export default function SupplierHubPage() {
     localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(updated));
   };
 
-  const addOrderItem = () => {
-    if (addingOrderItem.esNuevo) {
-      if (!addingOrderItem.nombre_nuevo.trim()) return;
-      setOrderForm(prev => ({
-        ...prev,
-        items: [...prev.items, {
-          producto_id: null,
-          nombre_nuevo: addingOrderItem.nombre_nuevo.trim(),
-          nombre: addingOrderItem.nombre_nuevo.trim(),
-          cantidad: addingOrderItem.cantidad,
-          esNuevo: true,
-        }]
-      }));
-    } else {
-      const prod = todosProductos?.find(p => p.id === addingOrderItem.producto_id);
-      if (!prod) return;
-      setOrderForm(prev => ({
-        ...prev,
-        items: [...prev.items, {
-          producto_id: prod.id,
-          nombre_nuevo: "",
-          nombre: prod.nombre,
-          cantidad: addingOrderItem.cantidad,
-          esNuevo: false,
-        }]
-      }));
-    }
-    setAddingOrderItem({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
-  };
 
-  const removeOrderItem = (idx: number) => {
-    setOrderForm(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== idx)
-    }));
-  };
 
   const pendingOrders = ordenes?.filter(o => o.estado !== "cancelada") ?? [];
 
@@ -520,69 +465,17 @@ export default function SupplierHubPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-gray-700">Órdenes de Compra ({pendingOrders.length})</p>
-                  <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(!showCreateOrder)}>+ Nueva OC</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowCreateOrderDialog(true)}>+ Nueva OC</Button>
                 </div>
 
-                {showCreateOrder && (
-                  <div className="border rounded p-3 mb-3 space-y-2 bg-gray-50">
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {orderForm.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                          <span>{item.nombre}{item.esNuevo && <span className="text-xs text-blue-500 ml-1">(nuevo)</span>}</span>
-                          <div className="flex items-center gap-2">
-                            <span>{item.cantidad}x</span>
-                            <button onClick={() => removeOrderItem(idx)} className="text-xs text-red-400 hover:text-red-600">✕</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-1 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => setAddingOrderItem(f => ({ ...f, esNuevo: false, nombre_nuevo: "", producto_id: "" }))}
-                        className={`text-xs px-3 py-1 rounded ${!addingOrderItem.esNuevo ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"}`}
-                      >
-                        Existente
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAddingOrderItem(f => ({ ...f, esNuevo: true, producto_id: "" }))}
-                        className={`text-xs px-3 py-1 rounded ${addingOrderItem.esNuevo ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}
-                      >
-                        + Nuevo producto
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      {!addingOrderItem.esNuevo ? (
-                        <select
-                          value={addingOrderItem.producto_id}
-                          onChange={(e) => setAddingOrderItem((f) => ({ ...f, producto_id: e.target.value }))}
-                          className="flex-1 rounded border border-input px-2 py-1.5 text-sm h-8"
-                        >
-                          <option value="">Producto...</option>
-                          {todosProductos?.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                        </select>
-                      ) : (
-                        <Input
-                          placeholder="Nombre del producto nuevo"
-                          className="flex-1 h-8 text-sm"
-                          value={addingOrderItem.nombre_nuevo}
-                          onChange={e => setAddingOrderItem(f => ({ ...f, nombre_nuevo: e.target.value }))}
-                        />
-                      )}
-                      <Input type="number" placeholder="Cant" className="w-16 h-8 text-sm" value={addingOrderItem.cantidad} onChange={(e) => setAddingOrderItem((f) => ({ ...f, cantidad: e.target.value }))} />
-                      <Button size="sm" disabled={(!addingOrderItem.producto_id && !addingOrderItem.nombre_nuevo.trim()) || !addingOrderItem.cantidad} onClick={addOrderItem} className="h-8">Agregar</Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Precio se ingresará al recibir</span>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-7" onClick={() => setShowCreateOrder(false)}>Cancelar</Button>
-                        <Button size="sm" className="h-7" disabled={orderForm.items.length === 0 || creatingOrder} onClick={() => createOrden()}>
-                          {creatingOrder ? "Guardando..." : "Crear OC"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                {showCreateOrderDialog && selected && (
+                  <CreateOrderDialog
+                    open={showCreateOrderDialog}
+                    onClose={() => setShowCreateOrderDialog(false)}
+                    proveedorId={selected.id}
+                    productos={todosProductos ?? []}
+                    onOrderCreated={handleOrderCreated}
+                  />
                 )}
 
                 {pendingOrders.length === 0 ? (
