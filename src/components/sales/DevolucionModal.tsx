@@ -180,7 +180,7 @@ export function DevolucionModal({
                         <input
                           type="checkbox"
                           checked={selected}
-                          onChange={() => {}}
+                          onChange={() => handleToggleItem(item.id)}
                           className="mt-1"
                           onClick={(e) => e.stopPropagation()}
                         />
