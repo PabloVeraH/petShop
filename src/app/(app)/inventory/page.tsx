@@ -339,8 +339,8 @@ export default function InventoryPage() {
                   : null;
                 return (
                   <TableRow key={p.id} className={enAlerta || vencStatus === 'vencido' ? "bg-red-50" : vencStatus === 'proximo' ? "bg-amber-50" : undefined}>
-                    <TableCell className="font-medium">{p.nombre}</TableCell>
-                    <TableCell className="text-gray-500 text-sm">{p.sku}</TableCell>
+                    <TableCell className="font-medium max-w-[200px] truncate">{p.nombre}</TableCell>
+                    <TableCell className="text-gray-500 text-sm max-w-[100px] truncate">{p.sku}</TableCell>
                     <TableCell className="text-right">{p.precio != null ? `$${p.precio.toLocaleString("es-CL")}` : <span className="text-gray-400 text-xs">Sin precio</span>}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
                     <TableCell className="text-right font-medium">{p.stock}</TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
@@ -380,21 +380,21 @@ export default function InventoryPage() {
                       <div className="flex gap-1">
                         <button
                           onClick={() => { setAjuste({ producto: p, tipo: "entrada" }); setAjusteCantidad("1"); setAjusteNotas(""); }}
-                          className="px-2 py-1 text-xs rounded bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                          className="px-1.5 py-0.5 text-[11px] rounded bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                         >+</button>
                         <button
                           onClick={() => { setAjuste({ producto: p, tipo: "salida" }); setAjusteCantidad("1"); setAjusteNotas(""); }}
-                          className="px-2 py-1 text-xs rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                          className="px-1.5 py-0.5 text-[11px] rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                         >−</button>
                       </div>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button onClick={() => abrirEditar(p)} className="text-xs text-blue-500 hover:underline">Editar</button>
-                          <button onClick={() => setHistorial(p)} className="text-xs text-gray-500 hover:underline ml-1">Historial</button>
-                          <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-xs text-purple-600 hover:underline ml-1">Lotes</button>
-                          <button onClick={() => setConfirmDelete(p)} className="text-xs text-red-400 hover:underline ml-1">Desact.</button>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex gap-0.5 items-center">
+                          <button onClick={() => abrirEditar(p)} className="text-[11px] text-blue-500 hover:underline px-1">Editar</button>
+                          <button onClick={() => setHistorial(p)} className="text-[11px] text-gray-500 hover:underline px-1">Historial</button>
+                          <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
+                          <button onClick={() => setConfirmDelete(p)} className="text-[11px] text-red-400 hover:underline px-1">Desact.</button>
                         </div>
                       </TableCell>
                     )}

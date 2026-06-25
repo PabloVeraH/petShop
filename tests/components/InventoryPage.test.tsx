@@ -27,7 +27,7 @@ jest.mock("@/components/ui/table", () => ({
     <tr className={className}>{children}</tr>
   ),
   TableHead: ({ children }: { children: ReactNode }) => <th>{children}</th>,
-  TableCell: ({ children }: { children: ReactNode }) => <td>{children}</td>,
+  TableCell: ({ children, className }: { children: ReactNode; className?: string }) => <td className={className}>{children}</td>,
 }));
 
 jest.mock("@/components/ui/badge", () => ({
@@ -274,5 +274,61 @@ describe("InventoryPage — formulario de producto", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByText("Nuevo producto")).not.toBeInTheDocument();
+  });
+});
+
+describe("InventoryPage — acciones responsivas", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupFetch([PRODUCTO]);
+  });
+
+  // C-35: admin ve los 4 botones de acción sin ml-1 (regresión layout responsivo)
+  it("C-35: admin ve Editar, Historial, Lotes y Desact. sin ml-1", async () => {
+    mockAsAdmin();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    const editar = screen.getByText("Editar");
+    const historial = screen.getByText("Historial");
+    const lotes = screen.getByText("Lotes");
+    const desact = screen.getByText("Desact.");
+
+    expect(editar).toBeInTheDocument();
+    expect(historial).toBeInTheDocument();
+    expect(lotes).toBeInTheDocument();
+    expect(desact).toBeInTheDocument();
+
+    expect(editar.classList.contains("ml-1")).toBe(false);
+    expect(historial.classList.contains("ml-1")).toBe(false);
+    expect(lotes.classList.contains("ml-1")).toBe(false);
+    expect(desact.classList.contains("ml-1")).toBe(false);
+  });
+
+  // C-36: worker NO ve botones de acción (no tiene columna de acciones)
+  it("C-36: worker no ve Editar/Historial/Lotes/Desact.", async () => {
+    mockAsWorker();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    expect(screen.queryByText("Editar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Historial")).not.toBeInTheDocument();
+    expect(screen.queryByText("Lotes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Desact.")).not.toBeInTheDocument();
+  });
+
+  // C-37: Producto cell tiene clase truncate para evitar desbordar la tabla
+  it("C-37: nombre de producto tiene clase truncate", async () => {
+    mockAsAdmin();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    const cells = screen.getAllByText("Alimento Premium");
+    const td = cells[0].closest("td");
+    expect(td).toBeTruthy();
+    expect(td!.classList.contains("truncate")).toBe(true);
   });
 });
