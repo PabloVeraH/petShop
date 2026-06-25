@@ -180,9 +180,12 @@ export function DevolucionModal({
                         <input
                           type="checkbox"
                           checked={selected}
-                          onChange={() => handleToggleItem(item.id)}
+                          readOnly
                           className="mt-1"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleItem(item.id);
+                          }}
                         />
                         <div className="flex-1">
                           <p className="font-medium text-sm">{prod?.nombre ?? "Producto"}</p>
@@ -217,13 +220,14 @@ export function DevolucionModal({
                             <input
                               type="checkbox"
                               checked={selectedItems[item.id]?.restituir ?? true}
-                              onChange={(e) => {
+                              readOnly
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedItems((prev) => ({
                                   ...prev,
-                                  [item.id]: { ...prev[item.id]!, restituir: e.target.checked },
+                                  [item.id]: { ...prev[item.id]!, restituir: !(prev[item.id]?.restituir ?? true) },
                                 }));
                               }}
-                              onClick={(e) => e.stopPropagation()}
                             />
                             <span>Restituir al stock</span>
                           </label>
