@@ -212,9 +212,14 @@ export default function VendedoresPage() {
                 <div>
                   <label className="text-xs font-medium text-gray-700 block mb-1">Meta mensual ($)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editForm.meta_ventas}
-                    onChange={(e) => setEditForm((f) => ({ ...f, meta_ventas: e.target.value }))}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9]/g, "");
+                      setEditForm((f) => ({ ...f, meta_ventas: v }));
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
