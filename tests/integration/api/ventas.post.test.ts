@@ -234,8 +234,8 @@ describe("POST /api/ventas — flujo exitoso", () => {
     }));
   });
 
-  // I-69: venta exitosa incluye líneas de COGS en el asiento contable
-  it("I-69: registro de venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × costo del producto", async () => {
+  // I-279: venta exitosa incluye líneas de COGS en el asiento contable
+  it("I-279: registro de venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × costo del producto", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
 
     expect(crearAsiento).toHaveBeenCalledWith(expect.objectContaining({
