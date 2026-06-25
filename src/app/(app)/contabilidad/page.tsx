@@ -235,7 +235,7 @@ export default function ContabilidadPage() {
               {libro?.resumen && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white rounded-lg border p-4">
-                    <div className="text-xs text-gray-500">Total Asientos</div>
+                    <div className="text-xs text-gray-500">Asientos en período</div>
                     <div className="text-2xl font-bold text-gray-900">{libro.resumen.total_asientos}</div>
                   </div>
                   <div className="bg-white rounded-lg border p-4">

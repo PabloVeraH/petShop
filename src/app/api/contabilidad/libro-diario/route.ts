@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("journal_entries")
-    .select("id, numero_asiento, fecha, tipo_movimiento, canal, referencia_numero, descripcion, total_debito, total_credito, esta_balanceado")
+    .select("id, numero_asiento, fecha, tipo_movimiento, canal, referencia_numero, descripcion, total_debito, total_credito, esta_balanceado", { count: "exact" })
     .eq("store_id", store_id)
     .gte("fecha", desde)
     .lte("fecha", hasta);
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     query = query.eq("canal", canal);
   }
 
-  const { data: entries, error } = await query.order("numero_asiento", { ascending: true });
+  const { data: entries, error, count: dbCount } = await query.order("numero_asiento", { ascending: true });
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
@@ -92,7 +92,9 @@ export async function GET(req: NextRequest) {
     },
     asientos,
     resumen: {
-      total_asientos: asientos.length,
+      // Usar el count de la BD (exacto) en lugar de data.length — evita subreporte
+      // si PostgREST trunca silenciosamente al max-rows configurado en el proyecto.
+      total_asientos: dbCount ?? asientos.length,
       total_debitos: Math.round(totalDebitos * 100) / 100,
       total_creditos: Math.round(totalCreditos * 100) / 100,
       balanceado: Math.abs(totalDebitos - totalCreditos) < 0.01,
