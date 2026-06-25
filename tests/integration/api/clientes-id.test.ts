@@ -179,6 +179,74 @@ describe("GET /api/clientes/[id]", () => {
     expect(body.ventas).toHaveLength(1);
     expect(body.ventas[0].total).toBe(15000);
   });
+
+  it("CG-14: incluye saldo_disponible del cliente en la respuesta", async () => {
+    const clienteChain = chain({
+      single: jest.fn().mockResolvedValue({
+        data: { id: CLIENTE_ID, nombre: "Juan", mascotas: [] },
+        error: null,
+      }),
+    });
+    const ventasChain = chain({
+      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    const saldoChain = chain({
+      single: jest.fn().mockResolvedValue({
+        data: { saldo_disponible: 8990 },
+        error: null,
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clientes")       return clienteChain;
+      if (table === "ventas")         return ventasChain;
+      if (table === "saldos_a_favor") return saldoChain;
+      return chain();
+    });
+
+    const { GET } = await import("@/app/api/clientes/[id]/route");
+    const res = await GET(
+      new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`),
+      makeParams(CLIENTE_ID)
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.saldo_disponible).toBe(8990);
+  });
+
+  it("CG-15: saldo_disponible es 0 cuando el cliente no tiene registro en saldos_a_favor", async () => {
+    const clienteChain = chain({
+      single: jest.fn().mockResolvedValue({
+        data: { id: CLIENTE_ID, nombre: "Juan", mascotas: [] },
+        error: null,
+      }),
+    });
+    const ventasChain = chain({
+      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    const saldoChain = chain({
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: "No rows found" },
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clientes")       return clienteChain;
+      if (table === "ventas")         return ventasChain;
+      if (table === "saldos_a_favor") return saldoChain;
+      return chain();
+    });
+
+    const { GET } = await import("@/app/api/clientes/[id]/route");
+    const res = await GET(
+      new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`),
+      makeParams(CLIENTE_ID)
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.saldo_disponible).toBe(0);
+  });
 });
 
 // ── PATCH /api/clientes/[id] ──────────────────────────────────────────────────

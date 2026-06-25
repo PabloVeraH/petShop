@@ -37,7 +37,18 @@ export async function GET(
     .order("created_at", { ascending: false })
     .limit(10);
 
-  return NextResponse.json({ ...cliente, ventas: ventas ?? [] });
+  const { data: saldoData } = await supabase
+    .from("saldos_a_favor")
+    .select("saldo_disponible")
+    .eq("cliente_id", id)
+    .eq("store_id", store_id)
+    .single();
+
+  return NextResponse.json({
+    ...cliente,
+    ventas: ventas ?? [],
+    saldo_disponible: saldoData?.saldo_disponible ?? 0,
+  });
 }
 
 export async function PATCH(

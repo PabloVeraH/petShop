@@ -40,7 +40,7 @@ const CLIENTE = {
   telefono: null,
 };
 
-const DETALLE_DATA = { ...CLIENTE, mascotas: [], ventas: [] };
+const DETALLE_DATA = { ...CLIENTE, mascotas: [], ventas: [], saldo_disponible: 0 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,6 +87,40 @@ describe("ClienteDetalle — campo RUT en formulario de edición", () => {
     fireEvent.click(screen.getByText("Editar"));
 
     expect(screen.getByDisplayValue("11.111.111-1")).toBeInTheDocument();
+  });
+
+  // CD-03: REGRESIÓN — el perfil del cliente debe mostrar el saldo a favor cuando existe.
+  // Bug original: ClienteDetalle nunca consultaba ni mostraba saldo_disponible.
+  it("CD-03: muestra la sección de saldo a favor cuando saldo_disponible > 0", async () => {
+    const detalleConSaldo = { ...DETALLE_DATA, saldo_disponible: 8990 };
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("fidelizacion")) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(detalleConSaldo),
+      });
+    });
+
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+
+    expect(screen.getByText("Saldo a favor")).toBeInTheDocument();
+    expect(screen.getByText(/8\.990/)).toBeInTheDocument();
+    expect(screen.getByText("Aplicable en próxima compra")).toBeInTheDocument();
+  });
+
+  // CD-04: cuando saldo_disponible es 0, la sección no debe aparecer.
+  it("CD-04: no muestra la sección de saldo a favor cuando saldo_disponible es 0", async () => {
+    setupFetch();
+
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+
+    expect(screen.queryByText("Saldo a favor")).not.toBeInTheDocument();
   });
 
   // CD-02: REGRESIÓN — al guardar, el PATCH debe incluir el RUT en el body.
