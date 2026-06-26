@@ -1,7 +1,9 @@
 import { getStoreId } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
+import { getAdminStatus } from "@/lib/admin-check";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -64,9 +66,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { storeId } = ctx;
+  const { sessionClaims, userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const admin = getAdminStatus(sessionClaims);
+  if (!admin?.isStoreAdmin && !admin?.isSystemAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const storeId = admin.storeId;
+  if (!storeId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const supabase = createServiceClient();
 
   const body = await req.json();

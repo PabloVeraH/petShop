@@ -5,10 +5,15 @@ const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 
+const mockAuth = jest.fn();
+
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/validation", () => ({
   ...jest.requireActual("@/lib/validation"),
+}));
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: () => mockAuth(),
 }));
 
 const mockWorkers = [
@@ -81,6 +86,13 @@ describe("PATCH /api/workers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      userId: "u1",
+      sessionClaims: {
+        sub: "u1",
+        publicMetadata: { storeId: STORE_ID, storeAdmin: true },
+      },
+    });
   });
 
   it("I-258: retorna 400 si clerk_id falta en el body", async () => {
@@ -109,5 +121,35 @@ describe("PATCH /api/workers", () => {
     const res = await PATCH(req);
     expect(res.status).toBe(200);
     expect(captured[0]).toHaveProperty("meta_ventas", 500000);
+  });
+
+  it("I-260: retorna 401 si no hay sesión", async () => {
+    mockAuth.mockResolvedValue({ userId: null, sessionClaims: null });
+    const { PATCH } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_id: "c1", meta_ventas: 100000 }),
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("I-261: retorna 403 si no es admin", async () => {
+    mockAuth.mockResolvedValue({
+      userId: "u1",
+      sessionClaims: {
+        sub: "u1",
+        publicMetadata: { storeId: STORE_ID, storeWorker: true },
+      },
+    });
+    const { PATCH } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_id: "c1", meta_ventas: 100000 }),
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(403);
   });
 });

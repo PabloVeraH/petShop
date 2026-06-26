@@ -93,6 +93,7 @@ export default function VendedoresPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workers"] });
+      setShowDetail(false);
       setSelectedWorker(null);
       setEditError("");
     },
@@ -204,6 +205,7 @@ export default function VendedoresPage() {
                   type="text"
                   value={editForm.rut}
                   onChange={(e) => setEditForm((f) => ({ ...f, rut: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   placeholder="12.345.678-9"
                   className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
@@ -220,6 +222,7 @@ export default function VendedoresPage() {
                       const v = e.target.value.replace(/[^0-9]/g, "");
                       setEditForm((f) => ({ ...f, meta_ventas: v }));
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>

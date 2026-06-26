@@ -1,5 +1,5 @@
 /**
- * Tests V-01 a V-06: VendedoresPage — listado, detalle y Meta mensual editable
+ * Tests V-01 a V-07: VendedoresPage — listado, detalle y Meta mensual editable
  * @jest-environment jsdom
  *
  * V-01  Admin ve lista de vendedores
@@ -8,6 +8,7 @@
  * V-04  RUT input también es editable
  * V-05  Guardar cambios llama a PATCH /api/workers con meta_ventas
  * V-06  Worker (sin storeAdmin) ve mensaje "No tienes acceso"
+ * V-07  REGRESIÓN — typing en RUT no dispara guardado automático
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -222,5 +223,47 @@ describe("VendedoresPage — detalle y meta mensual", () => {
     });
     expect(patchBody).toHaveProperty("clerk_id", "w2"); // Carlos López es el primero tras sort
     expect(patchBody).toHaveProperty("meta_ventas", 800000);
+  });
+
+  // V-07 — REGRESIÓN: auto-save no debe dispararse al editar RUT
+  it("V-07: typing en RUT no dispara guardado automático", async () => {
+    let patchCalls = 0;
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (String(url).includes("/api/workers") && opts?.method === "PATCH") {
+        patchCalls++;
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => WORKERS });
+    });
+
+    render(<VendedoresPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Carlos López")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Ver detalle")[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Meta mensual/i)).toBeInTheDocument();
+    });
+
+    const rutInput = screen.getByPlaceholderText("12.345.678-9") as HTMLInputElement;
+    expect(rutInput).toBeInTheDocument();
+
+    // Simular múltiples cambios en RUT (triple clic + escritura)
+    fireEvent.change(rutInput, { target: { value: "11.111.111-1" } });
+    fireEvent.change(rutInput, { target: { value: "22.222.222-2" } });
+    fireEvent.change(rutInput, { target: { value: "33.333.333-3" } });
+
+    // Verificar que NO se llamó a PATCH automáticamente
+    expect(patchCalls).toBe(0);
+
+    // Verificar que el botón aún muestra "Guardar cambios" (no "Guardando...")
+    expect(screen.getByText("Guardar cambios")).toBeInTheDocument();
+
+    // Hacer clic explícito y verificar que SÍ se llama a PATCH
+    fireEvent.click(screen.getByText("Guardar cambios"));
+
+    await waitFor(() => {
+      expect(patchCalls).toBe(1);
+    });
   });
 });
