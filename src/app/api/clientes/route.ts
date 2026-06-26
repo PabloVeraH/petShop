@@ -1,8 +1,8 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { validateRUT, formatRUT } from "@/lib/validation";
 import { z } from "zod";
+import { validateRUT, formatRUT } from "@/lib/validation";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
@@ -66,6 +66,13 @@ export async function POST(req: NextRequest) {
   if (!nombre || nombre.trim().length < 3) {
     return NextResponse.json({ error: "Nombre debe tener al menos 3 caracteres" }, { status: 400 });
   }
+  const emailNorm = email?.trim() || null;
+  if (emailNorm !== null) {
+    const emailCheck = z.string().email("Correo electrónico inválido").safeParse(emailNorm);
+    if (!emailCheck.success) {
+      return NextResponse.json({ error: emailCheck.error.issues[0].message }, { status: 400 });
+    }
+  }
 
   const { data: cliente, error } = await supabase
     .from("clientes")
@@ -73,7 +80,7 @@ export async function POST(req: NextRequest) {
       store_id,
       rut: formatRUT(rut),
       nombre: nombre.trim(),
-      email: email?.trim() || null,
+      email: emailNorm,
       telefono: telefono?.trim() || null,
     })
     .select()

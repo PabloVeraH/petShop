@@ -1,10 +1,16 @@
 import { z } from "zod";
 import { UUIDSchema, RUTSchema } from "./primitives";
 
+// Acepta email válido, string vacío (→null para borrar) o ausencia. Rechaza formatos inválidos.
+const emailField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.string().email("Correo electrónico inválido").nullable().optional()
+);
+
 export const ClienteCreateSchema = z.object({
   rut: RUTSchema,
   nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100),
-  email: z.string().email("Correo electrónico inválido").optional(),
+  email: emailField,
   telefono: z.string().max(20).optional(),
   store_id: UUIDSchema,
 });
@@ -12,7 +18,7 @@ export const ClienteCreateSchema = z.object({
 export const ClienteUpdateSchema = z.object({
   rut: RUTSchema.optional(),
   nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(100).optional(),
-  email: z.string().email("Correo electrónico inválido").optional(),
+  email: emailField,
   telefono: z.string().max(20).optional(),
 });
 

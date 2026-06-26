@@ -90,4 +90,50 @@ describe("POST /api/clientes", () => {
     const tablas = mockFrom.mock.calls.map(([t]: [string]) => t);
     expect(tablas).toContain("fidelizacion");
   });
+
+  // I-12 — REGRESIÓN: el email es ahora validado con Zod; evita guardar direcciones
+  // malformadas que podrían resultar de errores de tipeo (ej: "esteban@" sin dominio).
+  it("I-12: REGRESIÓN — rechaza email con formato inválido con 400", async () => {
+    const res = await POST(
+      makeRequest({ rut: "11.111.111-1", nombre: "Juan Pérez", email: "no-es-un-email" })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/correo electrónico inválido/i);
+  });
+
+  // I-13: email vacío se trata como null — no genera error de validación
+  it("I-13: email vacío ('') se almacena como null, no rechaza la solicitud", async () => {
+    const cliente = {
+      id: "123e4567-e89b-12d3-a456-426614174001",
+      rut: "11111111-1",
+      nombre: "Juan Pérez",
+      email: null,
+    };
+    mockSingle.mockResolvedValue({ data: cliente, error: null });
+    const res = await POST(
+      makeRequest({ rut: "11.111.111-1", nombre: "Juan Pérez", email: "" })
+    );
+    expect(res.status).toBe(201);
+    // El INSERT debe recibir email: null, nunca la cadena vacía ""
+    const insertArg = mockChain.insert.mock.calls[0][0];
+    expect(insertArg.email).toBeNull();
+  });
+
+  // I-14: email válido se almacena tal cual
+  it("I-14: email válido se guarda correctamente en el INSERT", async () => {
+    const cliente = {
+      id: "123e4567-e89b-12d3-a456-426614174001",
+      rut: "11111111-1",
+      nombre: "Juan Pérez",
+      email: "juan@ejemplo.cl",
+    };
+    mockSingle.mockResolvedValue({ data: cliente, error: null });
+    const res = await POST(
+      makeRequest({ rut: "11.111.111-1", nombre: "Juan Pérez", email: "juan@ejemplo.cl" })
+    );
+    expect(res.status).toBe(201);
+    const insertArg = mockChain.insert.mock.calls[0][0];
+    expect(insertArg.email).toBe("juan@ejemplo.cl");
+  });
 });
