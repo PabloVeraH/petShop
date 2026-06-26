@@ -254,3 +254,20 @@ describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
     expect(frameDirective).toContain("challenges.cloudflare.com");
   });
 });
+
+describe("Middleware — redirect de /workers a /vendedores (MW-24)", () => {
+
+  // MW-24: REGRESIÓN — /workers debe redirigir a /vendedores.
+  // La ruta canónica es /vendedores (español); /workers no tiene page y daba 404 sin navegación.
+  it("MW-24: next.config.ts tiene redirect /workers → /vendedores", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const configContent = fs.readFileSync(
+      path.resolve(__dirname, "../../../next.config.ts"),
+      "utf-8"
+    );
+    expect(configContent).toContain('source: "/workers"');
+    expect(configContent).toContain('destination: "/vendedores"');
+    expect(configContent).toContain("permanent: false");
+  });
+});

@@ -161,6 +161,19 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
 
+## Middleware / Routing (MW-XX)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|-----------|------|
+| MW-24 | /workers redirige a /vendedores | next.config.ts | unit |
+
+## 404 (NF-XX)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|-----------|------|
+| NF-01 | 404 muestra título y mensaje | not-found.tsx | component |
+| NF-02 | 404 tiene link "Volver al inicio" a /dashboard | not-found.tsx | component |
+
 ## Tests unitarios (U-XX)
 
 | ID | Requisito | Lib | Tipo |

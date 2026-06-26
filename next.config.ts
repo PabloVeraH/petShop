@@ -23,6 +23,15 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/workers",
+        destination: "/vendedores",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
