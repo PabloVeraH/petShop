@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
 import { getAdminStatus } from "@/lib/admin-check";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -84,6 +85,13 @@ export async function PATCH(req: NextRequest) {
   if (!wParsed.success) return NextResponse.json({ error: wParsed.error.issues[0].message }, { status: 400 });
   const { clerk_id, rut, meta_ventas } = wParsed.data;
 
+  const { data: before } = await supabase
+    .from("clerk_users")
+    .select("rut, meta_ventas")
+    .eq("clerk_id", clerk_id)
+    .eq("store_id", storeId)
+    .single();
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (rut !== undefined) updates.rut = rut ?? null;
   if (meta_ventas !== undefined) updates.meta_ventas = meta_ventas ?? null;
@@ -95,5 +103,16 @@ export async function PATCH(req: NextRequest) {
     .eq("store_id", storeId);
 
   if (error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
+
+  logAudit({
+    storeId,
+    userId: userId!,
+    action: "UPDATE",
+    entityType: "clerk_users",
+    entityId: clerk_id,
+    oldValues: before ?? undefined,
+    newValues: updates as Record<string, unknown>,
+  });
+
   return NextResponse.json({ ok: true });
 }

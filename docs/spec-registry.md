@@ -114,6 +114,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-260 | GET workers/ventas retorna 401 si no autenticado | GET /api/workers/[id]/ventas | integration |
 | I-261 | GET workers/ventas retorna ventas del worker | GET /api/workers/[id]/ventas | integration |
 | I-262 | GET workers/ventas filtra por rango de fechas | GET /api/workers/[id]/ventas | integration |
+| I-293 | PATCH workers valida formato RUT (400 si inválido) | PATCH /api/workers | integration |
 
 ## Infraestructura (I-263 a I-278)
 
@@ -173,6 +174,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 |----|-----------|-----------|------|
 | NF-01 | 404 muestra título y mensaje | not-found.tsx | component |
 | NF-02 | 404 tiene link "Volver al inicio" a /dashboard | not-found.tsx | component |
+| V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
+| V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 
 ## Tests unitarios (U-XX)
 

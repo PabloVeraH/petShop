@@ -1,5 +1,5 @@
 /**
- * Tests V-01 a V-07: VendedoresPage — listado, detalle y Meta mensual editable
+ * Tests V-01 a V-09: VendedoresPage — listado, detalle y Meta mensual editable
  * @jest-environment jsdom
  *
  * V-01  Admin ve lista de vendedores
@@ -9,6 +9,8 @@
  * V-05  Guardar cambios llama a PATCH /api/workers con meta_ventas
  * V-06  Worker (sin storeAdmin) ve mensaje "No tienes acceso"
  * V-07  REGRESIÓN — typing en RUT no dispara guardado automático
+ * V-08  RUT input muestra el RUT del trabajador cuando existe
+ * V-09  Guardar cambios envía RUT en body de PATCH y cierra modal
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -264,6 +266,59 @@ describe("VendedoresPage — detalle y meta mensual", () => {
 
     await waitFor(() => {
       expect(patchCalls).toBe(1);
+    });
+  });
+
+  // V-08
+  it("V-08: RUT input muestra el RUT del trabajador cuando existe", async () => {
+    render(<VendedoresPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("María Pérez")).toBeInTheDocument());
+    // María Pérez es la segunda tras sort (ventas_mes 150000 < Carlos 320000)
+    fireEvent.click(screen.getAllByText("Ver detalle")[1]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dialog-root")).toBeInTheDocument();
+    });
+
+    const rutInput = screen.getByPlaceholderText("12.345.678-9") as HTMLInputElement;
+    expect(rutInput.value).toBe("12.345.678-5");
+  });
+
+  // V-09
+  it("V-09: Guardar cambios envía RUT en body de PATCH y cierra modal", async () => {
+    let patchBody: object | null = null;
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (String(url).includes("/api/workers") && opts?.method === "PATCH") {
+        patchBody = JSON.parse(opts.body as string);
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => WORKERS });
+    });
+
+    render(<VendedoresPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Carlos López")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Ver detalle")[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Meta mensual/i)).toBeInTheDocument();
+    });
+
+    const rutInput = screen.getByPlaceholderText("12.345.678-9") as HTMLInputElement;
+    fireEvent.change(rutInput, { target: { value: "11.111.111-1" } });
+
+    fireEvent.click(screen.getByText("Guardar cambios"));
+
+    await waitFor(() => {
+      expect(patchBody).not.toBeNull();
+    });
+    expect(patchBody).toHaveProperty("clerk_id", "w2");
+    expect(patchBody).toHaveProperty("rut", "11.111.111-1");
+
+    // El modal se cierra después de guardar
+    await waitFor(() => {
+      expect(screen.queryByText(/Meta mensual/i)).not.toBeInTheDocument();
     });
   });
 });

@@ -4,6 +4,21 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { validateRUT } from "@/lib/validation";
+
+function autoFormatRUT(value: string): string {
+  const raw = value
+    .replace(/\./g, "")
+    .replace(/-/g, "")
+    .replace(/[^0-9kK]/g, "")
+    .toUpperCase()
+    .slice(0, 9);
+  if (raw.length <= 3) return raw;
+  const body = raw.slice(0, -1);
+  const dv = raw.slice(-1);
+  const bodyFmt = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${bodyFmt}-${dv}`;
+}
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -86,15 +101,18 @@ export default function VendedoresPage() {
     enabled: !!selectedWorker,
   });
 
+  const rutError = editForm.rut !== "" && !validateRUT(editForm.rut);
+
   const { mutate: saveWorker, isPending } = useMutation({
     mutationFn: () => updateWorker(selectedWorker!.clerk_id, {
-      rut: editForm.rut || undefined,
-      meta_ventas: editForm.meta_ventas ? Number(editForm.meta_ventas) : undefined,
+      rut: editForm.rut !== "" ? editForm.rut : undefined,
+      meta_ventas: editForm.meta_ventas !== "" ? Number(editForm.meta_ventas) : undefined,
     }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workers"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["workers"] });
       setShowDetail(false);
       setSelectedWorker(null);
+      setEditForm({ rut: "", meta_ventas: "" });
       setEditError("");
     },
     onError: (e: Error) => setEditError(e.message),
@@ -204,11 +222,14 @@ export default function VendedoresPage() {
                 <input
                   type="text"
                   value={editForm.rut}
-                  onChange={(e) => setEditForm((f) => ({ ...f, rut: e.target.value }))}
+                  onChange={(e) => setEditForm((f) => ({ ...f, rut: autoFormatRUT(e.target.value) }))}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   placeholder="12.345.678-9"
                   className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
+                {rutError && (
+                  <p className="text-xs text-red-400 mt-0.5">RUT inválido</p>
+                )}
               </div>
               {selectedWorker?.store_worker && (
                 <div>
@@ -232,7 +253,7 @@ export default function VendedoresPage() {
             {editError && <p className="text-xs text-red-500">{editError}</p>}
 
             <div className="flex gap-2">
-              <Button onClick={() => saveWorker()} disabled={isPending} size="sm">
+              <Button onClick={() => saveWorker()} disabled={isPending || rutError} size="sm">
                 {isPending ? "Guardando..." : "Guardar cambios"}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowDetail(false)}>

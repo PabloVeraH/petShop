@@ -12,6 +12,7 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 jest.mock("@/lib/validation", () => ({
   ...jest.requireActual("@/lib/validation"),
 }));
+jest.mock("@/lib/audit", () => ({ logAudit: jest.fn() }));
 jest.mock("@clerk/nextjs/server", () => ({
   auth: () => mockAuth(),
 }));
@@ -39,6 +40,16 @@ function makeVentasChain() {
     eq: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
+  };
+}
+
+function makeSelectChain(returnData: unknown) {
+  return {
+    data: returnData,
+    error: null,
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
   };
 }
 
@@ -108,9 +119,14 @@ describe("PATCH /api/workers", () => {
 
   it("I-259: actualiza meta_ventas correctamente", async () => {
     const captured: Record<string, unknown>[] = [];
-    mockFrom.mockReturnValue({
-      ...makeUpdateChain(),
-      update: jest.fn((data) => { captured.push(data); return { eq: jest.fn().mockReturnThis(), error: null }; }),
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeSelectChain({ rut: null, meta_ventas: 500000 });
+      return {
+        ...makeUpdateChain(),
+        update: jest.fn((data) => { captured.push(data); return { eq: jest.fn().mockReturnThis(), error: null }; }),
+      };
     });
     const { PATCH } = await import("@/app/api/workers/route");
     const req = new NextRequest("http://localhost/api/workers", {
@@ -121,6 +137,7 @@ describe("PATCH /api/workers", () => {
     const res = await PATCH(req);
     expect(res.status).toBe(200);
     expect(captured[0]).toHaveProperty("meta_ventas", 500000);
+    expect(captured[0]).toHaveProperty("updated_at");
   });
 
   it("I-260: retorna 401 si no hay sesión", async () => {
@@ -151,5 +168,18 @@ describe("PATCH /api/workers", () => {
     });
     const res = await PATCH(req);
     expect(res.status).toBe(403);
+  });
+
+  it("I-293: PATCH retorna 400 si rut tiene formato inválido", async () => {
+    const { PATCH } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_id: "c1", rut: "12.345.678-9" }),
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("RUT");
   });
 });

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UUIDSchema } from "./primitives";
+import { UUIDSchema, validateRUT } from "./primitives";
 
 export const FidelizacionNivelSchema = z.object({
   monto: z.number().int().positive("El monto debe ser mayor a 0"),
@@ -128,6 +128,9 @@ export type POSRecomendadorRequestInput = z.infer<typeof POSRecomendadorRequestS
 
 export const WorkerUpdateSchema = z.object({
   clerk_id: z.string().min(1, "clerk_id requerido"),
-  rut: z.string().max(20).optional().nullable(),
-  meta_ventas: z.coerce.number().positive().optional().nullable(),
+  rut: z.string().max(20).optional().nullable().refine(
+    (v) => v === undefined || v === null || v === "" || validateRUT(v),
+    { message: "RUT inválido" },
+  ),
+  meta_ventas: z.coerce.number().min(0).optional().nullable(),
 });
