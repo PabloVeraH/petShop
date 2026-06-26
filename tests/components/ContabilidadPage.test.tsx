@@ -242,3 +242,103 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
     expect(screen.queryByText(/✓ Cierre realizado/i)).not.toBeInTheDocument();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ContabilidadPage — Eliminar asiento $0/$0", () => {
+  const ASIENTO_ZERO = {
+    id: "entry-uuid-zero-001",
+    numero_asiento: 43,
+    fecha: "2026-06-15",
+    tipo_movimiento: "PAGO_PROVEEDOR",
+    referencia_numero: null,
+    descripcion: "Pago a Proveedor ABC — $0",
+    total_debito: 0,
+    total_credito: 0,
+    esta_balanceado: true,
+  };
+
+  const LIBRO_CON_ZERO = {
+    periodo: "junio 2026",
+    desde: "2026-06-01",
+    hasta: "2026-06-30",
+    empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+    asientos: [ASIENTO_ZERO],
+    resumen: { total_asientos: 1, total_debitos: 0, total_creditos: 0, balanceado: true },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (String(url).includes("cierre-mes")) {
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({}) });
+      }
+      if (options?.method === "DELETE") {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true }) });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => LIBRO_CON_ZERO });
+    });
+  });
+
+  // CP-09 — REGRESIÓN: el ⚠️ debe mostrar botón "Eliminar" para entradas $0/$0
+  it("CP-09: asiento $0/$0 muestra indicador ⚠ y botón 'Eliminar'", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("⚠")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Eliminar/i })).toBeInTheDocument();
+  });
+
+  // CP-10
+  it("CP-10: click en 'Eliminar' abre modal de confirmación con el número de asiento", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => screen.getByRole("button", { name: /Eliminar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Eliminar/i }));
+
+    expect(screen.getByText(/Eliminar asiento inválido/i)).toBeInTheDocument();
+    expect(screen.getByText(/#43/)).toBeInTheDocument();
+  });
+
+  // CP-11
+  it("CP-11: Cancelar cierra el modal sin llamar al DELETE", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => screen.getByRole("button", { name: /Eliminar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Eliminar/i }));
+
+    expect(screen.getByText(/Eliminar asiento inválido/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Cancelar$/i }));
+
+    expect(screen.queryByText(/Eliminar asiento inválido/i)).not.toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("asientos"),
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
+
+  // CP-12 — REGRESIÓN: confirmar debe llamar DELETE /api/contabilidad/asientos/[id]
+  it(
+    "CP-12: REGRESIÓN — confirmar eliminación llama a DELETE /api/contabilidad/asientos/[id] " +
+      "y cierra el modal",
+    async () => {
+      render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+      await waitFor(() => screen.getByRole("button", { name: /Eliminar/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Eliminar/i }));
+
+      fireEvent.click(screen.getByRole("button", { name: /Sí, eliminar/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          `/api/contabilidad/asientos/${ASIENTO_ZERO.id}`,
+          expect.objectContaining({ method: "DELETE" })
+        );
+      });
+
+      await waitFor(() =>
+        expect(screen.queryByText(/Eliminar asiento inválido/i)).not.toBeInTheDocument()
+      );
+    }
+  );
+});

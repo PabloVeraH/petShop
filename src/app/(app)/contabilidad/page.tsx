@@ -79,6 +79,7 @@ export default function ContabilidadPage() {
   const [showCierreConfirm, setShowCierreConfirm] = useState(false);
   const [cierreResult, setCierreResult] = useState<CierreResultado | null>(null);
   const [cierreError, setCierreError] = useState<string | null>(null);
+  const [asientoToDelete, setAsientoToDelete] = useState<{ id: string; numero: number } | null>(null);
   const queryClient = useQueryClient();
 
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
@@ -107,6 +108,19 @@ export default function ContabilidadPage() {
     queryFn: () =>
       fetch(`/api/contabilidad/estado-resultado?${params}`).then((r) => r.json()),
     enabled: tab === "resultado",
+  });
+
+  const { mutate: eliminarAsiento, isPending: eliminandoAsiento } = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch(`/api/contabilidad/asientos/${id}`, { method: "DELETE" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Error al eliminar el asiento");
+      return data;
+    },
+    onSuccess: () => {
+      setAsientoToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
+    },
   });
 
   const { mutate: cierreMes, isPending: cerrandoMes } = useMutation({
@@ -337,7 +351,16 @@ export default function ContabilidadPage() {
                               {a.esta_balanceado && (Number(a.total_debito) > 0 || Number(a.total_credito) > 0) ? (
                                 <span className="text-green-600 font-bold">✓</span>
                               ) : a.esta_balanceado ? (
-                                <span className="text-amber-500 font-bold" title="Asiento sin movimiento económico ($0/$0)">⚠</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-amber-500 font-bold" title="Asiento sin movimiento económico ($0/$0)">⚠</span>
+                                  <button
+                                    onClick={() => setAsientoToDelete({ id: a.id, numero: a.numero_asiento })}
+                                    className="text-xs text-red-500 hover:text-red-700 hover:underline"
+                                    title="Eliminar asiento inválido"
+                                  >
+                                    Eliminar
+                                  </button>
+                                </span>
                               ) : (
                                 <span className="text-red-500 font-bold">✗</span>
                               )}
@@ -528,6 +551,47 @@ export default function ContabilidadPage() {
             </button>
           </div>
           <p className="text-sm text-gray-700">{cierreError}</p>
+        </div>
+      )}
+
+      {/* Modal confirmación eliminar asiento $0/$0 */}
+      {asientoToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-sm w-full shadow-xl">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="text-red-500 text-2xl leading-none">⚠</div>
+                <div>
+                  <h2 className="font-bold text-gray-900">Eliminar asiento inválido</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    El asiento <strong>#{asientoToDelete.numero}</strong> no contiene movimiento
+                    económico ($0/$0) y no tiene validez contable.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-md p-3 text-xs text-red-700">
+                Esta acción elimina el asiento y sus líneas de detalle de forma permanente.
+                Solo es posible para asientos con débito $0 y crédito $0.
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setAsientoToDelete(null)}
+                  disabled={eliminandoAsiento}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => eliminarAsiento(asientoToDelete.id)}
+                  disabled={eliminandoAsiento}
+                >
+                  {eliminandoAsiento ? "Eliminando..." : "Sí, eliminar"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
