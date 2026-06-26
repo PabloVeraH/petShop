@@ -248,37 +248,78 @@ describe("POST /api/ventas — flujo exitoso", () => {
     expect(callArgs.descripcion).not.toContain("20260525");
   });
 
-  // I-279: venta exitosa incluye líneas de COGS en el asiento contable
-  it("I-279: registro de venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × costo del producto", async () => {
+  // I-279: REGRESIÓN — el COGS debe registrarse en un asiento SEPARADO del de venta.
+  // Bug: antes, las líneas de COGS se mezclaban en el mismo crearAsiento que las de
+  // venta, inflando total_debito (ej: venta $11.682 + COGS $6.500 = $18.182 en Libro Diario).
+  it("I-279: REGRESIÓN — COGS se registra en asiento separado; el asiento de venta solo contiene líneas de ingreso", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));
 
-    expect(crearAsiento).toHaveBeenCalledWith(expect.objectContaining({
-      tipoMovimiento: "VENTA",
-    }));
+    // crearAsiento debe llamarse DOS VECES: asiento de venta + asiento de COGS
+    expect(crearAsiento).toHaveBeenCalledTimes(2);
 
-    const callArgs = (crearAsiento as jest.Mock).mock.calls[0][0];
-    const lineasEnviadas = callArgs.lineas;
+    // Primera llamada: asiento de ingreso (venta)
+    const ventaCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+    expect(ventaCall.tipoMovimiento).toBe("VENTA");
 
-    // Debe haber una línea debitando COGS (510101)
-    const lineaCOGS = lineasEnviadas.find(
+    // El asiento de venta NO debe contener líneas de COGS ni de Inventario
+    const tieneLineaCOGS = ventaCall.lineas.some(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo
+    );
+    expect(tieneLineaCOGS).toBe(false);
+    const tieneLineaInventario = ventaCall.lineas.some(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
+    );
+    expect(tieneLineaInventario).toBe(false);
+
+    // total_debito del asiento de venta = $20,000 (precio $10,000 × 2 unidades), NO $28,000
+    const totalDebitoVenta = ventaCall.lineas.reduce((s: number, l: { debito: number }) => s + l.debito, 0);
+    expect(totalDebitoVenta).toBe(20000);
+
+    // Segunda llamada: asiento COGS
+    const cogsCall = (crearAsiento as jest.Mock).mock.calls[1][0];
+    const lineaCOGS = cogsCall.lineas.find(
       (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo
     );
     expect(lineaCOGS).toBeDefined();
-    expect(lineaCOGS.debito).toBe(8000); // 2 items × $4000 costo
+    expect(lineaCOGS.debito).toBe(8000); // 2 × $4,000 costo
     expect(lineaCOGS.credito).toBe(0);
 
-    // Debe haber una línea creditando Inventario (111001)
-    const lineaInventario = lineasEnviadas.find(
+    const lineaInventario = cogsCall.lineas.find(
       (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
     );
     expect(lineaInventario).toBeDefined();
     expect(lineaInventario.credito).toBe(8000);
     expect(lineaInventario.debito).toBe(0);
+  });
 
-    // El total de débitos = créditos (balanceado con COGS incluido)
-    const totalDebito = lineasEnviadas.reduce((s: number, l: { debito: number }) => s + l.debito, 0);
-    const totalCredito = lineasEnviadas.reduce((s: number, l: { credito: number }) => s + l.credito, 0);
-    expect(totalDebito).toBe(totalCredito);
+  // I-281: REGRESIÓN — cuando costoTotal=0 (costo del producto no configurado),
+  // crearAsiento se llama solo UNA vez (no hay asiento COGS vacío).
+  it("I-281: cuando costo del producto es $0 no se crea asiento COGS", async () => {
+    const productorSinCosto = { ...DB_PRODUCTO, costo: 0 };
+    const productorSinCostoSync = { ...DB_PRODUCTO_SYNC };
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          // Price lookup: .select().in().eq()
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [productorSinCosto], error: null }) };
+        }
+        // Hub sync: .select().eq().in()
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [productorSinCostoSync], error: null }) };
+      }
+      if (table === "stores") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null }) };
+      }
+      return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+
+    // Solo debe llamarse UNA vez (no hay COGS si costoTotal=0)
+    expect(crearAsiento).toHaveBeenCalledTimes(1);
+    const ventaCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+    expect(ventaCall.tipoMovimiento).toBe("VENTA");
   });
 
   // I-41: RPC recibe los items con precio de DB
