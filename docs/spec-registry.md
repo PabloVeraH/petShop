@@ -135,6 +135,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-278 | GET analytics/recompras-avanzadas delega a getReorderSuggestions | GET /api/analytics/recompras-avanzadas | integration |
 | I-279 | Venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × producto.costo | POST /api/ventas | integration |
 | I-280 | Descripcion del asiento contable incluye metodo de pago y nombre del cliente (sin UUID) | POST /api/ventas | integration |
+| I-290 | GET stores como storeAdmin retorna solo su propia tienda | GET /api/admin/stores | integration |
+| I-291 | GET users como storeAdmin retorna usuarios de su tienda | GET /api/admin/users | integration |
+| I-292 | GET stores como storeAdmin sin storeId retorna 403 | GET /api/admin/stores | integration |
 
 ## Seguridad (SEC-01 a SEC-10)
 

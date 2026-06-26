@@ -59,7 +59,7 @@ export default function AdminPage() {
         if (!r.ok) throw new Error("Acceso denegado");
         return r.json();
       }),
-    enabled: role === "systemAdmin",
+    enabled: role === "systemAdmin" || role === "storeAdmin",
   });
 
   if (!userId || !role || storesLoading) {

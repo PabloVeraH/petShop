@@ -23,11 +23,12 @@ function chain(data: unknown[] = []) {
     eq: jest.fn(),
     order: jest.fn(),
     upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+    single: jest.fn().mockResolvedValue({ data: data[0] ?? null, error: null }),
     then: jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
       resolve({ data, error: null })
     ),
   };
-  ["select","eq","order","upsert"].forEach(k => c[k].mockReturnValue(c));
+  ["select","eq","order","upsert","single"].forEach(k => c[k].mockReturnValue(c));
   c.order = jest.fn().mockReturnValue(resolved);
   return c;
 }
@@ -134,6 +135,74 @@ describe("POST /api/admin/users", () => {
     expect(res.status).toBe(200);
     // firstName="Pablo", lastName=null → nombre="Pablo" (no null) → incluido en upsert
     expect(capturedPayload[0]).toMatchObject({ nombre: "Pablo" });
+  });
+
+  // I-290: storeAdmin GET stores → 200 con su propia tienda
+  it("I-290: storeAdmin → GET stores devuelve su propia tienda", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+
+    const mockSingle = jest.fn().mockResolvedValue({
+      data: { id: STORE_ID, name: "Mi Tienda", rut: null, email: null, phone: null, created_at: "2024-01-01", whatsapp_enabled: false, openrouter_model: null },
+      error: null,
+    });
+    const mockThen = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+      resolve({ data: [{ store_id: STORE_ID }], error: null })
+    );
+    const mockSelect = jest.fn().mockReturnThis();
+    const mockEq = jest.fn().mockReturnThis();
+
+    mockFrom.mockReturnValue({ select: mockSelect, eq: mockEq, single: mockSingle, then: mockThen });
+
+    const { GET } = await import("@/app/api/admin/stores/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe(STORE_ID);
+    expect(body[0].name).toBe("Mi Tienda");
+  });
+
+  // I-291: storeAdmin GET users → 200 con usuarios de su tienda
+  it("I-291: storeAdmin → GET users devuelve usuarios de su tienda", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+
+    const users = [
+      { clerk_id: "u1", email: "a@store.com", nombre: "Alice", store_admin: true, store_worker: false, system_admin: false },
+    ];
+    const mockThen = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+      resolve({ data: users, error: null })
+    );
+    const mockSelect = jest.fn().mockReturnThis();
+    const mockEq = jest.fn().mockReturnThis();
+    const mockOrder = jest.fn().mockReturnThis();
+
+    mockFrom.mockReturnValue({ select: mockSelect, eq: mockEq, order: mockOrder, then: mockThen, single: jest.fn() });
+
+    const { GET } = await import("@/app/api/admin/users/route");
+    const res = await GET(new NextRequest("http://localhost/api/admin/users?storeId=other-store-id"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+
+    // storeAdmin debe ignorar el storeId del query param y usar el propio
+    expect(mockEq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
+  // I-292: storeAdmin sin storeId en metadata (fallback) → 403
+  it("I-292: storeAdmin sin storeId en metadata → GET stores 403", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeAdmin: true } },
+    });
+    const { GET } = await import("@/app/api/admin/stores/route");
+    const res = await GET();
+    expect(res.status).toBe(403);
   });
 
   // I-97: Clerk user sin nombre alguno → upsert NO incluye clave nombre.

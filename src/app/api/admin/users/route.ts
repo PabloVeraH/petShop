@@ -6,9 +6,24 @@ import { AdminUserAssignSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 // GET /api/admin/users?storeId=xxx  — lista usuarios de una tienda
+// systemAdmin: requiere storeId param; storeAdmin: fuerza su propia storeId
 export async function GET(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
+
+  // storeAdmin — solo puede ver usuarios de su propia tienda
+  if (admin?.isStoreAdmin && !admin.isSystemAdmin) {
+    if (!admin.storeId) return NextResponse.json({ error: "Tienda no asignada" }, { status: 403 });
+    const supabase = createServiceClient();
+    const { data: users, error } = await supabase
+      .from("clerk_users")
+      .select("clerk_id, email, nombre, rut, store_admin, store_worker, system_admin, updated_at")
+      .eq("store_id", admin.storeId)
+      .order("updated_at", { ascending: false });
+
+    if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    return NextResponse.json(users ?? []);
+  }
 
   try {
     requireSystemAdmin(admin);

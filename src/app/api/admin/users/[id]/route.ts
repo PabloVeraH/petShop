@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireStoreAdmin, requireSystemAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 const PatchUserSchema = z.object({
   role:   z.enum(["storeWorker", "storeAdmin", "systemAdmin"]),
+  nombre: z.string().min(1).max(100).optional(),
+  email:  z.string().email().optional(),
+});
+
+const PatchUserStoreAdminSchema = z.object({
+  role:   z.enum(["storeWorker", "storeAdmin"]),
   nombre: z.string().min(1).max(100).optional(),
   email:  z.string().email().optional(),
 });
@@ -17,13 +23,46 @@ export async function PATCH(
 ) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
+  const { id: clerkId } = await params;
+
+  // storeAdmin — solo editar usuarios de su propia tienda y no puede promover a systemAdmin
+  if (admin?.isStoreAdmin && !admin.isSystemAdmin) {
+    try {
+      requireStoreAdmin(admin);
+    } catch {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const supabase = createServiceClient();
+    const { data: targetUser } = await supabase
+      .from("clerk_users")
+      .select("store_id")
+      .eq("clerk_id", clerkId)
+      .single();
+
+    if (!admin.storeId) {
+      return NextResponse.json({ error: "Tienda no asignada" }, { status: 403 });
+    }
+    if (!targetUser || targetUser.store_id !== admin.storeId) {
+      return NextResponse.json({ error: "Usuario no pertenece a tu tienda" }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const parsed = PatchUserStoreAdminSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { role, nombre, email } = parsed.data;
+    return handlePatchUser(clerkId, admin.storeId, admin.userId, role, nombre, email, req);
+  }
+
   try {
     requireSystemAdmin(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id: clerkId } = await params;
   const body = await req.json().catch(() => ({}));
   const parsed = PatchUserSchema.safeParse(body);
   if (!parsed.success) {
@@ -31,6 +70,18 @@ export async function PATCH(
   }
 
   const { role, nombre, email } = parsed.data;
+  return handlePatchUser(clerkId, admin!.storeId, admin!.userId, role, nombre, email, req);
+}
+
+async function handlePatchUser(
+  clerkId: string,
+  storeId: string,
+  userId: string,
+  role: string,
+  nombre: string | undefined,
+  email: string | undefined,
+  req: NextRequest,
+) {
   const flags = {
     system_admin: role === "systemAdmin",
     store_admin:  role === "storeAdmin",
@@ -89,8 +140,8 @@ export async function PATCH(
   if (nombre) changes.push(`nombre → ${nombre.trim()}`);
   if (email && email !== oldUser?.email) changes.push(`email → ${email}`);
   logAudit({
-    storeId: admin!.storeId,
-    userId:  admin!.userId,
+    storeId,
+    userId,
     action:  "UPDATE",
     entityType: "usuario",
     entityId:   clerkId,
