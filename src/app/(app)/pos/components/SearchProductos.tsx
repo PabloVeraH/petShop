@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,8 @@ export default function SearchProductos() {
   const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
   const [gramosInput, setGramosInput] = useState<string>("");
   const [stockWarning, setStockWarning] = useState<string | null>(null);
+  const stockWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addItem, mascotaId, items } = usePOSStore();
   const queryClient = useQueryClient();
 
@@ -38,7 +40,11 @@ export default function SearchProductos() {
     const inCartQty = inCartItem?.cantidad ?? 0;
     if (inCartQty >= prod.stock) {
       setStockWarning(`Stock máximo alcanzado: ${prod.stock} unidad${prod.stock !== 1 ? "es" : ""} disponible${prod.stock !== 1 ? "s" : ""}`);
-      setTimeout(() => setStockWarning(null), 3000);
+      if (stockWarningTimerRef.current) clearTimeout(stockWarningTimerRef.current);
+      stockWarningTimerRef.current = setTimeout(() => {
+        setStockWarning(null);
+        stockWarningTimerRef.current = null;
+      }, 3000);
       return;
     }
 
@@ -78,6 +84,19 @@ export default function SearchProductos() {
     setGramosInput("");
   }
 
+  const handleDetected = useCallback((code: string) => {
+    setShowScanner(false);
+    handleBarcodeEnter(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (stockWarningTimerRef.current) clearTimeout(stockWarningTimerRef.current);
+      if (scanErrorTimerRef.current) clearTimeout(scanErrorTimerRef.current);
+    };
+  }, []);
+
   async function handleBarcodeEnter(barcode: string) {
     setScanError(null);
     // Fetch with barcode as search — API searches codigo_barra exact match
@@ -95,7 +114,11 @@ export default function SearchProductos() {
       const precioFinal = exact.en_oferta && exact.precio_oferta ? exact.precio_oferta : exact.precio;
       if (!precioFinal) {
         setScanError(`"${exact.nombre}" no tiene precio — asígnalo en inventario`);
-        setTimeout(() => setScanError(null), 4000);
+        if (scanErrorTimerRef.current) clearTimeout(scanErrorTimerRef.current);
+        scanErrorTimerRef.current = setTimeout(() => {
+          setScanError(null);
+          scanErrorTimerRef.current = null;
+        }, 4000);
       } else {
         addProductoToCart(exact);
         setSearch("");
@@ -103,7 +126,11 @@ export default function SearchProductos() {
       }
     } else {
       setScanError(`Código "${barcode}" no encontrado`);
-      setTimeout(() => setScanError(null), 3000);
+      if (scanErrorTimerRef.current) clearTimeout(scanErrorTimerRef.current);
+      scanErrorTimerRef.current = setTimeout(() => {
+        setScanError(null);
+        scanErrorTimerRef.current = null;
+      }, 3000);
     }
   }
 
@@ -196,10 +223,7 @@ export default function SearchProductos() {
 
       {showScanner && (
         <BarcodeScanner
-          onDetected={(code) => {
-            setShowScanner(false);
-            handleBarcodeEnter(code);
-          }}
+          onDetected={handleDetected}
           onClose={() => setShowScanner(false)}
         />
       )}

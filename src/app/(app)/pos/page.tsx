@@ -17,6 +17,7 @@ export default function POSPage() {
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [ventaExito, setVentaExito] = useState(false);
   const [ventaError, setVentaError] = useState<string | null>(null);
+  const exitoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { userId, sessionClaims } = useAuth();
   const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
@@ -34,10 +35,16 @@ export default function POSPage() {
   const initializedWorkerForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!userId) return;
-    if (initializedWorkerForRef.current === userId) return; // mismo usuario: no pisar selección manual de vendedor
+    if (initializedWorkerForRef.current === userId) return;
     initializedWorkerForRef.current = userId;
     setWorker(userId);
   }, [userId, setWorker]);
+
+  useEffect(() => {
+    return () => {
+      if (exitoTimerRef.current) clearTimeout(exitoTimerRef.current);
+    };
+  }, []);
 
   const { mutate: procesarVenta, isPending } = useMutation({
     mutationFn: () =>
@@ -66,9 +73,10 @@ export default function POSPage() {
       setVentaError(null);
       setVentaExito(true);
       queryClient.invalidateQueries({ queryKey: ["productos"] });
-      setTimeout(() => setVentaExito(false), 3000);
+      exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {
-        window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");
+        const popup = window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");
+        if (!popup) console.warn("Pop-up bloqueado — abre manualmente la venta");
       }
     },
     onError: (e: Error) => {

@@ -18,6 +18,7 @@ export default function RecomendacionesIA() {
   const [agregados, setAgregados]       = useState<Set<string>>(new Set());
   const [error, setError]               = useState<string | null>(null);
   const debounceRef                     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchControllerRef              = useRef<AbortController | null>(null);
 
   useEffect(() => {
     // Limpiar recs si se deselecciona el cliente
@@ -33,13 +34,13 @@ export default function RecomendacionesIA() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       setError(null);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      fetchControllerRef.current = new AbortController();
+      const timeoutId = setTimeout(() => fetchControllerRef.current?.abort(), 8000);
       try {
         const res = await fetch("/api/ai/pos/recomendar", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          signal:  controller.signal,
+          signal:  fetchControllerRef.current.signal,
           body: JSON.stringify({
             clienteId,
             mascotaId,
@@ -70,6 +71,7 @@ export default function RecomendacionesIA() {
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      fetchControllerRef.current?.abort();
     };
   }, [clienteId, mascotaId]); // NO incluir items[] — no re-disparar por cada ítem
 
