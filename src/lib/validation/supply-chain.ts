@@ -101,6 +101,11 @@ export const OrdenCompraReceiveSchema = z.object({
   items: z.array(OrdenCompraReceiveItemSchema).min(1),
 });
 
+export const OrdenCompraEditItemsSchema = z.object({
+  action: z.literal("edit_items"),
+  items: z.array(OrdenCompraItemCreateSchema).min(1),
+});
+
 export const OrdenCompraEstadoSchema = z.object({
   estado: z.enum(["pendiente", "enviada", "recibida", "cancelada"]),
   notificar_proveedor: z.boolean().optional(),

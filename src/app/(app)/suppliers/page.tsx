@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CreateOrderDialog from "@/components/orders/create-order-dialog";
+import EditOrderItemsDialog from "@/components/orders/edit-order-items-dialog";
 import * as XLSX from "xlsx";
 
 type Proveedor = { id: string; nombre: string; rut: string | null; contacto: string | null; telefono: string | null; email: string | null };
@@ -35,6 +36,7 @@ export default function SupplierHubPage() {
   const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }>>({});
   const [receivingError, setReceivingError] = useState("");
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [showEditItems, setShowEditItems] = useState<string | null>(null);
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
@@ -478,6 +480,21 @@ export default function SupplierHubPage() {
                   />
                 )}
 
+                {showEditItems && ordenDetalle?.id === showEditItems && (
+                  <EditOrderItemsDialog
+                    open={true}
+                    onClose={() => setShowEditItems(null)}
+                    ordenId={showEditItems}
+                    productos={todosProductos ?? []}
+                    existingItems={ordenDetalle.items}
+                    onOrderEdited={() => {
+                      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+                      setShowEditItems(null);
+                      setSelectedOrden(null);
+                    }}
+                  />
+                )}
+
                 {pendingOrders.length === 0 ? (
                   <p className="text-xs text-gray-400">Sin órdenes pendientes</p>
                 ) : (
@@ -536,6 +553,12 @@ export default function SupplierHubPage() {
                                           <Button size="sm" variant="outline" className="h-7 text-xs"
                                             onClick={() => cambiarEstadoOrden({ ordenId: oc.id, estado: "enviada" })}>
                                             Enviar OC
+                                          </Button>
+                                        )}
+                                        {oc.estado === "pendiente" && (
+                                          <Button size="sm" variant="outline" className="h-7 text-xs"
+                                            onClick={() => setShowEditItems(oc.id)}>
+                                            Editar items
                                           </Button>
                                         )}
                                         <Button size="sm" variant="outline" className="h-7 text-xs text-red-500 border-red-200"

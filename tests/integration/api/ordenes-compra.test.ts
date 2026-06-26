@@ -5,7 +5,10 @@ import { NextRequest } from "next/server";
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos");
-jest.mock("@/lib/audit");
+jest.mock("@/lib/audit", () => ({
+  logAudit: jest.fn().mockResolvedValue(undefined),
+  getRequestMetadata: jest.fn(() => ({ ipAddress: "127.0.0.1", userAgent: "test" })),
+}));
 jest.mock("@/lib/email");
 
 import * as authModule from "@/lib/auth";
@@ -564,6 +567,111 @@ describe("Órdenes de Compra API", () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(data.items)).toBe(true);
+    });
+  });
+
+  describe("PATCH /api/ordenes-compra/[id] — edit_items", () => {
+    function makeOrdenBaseChain(estado: string) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockReturnThis(),
+        then: jest.fn().mockImplementation((resolve: any) =>
+          resolve({ data: { id: mockOrden.id, estado, numero: mockOrden.numero }, error: null })
+        ),
+      };
+    }
+
+    function makeItemsChain() {
+      return {
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        then: jest.fn().mockImplementation((resolve: any) =>
+          resolve({ data: {}, error: null })
+        ),
+      };
+    }
+
+    it("retorna 400 si items está vacío", async () => {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn().mockReturnValue(makeItemsChain()),
+      });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "edit_items", items: [] }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(400);
+    });
+
+    it("edita items correctamente en OC pendiente", async () => {
+      let capturedDelete = false;
+      let capturedInsert: any[] = [];
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return makeOrdenBaseChain("pendiente");
+        if (table === "ordenes_compra_items") {
+          return {
+            delete: jest.fn(() => {
+              capturedDelete = true;
+              return { eq: jest.fn().mockReturnThis(), then: jest.fn().mockImplementation((resolve: any) => resolve({ data: {}, error: null })) };
+            }),
+            insert: jest.fn((data: any) => {
+              capturedInsert = data;
+              return { then: jest.fn().mockImplementation((resolve: any) => resolve({ data: {}, error: null })) };
+            }),
+            eq: jest.fn().mockReturnThis(),
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "edit_items",
+          items: [
+            { producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", cantidad_solicitada: 15 },
+            { nombre_nuevo: "Producto Nuevo", cantidad_solicitada: 3 },
+          ],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(capturedDelete).toBe(true);
+      expect(capturedInsert).toHaveLength(2);
+      expect(capturedInsert[0]).toMatchObject({ producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", cantidad_solicitada: 15 });
+      expect(capturedInsert[0]).toHaveProperty("precio_unitario", null);
+      expect(capturedInsert[1]).toMatchObject({ nombre_nuevo: "Producto Nuevo", cantidad_solicitada: 3 });
+    });
+
+    it("retorna 400 si la OC no está pendiente", async () => {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn((table: string) => {
+          if (table === "ordenes_compra") return makeOrdenBaseChain("enviada");
+          if (table === "ordenes_compra_items") return makeItemsChain();
+        }),
+      });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "edit_items",
+          items: [{ producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", cantidad_solicitada: 5 }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("pendientes");
     });
   });
 });

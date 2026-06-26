@@ -1,8 +1,8 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { OrdenCompraReceiveSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
-import { logAudit } from "@/lib/audit";
+import { OrdenCompraReceiveSchema, OrdenCompraEditItemsSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/email";
 
@@ -264,6 +264,71 @@ export async function PATCH(
     }).catch(e => console.error("[contabilidad] Error asiento compra:", e));
 
     return NextResponse.json(orden);
+  }
+
+  // Edit items in a pending order — replaces all items
+  if (body.action === "edit_items") {
+    const parsed = OrdenCompraEditItemsSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { items } = parsed.data;
+
+    // Verify the order exists, is pending, and belongs to this store
+    const { data: ordenBase, error: ordenBaseError } = await supabase
+      .from("ordenes_compra")
+      .select("id, estado, numero")
+      .eq("id", id)
+      .eq("store_id", store_id)
+      .single();
+
+    if (ordenBaseError || !ordenBase) {
+      return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    }
+
+    if (ordenBase.estado !== "pendiente") {
+      return NextResponse.json({ error: "Solo se pueden editar órdenes pendientes" }, { status: 400 });
+    }
+
+    // Delete existing items and insert new ones in a transaction-like sequence
+    const { error: deleteError } = await supabase
+      .from("ordenes_compra_items")
+      .delete()
+      .eq("orden_id", id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: "Error al reemplazar items" }, { status: 500 });
+    }
+
+    const { error: insertError } = await supabase.from("ordenes_compra_items").insert(
+      items.map(i => ({
+        orden_id: id,
+        producto_id: i.producto_id ?? null,
+        nombre_nuevo: i.nombre_nuevo ?? null,
+        cantidad_solicitada: i.cantidad_solicitada,
+        precio_unitario: null,
+        subtotal: null,
+      }))
+    );
+
+    if (insertError) {
+      return NextResponse.json({ error: "Error al insertar items" }, { status: 500 });
+    }
+
+    const { ipAddress, userAgent } = getRequestMetadata(req);
+    logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "orden_compra",
+      entityId: id,
+      changeDescription: `Items de OC ${ordenBase.numero} editados (reemplazados ${items.length} items)`,
+      ipAddress,
+      userAgent,
+    }).catch(() => {});
+
+    return NextResponse.json({ ok: true });
   }
 
   // Simple estado update — only allow estado field, always scope to store
