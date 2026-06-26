@@ -322,6 +322,26 @@ describe("POST /api/ventas — flujo exitoso", () => {
     expect(ventaCall.tipoMovimiento).toBe("VENTA");
   });
 
+  // I-282: REGRESIÓN — el RPC recibe p_numero_comprobante en formato legible (YYYYMMDD-XXXXXXXX),
+  // no un UUID. Este valor es el que la función SQL escribe en stock_movements.notas como
+  // 'Venta ' || v_venta.numero_comprobante. El bug previo usaba v_venta.id (UUID técnico).
+  it("I-282: REGRESIÓN — p_numero_comprobante pasado al RPC es legible (YYYYMMDD-XXXXXXXX), no un UUID", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      "crear_venta_tx",
+      expect.objectContaining({
+        p_numero_comprobante: expect.stringMatching(/^\d{8}-[A-Z0-9]{8}$/),
+      })
+    );
+
+    // Refuerzo: no debe ser un UUID (8-4-4-4-12 hex)
+    const rpcArgs = mockRpc.mock.calls[0][1] as Record<string, string>;
+    expect(rpcArgs.p_numero_comprobante).not.toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    );
+  });
+
   // I-41: RPC recibe los items con precio de DB
   it("I-41: crear_venta_tx recibe los items con precio calculado desde BD", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", clienteId: CLIENTE_ID }));

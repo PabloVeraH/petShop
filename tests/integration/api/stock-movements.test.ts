@@ -228,6 +228,47 @@ describe("GET /api/stock-movements", () => {
     expect(res.status).toBe(401);
   });
 
+  // I-SM-01: REGRESIÓN — el campo notas de movimientos de venta debe mostrar el número de
+  // comprobante legible ("Venta YYYYMMDD-XXXXXXXX"), no el UUID técnico de la venta
+  // ("Venta a61e991d-7c20-43a3-884e-18b091a457b3"). El bug existía en crear_venta_tx RPC
+  // que usaba v_venta.id en lugar de v_venta.numero_comprobante.
+  it("I-SM-01: REGRESIÓN — notas de salida por venta muestra numero_comprobante legible, no UUID", async () => {
+    const NOTAS_LEGIBLE = "Venta 20260625-C4911106";
+    const NOTAS_UUID    = "Venta a61e991d-7c20-43a3-884e-18b091a457b3";
+
+    const prodChain = buildProdChain();
+    const movChain = buildMovChain([
+      {
+        id: "mov-venta-1",
+        tipo: "salida",
+        cantidad: -2,
+        notas: NOTAS_LEGIBLE,
+        created_at: "2026-06-25T10:00:00Z",
+        user_id: null,
+      },
+    ]);
+
+    const usersChain = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis() };
+    (usersChain as any).then = (resolve: any) => resolve({ data: [], error: null });
+
+    makeClient(jest.fn((table: string) => {
+      if (table === "productos") return prodChain;
+      if (table === "stock_movements") return movChain;
+      if (table === "clerk_users") return usersChain;
+    }));
+
+    const req = new NextRequest(`http://localhost/api/stock-movements?productoId=${mockProductId}`);
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    // Formato legible: "Venta YYYYMMDD-XXXXXXXX"
+    expect(data[0].notas).toMatch(/^Venta \d{8}-[A-Z0-9]{8}$/);
+    // NO debe ser el UUID técnico
+    expect(data[0].notas).not.toBe(NOTAS_UUID);
+    expect(data[0].notas).not.toMatch(/^Venta [0-9a-f]{8}-[0-9a-f]{4}-/i);
+  });
+
   it("retorna 500 si hay error en Supabase", async () => {
     const prodChain = {
       select: jest.fn().mockReturnThis(),
