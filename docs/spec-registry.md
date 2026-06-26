@@ -174,6 +174,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 |----|-----------|-----------|------|
 | NF-01 | 404 muestra título y mensaje | not-found.tsx | component |
 | NF-02 | 404 tiene link "Volver al inicio" a /dashboard | not-found.tsx | component |
+| NF-03 | Root 404 muestra título y mensaje | app/not-found.tsx | component |
+| NF-04 | Root 404 tiene link a /dashboard | app/not-found.tsx | component |
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 | M-17 | DELETE mascota retorna 401 sin auth | DELETE /api/mascotas/[id] | integration |
