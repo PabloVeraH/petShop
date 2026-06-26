@@ -317,7 +317,8 @@ export function lineasCompra(params: {
   ];
 }
 
-export function lineasPagoProveedor(monto: number): LineaAsiento[] {
+export function lineasPagoProveedor(monto: number, metodoPago?: string): LineaAsiento[] {
+  const cuenta = metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
   return [
     {
       cuentaCodigo: CUENTAS.PROVEEDORES.codigo,
@@ -328,12 +329,12 @@ export function lineasPagoProveedor(monto: number): LineaAsiento[] {
       descripcionLinea: "Pago a proveedor",
     },
     {
-      cuentaCodigo: CUENTAS.BANCO.codigo,
-      cuentaNombre: CUENTAS.BANCO.nombre,
-      cuentaTipo: CUENTAS.BANCO.tipo,
+      cuentaCodigo: cuenta.codigo,
+      cuentaNombre: cuenta.nombre,
+      cuentaTipo: cuenta.tipo,
       debito: 0,
       credito: monto,
-      descripcionLinea: "Pago desde banco",
+      descripcionLinea: metodoPago === "efectivo" ? "Pago en efectivo" : "Pago desde banco",
     },
   ];
 }

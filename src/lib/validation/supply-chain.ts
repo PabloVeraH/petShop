@@ -40,6 +40,7 @@ export const CuentasPagarSchema = z.object({
 
 export const CuentasPagarUpdateSchema = z.object({
   estado: z.enum(["pendiente", "pagada", "vencida"]),
+  metodo_pago: z.enum(["efectivo", "debito", "credito", "transferencia"]).optional(),
 });
 
 export const NotasCreditoCreateSchema = z.object({

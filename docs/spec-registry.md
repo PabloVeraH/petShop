@@ -176,6 +176,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | NF-02 | 404 tiene link "Volver al inicio" a /dashboard | not-found.tsx | component |
 | NF-03 | Root 404 muestra título y mensaje | app/not-found.tsx | component |
 | NF-04 | Root 404 tiene link a /dashboard | app/not-found.tsx | component |
+| SP-01 | Click Pagar abre modal con selector de método de pago | SuppliersPage | component |
+| SP-02 | Cambiar método de pago en el selector | SuppliersPage | component |
+| SP-03 | Confirmar pago envía metodo_pago en PATCH | SuppliersPage | component |
+| SP-04 | Cancelar cierra modal sin pagar | SuppliersPage | component |
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 | M-17 | DELETE mascota retorna 401 sin auth | DELETE /api/mascotas/[id] | integration |
@@ -186,6 +190,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | CD-06 | Click en Eliminar muestra confirmación | ClienteDetalle | component |
 | CD-07 | Confirmar eliminación llama a DELETE /api/mascotas/[id] | ClienteDetalle | component |
 
+| I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
+| I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
+
 ## Tests unitarios (U-XX)
 
 | ID | Requisito | Lib | Tipo |
@@ -195,6 +202,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | U-03 | formatRUT formatea correctamente con puntos y guión | lib/validation | unit |
 | U-04 | Montaje CLP siempre retorna entero (invariante de propiedad) | lib/validation | unit |
 | U-05 | Cálculo IVA 19% siempre suma hasta total original | lib/contabilidad | unit |
+| U-114 | lineasPagoProveedor con metodoPago=efectivo → credita CAJA | lib/contabilidad | unit |
+| U-115 | lineasPagoProveedor con metodoPago=transferencia → credita BANCO | lib/contabilidad | unit |
 
 ---
 

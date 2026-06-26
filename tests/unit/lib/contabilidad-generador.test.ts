@@ -237,13 +237,29 @@ describe("Generador de Asientos Contables", () => {
       expect(creditos).toBe(5950);
     });
 
-    it("debe usar cuenta Banco para el crédito", () => {
+    it("debe usar cuenta Banco para el crédito (default)", () => {
       const lineas = lineasPagoProveedor(10000);
 
       const lineaBanco = lineas.find(
         (l) => l.cuentaCodigo === CUENTAS.BANCO.codigo
       );
       expect(lineaBanco?.credito).toBe(10000);
+    });
+
+    // U-114
+    it("U-114: metodoPago=efectivo → credita CAJA", () => {
+      const lineas = lineasPagoProveedor(5000, "efectivo");
+      const lineaCaja = lineas.find(l => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+      expect(lineaCaja?.credito).toBe(5000);
+      const noBanco = lineas.find(l => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+      expect(noBanco).toBeUndefined();
+    });
+
+    // U-115
+    it("U-115: metodoPago=transferencia → credita BANCO", () => {
+      const lineas = lineasPagoProveedor(8000, "transferencia");
+      const lineaBanco = lineas.find(l => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+      expect(lineaBanco?.credito).toBe(8000);
     });
   });
 

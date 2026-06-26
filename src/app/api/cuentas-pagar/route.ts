@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { estado } = parsed.data;
+  const { estado, metodo_pago } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -53,9 +53,12 @@ export async function PATCH(req: NextRequest) {
     .eq("store_id", store_id)
     .single();
 
+  const updateData: Record<string, string> = { estado };
+  if (metodo_pago) updateData.metodo_pago = metodo_pago;
+
   const { data, error } = await supabase
     .from("cuentas_pagar")
-    .update({ estado })
+    .update(updateData)
     .eq("id", id)
     .eq("store_id", store_id)
     .select()
@@ -108,7 +111,7 @@ export async function PATCH(req: NextRequest) {
         tipoMovimiento: "PAGO_PROVEEDOR",
         referenciaId: data.id,
         descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,
-        lineas: lineasPagoProveedor(Number(data.monto)),
+        lineas: lineasPagoProveedor(Number(data.monto), metodo_pago),
         usuarioId: ctx.userId ?? undefined,
       }).catch((e) => console.error("[contabilidad] Error asiento pago proveedor:", e));
     })();

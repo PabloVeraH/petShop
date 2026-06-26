@@ -271,6 +271,8 @@ Este plan cubre las pruebas de todos los endpoints de la API, utilidades de libr
 | I-84 | estado inválido | 400 | Enum validado | ✅ |
 | I-85 | Cuenta de otro store | 404 | Aislamiento | ✅ |
 | I-86 | Estado válido actualizado | 200 | — | ✅ |
+| I-107 | metodo_pago inválido | 400 | Enum validado | ✅ |
+| I-108 | metodo_pago=efectivo en body | 200 | metodo_pago guardado en DB | ✅ |
 
 ### 5.23 Settings
 

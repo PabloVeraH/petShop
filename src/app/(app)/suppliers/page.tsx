@@ -39,6 +39,8 @@ export default function SupplierHubPage() {
   const [showEditItems, setShowEditItems] = useState<string | null>(null);
   const [selectedPayables, setSelectedPayables] = useState<Set<string>>(new Set());
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
+  const [payModal, setPayModal] = useState<{ ids: string[] } | null>(null);
+  const [payModalMetodo, setPayModalMetodo] = useState("efectivo");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
     if (typeof window === "undefined") return [];
     const stored = localStorage.getItem(SAVED_FILTERS_KEY);
@@ -263,20 +265,19 @@ export default function SupplierHubPage() {
     },
   });
 
-  const { mutate: marcarPagada } = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada" }) });
+  const { mutate: pagarCuenta, isPending: pagando } = useMutation({
+    mutationFn: async ({ id, metodo_pago }: { id: string; metodo_pago: string }) => {
+      const res = await fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada", metodo_pago }) });
       if (!res.ok) throw new Error("Error");
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] }),
   });
 
-  // Phase 4: Bulk mark paid
-  const { mutate: marcarVariasPagadas, isPending: pagandoMultiples } = useMutation({
-    mutationFn: async (ids: string[]) => {
+  const { mutate: pagarVariasCuentas, isPending: pagandoMultiples } = useMutation({
+    mutationFn: async ({ ids, metodo_pago }: { ids: string[]; metodo_pago: string }) => {
       await Promise.all(ids.map(id =>
-        fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada" }) })
+        fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada", metodo_pago }) })
       ));
     },
     onSuccess: () => {
@@ -328,6 +329,53 @@ export default function SupplierHubPage() {
   const pendingOrders = ordenes?.filter(o => o.estado !== "cancelada") ?? [];
 
   return (
+    <>
+      {payModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPayModal(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold">Confirmar pago</h3>
+            {payModal.ids.length > 1 && (
+              <p className="text-sm text-gray-500">{payModal.ids.length} cuentas seleccionadas</p>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Método de pago</label>
+              <select
+                value={payModalMetodo}
+                onChange={(e) => setPayModalMetodo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="debito">Débito</option>
+                <option value="credito">Crédito</option>
+                <option value="transferencia">Transferencia</option>
+              </select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPayModal(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (payModal.ids.length === 1) {
+                    pagarCuenta({ id: payModal.ids[0], metodo_pago: payModalMetodo });
+                  } else {
+                    pagarVariasCuentas({ ids: payModal.ids, metodo_pago: payModalMetodo });
+                  }
+                  setPayModal(null);
+                }}
+                disabled={pagando || pagandoMultiples}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {pagando || pagandoMultiples ? "Procesando..." : "Confirmar pago"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div className="flex flex-col gap-4 h-full">
       {/* Phase 4: KPI Dashboard */}
       <div className="grid grid-cols-4 gap-3 bg-white rounded-lg shadow-sm p-4">
@@ -699,7 +747,7 @@ export default function SupplierHubPage() {
                   <p className="text-sm font-semibold text-gray-700">Cuentas por Pagar ({filteredPayables.length})</p>
                   {selectedPayables.size > 0 && (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pagandoMultiples} onClick={() => marcarVariasPagadas(Array.from(selectedPayables))}>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" disabled={pagandoMultiples} onClick={() => { setPayModalMetodo("efectivo"); setPayModal({ ids: Array.from(selectedPayables) }); }}>
                         {pagandoMultiples ? "Pagando..." : `Pagar ${selectedPayables.size}`}
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportPaymentBatch}>
@@ -785,7 +833,7 @@ export default function SupplierHubPage() {
                               {daysUntil <= 7 && daysUntil > 0 && ` · ${daysUntil} días`}
                             </span>
                           </div>
-                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => marcarPagada(cp.id)}>Pagar</Button>
+                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => { setPayModalMetodo("efectivo"); setPayModal({ ids: [cp.id] }); }}>Pagar</Button>
                         </div>
                       );
                     })}
@@ -854,5 +902,6 @@ export default function SupplierHubPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

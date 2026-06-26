@@ -155,6 +155,14 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
     mockFrom.mockReturnValue(chain());
   });
 
+  function markPagadaReq(body: object) {
+    return new NextRequest(`http://localhost/api/cuentas-pagar?id=${CUENTA_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
   // I-90
   it("I-90: PATCH mark-pagada → 200 + estado actualizado", async () => {
     mockSingle.mockResolvedValue({
@@ -162,13 +170,32 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
       error: null,
     });
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
-    const res = await PATCH(new NextRequest(`http://localhost/api/cuentas-pagar?id=${CUENTA_ID}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado: "pagada" }),
-    }));
+    const res = await PATCH(markPagadaReq({ estado: "pagada" }));
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.estado).toBe("pagada");
+  });
+
+  // I-107
+  it("I-107: PATCH con metodo_pago inválido → 400", async () => {
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "cheque" }));
+    expect(res.status).toBe(400);
+  });
+
+  // I-108
+  it("I-108: PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.metodo_pago).toBe("efectivo");
+    expect(mockFrom).toHaveBeenCalledWith("cuentas_pagar");
+    const updateCall = mockFrom().update.mock.calls[0][0];
+    expect(updateCall.metodo_pago).toBe("efectivo");
   });
 });
