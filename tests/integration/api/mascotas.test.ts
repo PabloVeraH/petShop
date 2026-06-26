@@ -1,5 +1,5 @@
 /**
- * Tests M-01 a M-14: /api/mascotas (GET, POST) y /api/mascotas/[id] (PATCH)
+ * Tests M-01 a M-20: /api/mascotas (GET, POST, PATCH, DELETE)
  * Incluye campos de consumo: gramos_porcion y veces_dia (migración 032)
  */
 import { NextRequest } from "next/server";
@@ -311,6 +311,7 @@ describe("PATCH /api/mascotas/[id]", () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
       .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { gramos_porcion: 25, veces_dia: 3 }, error: null })
       .mockResolvedValueOnce({ data: updated, error: null });
 
     const res = await doPatch(MASCOTA_ID, { gramos_porcion: 40, veces_dia: 2 });
@@ -324,11 +325,75 @@ describe("PATCH /api/mascotas/[id]", () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
       .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { ...DB_MASCOTA }, error: null })
       .mockResolvedValueOnce({ data: { ...DB_MASCOTA, nombre: "Max" }, error: null });
 
     const res = await doPatch(MASCOTA_ID, { nombre: "Max" });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.nombre).toBe("Max");
+  });
+});
+
+// ── DELETE /api/mascotas/[id] ──────────────────────────────────────────────
+
+describe("DELETE /api/mascotas/[id]", () => {
+  const { getStoreId } = require("@/lib/auth");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFrom.mockReturnValue(mockChain);
+    mockChain.select.mockReturnThis();
+    mockChain.delete = jest.fn().mockReturnThis();
+    mockChain.eq.mockReturnThis();
+    getStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
+  });
+
+  async function doDelete(id: string) {
+    const { DELETE } = await import("@/app/api/mascotas/[id]/route");
+    const req = new NextRequest(`http://localhost/api/mascotas/${id}`, { method: "DELETE" });
+    return DELETE(req, { params: Promise.resolve({ id }) });
+  }
+
+  it("M-17: retorna 401 sin auth", async () => {
+    getStoreId.mockResolvedValue(null);
+    const res = await doDelete(MASCOTA_ID);
+    expect(res.status).toBe(401);
+  });
+
+  it("M-18: retorna 404 si mascota no existe", async () => {
+    mockSingle.mockResolvedValue({ data: null, error: null });
+    const res = await doDelete(MASCOTA_ID);
+    expect(res.status).toBe(404);
+  });
+
+  it("M-19: retorna 403 si mascota no pertenece al store", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
+    const res = await doDelete(MASCOTA_ID);
+    expect(res.status).toBe(403);
+  });
+
+  it("M-20: elimina mascota correctamente y retorna 200", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID, nombre: "Grizzly", tipo: "perro" }, error: null })
+      .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null });
+
+    const { logAudit } = require("@/lib/audit");
+
+    const res = await doDelete(MASCOTA_ID);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ ok: true });
+
+    expect(logAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "DELETE",
+        entityType: "mascota",
+        entityId: MASCOTA_ID,
+        changeDescription: "Mascota eliminada: Grizzly (perro)",
+      })
+    );
   });
 });

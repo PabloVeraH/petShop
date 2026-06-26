@@ -176,6 +176,13 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | NF-02 | 404 tiene link "Volver al inicio" a /dashboard | not-found.tsx | component |
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
+| M-17 | DELETE mascota retorna 401 sin auth | DELETE /api/mascotas/[id] | integration |
+| M-18 | DELETE mascota retorna 404 si no existe | DELETE /api/mascotas/[id] | integration |
+| M-19 | DELETE mascota retorna 403 si no pertenece al store | DELETE /api/mascotas/[id] | integration |
+| M-20 | DELETE mascota elimina correctamente y registra auditoría | DELETE /api/mascotas/[id] | integration |
+| CD-05 | Muestra botón Eliminar por cada mascota | ClienteDetalle | component |
+| CD-06 | Click en Eliminar muestra confirmación | ClienteDetalle | component |
+| CD-07 | Confirmar eliminación llama a DELETE /api/mascotas/[id] | ClienteDetalle | component |
 
 ## Tests unitarios (U-XX)
 

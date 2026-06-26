@@ -1,6 +1,5 @@
 /**
- * Tests CD-01, CD-02: ClienteDetalle — el formulario de edición debe incluir campo RUT
- * REGRESIÓN: antes del fix, el form de edición omitía el RUT, impidiendo corregirlo.
+ * Tests CD-01 a CD-07: ClienteDetalle — formulario de edición, saldo a favor y eliminación de mascotas
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -41,6 +40,12 @@ const CLIENTE = {
 };
 
 const DETALLE_DATA = { ...CLIENTE, mascotas: [], ventas: [], saldo_disponible: 0 };
+
+const MASCOTAS = [
+  { id: "m1", nombre: "Grizzly", tipo: "perro", raza: "Shitsue", peso_kg: 8, gramos_porcion: 25, veces_dia: 3 },
+  { id: "m2", nombre: "Luna", tipo: "gato", raza: null, peso_kg: null, gramos_porcion: null, veces_dia: null },
+];
+const DETALLE_CON_MASCOTAS = { ...CLIENTE, mascotas: MASCOTAS, ventas: [], saldo_disponible: 0 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -145,5 +150,78 @@ describe("ClienteDetalle — campo RUT en formulario de edición", () => {
     );
     const body = JSON.parse(patchCall[1].body as string);
     expect(body.rut).toBe("11.111.111-1");
+  });
+});
+
+describe("ClienteDetalle — eliminación de mascotas", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function setupFetchWithMascotas() {
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (typeof url === "string" && url.includes("fidelizacion")) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(DETALLE_CON_MASCOTAS),
+      });
+    });
+  }
+
+  // CD-05
+  it("CD-05: muestra botón Eliminar por cada mascota", async () => {
+    setupFetchWithMascotas();
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Grizzly")).toBeInTheDocument());
+
+    const eliminarBtns = screen.getAllByText("Eliminar");
+    expect(eliminarBtns).toHaveLength(2);
+  });
+
+  // CD-06
+  it("CD-06: click en Eliminar muestra confirmación ¿Eliminar esta mascota?", async () => {
+    setupFetchWithMascotas();
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Grizzly")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Eliminar")[0]);
+
+    expect(screen.getByText("¿Eliminar esta mascota?")).toBeInTheDocument();
+    expect(screen.getByText("Sí, eliminar")).toBeInTheDocument();
+    expect(screen.getByText("Cancelar")).toBeInTheDocument();
+  });
+
+  // CD-07
+  it("CD-07: confirmar eliminación llama a DELETE /api/mascotas/[id] e invalida detalle", async () => {
+    let deleteUrl = "";
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (options?.method === "DELETE") {
+        deleteUrl = String(url);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      }
+      if (typeof url === "string" && url.includes("fidelizacion")) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(DETALLE_CON_MASCOTAS),
+      });
+    });
+
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Grizzly")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText("Eliminar")[0]);
+
+    expect(screen.getByText("¿Eliminar esta mascota?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Sí, eliminar"));
+
+    await waitFor(() => {
+      expect(deleteUrl).toBe("/api/mascotas/m1");
+    });
   });
 });

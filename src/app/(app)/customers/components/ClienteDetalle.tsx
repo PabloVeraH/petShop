@@ -52,6 +52,7 @@ export default function ClienteDetalle({
   const [clienteForm, setClienteForm] = useState<EditClienteForm>({ rut: "", nombre: "", email: "", telefono: "" });
   const [editingMascota, setEditingMascota] = useState<MascotaItem | null>(null);
   const [mascotaForm, setMascotaForm] = useState<EditMascotaForm>({ nombre: "", tipo: "", raza: "", peso_kg: "", gramos_porcion: "", veces_dia: "" });
+  const [deletingMascotaId, setDeletingMascotaId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const queryClient = useQueryClient();
 
@@ -99,6 +100,23 @@ export default function ClienteDetalle({
       queryClient.invalidateQueries({ queryKey: ["cliente-detalle", cliente.id] });
       setEditingMascota(null);
       setFormError("");
+    },
+    onError: (e: Error) => setFormError(e.message),
+  });
+
+  const { mutate: eliminarMascota, isPending: deletingMascota } = useMutation({
+    mutationFn: (mascotaId: string) =>
+      fetch(`/api/mascotas/${mascotaId}`, {
+        method: "DELETE",
+      }).then(async (r) => {
+        if (!r.ok) {
+          const d = await r.json();
+          throw new Error(d.error ?? "Error al eliminar");
+        }
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cliente-detalle", cliente.id] });
+      setDeletingMascotaId(null);
     },
     onError: (e: Error) => setFormError(e.message),
   });
@@ -236,12 +254,23 @@ export default function ClienteDetalle({
                           className="w-full border border-gray-300 rounded px-2 py-1 text-xs mt-0.5 focus:outline-none focus:ring-2 focus:ring-green-500" />
                       </div>
                     </div>
-                    {formError && <p className="text-xs text-red-500">{formError}</p>}
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => guardarMascota()} disabled={savingMascota}>
                         {savingMascota ? "..." : "Guardar"}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setEditingMascota(null); setFormError(""); }}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : deletingMascotaId === m.id ? (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-500">¿Eliminar esta mascota?</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => eliminarMascota(m.id)} disabled={deletingMascota}>
+                        {deletingMascota ? "..." : "Sí, eliminar"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setDeletingMascotaId(null); setFormError(""); }}>
                         Cancelar
                       </Button>
                     </div>
@@ -259,14 +288,23 @@ export default function ClienteDetalle({
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => { setMascotaForm({ nombre: m.nombre, tipo: m.tipo ?? "", raza: m.raza ?? "", peso_kg: m.peso_kg ? String(m.peso_kg) : "", gramos_porcion: m.gramos_porcion ? String(m.gramos_porcion) : "", veces_dia: m.veces_dia ? String(m.veces_dia) : "" }); setFormError(""); setEditingMascota(m); }}
-                      className="text-xs text-blue-500 hover:underline ml-2 shrink-0"
-                    >
-                      Editar
-                    </button>
+                    <div className="flex gap-1 shrink-0 ml-2">
+                      <button
+                        onClick={() => { setMascotaForm({ nombre: m.nombre, tipo: m.tipo ?? "", raza: m.raza ?? "", peso_kg: m.peso_kg ? String(m.peso_kg) : "", gramos_porcion: m.gramos_porcion ? String(m.gramos_porcion) : "", veces_dia: m.veces_dia ? String(m.veces_dia) : "" }); setFormError(""); setEditingMascota(m); }}
+                        className="text-xs text-blue-500 hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => { setDeletingMascotaId(m.id); setFormError(""); }}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 )}
+                {formError && <p className="text-xs text-red-500">{formError}</p>}
               </div>
             ))}
           </div>
