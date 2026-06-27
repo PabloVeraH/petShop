@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   let query = supabase
     .from("ventas")
-    .select("id, cliente_id, total, subtotal, estado")
+    .select("id, cliente_id, total, subtotal, descuento, estado")
     .eq("id", ventaId);
 
   // systemAdmin puede procesar devoluciones de cualquier tienda
@@ -87,6 +87,10 @@ export async function POST(req: NextRequest) {
 
   // Para systemAdmin, el store_id se toma del contexto; para otros usuarios, ya está filtrado
   const venta_store_id = store_id;
+
+  // Si la venta tiene descuento porcentual, cada item se devuelve al precio proporcional
+  const descuentoPct = Number(venta.descuento ?? 0);
+  const descuentoFactor = descuentoPct > 0 ? (100 - descuentoPct) / 100 : 1;
 
   const hoy = new Date();
   const numero_nc = `NC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -122,14 +126,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cantidad devuelta excede el disponible" }, { status: 400 });
     }
 
-    // precio_unitario ya incluye IVA — redondear a pesos enteros (CLP sin centavos)
-    const subtotal = Math.round(item.cantidadDevuelta * Number(ventaItem.precio_unitario));
+    // precio_unitario ya incluye IVA — aplicar descuento proporcional y redondear a pesos enteros
+    const unitPrice = Number(ventaItem.precio_unitario);
+    const precioConDescuento = Math.round(unitPrice * descuentoFactor);
+    const subtotal = Math.round(item.cantidadDevuelta * unitPrice * descuentoFactor);
     montoTotal += subtotal;
     itemsConDetalles.push({
       ventaItemId: item.ventaItemId,
       productoId: ventaItem.producto_id,
       cantidadDevuelta: item.cantidadDevuelta,
-      precioUnitario: Number(ventaItem.precio_unitario),
+      precioUnitario: precioConDescuento,
       subtotal,
       restituirStock: item.restituirStock ?? true,
     });

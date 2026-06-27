@@ -17,6 +17,7 @@ interface DevolucionModalProps {
   isOpen: boolean;
   ventaId: string;
   ventaTotal: number;
+  descuento?: number;
   items: DevolucionItem[];
   clienteId: string | null;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function DevolucionModal({
   isOpen,
   ventaId,
   items,
+  descuento = 0,
   clienteId,
   onClose,
   onSuccess,
@@ -99,11 +101,13 @@ export function DevolucionModal({
     onClose();
   };
 
+  const descuentoFactor = descuento > 0 ? (100 - descuento) / 100 : 1;
+
   const montoTotal = Object.entries(selectedItems)
     .filter(([_, data]) => data.cantidad > 0)
     .reduce((sum, [itemId, data]) => {
       const item = items.find((i) => i.id === itemId);
-      return sum + (item ? Number(item.precio_unitario) * data.cantidad : 0);
+      return sum + (item ? Math.round(Number(item.precio_unitario) * data.cantidad * descuentoFactor) : 0);
     }, 0);
 
   const handleToggleItem = (itemId: string) => {
@@ -190,7 +194,14 @@ export function DevolucionModal({
                         <div className="flex-1">
                           <p className="font-medium text-sm">{prod?.nombre ?? "Producto"}</p>
                           <p className="text-xs text-gray-500">
-                            ${Math.round(Number(item.precio_unitario)).toLocaleString("es-CL")} c/u
+                            {descuento > 0 ? (
+                              <>
+                                <span className="line-through">${Math.round(Number(item.precio_unitario)).toLocaleString("es-CL")}</span>
+                                {" "}${Math.round(Number(item.precio_unitario) * descuentoFactor).toLocaleString("es-CL")} c/u ({descuento}% desc.)
+                              </>
+                            ) : (
+                              <>${Math.round(Number(item.precio_unitario)).toLocaleString("es-CL")} c/u</>
+                            )}
                           </p>
                         </div>
                       </div>

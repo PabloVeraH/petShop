@@ -330,6 +330,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         isOpen={showDevolucionModal}
         ventaId={id}
         ventaTotal={data?.total ?? 0}
+        descuento={data?.descuento ?? 0}
         items={itemsDisponibles}
         clienteId={data?.clientes?.id ?? null}
         onClose={() => setShowDevolucionModal(false)}

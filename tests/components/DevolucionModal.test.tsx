@@ -190,6 +190,37 @@ describe("DevolucionModal — Paso 1: selección de ítems", () => {
     setup({ isOpen: false });
     expect(screen.queryByText(/Devolución/i)).not.toBeInTheDocument();
   });
+
+  // DV-11: REGRESIÓN — con descuento 10%, monto a devolver es proporcional
+  it("DV-11: con descuento 10%, el monto a devolver refleja el precio pagado", () => {
+    setup({ descuento: 10 });
+    // ITEM_1: 2 × $10.000 × 0.9 = $18.000
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+
+    expect(screen.getByText("$18.000")).toBeInTheDocument();
+    expect(screen.queryByText("$20.000")).not.toBeInTheDocument();
+  });
+
+  // DV-12: sin descuento (0%), monto normal sin línea de descuento
+  it("DV-12: con descuento 0%, el monto es el precio original completo", () => {
+    setup({ descuento: 0 });
+    // ITEM_1: 2 × $10.000 = $20.000
+    fireEvent.click(screen.getByText("Alimento Premium 1kg"));
+    // ITEM_2: 1 × $5.000 = $5.000
+    fireEvent.click(screen.getByText("Juguete Pelota"));
+
+    expect(screen.getByText("$25.000")).toBeInTheDocument();
+  });
+
+  // DV-13: con descuento, el precio por unidad muestra tachado + nuevo precio
+  it("DV-13: con descuento 10%, el precio unitario se muestra tachado con el nuevo precio", () => {
+    setup({ descuento: 10 });
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+
+    // El texto original $10.000 debe aparecer tachado y el nuevo $9.000 visible
+    const priceTexts = screen.getAllByText(/c\/u/);
+    expect(priceTexts[0]).toHaveTextContent("$9.000");
+  });
 });
 
 describe("DevolucionModal — Paso 2: tipo de reembolso", () => {

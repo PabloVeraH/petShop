@@ -386,6 +386,52 @@ describe("POST /api/notas-credito", () => {
     // Mock verifica que se llamó a fidelizacion.update con total_historico = 98000 (100000 - 2000)
   });
 
+  it("I-109: devolución con descuento 10% → monto NC proporcional al precio pagado", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada", descuento: 10, total: 4500 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 5, precio_unitario: 1000 };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 2, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // 2 × $1.000 × 0.9 = $1.800, no $2.000
+    expect(body.montoNc).toBe(1800);
+  });
+
+  it("I-110: devolución con descuento 0% → monto NC usa precio original", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada", descuento: 0, total: 5000 };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 5, precio_unitario: 1000 };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 3, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // 3 × $1.000 × 1.0 = $3.000
+    expect(body.montoNc).toBe(3000);
+  });
+
   it("múltiples items → suma montos correctamente", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
     const ventaItem1 = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };

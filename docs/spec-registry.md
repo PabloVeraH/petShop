@@ -70,6 +70,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-101 | POST NC no permite devolver más unidades que las vendidas | POST /api/notas-credito | integration |
 | I-102 | POST NC con saldo_a_favor actualiza tabla saldos_a_favor | POST /api/notas-credito | integration |
 | I-103 | POST NC con restituir_stock=true incrementa stock del producto | POST /api/notas-credito | integration |
+| I-109 | POST NC con descuento 10% devuelve monto proporcional (2×1000×0.9=1800) | POST /api/notas-credito | integration |
+| I-110 | POST NC con descuento 0% usa precio original completo | POST /api/notas-credito | integration |
 
 ## Contabilidad (I-116 a I-140)
 
@@ -180,6 +182,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | SP-02 | Cambiar método de pago en el selector | SuppliersPage | component |
 | SP-03 | Confirmar pago envía metodo_pago en PATCH | SuppliersPage | component |
 | SP-04 | Cancelar cierra modal sin pagar | SuppliersPage | component |
+| DV-11 | Con descuento 10%, monto a devolver es proporcional (18.000 en vez de 20.000) | DevolucionModal | component |
+| DV-12 | Con descuento 0%, monto a devolver usa precio original | DevolucionModal | component |
+| DV-13 | Con descuento, precio unitario se muestra tachado + nuevo precio | DevolucionModal | component |
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 | POS-01 | SearchProductos renderiza y desmonta sin error de timer | SearchProductos | component |
