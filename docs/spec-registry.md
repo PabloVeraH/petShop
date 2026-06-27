@@ -189,6 +189,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 | POS-01 | SearchProductos renderiza y desmonta sin error de timer | SearchProductos | component |
 | POS-02 | RecomendacionesIA renderiza sin cliente y desmonta sin error de fetch | RecomendacionesIA | component |
+| CT-01 | Click Eliminar en categoría abre modal de confirmación | CategoriasTab | component |
+| CT-02 | Click Cancelar en modal cierra sin eliminar | CategoriasTab | component |
+| CT-03 | Click Eliminar en modal llama DELETE /api/categorias/[id] | CategoriasTab | component |
 | M-17 | DELETE mascota retorna 401 sin auth | DELETE /api/mascotas/[id] | integration |
 | M-18 | DELETE mascota retorna 404 si no existe | DELETE /api/mascotas/[id] | integration |
 | M-19 | DELETE mascota retorna 403 si no pertenece al store | DELETE /api/mascotas/[id] | integration |
