@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
 import { ClerkProvider } from "@clerk/nextjs";
+import { esES } from "@clerk/localizations";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
@@ -23,7 +24,7 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? "";
 
   return (
-    <ClerkProvider nonce={nonce}>
+    <ClerkProvider nonce={nonce} localization={esES}>
       <html lang="es" className={`${inter.variable} h-full antialiased`}>
         <body className="min-h-full bg-gray-50">
           <Providers>{children}</Providers>

@@ -288,9 +288,11 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-400 border-t pt-3">
-          ¡Gracias por su compra!
-        </p>
+        {data?.estado !== "anulada" && (
+          <p className="text-center text-xs text-gray-400 border-t pt-3">
+            ¡Gracias por su compra!
+          </p>
+        )}
       </div>
 
       {/* Devoluciones registradas */}

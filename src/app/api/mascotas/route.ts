@@ -66,6 +66,18 @@ export async function POST(req: NextRequest) {
 
   if (!cliente) return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
 
+  // Evitar mascotas duplicadas por (cliente_id, nombre)
+  const { data: existing } = await supabase
+    .from("mascotas")
+    .select("id")
+    .eq("cliente_id", cliente_id)
+    .eq("nombre", nombre)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ error: "Ya existe una mascota con ese nombre para este cliente" }, { status: 409 });
+  }
+
   const { data: mascota, error } = await supabase
     .from("mascotas")
     .insert({

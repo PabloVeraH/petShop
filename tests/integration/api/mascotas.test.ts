@@ -12,6 +12,7 @@ const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockSingle = jest.fn();
+const mockMaybeSingle = jest.fn();
 const mockFrom   = jest.fn();
 const mockChain  = {
   select: jest.fn().mockReturnThis(),
@@ -19,6 +20,7 @@ const mockChain  = {
   update: jest.fn().mockReturnThis(),
   eq:     jest.fn().mockReturnThis(),
   single: mockSingle,
+  maybeSingle: mockMaybeSingle,
 };
 mockFrom.mockReturnValue(mockChain);
 
@@ -211,6 +213,21 @@ describe("POST /api/mascotas", () => {
     getStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
   });
 
+  // M-NEW: POST con mascota duplicada retorna 409
+  it("M-21: retorna 409 si ya existe mascota con mismo nombre para el cliente", async () => {
+    mockSingle.mockResolvedValue({ data: { id: CLIENTE_ID }, error: null });  // cliente lookup
+    mockMaybeSingle.mockResolvedValue({ data: { id: MASCOTA_ID }, error: null });  // duplicate found
+    const { POST } = await import("@/app/api/mascotas/route");
+    const res = await POST(makePostRequest({
+      cliente_id: CLIENTE_ID,
+      nombre: "Grizzly",
+      tipo: "perro",
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("Ya existe");
+  });
+
   it("M-05: retorna 401 sin auth", async () => {
     getStoreId.mockResolvedValue(null);
     const { POST } = await import("@/app/api/mascotas/route");
@@ -235,6 +252,7 @@ describe("POST /api/mascotas", () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })  // cliente lookup
       .mockResolvedValueOnce({ data: DB_MASCOTA, error: null });          // insert
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });   // no duplicate
     const { POST } = await import("@/app/api/mascotas/route");
     const res = await POST(makePostRequest({
       cliente_id: CLIENTE_ID,
@@ -248,6 +266,7 @@ describe("POST /api/mascotas", () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })
       .mockResolvedValueOnce({ data: { ...DB_MASCOTA, gramos_porcion: 30, veces_dia: 2 }, error: null });
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });   // no duplicate
     const { POST } = await import("@/app/api/mascotas/route");
     const res = await POST(makePostRequest({
       cliente_id: CLIENTE_ID,

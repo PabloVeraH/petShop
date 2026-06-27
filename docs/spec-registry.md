@@ -21,6 +21,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-06 | Crear mascota asocia al cliente correcto | POST /api/mascotas | integration |
 | I-07 | GET mascotas filtra por store_id | GET /api/mascotas | integration |
 | I-08 | PATCH mascota actualiza peso y alimento habitual | PATCH /api/mascotas/[id] | integration |
+| M-21 | POST mascota duplicada (cliente_id + nombre) retorna 409 | POST /api/mascotas | integration |
 
 ## Ventas — POS (I-34 a I-59)
 
@@ -163,6 +164,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | COD-04 | Botón Crear OC deshabilitado sin items | CreateOrderDialog | component |
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
+| IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
+| VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
+| VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
 
 ## Middleware / Routing (MW-XX)
 

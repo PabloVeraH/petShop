@@ -84,7 +84,7 @@ const PRODUCTO = {
   nombre: "Alimento Premium",
   sku: "SKU-001",
   precio: 10000,
-  costo: null,
+  costo: 5000,
   stock: 15,
   stock_minimo: 5,
   marca: null,
@@ -213,6 +213,22 @@ describe("InventoryPage — lista de productos", () => {
 
     // El badge de Estado tiene data-variant="outline" (vs el span del precio que no lo tiene)
     const badges = screen.getAllByText("Sin precio");
+    const estadoBadge = badges.find((el) => el.dataset.variant === "outline");
+    expect(estadoBadge).toBeDefined();
+    expect(screen.queryByText("OK")).not.toBeInTheDocument();
+  });
+
+  // IV-01: producto sin costo muestra badge 'Sin costo'
+  it("IV-01: producto sin costo muestra badge 'Sin costo' en Estado", async () => {
+    const SIN_COSTO = { ...PRODUCTO, costo: null };
+    setupFetch([SIN_COSTO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Alimento Premium")).toBeInTheDocument()
+    );
+
+    const badges = screen.getAllByText("Sin costo");
     const estadoBadge = badges.find((el) => el.dataset.variant === "outline");
     expect(estadoBadge).toBeDefined();
     expect(screen.queryByText("OK")).not.toBeInTheDocument();

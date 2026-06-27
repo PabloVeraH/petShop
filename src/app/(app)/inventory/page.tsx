@@ -374,9 +374,11 @@ export default function InventoryPage() {
                         ? <Badge variant="destructive">Vencido</Badge>
                         : enAlerta
                           ? <Badge variant="destructive">Bajo stock</Badge>
-                          : !p.precio
-                            ? <Badge variant="outline" className="text-amber-700 border-amber-400">Sin precio</Badge>
-                            : <Badge variant="secondary">OK</Badge>}
+                          : <div className="flex gap-1 flex-wrap">
+                            {!p.precio && <Badge variant="outline" className="text-amber-700 border-amber-400">Sin precio</Badge>}
+                            {!p.costo && <Badge variant="outline" className="text-gray-500 border-gray-300">Sin costo</Badge>}
+                            {p.precio && p.costo && <Badge variant="secondary">OK</Badge>}
+                          </div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">

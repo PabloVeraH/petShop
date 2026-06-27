@@ -96,7 +96,7 @@ async function postVenta(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc } = parsed.data;
+  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc, notas } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
   const enviarEmail = body.enviarEmail === true;
   const descuento_pct = descuentoPct ?? 0;
@@ -275,6 +275,15 @@ async function postVenta(req: NextRequest) {
   const metodoPagoVenta = pagoNc
     ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
     : metodoPago;
+
+  // Guardar notas internas post-RPC (el RPC crear_venta_tx no acepta el campo)
+  if (notas) {
+    await supabase
+      .from("ventas")
+      .update({ notas })
+      .eq("id", venta.id as string)
+      .eq("store_id", store_id);
+  }
 
   await logAudit({
     storeId: store_id,

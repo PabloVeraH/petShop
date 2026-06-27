@@ -55,6 +55,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     workerClerkId, setWorker,
     procedencia, setProcedencia,
     pagoNc, setPayNc, clearPayNc,
+    notas, setNotas,
     clienteEmail, enviarEmailRecibo, setEnviarEmailRecibo,
   } = usePOSStore();
 
@@ -374,6 +375,20 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               value={descuento}
               onChange={(e) => setDescuento(Math.min(100, Math.max(0, Number(e.target.value))))}
               className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+
+          {/* Notas internas */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              Notas internas
+            </label>
+            <textarea
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Observaciones (no visible en el recibo)"
+              rows={2}
+              className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             />
           </div>
 

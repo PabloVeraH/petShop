@@ -197,6 +197,11 @@ export default function ContabilidadPage() {
               <Button variant="outline" size="sm">Excel</Button>
             </a>
           )}
+          {tab === "resultado" && (
+            <a href={`/api/contabilidad/estado-resultado/excel?mes=${Number(mes)}&año=${año}`}>
+              <Button variant="outline" size="sm">Excel</Button>
+            </a>
+          )}
         </div>
       </div>
 

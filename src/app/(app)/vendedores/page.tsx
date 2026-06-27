@@ -231,9 +231,8 @@ export default function VendedoresPage() {
                   <p className="text-xs text-red-400 mt-0.5">RUT inválido</p>
                 )}
               </div>
-              {selectedWorker?.store_worker && (
-                <div>
-                  <label className="text-xs font-medium text-gray-700 block mb-1">Meta mensual ($)</label>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Meta mensual ($)</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -247,7 +246,6 @@ export default function VendedoresPage() {
                     className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
-              )}
             </div>
 
             {editError && <p className="text-xs text-red-500">{editError}</p>}

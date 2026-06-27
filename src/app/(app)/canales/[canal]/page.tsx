@@ -34,9 +34,9 @@ const CANALES_INFO: Record<string, CanalInfo> = {
     color: "bg-yellow-500",
     icono: "📦",
     campos: [
-      { key: "client_id", label: "Client ID", type: "text", placeholder: "..." },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "..." },
-      { key: "business_id", label: "Business ID", type: "text", placeholder: "..." },
+      { key: "client_id", label: "Client ID", type: "text", placeholder: "pedidosya_cliente_123" },
+      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "py_secret_..." },
+      { key: "business_id", label: "Business ID", type: "text", placeholder: "123456" },
     ],
   },
   ubereats: {

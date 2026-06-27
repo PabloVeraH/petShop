@@ -24,7 +24,7 @@ export default function POSPage() {
   const isStoreAdmin = meta?.storeAdmin === true;
 
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, procedencia, pagoNc, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
+  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, procedencia, pagoNc, notas, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
   // Selector explícito para el total del botón: garantiza que Zustand re-renderice
   // este valor cuando persist rehidrata desde localStorage (evita "Cobrar $0" en recarga)
   const cartTotal = usePOSStore((state) => state.total());
@@ -65,6 +65,7 @@ export default function POSPage() {
         descuentoPct: descuento,
         procedencia,
         pagoNc,
+        notas,
         enviarEmail: enviarEmailRecibo,
       }),
     onSuccess: (data) => {

@@ -30,6 +30,7 @@ export async function createVenta({
   descuentoPct,
   procedencia,
   pagoNc,
+  notas,
   enviarEmail,
 }: {
   items: {
@@ -48,12 +49,13 @@ export async function createVenta({
   descuentoPct: number;
   procedencia: string;
   pagoNc?: { nota_credito_id: string; numero_nc: string; monto: number };
+  notas?: string;
   enviarEmail?: boolean;
 }) {
   const res = await fetch("/api/ventas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, enviarEmail }),
+    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, notas, enviarEmail }),
   });
   if (!res.ok) {
     const ct = res.headers.get("content-type") ?? "";
