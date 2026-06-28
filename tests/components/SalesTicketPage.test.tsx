@@ -3,7 +3,7 @@
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -11,8 +11,10 @@ const VENTA_ID = "test-venta-id-sales-ticket";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
+const mockRouterBack = jest.fn();
 jest.mock("next/navigation", () => ({
   useSearchParams: jest.fn(() => ({ get: () => null })),
+  useRouter: jest.fn(() => ({ back: mockRouterBack })),
 }));
 
 jest.mock("react", () => {
@@ -246,5 +248,151 @@ describe("SalesTicketPage — badge Dev. X y disponibilidad de items", () => {
     );
     const btn = screen.getByRole("button", { name: /Devolución parcial/i });
     expect(btn).toBeDisabled();
+  });
+});
+
+// ── Tests de anulación ─────────────────────────────────────────────────────
+
+describe("SalesTicketPage — anulación de venta (VT-01 a VT-03)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  // VT-03: REGRESIÓN — anular venta debe invalidar queries de detalle Y listado con refetchType "all".
+  // El refetchType "all" fuerza el refetch inmediato aunque la lista no tenga observer activo
+  // (está desmontada). Sin esto, la lista muestra estado "Completada" hasta F5.
+  it("VT-03: REGRESIÓN — anular venta invalida ['ventas'] con refetchType 'all' (no solo activos)", async () => {
+    const VENTA_ACTIVA = {
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Collar Perro", 1, 5000)],
+    };
+
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/ventas/") && opts?.method === "PATCH") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...VENTA_ACTIVA, estado: "anulada" }) });
+      }
+      if (url.includes("/api/ventas/")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(VENTA_ACTIVA) });
+      }
+      if (url.includes("/api/notas-credito")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: "PetShop Test" }) });
+      }
+      if (url.includes("/api/saldos-a-favor")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ saldo_disponible: 0 }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar Perro")).toBeInTheDocument()
+    );
+
+    // Click "Anular venta" → se muestra confirmación
+    fireEvent.click(screen.getByRole("button", { name: /Anular venta/i }));
+
+    // Click "Sí, anular"
+    fireEvent.click(screen.getByRole("button", { name: /Sí, anular/i }));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["venta", VENTA_ID] });
+    });
+    // La invalidación del listado DEBE incluir refetchType: "all" para refrescar
+    // aunque la lista esté desmontada (sin observer activo).
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
+    // No debe llamarse SIN refetchType: "all" — eso sería la versión bugueada
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
+
+    spy.mockRestore();
+  });
+
+  // VT-04: REGRESIÓN — "Volver" usa router.back() (Next.js router), no window.history.back()
+  // (raw browser API que puede activar BFCache y restaurar el estado congelado de la lista,
+  // mostrando datos viejos sin que TanStack Query tenga oportunidad de actualizar).
+  it("VT-04: REGRESIÓN — botón Volver usa router.back(), no window.history.back()", async () => {
+    const historyBackSpy = jest.spyOn(window.history, "back").mockImplementation(() => {});
+
+    mockFetch({
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Collar Perro", 1, 5000)],
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar Perro")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /← Volver/i }));
+
+    // Next.js router.back() debe llamarse
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
+    // El raw window.history.back() NO debe llamarse
+    expect(historyBackSpy).not.toHaveBeenCalled();
+
+    historyBackSpy.mockRestore();
+  });
+
+  // VT-01: ticket de venta no anulada mustra "Gracias por su compra"
+  it("VT-01: ticket de venta completada mustra 'Gracias por su compra'", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/ventas/")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] }) });
+      }
+      if (url.includes("/api/notas-credito")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      if (url.includes("/api/settings")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: "PetShop Test" }) });
+      if (url.includes("/api/saldos-a-favor")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ saldo_disponible: 0 }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/gracias por su compra/i)).toBeInTheDocument()
+    );
+  });
+
+  // VT-02: ticket de venta anulada NO mustra "Gracias por su compra"
+  it("VT-02: ticket de venta anulada no mustra 'Gracias por su compra'", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/ventas/")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...VENTA_BASE, estado: "anulada", items: [makeItem("i1", "Producto", 1, 5000)] }) });
+      }
+      if (url.includes("/api/notas-credito")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      if (url.includes("/api/settings")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: "PetShop Test" }) });
+      if (url.includes("/api/saldos-a-favor")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ saldo_disponible: 0 }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Producto")).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/gracias por su compra/i)).not.toBeInTheDocument();
   });
 });

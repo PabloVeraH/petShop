@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
 
@@ -45,6 +45,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const searchParams = useSearchParams();
   const autoPrint = searchParams.get("autoPrint") === "1";
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
 
@@ -102,6 +103,10 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["venta", id] });
+      // refetchType: "all" fuerza refetch inmediato aunque la lista esté desmontada
+      // (sin observer activo). De lo contrario, sólo se marca stale y la lista no
+      // se actualiza hasta que el usuario navegue de vuelta y el componente remonte.
+      queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       setConfirmAnular(false);
     },
   });
@@ -147,7 +152,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     <div className="max-w-md mx-auto space-y-4 print:max-w-none print:mx-0">
       {/* Acciones (no se imprimen) */}
       <div className="flex gap-2 mb-4 print:hidden flex-wrap">
-        <Button variant="outline" onClick={() => window.history.back()}>
+        <Button variant="outline" onClick={() => router.back()}>
           ← Volver
         </Button>
         <Button variant="outline" onClick={() => window.print()}>
