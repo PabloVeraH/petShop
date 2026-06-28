@@ -176,6 +176,15 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 |----|-----------|-----------|------|
 | MW-24 | /workers redirige a /vendedores | next.config.ts | unit |
 
+## Button — Base UI + Tailwind (BTN-XX)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|-----------|------|
+| BTN-01 | disabled=true renderiza con data-disabled | Button | component |
+| BTN-02 | disabled=true bloquea onClick | Button | component |
+| BTN-03 | disabled=false NO tiene data-disabled | Button | component |
+| BTN-04 | disabled=false permite onClick | Button | component |
+
 ## 404 (NF-XX)
 
 | ID | Requisito | Componente | Tipo |

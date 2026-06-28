@@ -119,8 +119,8 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     expect(button).not.toHaveTextContent("$0");
   });
 
-  // PP-03: carrito vacío → botón deshabilitado y muestra $0
-  it("PP-03: con carrito vacío el botón dice 'Cobrar $0' y está deshabilitado", () => {
+  // PP-03: carrito vacío → botón dice 'Carrito vacío' y está deshabilitado
+  it("PP-03: con carrito vacío el botón dice 'Carrito vacío' y está deshabilitado", () => {
     const store = makeMockStore({ items: [], cartTotal: 0 });
     mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
       if (typeof selector === "function") return selector(store);
@@ -129,8 +129,8 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
 
     render(<POSPage />, { wrapper: makeWrapper() });
 
-    const button = screen.getByRole("button", { name: /Cobrar/i });
-    expect(button).toHaveTextContent("Cobrar $0");
+    const button = screen.getByRole("button", { name: /Carrito vacío/i });
+    expect(button).toHaveTextContent("Carrito vacío");
     expect(button).toBeDisabled();
   });
 

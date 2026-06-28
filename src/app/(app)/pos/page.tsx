@@ -126,7 +126,7 @@ export default function POSPage() {
             className="w-full"
             size="lg"
           >
-            Cobrar ${cartTotal.toLocaleString("es-CL")}
+            {items.length === 0 ? "Carrito vacío" : `Cobrar $${cartTotal.toLocaleString("es-CL")}`}
           </Button>
         </div>
 
