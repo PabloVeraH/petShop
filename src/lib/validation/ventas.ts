@@ -34,6 +34,14 @@ export const VentaCreateSchema = z.object({
     numero_nc: z.string(),
     monto: z.number().positive(),
   }).optional(),
+}).superRefine((val, ctx) => {
+  if (["debito", "credito", "transferencia"].includes(val.metodoPago) && !val.numeroTransaccion?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
+      path: ["numeroTransaccion"],
+    });
+  }
 });
 
 export const PagoSchema = z.object({

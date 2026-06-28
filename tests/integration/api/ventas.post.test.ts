@@ -199,6 +199,30 @@ describe("POST /api/ventas — validaciones", () => {
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: "twitter" }));
     expect(res.status).toBe(400);
   });
+
+  // I-300
+  it("I-300: rechaza debito sin numeroTransaccion con 400", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "debito" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("número de transacción");
+  });
+
+  // I-301
+  it("I-301: rechaza credito sin numeroTransaccion con 400", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "credito" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("número de transacción");
+  });
+
+  // I-302
+  it("I-302: rechaza transferencia sin numeroTransaccion con 400", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "transferencia" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("número de transacción");
+  });
 });
 
 // ── Flujo exitoso ─────────────────────────────────────────────────────────────
@@ -475,6 +499,18 @@ describe("POST /api/ventas — cálculo de descuento", () => {
   it("I-50: descuentoPct=100 resulta en p_total 0", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", descuentoPct: 100 }));
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({ p_total: 0, p_descuento_pct: 100 }));
+  });
+
+  // I-303
+  it("I-303: debito con numeroTransaccion valido → 200", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "debito", numeroTransaccion: "TRX123" }));
+    expect(res.status).toBe(200);
+  });
+
+  // I-304
+  it("I-304: credito con numeroTransaccion valido → 200", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "credito", numeroTransaccion: "TRX456" }));
+    expect(res.status).toBe(200);
   });
 });
 

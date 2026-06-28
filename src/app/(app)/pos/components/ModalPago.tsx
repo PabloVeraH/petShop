@@ -75,6 +75,9 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   const ivaAmount = Math.round(tot * IVA_RATE / (1 + IVA_RATE));
   const neto = tot - ivaAmount;
 
+  // TRX validation
+  const [trxError, setTrxError] = useState(false);
+
   // NC local state
   const [ncCodigo, setNcCodigo] = useState("");
   const [ncValidando, setNcValidando] = useState(false);
@@ -121,6 +124,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   }
 
   function selectMethod(value: string) {
+    setTrxError(false);
     if (value === "nota_credito") {
       setMetodoPago("nota_credito");
       setNumeroTransaccion(undefined);
@@ -292,15 +296,25 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
           {["debito", "credito", "transferencia"].includes(metodoPago ?? "") && (
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">
-                {pagoNc && montoResto > 0 ? "N° transacción (diferencia)" : "Número de transacción"}
+                {pagoNc && montoResto > 0 ? "N° transacción (diferencia)" : "Número de transacción"} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 placeholder="Ej: TRX123456789"
+                required
                 value={numeroTransaccion ?? ""}
                 onChange={(e) => setNumeroTransaccion(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                onBlur={() => {
+                  if (!numeroTransaccion?.trim()) {
+                    setTrxError(true);
+                  }
+                }}
+                onFocus={() => setTrxError(false)}
+                className={`w-full rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 ${trxError ? "border-red-400 focus:ring-red-400" : "border-gray-300 focus:ring-green-500"}`}
               />
+              {trxError && (
+                <p className="text-xs text-red-500 mt-1">Campo obligatorio para pagos con débito/crédito/transferencia</p>
+              )}
             </div>
           )}
 

@@ -27,15 +27,17 @@ let mockWorkerClerkId: string | undefined   = undefined;
 let mockDescuento                           = 0;
 let mockSubtotalValue                       = 10000;
 let mockTotalValue                          = 10000;
+let mockMetodoPago                          = "efectivo";
+let mockNumeroTransaccion: string | undefined = undefined;
 
 jest.mock("@/stores/pos", () => ({
   usePOSStore: jest.fn(() => ({
     subtotal:              () => mockSubtotalValue,
     descuento:             mockDescuento,
     total:                 () => mockTotalValue,
-    metodoPago:            "efectivo",
+    metodoPago:            mockMetodoPago,
     setMetodoPago:         mockSetMetodoPago,
-    numeroTransaccion:     undefined,
+    numeroTransaccion:     mockNumeroTransaccion,
     setNumeroTransaccion:  mockSetNumeroTransaccion,
     setDescuento:          mockSetDescuento,
     fidelizacionDescuento: 0,
@@ -257,5 +259,45 @@ describe("ModalPago — IVA breakdown correcto (MP-11/MP-12)", () => {
     expect(screen.getByText("Neto (sin IVA)")).toBeInTheDocument();
     expect(screen.getByText("IVA (19%)")).toBeInTheDocument();
     expect(screen.getByText("Total")).toBeInTheDocument();
+  });
+});
+
+describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockMetodoPago         = "efectivo";
+    mockNumeroTransaccion  = undefined;
+    mockSubtotalValue      = 10000;
+    mockTotalValue         = 10000;
+    mockDescuento          = 0;
+    mockClienteEmail       = undefined;
+    mockEnviarEmailRecibo  = false;
+    mockWorkerClerkId      = undefined;
+  });
+
+  // MP-13
+  it("MP-13: debito muestra label N° transacción con asterisco rojo", () => {
+    mockMetodoPago = "debito";
+    setup();
+    const label = screen.getByText(/Número de transacción/);
+    expect(label).toBeInTheDocument();
+    expect(label.innerHTML).toContain("*");
+  });
+
+  // MP-14
+  it("MP-14: efectivo no muestra el campo N° transacción", () => {
+    mockMetodoPago = "efectivo";
+    setup();
+    expect(screen.queryByText(/Número de transacción/)).not.toBeInTheDocument();
+  });
+
+  // MP-15
+  it("MP-15: credito con TRX vacío en blur muestra error obligatorio", () => {
+    mockMetodoPago        = "credito";
+    mockNumeroTransaccion = "";
+    setup();
+    const input = screen.getByPlaceholderText("Ej: TRX123456789");
+    fireEvent.blur(input);
+    expect(screen.getByText("Campo obligatorio para pagos con débito/crédito/transferencia")).toBeInTheDocument();
   });
 });

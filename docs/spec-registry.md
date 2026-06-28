@@ -225,6 +225,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
 | VS-04 | Paginación oculta cuando total ≤ 50 | SalesPage | component |
 | VS-05 | Search input se renderiza con placeholder | SalesPage | component |
+| MP-13 | debito/credito muestra label N° transacción con * rojo | ModalPago | component |
+| MP-14 | efectivo no muestra el campo N° transacción | ModalPago | component |
+| MP-15 | credito con TRX vacío en blur muestra error obligatorio | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
@@ -235,6 +238,11 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-297 | GET /api/ventas busca por nombre de cliente | GET /api/ventas | integration |
 | I-298 | GET /api/ventas busca por numero_comprobante si search contiene - | GET /api/ventas | integration |
 | I-299 | GET /api/ventas retorna vacío si no hay clientes matching | GET /api/ventas | integration |
+| I-300 | POST ventas con debito sin numeroTransaccion → 400 | POST /api/ventas | integration |
+| I-301 | POST ventas con credito sin numeroTransaccion → 400 | POST /api/ventas | integration |
+| I-302 | POST ventas con transferencia sin numeroTransaccion → 400 | POST /api/ventas | integration |
+| I-303 | POST ventas con debito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
+| I-304 | POST ventas con credito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
 
 ## Tests unitarios (U-XX)
 
