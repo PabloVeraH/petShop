@@ -220,9 +220,21 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | CD-05 | Muestra botón Eliminar por cada mascota | ClienteDetalle | component |
 | CD-06 | Click en Eliminar muestra confirmación | ClienteDetalle | component |
 | CD-07 | Confirmar eliminación llama a DELETE /api/mascotas/[id] | ClienteDetalle | component |
+| VS-01 | Loading state y luego tabla con datos | SalesPage | component |
+| VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
+| VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
+| VS-04 | Paginación oculta cuando total ≤ 50 | SalesPage | component |
+| VS-05 | Search input se renderiza con placeholder | SalesPage | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
+| I-293 | GET /api/ventas retorna 401 sin auth | GET /api/ventas | integration |
+| I-294 | GET /api/ventas retorna ventas paginadas con count | GET /api/ventas | integration |
+| I-295 | GET /api/ventas filtra por metodo_pago y estado | GET /api/ventas | integration |
+| I-296 | GET /api/ventas filtra por rango de fechas | GET /api/ventas | integration |
+| I-297 | GET /api/ventas busca por nombre de cliente | GET /api/ventas | integration |
+| I-298 | GET /api/ventas busca por numero_comprobante si search contiene - | GET /api/ventas | integration |
+| I-299 | GET /api/ventas retorna vacío si no hay clientes matching | GET /api/ventas | integration |
 
 ## Tests unitarios (U-XX)
 
@@ -245,5 +257,6 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 - `U-NN` — test unitario de lib
 - `PROP-NN` — test de propiedad (fast-check)
 - `COD-NN` — test de componente de orden de compra
+- `VS-NN` — test de componente de historial de ventas
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

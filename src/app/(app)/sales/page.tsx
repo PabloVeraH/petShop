@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useEffect } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -15,6 +15,17 @@ import {
 } from "@/components/ui/table";
 
 const LIMIT = 50;
+const DEFAULT_DAYS_BACK = 90;
+
+function toDateInput(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultDesde(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - DEFAULT_DAYS_BACK);
+  return toDateInput(d);
+}
 
 const METODOS = [
   { value: "", label: "Todos los métodos" },
@@ -63,21 +74,34 @@ async function getVentas(params: {
 
 export default function SalesPage() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [metodo, setMetodo] = useState("");
   const [estado, setEstado] = useState("");
-  const [desde, setDesde] = useState("");
+  const [desde, setDesde] = useState(defaultDesde);
   const [hasta, setHasta] = useState("");
   const [offset, setOffset] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["ventas", search, metodo, estado, desde, hasta, offset],
-    queryFn: () => getVentas({ search, metodo, estado, desde, hasta, offset }),
+    queryKey: ["ventas", debouncedSearch, metodo, estado, desde, hasta, offset],
+    queryFn: () => getVentas({ search: debouncedSearch, metodo, estado, desde, hasta, offset }),
+    placeholderData: keepPreviousData,
+    gcTime: 2 * 60 * 1000,
   });
 
   const total = data?.count ?? 0;
+  const defaultDesdeVal = useRef(defaultDesde()).current;
+  const hasActiveFilters = search || metodo || estado || hasta || desde !== defaultDesdeVal;
 
   const resetFiltros = () => {
-    setSearch(""); setMetodo(""); setEstado(""); setDesde(""); setHasta(""); setOffset(0);
+    setSearch(""); setDebouncedSearch(""); setMetodo(""); setEstado(""); setDesde(defaultDesdeVal); setHasta(""); setOffset(0);
   };
 
   const ventas = data?.data ?? [];
@@ -130,7 +154,7 @@ export default function SalesPage() {
             className="rounded-md border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
           />
         </div>
-        {(search || metodo || estado || desde || hasta) && (
+        {hasActiveFilters && (
           <Button variant="outline" size="sm" onClick={resetFiltros}>
             Limpiar
           </Button>
