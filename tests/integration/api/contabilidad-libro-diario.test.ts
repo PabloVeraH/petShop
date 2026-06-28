@@ -135,20 +135,19 @@ describe("GET /api/contabilidad/libro-diario", () => {
     expect(res.status).toBe(401);
   });
 
-  // I-LD-02 — REGRESIÓN: total_asientos debe usar el count de la BD, no data.length
+  // I-LD-02 — REGRESIÓN: total_asientos debe usar asientos.length (no dbCount de Supabase)
   //
-  // Escenario: PostgREST tiene un max-rows de 30 configurado en el proyecto.
-  // La BD tiene 55 asientos en el período (count=55), pero solo devuelve 30 filas.
-  // Antes de la corrección: total_asientos = 30 (data.length)
-  // Después de la corrección: total_asientos = 55 (dbCount de Supabase)
+  // Históricamente se usaba dbCount para protegerse contra truncación silenciosa
+  // de PostgREST (max-rows). Sin embargo, dbCount puede subreportar asientos en
+  // algunos casos (ej: reportado 43 vs 78 reales). Como no hay paginación (.range()),
+  // asientos.length es la fuente exacta y más confiable.
   it(
-    "I-LD-02: REGRESIÓN — total_asientos refleja el count de la BD, " +
-      "no la longitud del array devuelto (protege contra truncación silenciosa)",
+    "I-LD-02: REGRESIÓN — total_asientos usa asientos.length, no el dbCount de Supabase",
     async () => {
-      // Simula 30 filas retornadas pero count=55 en la BD
       const thirtyEntries = Array.from({ length: 30 }, (_, i) =>
         makeEntry(`je-${i + 1}`, i + 26, `2026-06-${String(i + 1).padStart(2, "0")}`)
       );
+      // Aunque dbCount sea 55, el contador debe reflejar los datos reales recibidos
       const db = makeDb({ entries: thirtyEntries, dbCount: 55 });
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
 
@@ -156,9 +155,8 @@ describe("GET /api/contabilidad/libro-diario", () => {
       expect(res.status).toBe(200);
 
       const body = await res.json();
-      // El contador debe ser 55 (real de la BD), no 30 (filas devueltas)
-      expect(body.resumen.total_asientos).toBe(55);
-      // La tabla muestra las 30 filas realmente disponibles
+      // El contador debe ser 30 (filas realmente recibidas), no 55 (dbCount)
+      expect(body.resumen.total_asientos).toBe(30);
       expect(body.asientos).toHaveLength(30);
     }
   );
