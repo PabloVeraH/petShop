@@ -137,4 +137,31 @@ describe("SalesPage — historial de ventas", () => {
       screen.getByPlaceholderText("Buscar por cliente o nº de venta..."),
     ).toBeInTheDocument();
   });
+
+  // VS-06: staleTime: 0 fuerza refetch al remontar el componente
+  it("VS-06: staleTime=0 obliga refetch al remontar (no usa cache fresh)", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+
+    // Primer montaje
+    const Page = (await import("@/app/(app)/sales/page")).default;
+    const { unmount } = render(<Page />, { wrapper: Wrapper });
+    await waitFor(() => expect(screen.getByText("001")).toBeInTheDocument());
+    const ventasCalls = () => fetchMock.mock.calls.filter(
+      ([url]: string[]) => typeof url === "string" && url.includes("/api/ventas"),
+    );
+    expect(ventasCalls().length).toBeGreaterThanOrEqual(1);
+
+    // Desmontar — la query se vuelve inactiva
+    unmount();
+    fetchMock.mockClear();
+
+    // Segundo montaje — staleTime=0 fuerza refetch aunque la query
+    // exista en cache con datos "frescos" de 0s atrás
+    render(<Page />, { wrapper: Wrapper });
+    await screen.findByText("001");
+    expect(ventasCalls().length).toBeGreaterThanOrEqual(1);
+  });
 });

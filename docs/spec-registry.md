@@ -225,6 +225,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
 | VS-04 | Paginación oculta cuando total ≤ 50 | SalesPage | component |
 | VS-05 | Search input se renderiza con placeholder | SalesPage | component |
+| VS-06 | staleTime=0 obliga refetch al remontar el componente SalesPage | SalesPage | component |
 | MP-13 | debito/credito muestra label N° transacción con * rojo | ModalPago | component |
 | MP-14 | efectivo no muestra el campo N° transacción | ModalPago | component |
 | MP-15 | credito con TRX vacío en blur muestra error obligatorio | ModalPago | component |

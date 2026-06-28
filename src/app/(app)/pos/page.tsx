@@ -74,6 +74,7 @@ export default function POSPage() {
       setVentaError(null);
       setVentaExito(true);
       queryClient.invalidateQueries({ queryKey: ["productos"] });
+      queryClient.invalidateQueries({ queryKey: ["ventas"] });
       exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {
         const popup = window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");

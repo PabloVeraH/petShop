@@ -92,6 +92,7 @@ export default function SalesPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["ventas", debouncedSearch, metodo, estado, desde, hasta, offset],
     queryFn: () => getVentas({ search: debouncedSearch, metodo, estado, desde, hasta, offset }),
+    staleTime: 0,
     placeholderData: keepPreviousData,
     gcTime: 2 * 60 * 1000,
   });
