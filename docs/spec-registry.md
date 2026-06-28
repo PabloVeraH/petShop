@@ -169,6 +169,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
 | FP-10 | onBlur en campo requerido vacío muestra 'Campo obligatorio' | InventoryPage | component |
+| FP-11 | Inputs requeridos tienen atributo HTML required | InventoryPage | component |
+| FP-12 | Inputs opcionales NO tienen required | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
 | VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |

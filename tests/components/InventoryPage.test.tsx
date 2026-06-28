@@ -346,6 +346,34 @@ describe("InventoryPage — formulario de producto", () => {
     expect(screen.queryByText("El precio debe ser mayor a 0")).not.toBeInTheDocument();
   });
 
+  // FP-11: inputs requeridos tienen atributo HTML required
+  it("FP-11: inputs requeridos (nombre, sku, precio) tienen required en el DOM", () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+
+    const nombreInput = screen.getByPlaceholderText("Alimento Premium Perro 15kg");
+    const skuInput = screen.getByPlaceholderText("PRD-001");
+    const precioInput = screen.getByPlaceholderText("19990");
+
+    expect(nombreInput).toHaveAttribute("required");
+    expect(skuInput).toHaveAttribute("required");
+    expect(precioInput).toHaveAttribute("required");
+  });
+
+  // FP-12: inputs no requeridos NO tienen atributo HTML required
+  it("FP-12: inputs opcionales no tienen required en el DOM", () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+
+    const codigoBarraInput = screen.getByPlaceholderText("7891234567890");
+    const costoInput = screen.getByPlaceholderText("12000");
+
+    expect(codigoBarraInput).not.toHaveAttribute("required");
+    expect(costoInput).not.toHaveAttribute("required");
+  });
+
   // FP-10: onBlur en campo requerido vacío muestra error
   it("FP-10: onBlur en campo requerido vacío muestra 'Campo obligatorio'", () => {
     render(<InventoryPage />, { wrapper: makeWrapper() });

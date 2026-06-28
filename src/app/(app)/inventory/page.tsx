@@ -456,7 +456,7 @@ export default function InventoryPage() {
             <h3 className="text-base font-semibold text-gray-800 mb-4">
               {editando ? `Editar: ${editando.nombre}` : "Nuevo producto"}
             </h3>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            <form noValidate className="space-y-3 max-h-[60vh] overflow-y-auto" onSubmit={(e) => { e.preventDefault(); guardarProducto(); }}>
               {([
                 { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg", required: true },
                 { label: "SKU *", key: "sku" as const, placeholder: "PRD-001", required: true },
@@ -540,16 +540,16 @@ export default function InventoryPage() {
                   Activar oferta
                 </label>
               </div>
-            </div>
-            {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
-            <div className="flex gap-2 mt-5">
-              <Button variant="outline" onClick={() => { setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); }} className="flex-1">
-                Cancelar
-              </Button>
-              <Button onClick={() => guardarProducto()} disabled={guardandoProducto} className="flex-1">
-                {guardandoProducto ? "Guardando..." : editando ? "Guardar cambios" : "Crear producto"}
-              </Button>
-            </div>
+              {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
+              <div className="flex gap-2 mt-5">
+                <Button variant="outline" type="button" onClick={() => { setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); }} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={guardandoProducto} className="flex-1">
+                  {guardandoProducto ? "Guardando..." : editando ? "Guardar cambios" : "Crear producto"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
