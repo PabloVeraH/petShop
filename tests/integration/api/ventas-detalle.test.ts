@@ -3,6 +3,13 @@ import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+jest.mock("@/lib/contabilidad/generador-asientos", () => ({
+  crearAsiento: jest.fn().mockResolvedValue("asiento-id"),
+  lineasAnulacionVentaCanal: jest.fn().mockReturnValue([]),
+  lineasAnulacionCOGS: jest.fn().mockReturnValue([]),
+}));
+
+import * as contabilidad from "@/lib/contabilidad/generador-asientos";
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
@@ -200,7 +207,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 20000 },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 20000, impuesto: 2520, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "20260417-ABC123" },
         error: null,
       }),
     };
@@ -217,7 +224,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: "prod-1", stock: 10 },
+        data: { id: "prod-1", stock: 10, costo: 5000 },
         error: null,
       }),
     };
@@ -282,6 +289,27 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
 
     expect(res.status).toBe(200);
     expect(data.estado).toBe("anulada");
+
+    // Verifica contra-asientos contables (reverso de venta + reverso COGS)
+    expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(2);
+    expect(contabilidad.lineasAnulacionVentaCanal).toHaveBeenCalledWith({
+      canal: "pos",
+      metodoPago: "efectivo",
+      montoNeto: 17480,
+      iva: 2520,
+      total: 20000,
+    });
+    expect(contabilidad.lineasAnulacionCOGS).toHaveBeenCalledWith(10000);
+    expect(contabilidad.crearAsiento).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      storeId: mockStoreId,
+      tipoMovimiento: "ANULACION_VENTA",
+      referenciaNomero: "20260417-ABC123",
+    }));
+    expect(contabilidad.crearAsiento).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      storeId: mockStoreId,
+      tipoMovimiento: "ANULACION_VENTA",
+      descripcion: expect.stringContaining("COGS"),
+    }));
   });
 
   it("retorna 404 si venta no existe", async () => {
@@ -367,7 +395,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 60000 },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 60000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-789" },
         error: null,
       }),
     };
@@ -426,6 +454,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
 
     expect(res.status).toBe(200);
+    expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(1);
   });
 
   it("sin cliente_id no actualiza fidelización", async () => {
@@ -433,7 +462,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: null, total: 20000 },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: null, total: 20000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-456" },
         error: null,
       }),
     };
@@ -474,5 +503,6 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
 
     expect(res.status).toBe(200);
+    expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(1);
   });
 });

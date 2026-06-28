@@ -5,6 +5,8 @@ const {
   lineasCompra,
   lineasPagoProveedor,
   lineasCierreCOGS,
+  lineasAnulacionVentaCanal,
+  lineasAnulacionCOGS,
 } = require("@/lib/contabilidad/generador-asientos");
 
 const { CUENTAS } = require("@/lib/contabilidad/types");
@@ -373,9 +375,116 @@ describe("CUENTAS - Plan de Cuentas", () => {
 
   it("debe tener tipos de cuenta válidos", () => {
     const tiposValidos = ["ACTIVO", "PASIVO", "INGRESO", "GASTO"];
-    
+
     Object.values(CUENTAS).forEach((cuenta) => {
       expect(tiposValidos).toContain(cuenta.tipo);
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGRESIÓN I-ANV: lineasAnulacionVentaCanal / lineasAnulacionCOGS
+// Bug: el PATCH /api/ventas/[id] anulaba la venta sin crear contra-asiento en
+// el Libro Diario, dejando el ingreso registrado sin su reverso.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("lineasAnulacionVentaCanal — reverso de asiento de venta", () => {
+  const PARAMS = { canal: "pos", metodoPago: "efectivo", montoNeto: 8000, iva: 1520, total: 9520 };
+
+  it("I-ANV-01: asiento balanceado (débito = crédito)", () => {
+    const lineas = lineasAnulacionVentaCanal(PARAMS);
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(totalCre);
+    expect(totalDeb).toBe(PARAMS.total);
+  });
+
+  it("I-ANV-02: reverso usa Dr Ventas (ingreso queda en débito)", () => {
+    const lineas = lineasAnulacionVentaCanal(PARAMS);
+    const lineaVentas = lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo);
+    expect(lineaVentas).toBeDefined();
+    expect(lineaVentas.debito).toBe(PARAMS.montoNeto);
+    expect(lineaVentas.credito).toBe(0);
+  });
+
+  it("I-ANV-03: reverso usa Dr IVA por Pagar", () => {
+    const lineas = lineasAnulacionVentaCanal(PARAMS);
+    const lineaIva = lineas.find((l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo);
+    expect(lineaIva).toBeDefined();
+    expect(lineaIva.debito).toBe(PARAMS.iva);
+    expect(lineaIva.credito).toBe(0);
+  });
+
+  it("I-ANV-04: reverso usa Cr Caja para efectivo (pos)", () => {
+    const lineas = lineasAnulacionVentaCanal(PARAMS);
+    const lineaCaja = lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+    expect(lineaCaja).toBeDefined();
+    expect(lineaCaja.debito).toBe(0);
+    expect(lineaCaja.credito).toBe(PARAMS.total);
+  });
+
+  it("I-ANV-05: reverso usa Cr Banco para métodos digitales", () => {
+    const lineas = lineasAnulacionVentaCanal({ ...PARAMS, metodoPago: "debito" });
+    const lineaBanco = lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+    expect(lineaBanco).toBeDefined();
+    expect(lineaBanco.credito).toBe(PARAMS.total);
+  });
+
+  it("I-ANV-06: reverso usa Cr CxC Rappi para canal rappi", () => {
+    const lineas = lineasAnulacionVentaCanal({ ...PARAMS, canal: "rappi" });
+    const lineaRappi = lineas.find((l) => l.cuentaCodigo === CUENTAS.CXC_RAPPI.codigo);
+    expect(lineaRappi).toBeDefined();
+    expect(lineaRappi.credito).toBe(PARAMS.total);
+  });
+
+  it("I-ANV-07: es el inverso exacto de lineasVentaCanal (débitos ↔ créditos)", () => {
+    const { lineasVentaCanal } = require("@/lib/contabilidad/generador-asientos");
+    const ventaLineas = lineasVentaCanal(PARAMS);
+    const anulLineas  = lineasAnulacionVentaCanal(PARAMS);
+
+    // Para cada cuenta del asiento de venta, el asiento de anulación
+    // debe tener los valores de débito y crédito intercambiados.
+    for (const lineaVenta of ventaLineas) {
+      const lineaAnul = anulLineas.find((l) => l.cuentaCodigo === lineaVenta.cuentaCodigo);
+      expect(lineaAnul).toBeDefined();
+      expect(lineaAnul.debito).toBe(lineaVenta.credito);
+      expect(lineaAnul.credito).toBe(lineaVenta.debito);
+    }
+  });
+});
+
+describe("lineasAnulacionCOGS — reverso de costo de venta", () => {
+  it("I-ANV-08: asiento balanceado", () => {
+    const lineas = lineasAnulacionCOGS(5000);
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(totalCre);
+    expect(totalDeb).toBe(5000);
+  });
+
+  it("I-ANV-09: Dr Inventario (reincorporación al stock)", () => {
+    const lineas = lineasAnulacionCOGS(5000);
+    const lineaInv = lineas.find((l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo);
+    expect(lineaInv).toBeDefined();
+    expect(lineaInv.debito).toBe(5000);
+    expect(lineaInv.credito).toBe(0);
+  });
+
+  it("I-ANV-10: Cr COGS (reverso del gasto)", () => {
+    const lineas = lineasAnulacionCOGS(5000);
+    const lineaCogs = lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo);
+    expect(lineaCogs).toBeDefined();
+    expect(lineaCogs.debito).toBe(0);
+    expect(lineaCogs.credito).toBe(5000);
+  });
+
+  it("I-ANV-11: es el inverso exacto de lineasVentaCOGS", () => {
+    const cogsLineas  = lineasVentaCOGS(5000);
+    const anulLineas  = lineasAnulacionCOGS(5000);
+    for (const lineaCOGS of cogsLineas) {
+      const lineaAnul = anulLineas.find((l) => l.cuentaCodigo === lineaCOGS.cuentaCodigo);
+      expect(lineaAnul).toBeDefined();
+      expect(lineaAnul.debito).toBe(lineaCOGS.credito);
+      expect(lineaAnul.credito).toBe(lineaCOGS.debito);
+    }
   });
 });

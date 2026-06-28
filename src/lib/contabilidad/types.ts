@@ -1,5 +1,5 @@
 export type TipoCuenta = 'ACTIVO' | 'PASIVO' | 'PATRIMONIO' | 'INGRESO' | 'GASTO';
-export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES';
+export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES' | 'ANULACION_VENTA';
 
 export interface ChartOfAccount {
   id: string;

@@ -361,6 +361,87 @@ export function lineasVentaCOGS(costoTotal: number): LineaAsiento[] {
   ];
 }
 
+// Reverso de asiento de venta (anulación completa)
+export function lineasAnulacionVentaCanal(params: {
+  canal: string;
+  metodoPago: string;
+  montoNeto: number;
+  iva: number;
+  total: number;
+}): LineaAsiento[] {
+  let cuentaCodigo: string;
+  let cuentaNombre: string;
+  let cuentaTipo: string;
+
+  if (params.canal === "rappi") {
+    cuentaCodigo = CUENTAS.CXC_RAPPI.codigo;
+    cuentaNombre = CUENTAS.CXC_RAPPI.nombre;
+    cuentaTipo = CUENTAS.CXC_RAPPI.tipo;
+  } else if (params.canal === "pedidosya") {
+    cuentaCodigo = CUENTAS.CXC_PEDIDOSYA.codigo;
+    cuentaNombre = CUENTAS.CXC_PEDIDOSYA.nombre;
+    cuentaTipo = CUENTAS.CXC_PEDIDOSYA.tipo;
+  } else if (params.canal === "ubereats") {
+    cuentaCodigo = CUENTAS.CXC_UBEREATS.codigo;
+    cuentaNombre = CUENTAS.CXC_UBEREATS.nombre;
+    cuentaTipo = CUENTAS.CXC_UBEREATS.tipo;
+  } else {
+    const caja = params.metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+    cuentaCodigo = caja.codigo;
+    cuentaNombre = caja.nombre;
+    cuentaTipo = caja.tipo;
+  }
+
+  return [
+    {
+      cuentaCodigo: CUENTAS.VENTAS.codigo,
+      cuentaNombre: CUENTAS.VENTAS.nombre,
+      cuentaTipo: CUENTAS.VENTAS.tipo,
+      debito: params.montoNeto,
+      credito: 0,
+      descripcionLinea: "Reverso ingreso por venta anulada",
+    },
+    {
+      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      debito: params.iva,
+      credito: 0,
+      descripcionLinea: "Reverso IVA débito fiscal",
+    },
+    {
+      cuentaCodigo,
+      cuentaNombre,
+      cuentaTipo,
+      debito: 0,
+      credito: params.total,
+      descripcionLinea: "Reverso cobro venta anulada",
+    },
+  ];
+}
+
+// Reverso de COGS (inventario reincorporado al stock por anulación de venta)
+export function lineasAnulacionCOGS(costoTotal: number): LineaAsiento[] {
+  return [
+    {
+      cuentaCodigo: CUENTAS.INVENTARIO.codigo,
+      cuentaNombre: CUENTAS.INVENTARIO.nombre,
+      cuentaTipo: CUENTAS.INVENTARIO.tipo,
+      debito: costoTotal,
+      credito: 0,
+      descripcionLinea: "Reincorporación inventario por anulación",
+    },
+    {
+      cuentaCodigo: CUENTAS.COGS.codigo,
+      cuentaNombre: CUENTAS.COGS.nombre,
+      cuentaTipo: CUENTAS.COGS.tipo,
+      debito: 0,
+      credito: costoTotal,
+      descripcionLinea: "Reverso COGS por anulación de venta",
+    },
+  ];
+}
+
 // Asiento de cierre: COGS = costo de ventas del mes
 export function lineasCierreCOGS(costoTotal: number): LineaAsiento[] {
   return [

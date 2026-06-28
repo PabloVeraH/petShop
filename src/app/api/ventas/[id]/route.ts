@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { crearAsiento, lineasAnulacionVentaCanal, lineasAnulacionCOGS } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(
   _req: NextRequest,
@@ -64,7 +65,7 @@ export async function PATCH(
 
   const { data: venta } = await supabase
     .from("ventas")
-    .select("id, estado, cliente_id, total")
+    .select("id, estado, cliente_id, total, impuesto, metodo_pago, canal, numero_comprobante")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
@@ -78,14 +79,17 @@ export async function PATCH(
     .select("producto_id, cantidad")
     .eq("venta_id", id);
 
+  let costoTotal = 0;
   for (const item of items ?? []) {
     const { data: prod } = await supabase
       .from("productos")
-      .select("stock")
+      .select("stock, costo")
       .eq("id", item.producto_id)
       .single();
 
     if (prod) {
+      costoTotal += (prod.costo ?? 0) * item.cantidad;
+
       await supabase
         .from("productos")
         .update({ stock: prod.stock + item.cantidad })
@@ -96,7 +100,7 @@ export async function PATCH(
         tipo: "entrada",
         cantidad: item.cantidad,
         referencia_id: id,
-        notas: `Anulación venta ${id.slice(0, 8)}`,
+        notas: `Anulación ${venta.numero_comprobante ?? id.slice(0, 8)}`,
         user_id: ctx.userId,
       });
     }
@@ -141,5 +145,51 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  // Fire-and-forget: contra-asientos de anulación en el Libro Diario.
+  // Dos asientos independientes (igual que la venta original):
+  // 1. Reverso del ingreso — Dr Ventas + Dr IVA / Cr Caja|Banco
+  // 2. Reverso del COGS   — Dr Inventario / Cr COGS (solo si hubo costo)
+  const fechaAnulacion = new Date().toISOString().split("T")[0];
+  const totalVenta = Math.round(Number(venta.total));
+  const ivaVenta = Math.round(Number(venta.impuesto ?? 0));
+  const montoNeto = totalVenta - ivaVenta;
+  const numeroRef = venta.numero_comprobante ?? id.slice(0, 8);
+  const canalVenta = (venta.canal ?? "pos") as "pos" | "rappi" | "pedidosya" | "ubereats";
+
+  ;(async () => {
+    crearAsiento({
+      storeId: store_id,
+      fecha: fechaAnulacion,
+      tipoMovimiento: "ANULACION_VENTA",
+      canal: canalVenta,
+      referenciaId: id,
+      referenciaNomero: numeroRef,
+      descripcion: `Anulación venta ${numeroRef}`,
+      lineas: lineasAnulacionVentaCanal({
+        canal: venta.canal ?? "pos",
+        metodoPago: venta.metodo_pago ?? "efectivo",
+        montoNeto,
+        iva: ivaVenta,
+        total: totalVenta,
+      }),
+      usuarioId: ctx.userId ?? undefined,
+    }).catch((e) => console.error("[contabilidad] Error asiento anulación venta:", e));
+
+    if (costoTotal > 0) {
+      crearAsiento({
+        storeId: store_id,
+        fecha: fechaAnulacion,
+        tipoMovimiento: "ANULACION_VENTA",
+        canal: canalVenta,
+        referenciaId: id,
+        referenciaNomero: numeroRef,
+        descripcion: `Reverso COGS anulación ${numeroRef}`,
+        lineas: lineasAnulacionCOGS(Math.round(costoTotal)),
+        usuarioId: ctx.userId ?? undefined,
+      }).catch((e) => console.error("[contabilidad] Error reverso COGS anulación:", e));
+    }
+  })();
+
   return NextResponse.json(updated);
 }
