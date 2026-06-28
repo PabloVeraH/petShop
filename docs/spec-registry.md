@@ -167,6 +167,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
+| VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |
+| REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
 
 ## Middleware / Routing (MW-XX)
 
