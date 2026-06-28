@@ -165,6 +165,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
+| FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
+| FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
+| FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
+| FP-10 | onBlur en campo requerido vacío muestra 'Campo obligatorio' | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
 | VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |

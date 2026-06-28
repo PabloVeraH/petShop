@@ -17,6 +17,7 @@ import {
 import { LotesPanel } from "./components/LotesPanel";
 import { CategoriasTab } from "./components/CategoriasTab";
 import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
+import { ProductoCreateSchema } from "@/lib/validation";
 
 type Producto = {
   id: string;
@@ -129,6 +130,7 @@ export default function InventoryPage() {
   const [editando, setEditando] = useState<Producto | null>(null);
   const [form, setForm] = useState<ProductoForm>(EMPTY_FORM);
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState<Producto | null>(null);
   const [historial, setHistorial] = useState<HistorialModal>(null);
   const [verLotesDe, setVerLotesDe] = useState<{ id: string; nombre: string; dias_alerta_expira: number } | null>(null);
@@ -166,6 +168,7 @@ export default function InventoryPage() {
 
   const { mutate: guardarProducto, isPending: guardandoProducto } = useMutation({
     mutationFn: async () => {
+      if (!validate()) throw new Error("VALIDATION_ERROR");
       const url = editando ? `/api/productos/${editando.id}` : "/api/productos";
       const method = editando ? "PATCH" : "POST";
       const res = await fetch(url, {
@@ -196,9 +199,12 @@ export default function InventoryPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"] });
       queryClient.invalidateQueries({ queryKey: ["productos"] });
-      setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError("");
+      setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({});
     },
-    onError: (e: Error) => setFormError(e.message),
+    onError: (e: Error) => {
+      if (e.message === "VALIDATION_ERROR") return;
+      setFormError(e.message);
+    },
   });
 
   const { mutate: desactivarProducto } = useMutation({
@@ -226,15 +232,48 @@ export default function InventoryPage() {
       precio_venta_kg: p.precio_venta_kg != null ? String(p.precio_venta_kg) : "",
     });
     setFormError("");
+    setFieldErrors({});
     setShowForm(true);
   }
 
   function abrirNuevo() {
-    setEditando(null); setForm(EMPTY_FORM); setFormError(""); setShowForm(true);
+    setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); setShowForm(true);
   }
 
   const productos = data ?? [];
   const totalAlertas = data?.filter((p) => p.stock <= p.stock_minimo).length ?? 0;
+
+  function validate(): boolean {
+    const payload = {
+      nombre: form.nombre,
+      sku: form.sku,
+      precio: Number(form.precio),
+      costo: form.costo ? Number(form.costo) : undefined,
+      stock: Number(form.stock),
+      stock_minimo: Number(form.stock_minimo),
+      marca: form.marca || undefined,
+      peso_gramos: form.peso_gramos ? Number(form.peso_gramos) : undefined,
+      fecha_vencimiento: form.fecha_vencimiento || undefined,
+      dias_alerta_expira: form.fecha_vencimiento ? Number(form.dias_alerta_expira) : undefined,
+      precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
+      en_oferta: form.en_oferta,
+      categoria_id: form.categoria_id || null,
+      codigo_barra: form.codigo_barra || undefined,
+      precio_venta_kg: form.precio_venta_kg ? Number(form.precio_venta_kg) : null,
+    };
+    const parsed = ProductoCreateSchema.safeParse(payload);
+    if (parsed.success) {
+      setFieldErrors({});
+      return true;
+    }
+    const errors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const path = issue.path[0] as string;
+      if (!errors[path]) errors[path] = issue.message;
+    }
+    setFieldErrors(errors);
+    return false;
+  }
 
   const setF = (k: keyof ProductoForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (k === "en_oferta") {
@@ -418,27 +457,37 @@ export default function InventoryPage() {
               {editando ? `Editar: ${editando.nombre}` : "Nuevo producto"}
             </h3>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-              {[
-                { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg" },
-                { label: "SKU *", key: "sku" as const, placeholder: "PRD-001" },
+              {([
+                { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg", required: true },
+                { label: "SKU *", key: "sku" as const, placeholder: "PRD-001", required: true },
                 { label: "Código de barra", key: "codigo_barra" as const, placeholder: "7891234567890" },
-                { label: "Precio venta c/IVA *", key: "precio" as const, placeholder: "19990", type: "number" },
+                { label: "Precio venta c/IVA *", key: "precio" as const, placeholder: "19990", type: "number", required: true },
                 { label: "Costo (opcional)", key: "costo" as const, placeholder: "12000", type: "number" },
                 { label: "Stock inicial", key: "stock" as const, placeholder: "0", type: "number" },
                 { label: "Stock mínimo", key: "stock_minimo" as const, placeholder: "5", type: "number" },
                 { label: "Marca", key: "marca" as const, placeholder: "ProCan" },
                 { label: "Peso (gramos)", key: "peso_gramos" as const, placeholder: "15000", type: "number" },
                 { label: "Fecha vencimiento (opcional)", key: "fecha_vencimiento" as const, type: "date" },
-              ].map(({ label, key, placeholder, type }) => (
+              ] satisfies { label: string; key: keyof ProductoForm; placeholder?: string; type?: string; required?: boolean }[]).map(({ label, key, placeholder, type, required }) => (
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
                   <input
+                    required={required}
                     type={type ?? "text"}
                     value={form[key]}
-                    onChange={setF(key)}
+                    onChange={(e) => {
+                      setF(key)(e);
+                      if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: "" }));
+                    }}
+                    onBlur={() => {
+                      if (required && !form[key]) {
+                        setFieldErrors((prev) => ({ ...prev, [key]: "Campo obligatorio" }));
+                      }
+                    }}
                     placeholder={placeholder}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${fieldErrors[key] ? "border-red-400" : "border-gray-300"}`}
                   />
+                  {fieldErrors[key] && <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>}
                 </div>
               ))}
               {form.fecha_vencimiento && (
@@ -494,7 +543,7 @@ export default function InventoryPage() {
             </div>
             {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
             <div className="flex gap-2 mt-5">
-              <Button variant="outline" onClick={() => { setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); }} className="flex-1">
+              <Button variant="outline" onClick={() => { setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); }} className="flex-1">
                 Cancelar
               </Button>
               <Button onClick={() => guardarProducto()} disabled={guardandoProducto} className="flex-1">

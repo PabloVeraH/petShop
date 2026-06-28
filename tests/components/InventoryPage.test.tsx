@@ -291,6 +291,73 @@ describe("InventoryPage — formulario de producto", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByText("Nuevo producto")).not.toBeInTheDocument();
   });
+
+  // FP-07: crear producto con campos vacíos muestra errores inline
+  it("FP-07: crear producto con campos vacíos muestra errores inline", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+    expect(screen.getByText("Nuevo producto")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Crear producto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("El nombre debe tener al menos 2 caracteres")).toBeInTheDocument();
+    });
+    expect(screen.getByText("El SKU es obligatorio")).toBeInTheDocument();
+    expect(screen.getByText("El precio debe ser mayor a 0")).toBeInTheDocument();
+  });
+
+  // FP-08: llenar campos requeridos hace desaparecer los errores inline
+  it("FP-08: llenar nombre remueve su error inline", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Crear producto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("El nombre debe tener al menos 2 caracteres")).toBeInTheDocument();
+    });
+
+    const nombreInput = screen.getByPlaceholderText("Alimento Premium Perro 15kg");
+    fireEvent.change(nombreInput, { target: { value: "Alimento Premium" } });
+
+    expect(screen.queryByText("El nombre debe tener al menos 2 caracteres")).not.toBeInTheDocument();
+  });
+
+  // FP-09: formulario válido no muestra errores inline
+  it("FP-09: formulario válido no muestra errores inline", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+
+    const nombreInput = screen.getByPlaceholderText("Alimento Premium Perro 15kg");
+    const skuInput = screen.getByPlaceholderText("PRD-001");
+    const precioInput = screen.getByPlaceholderText("19990");
+
+    fireEvent.change(nombreInput, { target: { value: "Alimento Premium" } });
+    fireEvent.change(skuInput, { target: { value: "SKU-001" } });
+    fireEvent.change(precioInput, { target: { value: "19990" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Crear producto/i }));
+
+    expect(screen.queryByText("El nombre debe tener al menos 2 caracteres")).not.toBeInTheDocument();
+    expect(screen.queryByText("El SKU es obligatorio")).not.toBeInTheDocument();
+    expect(screen.queryByText("El precio debe ser mayor a 0")).not.toBeInTheDocument();
+  });
+
+  // FP-10: onBlur en campo requerido vacío muestra error
+  it("FP-10: onBlur en campo requerido vacío muestra 'Campo obligatorio'", () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+
+    const nombreInput = screen.getByPlaceholderText("Alimento Premium Perro 15kg");
+    fireEvent.focus(nombreInput);
+    fireEvent.blur(nombreInput);
+
+    expect(screen.getByText("Campo obligatorio")).toBeInTheDocument();
+  });
 });
 
 describe("InventoryPage — acciones responsivas", () => {
