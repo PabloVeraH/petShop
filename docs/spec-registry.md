@@ -259,6 +259,27 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 
 ---
 
+## Redirects (RD-01 a RD-16)
+
+| ID | Requisito |
+|----|-----------|
+| RD-01 | /inventario redirige a /inventory (308) |
+| RD-02 | /inventario/:path* redirige a /inventory/:path* (308) |
+| RD-03 | /clientes redirige a /customers (308) |
+| RD-04 | /clientes/:path* redirige a /customers/:path* (308) |
+| RD-05 | /ventas redirige a /sales (308) |
+| RD-06 | /ventas/:path* redirige a /sales/:path* (308) |
+| RD-07 | /proveedores redirige a /suppliers (308) |
+| RD-08 | /proveedores/:path* redirige a /suppliers/:path* (308) |
+| RD-09 | /compras redirige a /purchases (308) |
+| RD-10 | /configuracion redirige a /settings (308) |
+| RD-11 | /ajustes redirige a /settings (308) |
+| RD-12 | /cuentas-pagar redirige a /payables (308) |
+| RD-13 | /cuentas-por-pagar redirige a /payables (308) |
+| RD-14 | /reportes redirige a /reports (308) |
+| RD-15 | /reportes/prediccion NO debe redirigirse (existe como ruta real) |
+| RD-16 | /workers redirige a /vendedores (307, redirect preexistente) |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API
@@ -267,5 +288,6 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 - `PROP-NN` — test de propiedad (fast-check)
 - `COD-NN` — test de componente de orden de compra
 - `VS-NN` — test de componente de historial de ventas
+- `RD-NN` — test de redirección de ruta
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

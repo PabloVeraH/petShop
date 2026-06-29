@@ -25,11 +25,87 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   async redirects() {
     return [
+      // Rutas en inglés que redirigen a su equivalente en español (la app usa español
+      // como idioma canónico para estas rutas).
       {
         source: "/workers",
         destination: "/vendedores",
         permanent: false,
       },
+      // Rutas en español que redirigen a su equivalente en inglés (redirecciones
+      // para usuarios que intentan acceder por el nombre en español).
+      {
+        source: "/inventario",
+        destination: "/inventory",
+        permanent: true,
+      },
+      {
+        source: "/inventario/:path*",
+        destination: "/inventory/:path*",
+        permanent: true,
+      },
+      {
+        source: "/clientes",
+        destination: "/customers",
+        permanent: true,
+      },
+      {
+        source: "/clientes/:path*",
+        destination: "/customers/:path*",
+        permanent: true,
+      },
+      {
+        source: "/ventas",
+        destination: "/sales",
+        permanent: true,
+      },
+      {
+        source: "/ventas/:path*",
+        destination: "/sales/:path*",
+        permanent: true,
+      },
+      {
+        source: "/proveedores",
+        destination: "/suppliers",
+        permanent: true,
+      },
+      {
+        source: "/proveedores/:path*",
+        destination: "/suppliers/:path*",
+        permanent: true,
+      },
+      {
+        source: "/compras",
+        destination: "/purchases",
+        permanent: true,
+      },
+      {
+        source: "/configuracion",
+        destination: "/settings",
+        permanent: true,
+      },
+      {
+        source: "/ajustes",
+        destination: "/settings",
+        permanent: true,
+      },
+      {
+        source: "/cuentas-pagar",
+        destination: "/payables",
+        permanent: true,
+      },
+      {
+        source: "/cuentas-por-pagar",
+        destination: "/payables",
+        permanent: true,
+      },
+      {
+        source: "/reportes",
+        destination: "/reports",
+        permanent: true,
+      },
+      // NOTA: /reportes/prediccion NO debe redirigirse — ya existe como ruta real
+      // con page.tsx en src/app/(app)/reportes/prediccion/
     ];
   },
   async headers() {
