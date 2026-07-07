@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 import {
   Table,
   TableBody,
@@ -251,11 +252,11 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 mt-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-            <h3 className="text-base font-semibold text-gray-800 mb-4">
-              {editando ? "Editar Lote" : "Agregar Lote"}
-            </h3>
+        <ModalOverlay open onClose={() => { setShowForm(false); setEditando(null); }}>
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4">
+          <h3 className="text-base font-semibold text-gray-800 mb-4">
+            {editando ? "Editar Lote" : "Agregar Lote"}
+          </h3>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">N° de Lote</label>
@@ -333,7 +334,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
               </Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

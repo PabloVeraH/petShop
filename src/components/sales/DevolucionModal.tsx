@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 interface DevolucionItem {
   id: string;
@@ -152,8 +153,8 @@ export function DevolucionModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <ModalOverlay open onClose={resetForm}>
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto m-4">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
           <h2 className="font-bold">Devolución {step === 2 ? "- Paso 2" : "- Paso 1"}</h2>
           <button
@@ -358,6 +359,6 @@ export function DevolucionModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

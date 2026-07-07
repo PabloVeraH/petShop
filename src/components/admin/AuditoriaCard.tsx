@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminRole } from "@/hooks/useAdminAuth";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 type AuditLog = {
   id: string;
@@ -600,14 +601,8 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
       </div>
       {/* Detail Modal */}
       {modalLog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setModalLog(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay open onClose={() => setModalLog(null)}>
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(45,52,54,0.08)]">
               <h3 className="text-base font-semibold text-[#2d3436]">
                 {"action" in modalLog ? `Detalle — ${modalLog.action}` : `Error — ${modalLog.severity}`}
@@ -666,7 +661,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
               )}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

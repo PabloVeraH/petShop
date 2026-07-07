@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 type Asiento = {
   id: string;
@@ -561,15 +562,15 @@ export default function ContabilidadPage() {
 
       {/* Modal confirmación eliminar asiento $0/$0 */}
       {asientoToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-sm w-full shadow-xl">
+        <ModalOverlay open onClose={() => setAsientoToDelete(null)}>
+        <div className="bg-white rounded-lg max-w-sm w-full shadow-xl m-4">
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="text-red-500 text-2xl leading-none">⚠</div>
                 <div>
                   <h2 className="font-bold text-gray-900">Eliminar asiento inválido</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    El asiento <strong>#{asientoToDelete.numero}</strong> no contiene movimiento
+                    El asiento <strong>#{asientoToDelete!.numero}</strong> no contiene movimiento
                     económico ($0/$0) y no tiene validez contable.
                   </p>
                 </div>
@@ -589,7 +590,7 @@ export default function ContabilidadPage() {
                 </Button>
                 <Button
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                  onClick={() => eliminarAsiento(asientoToDelete.id)}
+                  onClick={() => eliminarAsiento(asientoToDelete!.id)}
                   disabled={eliminandoAsiento}
                 >
                   {eliminandoAsiento ? "Eliminando..." : "Sí, eliminar"}
@@ -597,13 +598,13 @@ export default function ContabilidadPage() {
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Modal confirmación cierre de mes */}
       {showCierreConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full shadow-xl">
+        <ModalOverlay open onClose={() => setShowCierreConfirm(false)}>
+        <div className="bg-white rounded-lg max-w-md w-full shadow-xl m-4">
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="text-amber-500 text-2xl leading-none">⚠</div>
@@ -642,7 +643,7 @@ export default function ContabilidadPage() {
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

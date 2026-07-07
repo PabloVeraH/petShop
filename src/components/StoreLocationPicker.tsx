@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 import type { FlyTarget } from "./MapWithPin";
 
 interface PhotonFeature {
@@ -269,13 +270,8 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
 
       {/* Popup modal for pin position change confirmation */}
       {showPinMovedDialog && (
-        <div
-          className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pin-moved-title"
-        >
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+        <ModalOverlay open onClose={() => handlePinMovedResponse(false)}>
+        <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 m-4">
             <h3 id="pin-moved-title" className="text-base font-semibold text-gray-800 mb-2">
               Posición modificada
             </h3>
@@ -299,7 +295,7 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       <button

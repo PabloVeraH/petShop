@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 import {
   Table,
   TableBody,
@@ -283,6 +284,9 @@ export default function InventoryPage() {
     }
   };
 
+  const cerrarForm = useCallback(() => {
+    setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({});
+  }, []);
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
@@ -451,8 +455,8 @@ export default function InventoryPage() {
 
       {/* Modal crear/editar producto */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <ModalOverlay open onClose={cerrarForm}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto m-4">
             <h3 className="text-base font-semibold text-gray-800 mb-4">
               {editando ? `Editar: ${editando.nombre}` : "Nuevo producto"}
             </h3>
@@ -542,7 +546,7 @@ export default function InventoryPage() {
               </div>
               {formError && <p className="text-xs text-red-500 mt-3">{formError}</p>}
               <div className="flex gap-2 mt-5">
-                <Button variant="outline" type="button" onClick={() => { setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); }} className="flex-1">
+                <Button variant="outline" type="button" onClick={cerrarForm} className="flex-1">
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={guardandoProducto} className="flex-1">
@@ -551,17 +555,17 @@ export default function InventoryPage() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Modal ajuste de stock */}
       {ajuste && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <ModalOverlay open onClose={function() { setAjuste(null); setAjusteCantidad(""); setAjusteNotas(""); }}>
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4">
             <h3 className="text-base font-semibold text-gray-800 mb-1">
-              {ajuste.tipo === "entrada" ? "Entrada de stock" : "Salida de stock"}
+              {ajuste!.tipo === "entrada" ? "Entrada de stock" : "Salida de stock"}
             </h3>
-            <p className="text-sm text-gray-500 mb-4">{ajuste.producto.nombre} — stock actual: {ajuste.producto.stock}</p>
+            <p className="text-sm text-gray-500 mb-4">{ajuste!.producto.nombre} — stock actual: {ajuste!.producto.stock}</p>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
@@ -578,20 +582,20 @@ export default function InventoryPage() {
             <div className="flex gap-2 mt-5">
               <Button variant="outline" onClick={() => setAjuste(null)} className="flex-1">Cancelar</Button>
               <Button onClick={() => aplicarAjuste()} disabled={guardandoAjuste || !ajusteCantidad || Number(ajusteCantidad) <= 0}
-                className={`flex-1 ${ajuste.tipo === "salida" ? "bg-red-600 hover:bg-red-700" : ""}`}>
-                {guardandoAjuste ? "Guardando..." : ajuste.tipo === "entrada" ? "Agregar" : "Descontar"}
+                className={`flex-1 ${ajuste!.tipo === "salida" ? "bg-red-600 hover:bg-red-700" : ""}`}>
+                {guardandoAjuste ? "Guardando..." : ajuste!.tipo === "entrada" ? "Agregar" : "Descontar"}
               </Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Modal historial de movimientos */}
       {historial && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-gray-800">Historial: {historial.nombre}</h3>
+        <ModalOverlay open onClose={function() { setHistorial(null); }}>
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col m-4">
+          <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-800">Historial: {historial!.nombre}</h3>
               <button onClick={() => setHistorial(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
             </div>
             <div className="overflow-y-auto flex-1">
@@ -636,29 +640,29 @@ export default function InventoryPage() {
               <Button variant="outline" onClick={() => setHistorial(null)} className="w-full">Cerrar</Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Confirm desactivar */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <ModalOverlay open onClose={() => setConfirmDelete(null)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4">
             <h3 className="text-base font-semibold text-gray-800 mb-2">¿Desactivar producto?</h3>
             <p className="text-sm text-gray-500 mb-4">
-              <strong>{confirmDelete.nombre}</strong> dejará de aparecer en el POS y el inventario. El historial de ventas se mantiene.
+              <strong>{confirmDelete?.nombre}</strong> dejará de aparecer en el POS y el inventario. El historial de ventas se mantiene.
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setConfirmDelete(null)} className="flex-1">Cancelar</Button>
-              <Button variant="destructive" onClick={() => desactivarProducto(confirmDelete.id)} className="flex-1">Desactivar</Button>
+              <Button variant="destructive" onClick={() => desactivarProducto(confirmDelete!.id)} className="flex-1">Desactivar</Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Modal LotesPanel */}
       {verLotesDe && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+        <ModalOverlay open onClose={() => setVerLotesDe(null)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto m-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-gray-800">Lotes: {verLotesDe.nombre}</h3>
               <button onClick={() => setVerLotesDe(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
@@ -671,7 +675,7 @@ export default function InventoryPage() {
               puedeAgregarLote={isSystemAdmin}
             />
           </div>
-        </div>
+        </ModalOverlay>
       )}
       </>
       )}

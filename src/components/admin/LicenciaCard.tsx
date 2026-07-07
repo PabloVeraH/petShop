@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 interface LicenseConfig {
   license_start_date: string | null;
@@ -238,28 +239,28 @@ export function LicenciaCard() {
       </div>
 
       {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Confirmar acción</h3>
-            <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas {confirmAction === "disable" ? "deshabilitar" : "habilitar"} a {selectedUsers.length} usuario(s)?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 border border-gray-200 rounded-md hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmActionHandler}
-                className={`px-4 py-2 text-white rounded-md ${confirmAction === "disable" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
-              >
-                Confirmar
-              </button>
-            </div>
+        <ModalOverlay open onClose={() => setShowConfirm(false)}>
+        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <h3 className="text-lg font-bold mb-4">Confirmar acción</h3>
+          <p className="text-gray-600 mb-6">
+            ¿Estás seguro de que deseas {confirmAction === "disable" ? "deshabilitar" : "habilitar"} a {selectedUsers.length} usuario(s)?
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="px-4 py-2 border border-gray-200 rounded-md hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmActionHandler}
+              className={`px-4 py-2 text-white rounded-md ${confirmAction === "disable" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
+            >
+              Confirmar
+            </button>
           </div>
         </div>
+      </ModalOverlay>
       )}
     </div>
   );

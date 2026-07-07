@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 type Categoria = {
   id: string;
@@ -170,22 +171,22 @@ export function CategoriasTab() {
       </div>
 
       {confirmDeleteId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
-            <h3 className="text-base font-semibold text-gray-800 mb-2">¿Eliminar categoría?</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              La categoría se desactivará y dejará de aparecer en el POS y catálogo.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setConfirmDeleteId(null)} className="flex-1">
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={() => eliminarCategoria(confirmDeleteId)} className="flex-1">
-                Eliminar
-              </Button>
-            </div>
+        <ModalOverlay open onClose={() => setConfirmDeleteId(null)}>
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
+          <h3 className="text-base font-semibold text-gray-800 mb-2">¿Eliminar categoría?</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            La categoría se desactivará y dejará de aparecer en el POS y catálogo.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)} className="flex-1">
+              Cancelar
+            </Button>
+              <Button variant="destructive" onClick={() => eliminarCategoria(confirmDeleteId!)} className="flex-1">
+              Eliminar
+            </Button>
           </div>
         </div>
+      </ModalOverlay>
       )}
     </div>
   );
