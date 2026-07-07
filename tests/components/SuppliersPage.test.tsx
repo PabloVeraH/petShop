@@ -2,7 +2,7 @@
  * Tests SP-01 a SP-04: Pago modal en SupplierHubPage
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -10,7 +10,11 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockMutate = jest.fn();
-const mockUseMutation = jest.fn(() => ({ mutate: mockMutate, isPending: false }));
+let mutationCallbacks: Array<{ onSuccess?: Function; onError?: Function }> = [];
+const mockUseMutation = jest.fn((opts?: any) => {
+  mutationCallbacks.push({ onSuccess: opts?.onSuccess, onError: opts?.onError });
+  return { mutate: mockMutate, isPending: false };
+});
 
 jest.mock("@tanstack/react-query", () => {
   const actual = jest.requireActual("@tanstack/react-query");
@@ -58,6 +62,7 @@ async function selectProveedor() {
 describe("SuppliersPage - Payment Modal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mutationCallbacks = [];
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     mockMutate.mockClear();
     setupMocks();
@@ -132,5 +137,27 @@ describe("SuppliersPage - Payment Modal", () => {
     });
 
     expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  // SP-05
+  it("SP-05: Payment falla → muestra mensaje de error en el modal", async () => {
+    await renderPage();
+    await selectProveedor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pagar" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Confirmar pago" })).toBeInTheDocument();
+    });
+
+    const payMutation = mutationCallbacks.filter((cb) => cb.onError).pop();
+    expect(payMutation).toBeDefined();
+    await act(async () => {
+      payMutation!.onError!(new Error("Error interno del servidor"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Error interno del servidor")).toBeInTheDocument();
+    });
   });
 });

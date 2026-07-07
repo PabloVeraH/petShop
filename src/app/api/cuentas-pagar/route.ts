@@ -65,6 +65,7 @@ export async function PATCH(req: NextRequest) {
     .single();
   if (error) {
     const { ipAddress, userAgent } = getRequestMetadata(req);
+    console.error("[cuentas-pagar] Error en PATCH:", error.message, { id, store_id, updateData });
     logAudit({
       storeId: store_id,
       userId: ctx.userId,

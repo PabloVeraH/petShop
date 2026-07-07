@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 import CreateOrderDialog from "@/components/orders/create-order-dialog";
 import EditOrderItemsDialog from "@/components/orders/edit-order-items-dialog";
 import * as XLSX from "xlsx";
@@ -41,6 +42,7 @@ export default function SupplierHubPage() {
   const [payablesFilter, setPayablesFilter] = useState<"all" | "overdue" | "due-soon" | "due-this-week" | "custom">("all");
   const [payModal, setPayModal] = useState<{ ids: string[] } | null>(null);
   const [payModalMetodo, setPayModalMetodo] = useState("efectivo");
+  const [payError, setPayError] = useState("");
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
     if (typeof window === "undefined") return [];
     const stored = localStorage.getItem(SAVED_FILTERS_KEY);
@@ -267,22 +269,46 @@ export default function SupplierHubPage() {
 
   const { mutate: pagarCuenta, isPending: pagando } = useMutation({
     mutationFn: async ({ id, metodo_pago }: { id: string; metodo_pago: string }) => {
+      setPayError("");
       const res = await fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada", metodo_pago }) });
-      if (!res.ok) throw new Error("Error");
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al procesar el pago");
+      return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      setPayModal(null);
+      setPayError("");
+    },
+    onError: (e: Error) => {
+      setPayError(e.message);
+    },
   });
 
   const { mutate: pagarVariasCuentas, isPending: pagandoMultiples } = useMutation({
     mutationFn: async ({ ids, metodo_pago }: { ids: string[]; metodo_pago: string }) => {
-      await Promise.all(ids.map(id =>
-        fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada", metodo_pago }) })
-      ));
+      setPayError("");
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          const res = await fetch(`/api/cuentas-pagar?id=${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "pagada", metodo_pago }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Error al procesar pago");
+          return data;
+        })
+      );
+      const errors = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      if (errors.length > 0) {
+        throw new Error(`${errors.length} pago(s) fallaron: ${errors[0].reason.message}`);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
       setSelectedPayables(new Set());
+      setPayModal(null);
+      setPayError("");
+    },
+    onError: (e: Error) => {
+      setPayError(e.message);
     },
   });
 
@@ -331,8 +357,8 @@ export default function SupplierHubPage() {
   return (
     <>
       {payModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPayModal(null)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <ModalOverlay open onClose={() => { setPayModal(null); setPayError(""); }}>
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4 m-4">
             <h3 className="text-base font-semibold">Confirmar pago</h3>
             {payModal.ids.length > 1 && (
               <p className="text-sm text-gray-500">{payModal.ids.length} cuentas seleccionadas</p>
@@ -350,9 +376,12 @@ export default function SupplierHubPage() {
                 <option value="transferencia">Transferencia</option>
               </select>
             </div>
+            {payError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{payError}</p>
+            )}
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setPayModal(null)}
+                onClick={() => { setPayModal(null); setPayError(""); }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
@@ -364,7 +393,6 @@ export default function SupplierHubPage() {
                   } else {
                     pagarVariasCuentas({ ids: payModal.ids, metodo_pago: payModalMetodo });
                   }
-                  setPayModal(null);
                 }}
                 disabled={pagando || pagandoMultiples}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -373,7 +401,7 @@ export default function SupplierHubPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
     <div className="flex flex-col gap-4 h-full">

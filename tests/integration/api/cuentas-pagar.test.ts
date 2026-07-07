@@ -198,4 +198,28 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
     const updateCall = mockFrom().update.mock.calls[0][0];
     expect(updateCall.metodo_pago).toBe("efectivo");
   });
+
+  // I-109
+  it("I-109: PATCH falla → response body con mensaje de error", async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { code: "PGRST116", message: "No encontrada" } });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada" }));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Error interno del servidor");
+  });
+
+  // I-110
+  it("I-110: PATCH falla → console.error registra el error", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    mockSingle.mockResolvedValue({ data: null, error: { code: "PGRST116", message: "No encontrada" } });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    await PATCH(markPagadaReq({ estado: "pagada" }));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[cuentas-pagar]"),
+      expect.any(String),
+      expect.objectContaining({ id: CUENTA_ID })
+    );
+    consoleSpy.mockRestore();
+  });
 });
