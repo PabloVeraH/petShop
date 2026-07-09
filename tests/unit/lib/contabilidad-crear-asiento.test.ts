@@ -328,6 +328,78 @@ describe("crearAsiento", () => {
       const journalEntriesCalls = client.from.mock.calls.filter(([t]: string[]) => t === "journal_entries");
       expect(journalEntriesCalls).toHaveLength(2); // un solo par — no reintentó
     });
+
+    // U-119 — REGRESIÓN CRÍTICA: reproduce el escenario real reportado ("la
+    // venta no generó su asiento de ingreso, solo aparece el de COGS").
+    // postVenta() dispara el asiento de ingreso y el de COGS de la MISMA
+    // venta sin esperar uno al otro (fire-and-forget concurrente): ambos
+    // calculan next-numero-asiento casi al mismo tiempo, ambos ven el mismo
+    // "último número" (ninguno insertó todavía), y ambos intentan insertar
+    // con el MISMO numero_asiento — uno gana la carrera, el otro choca contra
+    // UNIQUE(store_id, numero_asiento). Sin el reintento, ese segundo asiento
+    // se perdía silenciosamente (crearAsiento devolvía null).
+    it("U-119: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) NO pierden ningún asiento", async () => {
+      let currentMax = 5;
+      const usedNumbers = new Set<number>([5]);
+      const createdIds: string[] = [];
+
+      const mockFrom = jest.fn((table: string) => {
+        if (table === "journal_entries") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            single: jest.fn(() =>
+              Promise.resolve({ data: { numero_asiento: currentMax }, error: null })
+            ),
+            insert: jest.fn((payload: { numero_asiento: number }) => {
+              if (usedNumbers.has(payload.numero_asiento)) {
+                return {
+                  select: jest.fn().mockReturnThis(),
+                  single: jest.fn(() =>
+                    Promise.resolve({
+                      data: null,
+                      error: { code: "23505", message: "duplicate key value violates unique constraint" },
+                    })
+                  ),
+                };
+              }
+              usedNumbers.add(payload.numero_asiento);
+              currentMax = Math.max(currentMax, payload.numero_asiento);
+              const id = `entry-${payload.numero_asiento}`;
+              createdIds.push(id);
+              return {
+                select: jest.fn().mockReturnThis(),
+                single: jest.fn(() => Promise.resolve({ data: { id }, error: null })),
+              };
+            }),
+            delete: jest.fn().mockReturnThis(),
+          };
+        }
+        if (table === "journal_detail") {
+          return { insert: jest.fn().mockResolvedValue({ error: null }) };
+        }
+        return {};
+      });
+
+      mockCreateServiceClient.mockReturnValue({ from: mockFrom });
+
+      const lineasCogs: CrearAsientoInput["lineas"] = [
+        { cuentaCodigo: "510101", cuentaNombre: "Costo de Venta", debito: 8000, credito: 0 },
+        { cuentaCodigo: "111001", cuentaNombre: "Inventario", debito: 0, credito: 8000 },
+      ];
+
+      const [ventaId, cogsId] = await Promise.all([
+        crearAsiento({ ...INPUT_BASE, descripcion: "Venta efectivo a Juan" }),
+        crearAsiento({ ...INPUT_BASE, descripcion: "COGS venta a Juan — costo mercancía", lineas: lineasCogs }),
+      ]);
+
+      expect(ventaId).not.toBeNull();
+      expect(cogsId).not.toBeNull();
+      expect(ventaId).not.toBe(cogsId);
+      expect(createdIds).toHaveLength(2);
+    });
   });
 
   describe("campos opcionales", () => {

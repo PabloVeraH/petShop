@@ -283,6 +283,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | U-116 | crearAsiento reintenta con numero_asiento recalculado ante colisión UNIQUE (23505) y tiene éxito en el 2do intento | lib/contabilidad | unit |
 | U-117 | crearAsiento retorna null tras agotar reintentos si el conflicto de numero_asiento persiste | lib/contabilidad | unit |
 | U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
+| U-119 | REGRESIÓN: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) no pierden ningún asiento por colisión de numero_asiento — causa raíz confirmada del bug "venta sin asiento de ingreso, solo aparece COGS" | lib/contabilidad | unit |
 
 ---
 
