@@ -82,6 +82,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-117 | Asiento de NC tiene débito en Ventas y crédito en Caja | POST /api/notas-credito | unit |
 | I-118 | Todos los montos CLP son pesos enteros (sin centavos) | múltiples | unit |
 | I-119 | Cierre de mes genera balance con todas las cuentas | POST /api/contabilidad/cierre | integration |
+| I-315 | REGRESIÓN: verificación de duplicados de cierre usa select+array en vez de .single() para evitar que PGRST116 permita un segundo cierre | POST /api/contabilidad/cierre-mes | integration |
 
 ## Fidelización (I-141 a I-150)
 
@@ -237,6 +238,8 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | CD-05 | Muestra botón Eliminar por cada mascota | ClienteDetalle | component |
 | CD-06 | Click en Eliminar muestra confirmación | ClienteDetalle | component |
 | CD-07 | Confirmar eliminación llama a DELETE /api/mascotas/[id] | ClienteDetalle | component |
+| CP-13 | Período cerrado deshabilita botón Cierre de Mes y muestra badge ✓ Cerrado | ContabilidadPage | component |
+| CP-14 | Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |

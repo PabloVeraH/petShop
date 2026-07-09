@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-08: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
+ * Tests CP-01 a CP-14: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -10,6 +10,8 @@
  * CP-06  Error 409 muestra banner rojo con el mensaje de la API
  * CP-07  Error de red muestra banner rojo genérico
  * CP-08  Botón "Cierre de Mes" está deshabilitado mientras cerrandoMes=true
+ * CP-13  Período cerrado deshabilita botón y muestra badge ✓ Cerrado
+ * CP-14  Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -240,6 +242,79 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Cerrar$/i }));
     expect(screen.queryByText(/✓ Cierre realizado/i)).not.toBeInTheDocument();
+  });
+
+  // CP-13 — REGRESIÓN: si el período ya tiene CIERRE_MES, el botón se deshabilita y
+  // muestra badge "✓ Cerrado" (prevención antes de abrir modal)
+  it("CP-13: período cerrado deshabilita botón Cierre de Mes y muestra badge ✓ Cerrado", async () => {
+    mockLibroDiarioResponse = {
+      periodo: "junio 2026",
+      desde: "2026-06-01",
+      hasta: "2026-06-30",
+      empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+      asientos: [
+        {
+          id: "cierre-1",
+          numero_asiento: 99,
+          fecha: "2026-06-30",
+          tipo_movimiento: "CIERRE_MES",
+          referencia_numero: "2026-06",
+          descripcion: "Cierre 2026-06 - Costo de ventas",
+          total_debito: 5000,
+          total_credito: 5000,
+          esta_balanceado: true,
+        },
+      ],
+      resumen: { total_asientos: 6, total_debitos: 55000, total_creditos: 55000, balanceado: true },
+    };
+
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText(/✓ Cerrado/i)).toBeInTheDocument();
+    });
+
+    const btn = screen.getByRole("button", { name: /Cierre de Mes/i });
+    expect(btn).toBeDisabled();
+  });
+
+  // CP-14 — REGRESIÓN: cuando el período ya está cerrado, el botón Cierre de Mes está
+  // deshabilitado y no se puede abrir el modal (prevención total antes de confirmar)
+  it("CP-14: botón Cierre de Mes deshabilitado impide abrir modal en período cerrado", async () => {
+    mockLibroDiarioResponse = {
+      periodo: "junio 2026",
+      desde: "2026-06-01",
+      hasta: "2026-06-30",
+      empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+      asientos: [
+        {
+          id: "cierre-1",
+          numero_asiento: 99,
+          fecha: "2026-06-30",
+          tipo_movimiento: "CIERRE_MES",
+          referencia_numero: "2026-06",
+          descripcion: "Cierre 2026-06 - Costo de ventas",
+          total_debito: 5000,
+          total_credito: 5000,
+          esta_balanceado: true,
+        },
+      ],
+      resumen: { total_asientos: 6, total_debitos: 55000, total_creditos: 55000, balanceado: true },
+    };
+
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText(/✓ Cerrado/i)).toBeInTheDocument();
+    });
+
+    // El botón está deshabilitado
+    const btn = screen.getByRole("button", { name: /Cierre de Mes/i });
+    expect(btn).toBeDisabled();
+
+    // Click en botón deshabilitado no abre el modal
+    fireEvent.click(btn);
+    expect(screen.queryByText(/Confirmar Cierre de Mes/i)).not.toBeInTheDocument();
   });
 });
 

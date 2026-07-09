@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
@@ -149,6 +149,10 @@ export default function ContabilidadPage() {
     },
   });
 
+  const periodoCerrado = useMemo(() => {
+    return (libro?.asientos ?? []).some(a => a.tipo_movimiento === "CIERRE_MES");
+  }, [libro]);
+
   const meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
@@ -165,18 +169,25 @@ export default function ContabilidadPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setCierreResult(null);
-              setCierreError(null);
-              setShowCierreConfirm(true);
-            }}
-            disabled={cerrandoMes || !mes}
-          >
-            {cerrandoMes ? "Cerrando..." : "Cierre de Mes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCierreResult(null);
+                setCierreError(null);
+                setShowCierreConfirm(true);
+              }}
+              disabled={cerrandoMes || !mes || periodoCerrado}
+            >
+              {cerrandoMes ? "Cerrando..." : "Cierre de Mes"}
+            </Button>
+            {periodoCerrado && (
+              <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
+                ✓ Cerrado
+              </span>
+            )}
+          </div>
           {tab === "libro" && (
             <>
               <a
@@ -616,6 +627,15 @@ export default function ContabilidadPage() {
                   </p>
                 </div>
               </div>
+              {periodoCerrado && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700 space-y-1">
+                  <p className="font-medium">⚠ Este período ya está cerrado</p>
+                  <p className="text-xs">
+                    El período <strong>{periodoLabel(año, mes)}</strong> ya tiene un asiento de
+                    cierre registrado. Si continúas, podrías duplicar asientos contables.
+                  </p>
+                </div>
+              )}
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 space-y-1">
                 <p className="font-medium">Esta operación:</p>
                 <ul className="list-disc list-inside space-y-0.5 text-xs">
@@ -636,7 +656,7 @@ export default function ContabilidadPage() {
                 <Button
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                   onClick={() => cierreMes()}
-                  disabled={cerrandoMes}
+                  disabled={cerrandoMes || periodoCerrado}
                 >
                   {cerrandoMes ? "Cerrando..." : "Confirmar cierre"}
                 </Button>

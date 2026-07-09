@@ -33,15 +33,14 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   // Verificar que no exista ya un asiento de cierre para este período
-  const { data: existeCierre } = await supabase
+  const { data: cierresExistentes } = await supabase
     .from("journal_entries")
     .select("id")
     .eq("store_id", store_id)
     .eq("tipo_movimiento", "CIERRE_MES")
-    .eq("referencia_numero", periodo)
-    .single();
+    .eq("referencia_numero", periodo);
 
-  if (existeCierre) {
+  if (cierresExistentes && cierresExistentes.length > 0) {
     return NextResponse.json(
       { error: `El período ${periodo} ya tiene un asiento de cierre` },
       { status: 409 }

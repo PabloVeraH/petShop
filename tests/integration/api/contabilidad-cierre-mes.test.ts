@@ -22,27 +22,22 @@ function makeRequest(body: object): NextRequest {
   });
 }
 
-function makeChain(overrides: Record<string, unknown> = {}) {
-  const chain: Record<string, jest.Mock> = {
+/**
+ * Creates a Supabase chain mock that supports a variable number of .eq() calls.
+ * The terminal call (last method in the chain) returns a promise via .then().
+ * Each call to the chain function increments an internal counter so different
+ * queries return different results based on call order.
+ */
+function createChain(resolveValue: object) {
+  const chain: Record<string, jest.Mock> & { then?: Function } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    ...overrides,
   };
-  // Make all chainable methods return the chain itself
-  chain.select.mockReturnThis = jest.fn(() => chain);
-  chain.eq.mockReturnThis = jest.fn(() => chain);
-  chain.gte.mockReturnThis = jest.fn(() => chain);
-  chain.lte.mockReturnThis = jest.fn(() => chain);
-  chain.in.mockReturnThis = jest.fn(() => chain);
-  Object.keys(chain).forEach((k) => {
-    if (k !== "single" && typeof chain[k].mockReturnValue === "function") {
-      chain[k].mockReturnValue(chain);
-    }
-  });
+  // Make the chain thenable (resolves to the provided data)
+  chain.then = (resolve: Function) => resolve(resolveValue);
   return chain;
 }
 
@@ -58,6 +53,9 @@ describe("POST /api/contabilidad/cierre-mes", () => {
   describe("autenticación", () => {
     it("retorna 401 cuando no hay sesión", async () => {
       (authModule.getStoreId as jest.Mock).mockResolvedValue(null);
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn().mockReturnValue(createChain({ data: [], error: null })),
+      });
 
       const res = await POST(makeRequest({ mes: 4, año: 2026 }));
 
@@ -66,52 +64,55 @@ describe("POST /api/contabilidad/cierre-mes", () => {
   });
 
   describe("validación de body", () => {
+    function setupValidation() {
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn().mockReturnValue(createChain({ data: [], error: null })),
+      });
+    }
+
     it("retorna 400 cuando falta mes", async () => {
-      const mockFrom = jest.fn().mockReturnValue(makeChain());
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
-
+      setupValidation();
       const res = await POST(makeRequest({ año: 2026 }));
-
       expect(res.status).toBe(400);
     });
 
     it("retorna 400 cuando falta año", async () => {
-      const mockFrom = jest.fn().mockReturnValue(makeChain());
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
-
+      setupValidation();
       const res = await POST(makeRequest({ mes: 4 }));
-
       expect(res.status).toBe(400);
     });
 
     it("retorna 400 cuando mes está fuera de rango", async () => {
-      const mockFrom = jest.fn().mockReturnValue(makeChain());
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
-
+      setupValidation();
       const res = await POST(makeRequest({ mes: 13, año: 2026 }));
-
       expect(res.status).toBe(400);
     });
 
     it("retorna 400 cuando mes es 0", async () => {
-      const mockFrom = jest.fn().mockReturnValue(makeChain());
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
-
+      setupValidation();
       const res = await POST(makeRequest({ mes: 0, año: 2026 }));
-
       expect(res.status).toBe(400);
     });
   });
 
   describe("conflicto: cierre ya existe", () => {
-    it("retorna 409 cuando ya existe un cierre para ese período", async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { id: "existing-cierre" }, error: null }),
+    function setupExistingCierre() {
+      // First query: check cierre existente → encuentra 1
+      // Second query: entries del período (no se alcanza porque aborta antes)
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) {
+            return createChain({ data: [{ id: "existing-cierre" }], error: null });
+          }
+          return createChain({ data: [], error: null });
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
+    }
 
+    it("retorna 409 cuando ya existe un cierre para ese período", async () => {
+      setupExistingCierre();
       const res = await POST(makeRequest({ mes: 4, año: 2026 }));
 
       expect(res.status).toBe(409);
@@ -121,33 +122,26 @@ describe("POST /api/contabilidad/cierre-mes", () => {
   });
 
   describe("cierre exitoso sin COGS", () => {
-    it("retorna 201 con resumen del período", async () => {
+    function setupSuccess(data: Array<{ id: string; total_debito: number; total_credito: number }>) {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          // Check cierre existente → no existe
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        // Entries del período
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({
-            data: [
-              { id: "e1", total_debito: 11900, total_credito: 11900 },
-              { id: "e2", total_debito: 5950, total_credito: 5950 },
-            ],
-            error: null,
-          }),
-        };
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) {
+            // Check cierre existente → no existe
+            return createChain({ data: [], error: null });
+          }
+          // Entries del período
+          return createChain({ data, error: null });
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
+    }
+
+    it("retorna 201 con resumen del período", async () => {
+      setupSuccess([
+        { id: "e1", total_debito: 11900, total_credito: 11900 },
+        { id: "e2", total_debito: 5950, total_credito: 5950 },
+      ]);
 
       const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: false }));
 
@@ -162,29 +156,9 @@ describe("POST /api/contabilidad/cierre-mes", () => {
     });
 
     it("detecta período desbalanceado correctamente", async () => {
-      let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({
-            data: [
-              { id: "e1", total_debito: 10000, total_credito: 9000 }, // desbalanceado
-            ],
-            error: null,
-          }),
-        };
-      });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
+      setupSuccess([
+        { id: "e1", total_debito: 10000, total_credito: 9000 },
+      ]);
 
       const res = await POST(makeRequest({ mes: 4, año: 2026 }));
 
@@ -197,52 +171,15 @@ describe("POST /api/contabilidad/cierre-mes", () => {
   describe("cierre con calcular_costo_venta = true", () => {
     it("llama a crearAsiento cuando hay compras con inventario", async () => {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-
-        if (callCount === 1) {
-          // Verificar cierre existente
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        if (callCount === 2) {
-          // Entries del período
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            gte: jest.fn().mockReturnThis(),
-            lte: jest.fn().mockResolvedValue({
-              data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
-              error: null,
-            }),
-          };
-        }
-        if (callCount === 3) {
-          // Compras del período
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            gte: jest.fn().mockReturnThis(),
-            lte: jest.fn().mockResolvedValue({
-              data: [{ id: "compra-1" }, { id: "compra-2" }],
-              error: null,
-            }),
-          };
-        }
-        // journal_detail inventario lines
-        return {
-          select: jest.fn().mockReturnThis(),
-          in: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({
-            data: [{ debito: 5000 }, { debito: 3000 }],
-            error: null,
-          }),
-        };
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          if (callCount === 2) return createChain({ data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }], error: null }); // entries
+          if (callCount === 3) return createChain({ data: [{ id: "compra-1" }, { id: "compra-2" }], error: null }); // compras
+          return createChain({ data: [{ debito: 5000 }, { debito: 3000 }], error: null }); // inventario lines
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
       const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
 
@@ -260,33 +197,14 @@ describe("POST /api/contabilidad/cierre-mes", () => {
 
     it("no crea asiento COGS cuando no hay compras en el período", async () => {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-
-        if (callCount === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        if (callCount === 2) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            gte: jest.fn().mockReturnThis(),
-            lte: jest.fn().mockResolvedValue({ data: [], error: null }),
-          };
-        }
-        // Sin compras
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({ data: [], error: null }),
-        };
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          if (callCount === 2) return createChain({ data: [], error: null }); // entries
+          return createChain({ data: [], error: null }); // compras (vacío)
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
       const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
 
@@ -298,41 +216,27 @@ describe("POST /api/contabilidad/cierre-mes", () => {
   });
 
   describe("respuesta 201 incluye todos los campos de feedback", () => {
-    // REGRESIÓN: el cliente necesita mes_cerrado, numero_asientos, balanceado y
-    // asientos_cierre para mostrar el panel de resultado; si faltan, el feedback
-    // queda vacío aunque la operación haya sido exitosa.
     it("REGRESIÓN: retorna mes_cerrado, numero_asientos, balanceado y asientos_cierre", async () => {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          return createChain({
             data: [
               { id: "e1", total_debito: 11900, total_credito: 11900 },
               { id: "e2", total_debito: 5950, total_credito: 5950 },
               { id: "e3", total_debito: 2380, total_credito: 2380 },
             ],
             error: null,
-          }),
-        };
+          }); // entries
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
       const res = await POST(makeRequest({ mes: 6, año: 2026, calcular_costo_venta: false }));
       expect(res.status).toBe(201);
 
       const body = await res.json();
-      // Todos los campos que el frontend usa para el banner de resultado
       expect(body).toHaveProperty("mes_cerrado", "2026-06");
       expect(body).toHaveProperty("desde", "2026-06-01");
       expect(body).toHaveProperty("hasta", "2026-06-30");
@@ -343,74 +247,94 @@ describe("POST /api/contabilidad/cierre-mes", () => {
     });
 
     it("retorna error con status 409 cuando ya existe cierre (feedback de error para la UI)", async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { id: "existing" }, error: null }),
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [{ id: "existing" }], error: null });
+          return createChain({ data: [], error: null });
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
       const res = await POST(makeRequest({ mes: 6, año: 2026 }));
       expect(res.status).toBe(409);
 
       const body = await res.json();
-      // El mensaje de error debe ser legible para mostrarlo en el banner de error
       expect(typeof body.error).toBe("string");
       expect(body.error.length).toBeGreaterThan(0);
     });
   });
 
   describe("fechas correctas por mes", () => {
+    function setupFecha(mes: number, año: number, esperado: string) {
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          return createChain({ data: [], error: null }); // entries
+        }),
+      });
+    }
+
     it("calcula correctamente el último día de febrero (año bisiesto)", async () => {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({ data: [], error: null }),
-        };
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null });
+          return createChain({ data: [], error: null });
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
-      const res = await POST(makeRequest({ mes: 2, año: 2024 })); // 2024 es bisiesto
+      const res = await POST(makeRequest({ mes: 2, año: 2024 }));
       const body = await res.json();
-
       expect(body.hasta).toBe("2024-02-29");
     });
 
     it("calcula correctamente el último día de febrero (año no bisiesto)", async () => {
       let callCount = 0;
-      const mockFrom = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: null, error: null }),
-          };
-        }
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          gte: jest.fn().mockReturnThis(),
-          lte: jest.fn().mockResolvedValue({ data: [], error: null }),
-        };
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null });
+          return createChain({ data: [], error: null });
+        }),
       });
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
 
       const res = await POST(makeRequest({ mes: 2, año: 2026 }));
       const body = await res.json();
-
       expect(body.hasta).toBe("2026-02-28");
+    });
+  });
+
+  // I-315: REGRESIÓN — la verificación de duplicados usa select+array en vez de .single()
+  // para evitar que múltiples filas (o error PGRST116) permitan un segundo cierre.
+  describe("I-315: seguridad anti-duplicados", () => {
+    it("I-315: retorna 409 aunque existan múltiples asientos de cierre para el mismo período", async () => {
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) {
+            // Múltiples cierres existentes (escenario de carrera/fallo parcial)
+            return createChain({
+              data: [
+                { id: "cierre-1" },
+                { id: "cierre-2" },
+              ],
+              error: null,
+            });
+          }
+          return createChain({ data: [], error: null });
+        }),
+      });
+
+      const res = await POST(makeRequest({ mes: 4, año: 2026 }));
+
+      expect(res.status).toBe(409);
+      const body = await res.json();
+      expect(body.error).toContain("2026-04");
     });
   });
 });
