@@ -1,7 +1,10 @@
 /**
- * Tests I-280 a I-289: GET /api/contabilidad/estado-resultado
+ * Tests I-280 a I-292: GET /api/contabilidad/estado-resultado
  * Verifica que el endpoint retorne COGS desde venta_item_lotes (actual)
  * con fallback a journal_detail contable.
+ *
+ * I-289 — REGRESIÓN: venta anulada NO infla venta_productos (neto créditos-débitos)
+ * I-290 — REGRESIÓN: múltiples ventas y anulaciones → neto correcto
  */
 import { GET } from "@/app/api/contabilidad/estado-resultado/route";
 import { NextRequest } from "next/server";
@@ -288,5 +291,59 @@ describe("GET /api/contabilidad/estado-resultado", () => {
     const body = await res.json();
     expect(body.gastos.costo_venta).toBeGreaterThan(0);
     expect(body.gastos.costo_venta).toBe(75000);
+  });
+
+  // I-289: REGRESIÓN — venta_productos es neto (créditos - débitos) para excluir anulaciones
+  it("I-289: venta_productos neto — venta $10.000 anulada no aparece como ingreso", async () => {
+    const db = makeDb({
+      detalleResult: {
+        data: [
+          // Venta original: Cr VENTAS $10.000
+          { cuenta_codigo: "410101", debito: 0, credito: 10000 },
+          // Anulación: Dr VENTAS $10.000 (contra-asiento)
+          { cuenta_codigo: "410101", debito: 10000, credito: 0 },
+        ],
+        error: null,
+      },
+    });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
+
+    const res = await GET(makeRequest({ mes: "6", año: "2026" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    // Antes del fix: venta_productos = $10.000 (ignoraba el débito)
+    // Después del fix: venta_productos = $10.000 - $10.000 = $0
+    expect(body.ingresos.venta_productos).toBe(0);
+    expect(body.ingresos.total_ingresos_operacionales).toBe(0);
+  });
+
+  // I-290: REGRESIÓN — COGS neto en fallback cuando hay reverso COGS por anulación
+  it("I-290: COGS fallback neto — reverso de COGS por anulación descuenta correctamente", async () => {
+    const db = makeDb({
+      detalleResult: {
+        data: [
+          // Venta original: Cr VENTAS $10.000
+          { cuenta_codigo: "410101", debito: 0, credito: 10000 },
+          // COGS original: Dr COGS $6.000
+          { cuenta_codigo: "510101", debito: 6000, credito: 0 },
+          // Anulación: Dr VENTAS $10.000
+          { cuenta_codigo: "410101", debito: 10000, credito: 0 },
+          // Reverso COGS: Cr COGS $6.000
+          { cuenta_codigo: "510101", debito: 0, credito: 6000 },
+        ],
+        error: null,
+      },
+      // sin cogsActual → usa fallback journal_detail
+    });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
+
+    const res = await GET(makeRequest({ mes: "6", año: "2026" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.ingresos.venta_productos).toBe(0);     // neto: 10k - 10k
+    expect(body.gastos.costo_venta).toBe(0);            // neto: 6k - 6k
+    expect(body.utilidad_neta).toBe(0);
   });
 });

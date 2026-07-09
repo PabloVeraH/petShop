@@ -90,11 +90,15 @@ export async function GET(req: NextRequest) {
         .filter((d) => codigos.includes(d.cuenta_codigo))
         .reduce((s, d) => s + Number(d[campo] ?? 0), 0);
 
-    ventaProductos = sumCuenta(INGRESOS_CODIGOS, "credito");
+    const ventaCredits = sumCuenta(INGRESOS_CODIGOS, "credito");
+    const ventaDebits = sumCuenta(INGRESOS_CODIGOS, "debito");
+    ventaProductos = ventaCredits - ventaDebits;
     devoluciones = sumCuenta(DEVOLUCIONES_CODIGOS, "debito");
 
     if (costoVenta === 0) {
-      costoVenta = sumCuenta(COGS_CODIGOS, "debito");
+      const cogsDebits = sumCuenta(COGS_CODIGOS, "debito");
+      const cogsCredits = sumCuenta(COGS_CODIGOS, "credito");
+      costoVenta = cogsDebits - cogsCredits;
     }
   }
 
