@@ -120,6 +120,7 @@ export async function sendBoletaEmail(params: {
 function buildBoletaEmailHTML(b: BoletaData): string {
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
   const fecha = new Date(b.fecha).toLocaleDateString("es-CL");
+  const subtotalNeto = Math.round(b.subtotal / 1.19);
 
   const itemsHTML = b.items.map(i => `
     <tr>
@@ -160,7 +161,7 @@ function buildBoletaEmailHTML(b: BoletaData): string {
   </table>
 
   <div style="margin-top:12px;text-align:right;font-size:13px;">
-    <div>Subtotal: ${fmt(b.subtotal)}</div>
+    <div>Subtotal: ${fmt(subtotalNeto)}</div>
     ${b.descuentoMonto > 0 ? `<div>Descuento (${b.descuentoPct}%): -${fmt(b.descuentoMonto)}</div>` : ""}
     <div>IVA (19%): ${fmt(b.impuesto)}</div>
     <div style="font-weight:bold;font-size:16px;border-top:1px solid #ddd;margin-top:6px;padding-top:6px;">

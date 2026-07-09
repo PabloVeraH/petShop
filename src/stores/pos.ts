@@ -57,6 +57,7 @@ interface POSStore {
   setNotas: (notas: string) => void;
 
   subtotal: () => number;
+  subtotalNeto: () => number;
   impuesto: () => number;
   total: () => number;
 }
@@ -179,6 +180,9 @@ export const usePOSStore = create<POSStore>()(
 
       // precio ya incluye IVA
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
+
+      // Subtotal neto (sin IVA) — extrae el IVA del subtotal bruto
+      subtotalNeto: () => Math.round(get().subtotal() / (1 + IVA_RATE)),
 
       // IVA extraído del total con descuento — los precios ya incluyen IVA
       impuesto: () => {

@@ -130,6 +130,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     .join("");
 
   const subtotalConIva = Number(venta.subtotal); // IVA-inclusive, antes del descuento
+  const subtotalNeto = Math.round(subtotalConIva / 1.19); // Extraído el IVA
   const descuentoPct = Number(venta.descuento); // almacenado como porcentaje (ej: 10)
   const descuentoMonto = Math.round(subtotalConIva * descuentoPct / 100);
   const impuesto = Number(venta.impuesto);
@@ -364,8 +365,8 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
         descuentoPct > 0
           ? `
       <div class="totales-fila">
-        <span>Subtotal (c/IVA):</span>
-        <span>$${subtotalConIva.toLocaleString("es-CL")}</span>
+        <span>Subtotal:</span>
+        <span>$${subtotalNeto.toLocaleString("es-CL")}</span>
       </div>
       <div class="totales-fila">
         <span>Descuento (${descuentoPct}%):</span>

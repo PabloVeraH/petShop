@@ -49,7 +49,7 @@ interface ModalPagoProps {
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
   const {
-    subtotal, descuento, total, metodoPago, setMetodoPago,
+    subtotal, subtotalNeto, descuento, total, metodoPago, setMetodoPago,
     numeroTransaccion, setNumeroTransaccion,
     setDescuento, fidelizacionDescuento,
     workerClerkId, setWorker,
@@ -70,6 +70,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   });
 
   const sub = subtotal();
+  const subNeto = subtotalNeto();
   const desc = (sub * descuento) / 100;
   const tot = Math.round(total());
   const ivaAmount = Math.round(tot * IVA_RATE / (1 + IVA_RATE));
@@ -168,7 +169,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               <>
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>${sub.toLocaleString("es-CL")}</span>
+                  <span>${subNeto.toLocaleString("es-CL")}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
                   <span>Descuento ({descuento}%)</span>

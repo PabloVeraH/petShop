@@ -33,6 +33,7 @@ let mockNumeroTransaccion: string | undefined = undefined;
 jest.mock("@/stores/pos", () => ({
   usePOSStore: jest.fn(() => ({
     subtotal:              () => mockSubtotalValue,
+    subtotalNeto:          () => Math.round(mockSubtotalValue / 1.19),
     descuento:             mockDescuento,
     total:                 () => mockTotalValue,
     metodoPago:            mockMetodoPago,

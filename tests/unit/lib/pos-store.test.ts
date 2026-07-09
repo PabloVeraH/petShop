@@ -121,6 +121,38 @@ describe("POS Store — cálculos derivados", () => {
   });
 });
 
+describe("POS Store — subtotalNeto (sin IVA)", () => {
+  beforeEach(resetStore);
+
+  // S-36
+  it("S-36: subtotalNeto extrae IVA del subtotal bruto", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 119000, subtotal: 119000 });
+    // 119000 / 1.19 = 100000
+    expect(usePOSStore.getState().subtotalNeto()).toBe(100000);
+  });
+
+  // S-37
+  it("S-37: subtotalNeto con múltiples items suma y extrae IVA", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, producto_id: "p1", precio: 11900, subtotal: 11900 });
+    usePOSStore.getState().addItem({ ...ITEM_BASE, producto_id: "p2", precio: 23800, subtotal: 23800 });
+    // bruto = 35700 → neto = 35700 / 1.19 = 30000
+    expect(usePOSStore.getState().subtotalNeto()).toBe(30000);
+  });
+
+  // S-38
+  it("S-38: subtotalNeto es 0 cuando el carrito está vacío", () => {
+    expect(usePOSStore.getState().subtotalNeto()).toBe(0);
+  });
+
+  // S-39
+  it("S-39: subtotalNeto es entero (redondeado)", () => {
+    usePOSStore.getState().addItem({ ...ITEM_BASE, precio: 15458, subtotal: 15458 });
+    // 15458 / 1.19 = 12989.916 → 12990
+    expect(Number.isInteger(usePOSStore.getState().subtotalNeto())).toBe(true);
+    expect(usePOSStore.getState().subtotalNeto()).toBe(12990);
+  });
+});
+
 describe("POS Store — cálculo IVA (impuesto)", () => {
   beforeEach(resetStore);
 

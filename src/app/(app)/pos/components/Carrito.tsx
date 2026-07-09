@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { usePOSStore } from "@/stores/pos";
+import { IVA_RATE } from "@/lib/tax";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Carrito() {
-  const { items, removeItem, updateQuantity, subtotal, impuesto, total, descuento, clearCart } =
+  const { items, removeItem, updateQuantity, subtotal, subtotalNeto, impuesto, total, descuento, clearCart } =
     usePOSStore();
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -161,7 +162,7 @@ export default function Carrito() {
       <div className="border-t p-3 space-y-1 text-sm">
         <div className="flex justify-between text-gray-600">
           <span>Subtotal</span>
-          <span>${subtotal().toLocaleString("es-CL")}</span>
+          <span>${subtotalNeto().toLocaleString("es-CL")}</span>
         </div>
         {descuento > 0 && (
           <div className="flex justify-between text-green-600">

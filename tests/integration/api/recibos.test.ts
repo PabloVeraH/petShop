@@ -307,7 +307,8 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("Producto A");
     expect(data.html).toContain("Producto B");
     expect(data.html).toContain("$50.000");
-    expect(data.html).toContain("Subtotal (c/IVA):");
+    expect(data.html).toContain("Subtotal:");
+    expect(data.html).toContain("$35.308");     // 42016 / 1.19 = 35308
     expect(data.html).toContain("Descuento (5%):");
     expect(data.html).toContain("Neto (sin IVA):");
     expect(data.html).toContain("IVA (19%):");
@@ -365,8 +366,8 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("IVA (19%):");
     expect(data.html).toContain("$5.575");
     expect(data.html).toContain("$34.918");
-    // Sin descuento NO debe aparecer "Subtotal (c/IVA):"
-    expect(data.html).not.toContain("Subtotal (c/IVA):");
+    // Sin descuento NO debe aparecer "Subtotal:" (solo se muestra con descuento)
+    expect(data.html).not.toContain("Subtotal:");
   });
 
   // REGRESIÓN: con descuento el recibo muestra Subtotal, Descuento, Neto y Total consistentes
@@ -415,8 +416,8 @@ describe("GET /api/recibos/[ventaId]", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.html).toContain("Subtotal (c/IVA):");
-    expect(data.html).toContain("$38.000");
+    expect(data.html).toContain("Subtotal:");
+    expect(data.html).toContain("$31.933"); // 38000 / 1.19 = 31933
     expect(data.html).toContain("Descuento (10%):");
     expect(data.html).toContain("$3.800"); // 38000 * 10/100
     expect(data.html).toContain("Neto (sin IVA):");

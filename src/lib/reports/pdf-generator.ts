@@ -32,6 +32,7 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   let y = 20;
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
+  const subtotalNeto = Math.round(data.subtotal / 1.19);
   const fecha = new Date(data.fecha);
   const fechaStr = fecha.toLocaleDateString("es-CL");
   const horaStr = fecha.toLocaleTimeString("es-CL");
@@ -123,7 +124,7 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   };
 
   doc.setFontSize(10);
-  totRow("Subtotal:", fmt(data.subtotal));
+  totRow("Subtotal:", fmt(subtotalNeto));
   if (data.descuentoMonto > 0) {
     totRow(`Descuento (${data.descuentoPct}%):`, `-${fmt(data.descuentoMonto)}`);
   }
