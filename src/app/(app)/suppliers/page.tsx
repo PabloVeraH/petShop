@@ -16,6 +16,11 @@ type OrdenCompra = { id: string; numero: string; estado: string; total: number; 
 type OrdenItem = { id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number | null; nombre_nuevo: string | null; productos: { id: string; nombre: string; sku: string; tiene_vencimiento: boolean } | null };
 type CuentaPagar = { id: string; monto: number; fecha_vencimiento: string; estado: string; orden_id?: string };
 type ProductoOpt = { id: string; nombre: string; sku: string; precio: number };
+type SupplierStats = {
+  orderCounts: Record<string, number>;
+  payableCounts: Record<string, number>;
+  payableAmounts: Record<string, number>;
+};
 
 type SavedFilter = { id: string; name: string; type: "overdue" | "due-soon" | "due-this-week" | "custom" };
 
@@ -54,6 +59,14 @@ export default function SupplierHubPage() {
     queryKey: ["proveedores", search],
     queryFn: async () => {
       const res = await fetch(`/api/proveedores?search=${search}`);
+      return res.json();
+    },
+  });
+
+  const { data: supplierStats } = useQuery<SupplierStats>({
+    queryKey: ["proveedores-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/proveedores/stats");
       return res.json();
     },
   });
@@ -460,9 +473,9 @@ export default function SupplierHubPage() {
             {isLoading && <p className="text-sm text-gray-400 p-4 text-center">Cargando...</p>}
             {!isLoading && !proveedores?.length && <p className="text-sm text-gray-400 p-4 text-center">Sin proveedores</p>}
             {proveedores?.map((p) => {
-              const pOrdenes = ordenes?.filter(o => o.estado !== "cancelada").length ?? 0;
-              const pPayables = cuentas?.filter(c => c.estado === "pendiente").length ?? 0;
-              const pPayablesAmount = (cuentas ?? []).filter(c => c.estado === "pendiente").reduce((sum, c) => sum + Number(c.monto), 0);
+              const pOrdenes = supplierStats?.orderCounts[p.id] ?? 0;
+              const pPayables = supplierStats?.payableCounts[p.id] ?? 0;
+              const pPayablesAmount = supplierStats?.payableAmounts[p.id] ?? 0;
               return (
                 <div
                   key={p.id}
