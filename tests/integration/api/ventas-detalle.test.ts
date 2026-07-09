@@ -207,7 +207,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 20000, impuesto: 2520, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "20260417-ABC123" },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 20000, impuesto: 2520, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "20260417-ABC123", created_at: "2026-04-17T10:00:00Z" },
         error: null,
       }),
     };
@@ -304,12 +304,82 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       storeId: mockStoreId,
       tipoMovimiento: "ANULACION_VENTA",
       referenciaNomero: "20260417-ABC123",
+      fecha: "2026-04-17",
     }));
     expect(contabilidad.crearAsiento).toHaveBeenNthCalledWith(2, expect.objectContaining({
       storeId: mockStoreId,
       tipoMovimiento: "ANULACION_VENTA",
       descripcion: expect.stringContaining("COGS"),
+      fecha: "2026-04-17",
     }));
+  });
+
+  // REGRESIÓN: Estado de Resultado incluía venta anulada como ingreso cuando
+  // la anulación ocurre en un período (mes) distinto al de la venta original.
+  // El contra-asiento debe fechearse con venta.created_at, NO con la fecha
+  // de hoy — de lo contrario el reverso cae en el mes de la anulación y
+  // nunca netea contra el asiento original del mes de la venta.
+  it("I-305: REGRESIÓN — contra-asiento de anulación usa la fecha ORIGINAL de la venta, no la fecha de hoy", async () => {
+    const ventaAntigua = "2026-01-15T10:00:00Z"; // mes distinto al mes actual (julio 2026)
+
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: {
+          id: mockVentaId,
+          estado: "pagada",
+          cliente_id: null,
+          total: 10000,
+          impuesto: 1596,
+          metodo_pago: "efectivo",
+          canal: "pos",
+          numero_comprobante: "20260115-XYZ",
+          created_at: ventaAntigua,
+        },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    const updateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        return updateChain;
+      }),
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+
+    // El contra-asiento debe quedar en enero (mes de la venta), no en julio (mes de hoy)
+    expect(contabilidad.crearAsiento).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha: "2026-01-15" })
+    );
+    const fechasUsadas = (contabilidad.crearAsiento as jest.Mock).mock.calls.map((c) => c[0].fecha);
+    expect(fechasUsadas.every((f) => f === "2026-01-15")).toBe(true);
   });
 
   it("retorna 404 si venta no existe", async () => {
@@ -395,7 +465,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 60000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-789" },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 60000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-789", created_at: "2026-04-17T10:00:00Z" },
         error: null,
       }),
     };
@@ -462,7 +532,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
-        data: { id: mockVentaId, estado: "pagada", cliente_id: null, total: 20000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-456" },
+        data: { id: mockVentaId, estado: "pagada", cliente_id: null, total: 20000, impuesto: 0, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "NC-456", created_at: "2026-04-17T10:00:00Z" },
         error: null,
       }),
     };

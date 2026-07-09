@@ -65,7 +65,7 @@ export async function PATCH(
 
   const { data: venta } = await supabase
     .from("ventas")
-    .select("id, estado, cliente_id, total, impuesto, metodo_pago, canal, numero_comprobante")
+    .select("id, estado, cliente_id, total, impuesto, metodo_pago, canal, numero_comprobante, created_at")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();
@@ -150,7 +150,14 @@ export async function PATCH(
   // Dos asientos independientes (igual que la venta original):
   // 1. Reverso del ingreso — Dr Ventas + Dr IVA / Cr Caja|Banco
   // 2. Reverso del COGS   — Dr Inventario / Cr COGS (solo si hubo costo)
-  const fechaAnulacion = new Date().toISOString().split("T")[0];
+  //
+  // Se usa la fecha ORIGINAL de la venta (no la fecha de hoy) para que el
+  // contra-asiento caiga en el mismo período contable que el asiento
+  // original. Si se usara la fecha de anulación, anular una venta de un
+  // mes anterior generaría un ingreso "fantasma" en el Estado de Resultado
+  // del mes de la venta (no se neteó) y un resultado negativo "fantasma"
+  // en el mes de la anulación (reverso sin venta que lo explique).
+  const fechaAnulacion = new Date(venta.created_at).toISOString().split("T")[0];
   const totalVenta = Math.round(Number(venta.total));
   const ivaVenta = Math.round(Number(venta.impuesto ?? 0));
   const montoNeto = totalVenta - ivaVenta;

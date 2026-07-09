@@ -244,6 +244,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-302 | POST ventas con transferencia sin numeroTransaccion → 400 | POST /api/ventas | integration |
 | I-303 | POST ventas con debito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
 | I-304 | POST ventas con credito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
+| I-305 | REGRESIÓN: contra-asiento de anulación usa fecha ORIGINAL de la venta, no fecha de hoy (evita ingreso/resultado fantasma en Estado de Resultado cuando la anulación ocurre en un mes distinto) | PATCH /api/ventas/[id] | integration |
 
 ## Tests unitarios (U-XX)
 
