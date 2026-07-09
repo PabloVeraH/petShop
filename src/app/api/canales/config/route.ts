@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
   const configSchema = z.object({
     canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
     credenciales: z.record(z.string(), z.unknown()),
+    activo: z.boolean().optional(),
   });
 
   const body = await req.json();
@@ -38,7 +39,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { canal_id, credenciales } = parsed.data;
+  const { canal_id, credenciales, activo } = parsed.data;
+
+  const hasCredentials = Object.keys(credenciales).some(k => credenciales[k] !== "");
+  const wantsActive = activo === true;
+
+  if (wantsActive && !hasCredentials) {
+    return NextResponse.json(
+      { error: "No se puede activar el canal sin ingresar credenciales" },
+      { status: 422 }
+    );
+  }
 
   const encryptedCreds = encryptJSON(credenciales);
 
@@ -50,7 +61,7 @@ export async function POST(req: NextRequest) {
       credenciales_encriptada: encryptedCreds.ciphertext,
       credenciales_iv: encryptedCreds.iv,
       credenciales_auth_tag: encryptedCreds.authTag,
-      activo: true,
+      activo: activo ?? false,
     })
     .select()
     .single();
@@ -101,6 +112,26 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { canal_id, credenciales, activo } = parsed.data;
+
+  const wantsActive = activo === true;
+  const hasCredentialsInPayload = credenciales !== undefined && Object.keys(credenciales).some(k => credenciales[k] !== "");
+
+  if (wantsActive && !hasCredentialsInPayload) {
+    const supabaseCheck = createServiceClient();
+    const { data: existing } = await supabaseCheck
+      .from("canal_config")
+      .select("credenciales_encriptada")
+      .eq("store_id", store_id)
+      .eq("canal_id", canal_id)
+      .single();
+
+    if (!existing?.credenciales_encriptada) {
+      return NextResponse.json(
+        { error: "No se puede activar el canal sin credenciales configuradas" },
+        { status: 422 }
+      );
+    }
+  }
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
 

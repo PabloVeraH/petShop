@@ -107,9 +107,16 @@ export default function CanalConfigPage() {
       });
   }, [canalId, canalInfo]);
 
+  const hasAnyCredential = Object.values(credenciales).some(v => v !== "");
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!canalInfo) return;
+
+    if (activo && !hasAnyCredential) {
+      setError("Debe ingresar al menos una credencial antes de activar el canal");
+      return;
+    }
 
     setSaving(true);
     setError("");
