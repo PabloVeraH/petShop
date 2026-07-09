@@ -1,10 +1,11 @@
 /**
- * Tests CC-01 a CC-04: Canal config page — activo toggle en POST
+ * Tests CC-01 a CC-05: Canal config page — activo toggle en POST
  *
  * CC-01: Guardar sin tocar el toggle → envía activo=false
  * CC-02: Guardar sin credenciales → canal queda inactivo (no se activa automáticamente)
  * CC-03: POST retorna activo=true → frontend sincroniza a true
  * CC-04: Activar toggle sin credenciales → muestra error, no envía request
+ * CC-05: Activar toggle con credencial de solo espacios → muestra error, no envía request
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -156,6 +157,40 @@ describe("CanalConfigPage — activo handling", () => {
     const initialFetchCount = fetchCalls.length;
 
     // Activar toggle sin llenar credenciales
+    const toggleSwitch = document.querySelector(".bg-gray-300");
+    expect(toggleSwitch).not.toBeNull();
+    fireEvent.click(toggleSwitch!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Activo")).toBeInTheDocument();
+    });
+
+    // Intentar guardar
+    fireEvent.click(screen.getByText("Guardar configuración"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/debe ingresar al menos una credencial/i)).toBeInTheDocument();
+    });
+
+    // No se envió ningún fetch nuevo
+    expect(fetchCalls.length).toBe(initialFetchCount);
+  });
+
+  // CC-05 — REGRESIÓN: un valor de solo espacios no debe contar como credencial
+  it("CC-05: activar toggle con credencial de solo espacios en blanco → muestra error, no envía request", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    // Llenar un campo con solo espacios en blanco
+    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    fireEvent.change(inputs[0], { target: { value: "   " } });
+
+    const initialFetchCount = fetchCalls.length;
+
+    // Activar toggle
     const toggleSwitch = document.querySelector(".bg-gray-300");
     expect(toggleSwitch).not.toBeNull();
     fireEvent.click(toggleSwitch!);

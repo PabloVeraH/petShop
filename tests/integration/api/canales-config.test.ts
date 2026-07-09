@@ -187,6 +187,49 @@ describe("POST /api/canales/config — activo handling", () => {
     const body = await res.json();
     expect(body.error).toContain("credenciales");
   });
+
+  // I-310 — REGRESIÓN: un valor de solo espacios no cuenta como credencial real
+  it("I-310: POST activo=true con credencial de solo espacios en blanco → 422", async () => {
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "   " }, activo: true }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("credenciales");
+  });
+
+  // I-311 — REGRESIÓN: sin credenciales reales, guardar null en vez de un blob
+  // cifrado de "{}". Si se guardara un ciphertext igual, el chequeo de
+  // "¿existen credenciales?" en el PATCH pensaría que sí las hay (columna
+  // NOT NULL) y permitiría activar el canal sin credenciales reales en un
+  // segundo guardado — exactamente el bug reportado, reproducible en dos pasos.
+  it("I-311: POST sin credenciales reales → credenciales_encriptada se guarda como null (no un blob cifrado vacío)", async () => {
+    let insertData: Record<string, unknown> = {};
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      // logAudit() también inserta (en audit_logs) vía createServiceClient() —
+      // discriminar por tabla para no confundir ese insert con el de canal_config.
+      from: jest.fn((table: string) => {
+        if (table !== "canal_config") return buildChain();
+
+        const c = buildChain();
+        c.insert.mockImplementation((d: Record<string, unknown>) => {
+          insertData = d;
+          return c;
+        });
+        c.select.mockReturnValue(c);
+        c.eq.mockReturnValue(c);
+        mockSingle.mockResolvedValue({
+          data: { id: CONFIG_ID, canal_id: "rappi", activo: false },
+          error: null,
+        });
+        return c;
+      }),
+    });
+
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "" } }));
+    expect(res.status).toBe(201);
+    expect(insertData.credenciales_encriptada).toBeNull();
+    expect(insertData.credenciales_iv).toBeNull();
+    expect(insertData.credenciales_auth_tag).toBeNull();
+  });
 });
 
 describe("PATCH /api/canales/config — no modifica activo si no se envía", () => {
@@ -318,4 +361,77 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
     (c as any).then = (resolve: any) => resolve({ data, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
   }
+
+  // I-312 — REGRESIÓN CRÍTICA: reproduce el bug reportado en dos pasos.
+  // 1) Se crea el canal sin credenciales reales (POST, activo=false).
+  // 2) Se reabre la página y se intenta activar (PATCH activo=true) sin
+  //    haber ingresado credenciales (los campos nunca se precargan).
+  // Antes del fix, credenciales_encriptada guardaba un ciphertext de "{}"
+  // (no NULL), por lo que este chequeo pasaba incorrectamente y el canal
+  // quedaba activo sin ninguna credencial real — el bug reportado.
+  it("I-312: PATCH activo=true → 422 cuando credenciales_encriptada es null (canal creado sin credenciales reales)", async () => {
+    const checkChain = buildChain();
+    checkChain.select.mockReturnValue(checkChain);
+    checkChain.eq.mockReturnValue(checkChain);
+    mockSingle.mockResolvedValue({
+      data: { credenciales_encriptada: null },
+      error: null,
+    });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn(() => checkChain),
+    });
+
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", activo: true }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("credenciales");
+  });
+
+  // I-313 — REGRESIÓN: el formulario de edición nunca precarga las
+  // credenciales guardadas, así que un simple re-guardado sin tocar esos
+  // campos envía credenciales={} (presente, pero vacío). Antes del fix esto
+  // sobreescribía credenciales_encriptada con un blob cifrado de "{}",
+  // borrando las credenciales reales ya configuradas.
+  it("I-313: PATCH con credenciales={} (formulario sin tocar) NO sobrescribe las credenciales ya guardadas", async () => {
+    let updateData: Record<string, unknown> = {};
+    const c = buildChain();
+    c.update.mockImplementation((d: Record<string, unknown>) => {
+      updateData = d;
+      return c;
+    });
+    c.select.mockReturnValue(c);
+    c.eq.mockReturnValue(c);
+    // 1ra .single(): chequeo de credenciales existentes (activo=true sin
+    // credenciales en el payload). 2da .single(): resultado final del update.
+    mockSingle
+      .mockResolvedValueOnce({ data: { credenciales_encriptada: "existing-blob" }, error: null })
+      .mockResolvedValueOnce({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
+
+    // activo=true ya estaba activo (no cambia) y credenciales={} — exactamente
+    // lo que el frontend real envía cuando el usuario no toca ningún campo.
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: {}, activo: true }));
+    expect(res.status).toBe(200);
+    expect(updateData).not.toHaveProperty("credenciales_encriptada");
+    expect(updateData).not.toHaveProperty("credenciales_iv");
+    expect(updateData).not.toHaveProperty("credenciales_auth_tag");
+  });
+
+  // I-314 — REGRESIÓN: un valor de solo espacios no cuenta como credencial real
+  it("I-314: PATCH activo=true con credencial de solo espacios y sin credenciales previas → 422", async () => {
+    const checkChain = buildChain();
+    checkChain.select.mockReturnValue(checkChain);
+    checkChain.eq.mockReturnValue(checkChain);
+    mockSingle.mockResolvedValue({ data: { credenciales_encriptada: null }, error: null });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn(() => checkChain),
+    });
+
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: { api_key: "   " }, activo: true }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("credenciales");
+  });
 });

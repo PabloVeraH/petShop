@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const configSchema = z.object({
     canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
-    credenciales: z.record(z.string(), z.unknown()),
+    credenciales: z.record(z.string(), z.string()),
     activo: z.boolean().optional(),
   });
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { canal_id, credenciales, activo } = parsed.data;
 
-  const hasCredentials = Object.keys(credenciales).some(k => credenciales[k] !== "");
+  const hasCredentials = Object.values(credenciales).some(v => v.trim() !== "");
   const wantsActive = activo === true;
 
   if (wantsActive && !hasCredentials) {
@@ -51,16 +51,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const encryptedCreds = encryptJSON(credenciales);
+  // Sin credenciales reales, no cifrar/guardar un blob vacío: dejar las
+  // columnas en null. Un ciphertext de "{}" haría que el chequeo de
+  // "¿existen credenciales?" en el PATCH (más abajo) piense que sí las hay
+  // sólo porque la columna no es NULL, permitiendo activar el canal sin
+  // credenciales reales en un segundo guardado.
+  const encryptedCreds = hasCredentials ? encryptJSON(credenciales) : null;
 
   const { data, error } = await supabase
     .from("canal_config")
     .insert({
       store_id,
       canal_id,
-      credenciales_encriptada: encryptedCreds.ciphertext,
-      credenciales_iv: encryptedCreds.iv,
-      credenciales_auth_tag: encryptedCreds.authTag,
+      credenciales_encriptada: encryptedCreds?.ciphertext ?? null,
+      credenciales_iv: encryptedCreds?.iv ?? null,
+      credenciales_auth_tag: encryptedCreds?.authTag ?? null,
       activo: activo ?? false,
     })
     .select()
@@ -100,7 +105,7 @@ export async function PATCH(req: NextRequest) {
 
   const updateSchema = z.object({
     canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
-    credenciales: z.record(z.string(), z.unknown()).optional(),
+    credenciales: z.record(z.string(), z.string()).optional(),
     activo: z.boolean().optional(),
   });
 
@@ -114,7 +119,7 @@ export async function PATCH(req: NextRequest) {
   const { canal_id, credenciales, activo } = parsed.data;
 
   const wantsActive = activo === true;
-  const hasCredentialsInPayload = credenciales !== undefined && Object.keys(credenciales).some(k => credenciales[k] !== "");
+  const hasCredentialsInPayload = credenciales !== undefined && Object.values(credenciales).some(v => v.trim() !== "");
 
   if (wantsActive && !hasCredentialsInPayload) {
     const supabaseCheck = createServiceClient();
@@ -135,7 +140,12 @@ export async function PATCH(req: NextRequest) {
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (credenciales) {
+  // Sólo tocar las credenciales cifradas si el payload trae valores reales.
+  // El formulario de edición nunca precarga las credenciales guardadas (no
+  // se devuelven desencriptadas por seguridad), así que un simple re-guardado
+  // sin tocar esos campos envía credenciales={} — si eso se cifrara y
+  // guardara igual, borraría las credenciales ya configuradas.
+  if (hasCredentialsInPayload && credenciales) {
     const encryptedCreds = encryptJSON(credenciales);
     updateData.credenciales_encriptada = encryptedCreds.ciphertext;
     updateData.credenciales_iv = encryptedCreds.iv;

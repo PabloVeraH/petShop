@@ -107,7 +107,7 @@ export default function CanalConfigPage() {
       });
   }, [canalId, canalInfo]);
 
-  const hasAnyCredential = Object.values(credenciales).some(v => v !== "");
+  const hasAnyCredential = Object.values(credenciales).some(v => v.trim() !== "");
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();

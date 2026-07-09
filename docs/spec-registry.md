@@ -97,6 +97,19 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-151 | Webhook Rappi verifica firma HMAC | POST /api/webhooks/rappi | integration |
 | I-152 | Orden de canal con producto duplicado es idempotente | POST /api/canales/webhook | integration |
 | I-153 | Hub sync exporta solo productos activos con precio ≥ 1000 | GET /api/hub-sync | integration |
+| I-310 | POST /api/canales/config activo=true con credencial de solo espacios en blanco → 422 | POST /api/canales/config | integration |
+| I-311 | POST /api/canales/config sin credenciales reales → credenciales_encriptada se guarda como null (no un blob cifrado vacío) | POST /api/canales/config | integration |
+| I-312 | PATCH /api/canales/config activo=true → 422 cuando credenciales_encriptada es null (canal creado sin credenciales reales) | PATCH /api/canales/config | integration |
+| I-313 | PATCH /api/canales/config con credenciales={} (formulario sin tocar) no sobrescribe las credenciales ya guardadas | PATCH /api/canales/config | integration |
+| I-314 | PATCH /api/canales/config activo=true con credencial de solo espacios y sin credenciales previas → 422 | PATCH /api/canales/config | integration |
+| CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
+
+Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
+credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`
+y `tests/components/CanalConfigPage.test.tsx` pero nunca se registraron aquí, y
+tienen IDs duplicados entre sí (I-204, I-206, I-207 reutilizados en tests distintos
+dentro del mismo archivo). Pendiente de limpieza — no corregido en esta sesión para
+no tocar código ya commiteado fuera del alcance de este bug.
 
 ## Supply Chain (I-181 a I-210)
 
