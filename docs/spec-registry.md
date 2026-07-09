@@ -311,6 +311,23 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | RD-15 | /reportes/prediccion NO debe redirigirse (existe como ruta real) |
 | RD-16 | /workers redirige a /vendedores (307, redirect preexistente) |
 
+## Dashboard / Stock Alertas (I-90 a I-93)
+
+| ID | Requisito | Route | Tipo |
+|----|-----------|-------|------|
+| I-91 | stock === stock_minimo se considera alerta (regresión operador < vs <=) | GET /api/dashboard/stock-alertas | integration |
+| I-92 | stock=0, mínimo=0 se considera alerta | GET /api/dashboard/stock-alertas | integration |
+
+## Dashboard Alerts Component (DA-01 a DA-05)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| DA-01 | Sin alertas → widget muestra "Todo el stock sobre mínimo" | AnaliticaTab | component |
+| DA-02 | Con alertas → lista productos y contador | AnaliticaTab | component |
+| DA-03 | stock === stock_minimo se considera alerta (regresión) | AnaliticaTab | component |
+| DA-04 | stock=0, mínimo=0 se considera alerta | AnaliticaTab | component |
+| DA-05 | fetch de stock-alertas falla → widget vacío sin error | AnaliticaTab | component |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API
@@ -320,5 +337,6 @@ no tocar código ya commiteado fuera del alcance de este bug.
 - `COD-NN` — test de componente de orden de compra
 - `VS-NN` — test de componente de historial de ventas
 - `RD-NN` — test de redirección de ruta
+- `DA-NN` — test de componente de dashboard / alertas (AnaliticaTab)
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

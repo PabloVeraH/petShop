@@ -15,7 +15,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
   });
 
-  it("retorna productos con stock por debajo del mínimo", async () => {
+  it("retorna productos con stock por debajo o igual al mínimo", async () => {
     const chain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -55,6 +55,79 @@ describe("GET /api/dashboard/stock-alertas", () => {
     expect(Array.isArray(data)).toBe(true);
     expect(data).toHaveLength(1);
     expect(data[0].nombre).toBe("Producto A");
+  });
+
+  it("considera productos con stock exactamente igual al mínimo como alerta (regresión: operador < vs <=)", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn(function() { return this; }),
+    };
+    (chain as any).then = function(resolve: any) {
+      return resolve({
+        data: [
+          {
+            id: "prod-igual",
+            nombre: "Collar Ajustable M",
+            sku: "COLLAR-M",
+            stock: 5,
+            stock_minimo: 5,
+          },
+          {
+            id: "prod-sobre",
+            nombre: "Producto OK",
+            sku: "OK-001",
+            stock: 10,
+            stock_minimo: 5,
+          },
+        ],
+        error: null,
+      });
+    };
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(chain),
+    });
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].nombre).toBe("Collar Ajustable M");
+  });
+
+  it("considera productos con stock=0 y mínimo=0 como alerta", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn(function() { return this; }),
+    };
+    (chain as any).then = function(resolve: any) {
+      return resolve({
+        data: [
+          {
+            id: "prod-cero",
+            nombre: "Sin stock",
+            sku: "ZERO-001",
+            stock: 0,
+            stock_minimo: 0,
+          },
+        ],
+        error: null,
+      });
+    };
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(chain),
+    });
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].nombre).toBe("Sin stock");
   });
 
   it("limita a 10 resultados máximo", async () => {
