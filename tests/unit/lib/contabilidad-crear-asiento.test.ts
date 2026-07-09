@@ -243,6 +243,93 @@ describe("crearAsiento", () => {
     });
   });
 
+  // REGRESIÓN — nextNumeroAsiento() lee-luego-escribe sin lock: dos crearAsiento()
+  // concurrentes para la misma tienda (ej. pago múltiple de cuentas por pagar,
+  // que dispara un PATCH por cuenta en paralelo) pueden calcular el mismo
+  // numero_asiento y chocar contra UNIQUE(store_id, numero_asiento). El asiento
+  // perdedor de la carrera debe reintentarse con un número recalculado en vez
+  // de perderse silenciosamente.
+  describe("reintento por colisión de numero_asiento (condición de carrera)", () => {
+    type EntryResult = { data: { id: string } | null; error: { message: string; code?: string } | null };
+
+    function makeRaceConditionMock(insertResults: EntryResult[]) {
+      let journalEntriesCallIdx = 0;
+
+      const mockFrom = jest.fn((table: string) => {
+        if (table === "journal_entries") {
+          journalEntriesCallIdx++;
+
+          // Llamados impares = nextNumeroAsiento (select); pares = insert del asiento
+          if (journalEntriesCallIdx % 2 === 1) {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              order: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockReturnThis(),
+              single: jest.fn().mockResolvedValue({ data: { numero_asiento: 5 }, error: null }),
+            };
+          }
+
+          const attemptIdx = journalEntriesCallIdx / 2 - 1;
+          return {
+            insert: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue(insertResults[attemptIdx]),
+          };
+        }
+
+        if (table === "journal_detail") {
+          return { insert: jest.fn().mockResolvedValue({ error: null }) };
+        }
+
+        return {};
+      });
+
+      return { from: mockFrom };
+    }
+
+    it("U-116: reintenta con numero_asiento recalculado cuando el insert choca por UNIQUE (23505) y tiene éxito en el 2do intento", async () => {
+      const client = makeRaceConditionMock([
+        { data: null, error: { message: "duplicate key value violates unique constraint", code: "23505" } },
+        { data: { id: "entry-uuid-retry" }, error: null },
+      ]);
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBe("entry-uuid-retry");
+      const journalEntriesCalls = client.from.mock.calls.filter(([t]: string[]) => t === "journal_entries");
+      expect(journalEntriesCalls).toHaveLength(4); // 2 pares (select + insert)
+    });
+
+    it("U-117: retorna null tras agotar los reintentos si el conflicto de numero_asiento persiste", async () => {
+      const colision: EntryResult = { data: null, error: { message: "duplicate key value violates unique constraint", code: "23505" } };
+      const client = makeRaceConditionMock(Array(5).fill(colision));
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBeNull();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("No se pudo generar numero_asiento único"));
+      consoleSpy.mockRestore();
+    });
+
+    it("U-118: NO reintenta ante errores que no sean de colisión de unicidad", async () => {
+      const client = makeRaceConditionMock([
+        { data: null, error: { message: "foreign key violation", code: "23503" } },
+        { data: { id: "no-deberia-llegar-aqui" }, error: null },
+      ]);
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBeNull();
+      const journalEntriesCalls = client.from.mock.calls.filter(([t]: string[]) => t === "journal_entries");
+      expect(journalEntriesCalls).toHaveLength(2); // un solo par — no reintentó
+    });
+  });
+
   describe("campos opcionales", () => {
     it("acepta input sin tipoMovimiento", async () => {
       const input: CrearAsientoInput = { ...INPUT_BASE, tipoMovimiento: undefined };

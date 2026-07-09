@@ -203,6 +203,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | SP-02 | Cambiar método de pago en el selector | SuppliersPage | component |
 | SP-03 | Confirmar pago envía metodo_pago en PATCH | SuppliersPage | component |
 | SP-04 | Cancelar cierra modal sin pagar | SuppliersPage | component |
+| SP-05 | Payment falla → muestra mensaje de error en el modal | SuppliersPage | component |
+| SP-06 | Cada proveedor muestra sus propias stats en la lista (no las del seleccionado) | SuppliersPage | component |
+| SP-07 | Stats no cambian al seleccionar otro proveedor (provienen del endpoint agregado) | SuppliersPage | component |
 | DV-11 | Con descuento 10%, monto a devolver es proporcional (18.000 en vez de 20.000) | DevolucionModal | component |
 | DV-12 | Con descuento 0%, monto a devolver usa precio original | DevolucionModal | component |
 | DV-13 | Con descuento, precio unitario se muestra tachado + nuevo precio | DevolucionModal | component |
@@ -232,6 +235,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
+| I-111 | PATCH mark-pagada → genera asiento contable de pago (crearAsiento + lineasPagoProveedor) | PATCH /api/cuentas-pagar | integration |
+| I-112 | PATCH con estado=pendiente (sin pagar) → NO genera asiento contable | PATCH /api/cuentas-pagar | integration |
 | I-293 | GET /api/ventas retorna 401 sin auth | GET /api/ventas | integration |
 | I-294 | GET /api/ventas retorna ventas paginadas con count | GET /api/ventas | integration |
 | I-295 | GET /api/ventas filtra por metodo_pago y estado | GET /api/ventas | integration |
@@ -245,6 +250,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-303 | POST ventas con debito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
 | I-304 | POST ventas con credito y numeroTransaccion valido → 200 | POST /api/ventas | integration |
 | I-305 | REGRESIÓN: contra-asiento de anulación usa fecha ORIGINAL de la venta, no fecha de hoy (evita ingreso/resultado fantasma en Estado de Resultado cuando la anulación ocurre en un mes distinto) | PATCH /api/ventas/[id] | integration |
+| I-306 | GET /api/proveedores/stats retorna stats agregadas por proveedor (ordenes pendientes + cuentas por pagar) | GET /api/proveedores/stats | integration |
+| I-307 | GET /api/proveedores/stats retorna 401 si no autenticado | GET /api/proveedores/stats | integration |
+| I-308 | GET /api/proveedores/stats retorna objetos vacios si no hay datos | GET /api/proveedores/stats | integration |
 
 ## Tests unitarios (U-XX)
 
@@ -257,6 +265,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | U-05 | Cálculo IVA 19% siempre suma hasta total original | lib/contabilidad | unit |
 | U-114 | lineasPagoProveedor con metodoPago=efectivo → credita CAJA | lib/contabilidad | unit |
 | U-115 | lineasPagoProveedor con metodoPago=transferencia → credita BANCO | lib/contabilidad | unit |
+| U-116 | crearAsiento reintenta con numero_asiento recalculado ante colisión UNIQUE (23505) y tiene éxito en el 2do intento | lib/contabilidad | unit |
+| U-117 | crearAsiento retorna null tras agotar reintentos si el conflicto de numero_asiento persiste | lib/contabilidad | unit |
+| U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
 
 ---
 

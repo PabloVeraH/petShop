@@ -2,8 +2,7 @@ import { createServiceClient } from "@/lib/supabase";
 import type { CrearAsientoInput, LineaAsiento, TipoMovimiento } from "./types";
 import { CUENTAS } from "./types";
 
-async function nextNumeroAsiento(storeId: string): Promise<number> {
-  const supabase = createServiceClient();
+async function nextNumeroAsiento(supabase: ReturnType<typeof createServiceClient>, storeId: string): Promise<number> {
   const { data } = await supabase
     .from("journal_entries")
     .select("numero_asiento")
@@ -12,6 +11,60 @@ async function nextNumeroAsiento(storeId: string): Promise<number> {
     .limit(1)
     .single();
   return (data?.numero_asiento ?? 0) + 1;
+}
+
+// Código de error Postgres para violación de constraint UNIQUE
+const UNIQUE_VIOLATION = "23505";
+const MAX_NUMERO_ASIENTO_RETRIES = 5;
+
+// nextNumeroAsiento() hace lectura-luego-escritura sin lock: dos crearAsiento()
+// concurrentes para la misma tienda (ej. pago múltiple de cuentas por pagar,
+// que dispara un PATCH por cuenta en paralelo) pueden calcular el mismo
+// numero_asiento y chocar contra el UNIQUE(store_id, numero_asiento). En vez
+// de perder el asiento perdedor de la carrera, se reintenta con un número
+// recién calculado — igual al patrón estándar de "insert optimista + retry
+// en conflicto" para contadores sin secuencia dedicada.
+async function insertJournalEntryConNumeroUnico(
+  supabase: ReturnType<typeof createServiceClient>,
+  input: CrearAsientoInput,
+  td: number,
+  tc: number,
+  balanceado: boolean
+): Promise<{ id: string } | null> {
+  for (let intento = 0; intento < MAX_NUMERO_ASIENTO_RETRIES; intento++) {
+    const numero = await nextNumeroAsiento(supabase, input.storeId);
+
+    const { data: entry, error: entryErr } = await supabase
+      .from("journal_entries")
+      .insert({
+        store_id: input.storeId,
+        numero_asiento: numero,
+        fecha: input.fecha,
+        tipo_movimiento: input.tipoMovimiento ?? null,
+        canal: input.canal ?? "pos",
+        referencia_id: input.referenciaId ?? null,
+        referencia_numero: input.referenciaNomero ?? null,
+        descripcion: input.descripcion,
+        total_debito: td,
+        total_credito: tc,
+        esta_balanceado: balanceado,
+        usuario_id: input.usuarioId ?? null,
+        creado_por: input.creadoPor ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (!entryErr && entry) return entry;
+
+    if (entryErr?.code !== UNIQUE_VIOLATION) {
+      console.error("[contabilidad] Error creando journal_entry:", entryErr?.message);
+      return null;
+    }
+    // Colisión de numero_asiento por carrera — reintentar con número recalculado
+  }
+
+  console.error(`[contabilidad] No se pudo generar numero_asiento único tras ${MAX_NUMERO_ASIENTO_RETRIES} intentos | ${input.descripcion}`);
+  return null;
 }
 
 export async function crearAsiento(input: CrearAsientoInput): Promise<string | null> {
@@ -37,32 +90,8 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
     return null;
   }
 
-  const numero = await nextNumeroAsiento(input.storeId);
-
-  const { data: entry, error: entryErr } = await supabase
-    .from("journal_entries")
-    .insert({
-      store_id: input.storeId,
-      numero_asiento: numero,
-      fecha: input.fecha,
-      tipo_movimiento: input.tipoMovimiento ?? null,
-      canal: input.canal ?? "pos",
-      referencia_id: input.referenciaId ?? null,
-      referencia_numero: input.referenciaNomero ?? null,
-      descripcion: input.descripcion,
-      total_debito: td,
-      total_credito: tc,
-      esta_balanceado: balanceado,
-      usuario_id: input.usuarioId ?? null,
-      creado_por: input.creadoPor ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (entryErr || !entry) {
-    console.error("[contabilidad] Error creando journal_entry:", entryErr?.message);
-    return null;
-  }
+  const entry = await insertJournalEntryConNumeroUnico(supabase, input, td, tc, balanceado);
+  if (!entry) return null;
 
   const detalles = input.lineas.map((l, i) => ({
     journal_entry_id: entry.id,

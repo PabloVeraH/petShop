@@ -12,6 +12,12 @@ const mockSingle = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+jest.mock("@/lib/contabilidad/generador-asientos", () => ({
+  crearAsiento: jest.fn().mockResolvedValue("asiento-id"),
+  lineasPagoProveedor: jest.fn().mockReturnValue([]),
+}));
+
+import * as contabilidad from "@/lib/contabilidad/generador-asientos";
 
 function chain() {
   const c: Record<string, jest.Mock> = {
@@ -24,6 +30,11 @@ function chain() {
   ["select","update","eq","order"].forEach(k => c[k].mockReturnValue(c));
   return c;
 }
+
+// El asiento contable de pago se dispara desde una IIFE fire-and-forget que
+// hace un await previo (lookup del nombre de proveedor) antes de llamar a
+// crearAsiento — hay que dejar correr la microtask queue antes de verificar.
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function req(method = "PATCH", body?: object, id = CUENTA_ID) {
   const url = `http://localhost/api/cuentas-pagar?id=${id}`;
@@ -197,6 +208,43 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
     expect(mockFrom).toHaveBeenCalledWith("cuentas_pagar");
     const updateCall = mockFrom().update.mock.calls[0][0];
     expect(updateCall.metodo_pago).toBe("efectivo");
+  });
+
+  // I-111
+  it("I-111: PATCH mark-pagada → genera asiento contable de pago (crearAsiento + lineasPagoProveedor)", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
+    expect(res.status).toBe(200);
+
+    await flushMicrotasks();
+
+    expect(contabilidad.lineasPagoProveedor).toHaveBeenCalledWith(3800, "efectivo");
+    expect(contabilidad.crearAsiento).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storeId: STORE_ID,
+        tipoMovimiento: "PAGO_PROVEEDOR",
+        referenciaId: CUENTA_ID,
+      })
+    );
+  });
+
+  // I-112
+  it("I-112: PATCH con estado=pendiente (sin pagar) → NO genera asiento contable", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: CUENTA_ID, estado: "pendiente", store_id: STORE_ID },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pendiente" }));
+    expect(res.status).toBe(200);
+
+    await flushMicrotasks();
+
+    expect(contabilidad.crearAsiento).not.toHaveBeenCalled();
   });
 
   // I-109
