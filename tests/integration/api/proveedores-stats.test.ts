@@ -87,6 +87,23 @@ describe("GET /api/proveedores/stats", () => {
     expect(res.status).toBe(401);
   });
 
+  // I-309 — multi-tenancy: la agregación nunca debe cruzar tiendas
+  it("I-309: filtra ordenes_compra y cuentas_pagar por store_id de la sesión", async () => {
+    const { ordenesChain, cuentasChain } = makeChain({});
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenesChain;
+        if (table === "cuentas_pagar") return cuentasChain;
+      }),
+    });
+
+    await GET();
+
+    expect(ordenesChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+    expect(cuentasChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+  });
+
   // I-308
   it("I-308: retorna objetos vacios cuando no hay ordenes ni cuentas", async () => {
     const { ordenesChain, cuentasChain } = makeChain({});

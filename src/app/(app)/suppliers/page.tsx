@@ -248,6 +248,7 @@ export default function SupplierHubPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedOrden(null);
       setCancelConfirm(null);
     },
@@ -274,6 +275,7 @@ export default function SupplierHubPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
       queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedOrden(null);
       setShowReceiving(null);
       setReceivingForm({});
@@ -290,6 +292,7 @@ export default function SupplierHubPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setPayModal(null);
       setPayError("");
     },
@@ -316,6 +319,7 @@ export default function SupplierHubPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedPayables(new Set());
       setPayModal(null);
       setPayError("");

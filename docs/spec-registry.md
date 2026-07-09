@@ -206,6 +206,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | SP-05 | Payment falla → muestra mensaje de error en el modal | SuppliersPage | component |
 | SP-06 | Cada proveedor muestra sus propias stats en la lista (no las del seleccionado) | SuppliersPage | component |
 | SP-07 | Stats no cambian al seleccionar otro proveedor (provienen del endpoint agregado) | SuppliersPage | component |
+| SP-08 | Pagar cuenta y recibir/cancelar OC invalidan proveedores-stats (evita sidebar desactualizado) | SuppliersPage | component |
 | DV-11 | Con descuento 10%, monto a devolver es proporcional (18.000 en vez de 20.000) | DevolucionModal | component |
 | DV-12 | Con descuento 0%, monto a devolver usa precio original | DevolucionModal | component |
 | DV-13 | Con descuento, precio unitario se muestra tachado + nuevo precio | DevolucionModal | component |
@@ -253,6 +254,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-306 | GET /api/proveedores/stats retorna stats agregadas por proveedor (ordenes pendientes + cuentas por pagar) | GET /api/proveedores/stats | integration |
 | I-307 | GET /api/proveedores/stats retorna 401 si no autenticado | GET /api/proveedores/stats | integration |
 | I-308 | GET /api/proveedores/stats retorna objetos vacios si no hay datos | GET /api/proveedores/stats | integration |
+| I-309 | GET /api/proveedores/stats filtra ordenes_compra y cuentas_pagar por store_id (multi-tenant) | GET /api/proveedores/stats | integration |
 
 ## Tests unitarios (U-XX)
 

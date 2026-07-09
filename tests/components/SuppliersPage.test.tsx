@@ -12,6 +12,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockMutate = jest.fn();
+const mockInvalidateQueries = jest.fn();
 let mutationCallbacks: Array<{ onSuccess?: Function; onError?: Function }> = [];
 const mockUseMutation = jest.fn((opts?: any) => {
   mutationCallbacks.push({ onSuccess: opts?.onSuccess, onError: opts?.onError });
@@ -24,7 +25,7 @@ jest.mock("@tanstack/react-query", () => {
     ...actual,
     useQuery: jest.fn(),
     useMutation: (...args: any[]) => mockUseMutation(...args),
-    useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+    useQueryClient: jest.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
   };
 });
 
@@ -76,6 +77,7 @@ describe("SuppliersPage - Payment Modal", () => {
     mutationCallbacks = [];
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     mockMutate.mockClear();
+    mockInvalidateQueries.mockClear();
     setupMocks();
   });
 
@@ -226,5 +228,37 @@ describe("SuppliersPage - Payment Modal", () => {
     await waitFor(() => {
       expect(screen.getByText("Error interno del servidor")).toBeInTheDocument();
     });
+  });
+
+  // SP-08 — REGRESIÓN: el fix de SP-06/SP-07 introdujo un endpoint agregado
+  // ["proveedores-stats"] para el sidebar, pero ninguna mutación lo invalidaba:
+  // pagar una cuenta o recibir/cancelar una OC dejaba el conteo del sidebar
+  // desactualizado hasta recargar la página. Las 4 mutaciones que cambian
+  // órdenes o cuentas por pagar (pagarCuenta, pagarVariasCuentas, recibirOrden,
+  // cambiarEstadoOrden) deben invalidar ["proveedores-stats"] en su onSuccess.
+  it("SP-08: pagar cuenta y recibir/cancelar OC invalidan proveedores-stats (evita sidebar desactualizado)", async () => {
+    await renderPage();
+    await selectProveedor();
+
+    // Cada render vuelve a registrar los 9 useMutation — dedupe por el cuerpo
+    // de la función onSuccess (estable entre renders) para invocar cada
+    // mutación una sola vez, sin depender de cuántas veces re-renderizó.
+    const seen = new Set<string>();
+    const uniqueCallbacks = mutationCallbacks.filter((cb) => {
+      if (!cb.onSuccess) return false;
+      const key = cb.onSuccess.toString();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    await act(async () => {
+      uniqueCallbacks.forEach((cb) => cb.onSuccess?.());
+    });
+
+    const statsInvalidations = mockInvalidateQueries.mock.calls.filter(
+      ([arg]: [{ queryKey?: unknown[] }]) => arg?.queryKey?.[0] === "proveedores-stats"
+    );
+    expect(statsInvalidations).toHaveLength(4);
   });
 });
