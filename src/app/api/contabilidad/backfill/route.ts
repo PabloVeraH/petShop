@@ -1,7 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { crearAsiento, lineasVenta, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -13,23 +13,26 @@ export async function POST(req: NextRequest) {
   const errores: string[] = [];
 
   // ── Ventas sin asiento contable ──────────────────────────────────────────
-  const { data: ventas } = await supabase
+  // NOTA: cada venta genera DOS asientos VENTA (ingreso + COGS), ambos con
+  // tipo_movimiento="VENTA". La consulta debe filtrar SOLO los de ingreso
+  // (descripcion empieza con "Venta") para no saltarse ventas cuyo asiento
+  // de COGS existe pero el de ingreso falló.
+  const { data: ventasBackfill } = await supabase
     .from("ventas")
     .select("id, created_at, total, metodo_pago, numero_comprobante")
     .eq("store_id", store_id)
     .order("created_at", { ascending: true });
 
-  const { data: asientosVenta } = await supabase
+  const { data: asientosIngreso } = await supabase
     .from("journal_entries")
     .select("referencia_id")
     .eq("store_id", store_id)
-    .eq("tipo_movimiento", "VENTA");
+    .eq("tipo_movimiento", "VENTA")
+    .not("descripcion", "ilike", "COGS%");
 
-  const ventasConAsiento = new Set((asientosVenta ?? []).map((a) => a.referencia_id));
+  const ventasConIngreso = new Set((asientosIngreso ?? []).map((a) => a.referencia_id));
 
-  for (const venta of ventas ?? []) {
-    if (ventasConAsiento.has(venta.id)) continue;
-
+  for (const venta of ventasBackfill ?? []) {
     const total = Number(venta.total);
     const montoNeto = Math.round(total / 1.19);
     const iva = total - montoNeto;
@@ -42,19 +45,49 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     const ventaCliente = ventaDetalle?.clientes as unknown as { nombre: string } | null;
 
-    const id = await crearAsiento({
-      storeId: store_id,
-      fecha: venta.created_at.split("T")[0],
-      tipoMovimiento: "VENTA",
-      referenciaId: venta.id,
-      referenciaNomero: venta.numero_comprobante,
-      descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
-      lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
-      creadoPor: "backfill",
-    });
+    if (!ventasConIngreso.has(venta.id)) {
+      const id = await crearAsiento({
+        storeId: store_id,
+        fecha: venta.created_at.split("T")[0],
+        tipoMovimiento: "VENTA",
+        referenciaId: venta.id,
+        referenciaNomero: venta.numero_comprobante,
+        descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
+        lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
+        creadoPor: "backfill",
+      });
 
-    if (id) creados.push(`VENTA:${venta.numero_comprobante}`);
-    else errores.push(`VENTA:${venta.numero_comprobante}`);
+      if (id) creados.push(`VENTA (ingreso):${venta.numero_comprobante}`);
+      else errores.push(`VENTA (ingreso):${venta.numero_comprobante}`);
+    }
+
+    // También backfill asiento COGS faltante
+    const { data: asientosCogs } = await supabase
+      .from("journal_entries")
+      .select("id")
+      .eq("store_id", store_id)
+      .eq("tipo_movimiento", "VENTA")
+      .eq("referencia_id", venta.id)
+      .ilike("descripcion", "COGS%");
+
+    if (!asientosCogs || asientosCogs.length === 0) {
+      const costoTotalVenta = await calcularCostoTotalVenta(venta.id);
+      if (costoTotalVenta > 0) {
+        const id = await crearAsiento({
+          storeId: store_id,
+          fecha: venta.created_at.split("T")[0],
+          tipoMovimiento: "VENTA",
+          referenciaId: venta.id,
+          referenciaNomero: venta.numero_comprobante,
+          descripcion: `COGS venta${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""} — costo mercancía`,
+          lineas: lineasVentaCOGS(costoTotalVenta),
+          creadoPor: "backfill",
+        });
+
+        if (id) creados.push(`VENTA (COGS):${venta.numero_comprobante}`);
+        else errores.push(`VENTA (COGS):${venta.numero_comprobante}`);
+      }
+    }
   }
 
   // ── Notas de crédito sin asiento ─────────────────────────────────────────
@@ -147,4 +180,19 @@ export async function POST(req: NextRequest) {
     detalle_creados: creados,
     detalle_errores: errores,
   }, { status: 200 });
+}
+
+async function calcularCostoTotalVenta(ventaId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { data: items } = await supabase
+    .from("venta_items")
+    .select("cantidad, productos!inner(costo)")
+    .eq("venta_id", ventaId);
+
+  if (!items) return 0;
+
+  return items.reduce((sum, item) => {
+    const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
+    return sum + (item.cantidad * Number(costo));
+  }, 0);
 }

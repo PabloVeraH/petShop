@@ -456,6 +456,8 @@ async function postVenta(req: NextRequest) {
           })
         : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
       usuarioId: ctx.userId ?? undefined,
+    }).then((id) => {
+      if (!id) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante}) — revisar logs previos`);
     }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
 
     // Asiento 2: costo de la mercancía vendida (COGS) — asiento independiente
@@ -470,6 +472,8 @@ async function postVenta(req: NextRequest) {
         descripcion: `COGS venta${clienteNombre ? ` a ${clienteNombre}` : ""} — costo mercancía`,
         lineas: lineasVentaCOGS(Math.round(costoTotal)),
         usuarioId: ctx.userId ?? undefined,
+      }).then((id) => {
+        if (!id) console.error(`[contabilidad] Asiento COGS NO CREADO para venta ${venta.id} (${venta.numero_comprobante}) — revisar logs previos`);
       }).catch((e) => console.error("[contabilidad] Error asiento COGS:", e));
     }
   })();
