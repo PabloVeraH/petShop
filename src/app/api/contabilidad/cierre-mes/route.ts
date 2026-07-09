@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
     .eq("referencia_numero", periodo);
 
   if (cierresExistentes && cierresExistentes.length > 0) {
+    console.warn(
+      `[cierre-mes] Intento duplicado para ${periodo} (store=${store_id}, usuario=${ctx.userId}): ${cierresExistentes.length} asiento(s) existente(s)`
+    );
     return NextResponse.json(
       { error: `El período ${periodo} ya tiene un asiento de cierre` },
       { status: 409 }

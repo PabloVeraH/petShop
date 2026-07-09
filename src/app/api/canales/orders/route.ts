@@ -52,16 +52,23 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  const { data: orden, error: findError } = await supabase
+  const { data: ordenes, error: findError } = await supabase
     .from("canal_ordenes")
     .select("*, venta_id")
     .eq("store_id", storeId)
-    .eq("external_order_id", external_order_id)
-    .single();
+    .eq("external_order_id", external_order_id);
 
-  if (findError || !orden) {
+  if (findError) {
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+  if (!ordenes || ordenes.length === 0) {
     return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
   }
+  if (ordenes.length > 1) {
+    console.error(`[canales] Integridad: ${ordenes.length} órdenes con external_order_id ${external_order_id} en store ${storeId}`);
+    return NextResponse.json({ error: "Error de integridad de datos" }, { status: 500 });
+  }
+  const orden = ordenes[0];
 
   if (action === "accept") {
     if (orden.estado !== "pending" && orden.estado !== "reserved") {

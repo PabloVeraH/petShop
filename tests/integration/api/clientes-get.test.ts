@@ -21,17 +21,21 @@ describe("GET /api/clientes", () => {
     const chain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({
-        data: {
-          id: "cli-1",
-          store_id: mockStoreId,
-          nombre: "Juan Pérez",
-          rut: "12345678-K",
-          email: "juan@example.com",
-          telefono: "98765432",
-        },
-        error: null,
-      }),
+      then: jest.fn((resolve: (v: unknown) => void) =>
+        resolve({
+          data: [
+            {
+              id: "cli-1",
+              store_id: mockStoreId,
+              nombre: "Juan Pérez",
+              rut: "12345678-K",
+              email: "juan@example.com",
+              telefono: "98765432",
+            },
+          ],
+          error: null,
+        })
+      ),
     };
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -50,10 +54,12 @@ describe("GET /api/clientes", () => {
     const chain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({
-        data: null,
-        error: { code: "PGRST116", message: "not found" },
-      }),
+      then: jest.fn((resolve: (v: unknown) => void) =>
+        resolve({
+          data: [],
+          error: null,
+        })
+      ),
     };
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({

@@ -16,16 +16,19 @@ export async function GET(req: NextRequest) {
   // Single lookup by RUT (used by POS)
   if (rut) {
     const rutNormalizado = validateRUT(rut) ? formatRUT(rut) : rut;
-    const { data, error } = await supabase
+    const { data: matches, error } = await supabase
       .from("clientes")
       .select("id, store_id, rut, nombre, email, telefono")
       .eq("store_id", store_id)
-      .eq("rut", rutNormalizado)
-      .single();
+      .eq("rut", rutNormalizado);
 
-    if (error?.code === "PGRST116") return NextResponse.json(null);
     if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-    return NextResponse.json(data);
+    if (!matches || matches.length === 0) return NextResponse.json(null);
+    if (matches.length > 1) {
+      console.error(`[clientes] Integridad: ${matches.length} clientes con RUT ${rutNormalizado} en store ${store_id}`);
+      return NextResponse.json({ error: "Error de integridad de datos" }, { status: 500 });
+    }
+    return NextResponse.json(matches[0]);
   }
 
   // List with optional search + pagination

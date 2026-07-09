@@ -63,14 +63,20 @@ export async function POST(req: NextRequest) {
   }
 
   for (const item of items) {
-    const { data: producto } = await supabase
+    const { data: productos } = await supabase
       .from("productos")
       .select("id")
       .eq("store_id", storeId)
-      .eq("sku", item.id)
-      .single();
+      .eq("sku", item.id);
 
-    const productoId = producto?.id;
+    if (!productos || productos.length === 0) {
+      console.warn(`[canales] SKU ${item.id} no encontrado en store ${storeId}`);
+      continue;
+    }
+    if (productos.length > 1) {
+      console.error(`[canales] Integridad: ${productos.length} productos con SKU ${item.id} en store ${storeId}`);
+    }
+    const productoId = productos[0].id;
 
     await supabase.from("venta_items").insert({
       venta_id: nuevaVenta.id,

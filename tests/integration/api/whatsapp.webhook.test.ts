@@ -8,11 +8,10 @@ const APP_SECRET = "test-whatsapp-secret";
 const STORE_VERIFY_TOKEN = "mi-token-secreto";
 
 const mockFrom = jest.fn();
-const mockSingle = jest.fn();
+const mockEq = jest.fn();
 const mockChain = {
   select: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
-  single: mockSingle,
+  eq: mockEq,
 };
 
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
@@ -30,10 +29,12 @@ describe("GET /api/whatsapp/webhook — verificación hub", () => {
 
   // I-96
   it("I-96: token correcto → devuelve hub.challenge", async () => {
-    mockSingle.mockResolvedValue({
-      data: { whatsapp_webhook_verify_token: STORE_VERIFY_TOKEN },
-      error: null,
-    });
+    mockEq.mockReturnValue(
+      Promise.resolve({
+        data: [{ id: "store-1" }],
+        error: null,
+      })
+    );
     const { GET } = await import("@/app/api/whatsapp/webhook/route");
     const url = `http://localhost/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=${STORE_VERIFY_TOKEN}&hub.challenge=CHALLENGE_123`;
     const res = await GET(new NextRequest(url));
@@ -44,8 +45,12 @@ describe("GET /api/whatsapp/webhook — verificación hub", () => {
 
   // I-97
   it("I-97: token no encontrado en DB → 403", async () => {
-    // Ningún store tiene ese token → data null
-    mockSingle.mockResolvedValue({ data: null, error: { code: "PGRST116" } });
+    mockEq.mockReturnValue(
+      Promise.resolve({
+        data: [],
+        error: null,
+      })
+    );
     const { GET } = await import("@/app/api/whatsapp/webhook/route");
     const url = "http://localhost/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=token-malo&hub.challenge=X";
     const res = await GET(new NextRequest(url));
@@ -58,7 +63,7 @@ describe("POST /api/whatsapp/webhook — firma HMAC", () => {
     jest.clearAllMocks();
     process.env.WHATSAPP_APP_SECRET = APP_SECRET;
     mockFrom.mockReturnValue(mockChain);
-    mockSingle.mockResolvedValue({ data: null, error: null });
+    mockEq.mockReturnValue(Promise.resolve({ data: [], error: null }));
   });
 
   // I-98

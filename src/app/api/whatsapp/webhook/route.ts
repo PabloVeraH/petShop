@@ -14,13 +14,15 @@ export async function GET(req: NextRequest) {
 
   // Look up verify token from any store
   const supabase = createServiceClient();
-  const { data: store } = await supabase
+  const { data: stores } = await supabase
     .from("stores")
     .select("id")
-    .eq("whatsapp_webhook_verify_token", token)
-    .single();
+    .eq("whatsapp_webhook_verify_token", token);
 
-  if (!store) return new NextResponse("Forbidden", { status: 403 });
+  if (!stores || stores.length === 0) return new NextResponse("Forbidden", { status: 403 });
+  if (stores.length > 1) {
+    console.error(`[whatsapp] Integridad: ${stores.length} stores comparten el mismo webhook verify token`);
+  }
   return new NextResponse(challenge, { status: 200 });
 }
 
