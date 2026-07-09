@@ -328,6 +328,18 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | DA-04 | stock=0, mínimo=0 se considera alerta | AnaliticaTab | component |
 | DA-05 | fetch de stock-alertas falla → widget vacío sin error | AnaliticaTab | component |
 
+## POS Page Cache (PP-05)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| PP-05 | Completar venta invalida ["ventas"] con refetchType "all" | POSPage | component |
+
+## Devolución Modal Cache (DV-14)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| DV-14 | Confirmar devolución invalida ["ventas"] con refetchType "all" | DevolucionModal | component |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API
@@ -338,5 +350,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 - `VS-NN` — test de componente de historial de ventas
 - `RD-NN` — test de redirección de ruta
 - `DA-NN` — test de componente de dashboard / alertas (AnaliticaTab)
+- `PP-NN` — test de componente de POSPage
+- `DV-NN` — test de componente de DevolucionModal
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

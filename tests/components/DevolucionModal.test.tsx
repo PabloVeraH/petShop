@@ -264,4 +264,26 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
       expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
     });
   });
+
+  // DV-14: REGRESIÓN — confirmar devolución invalida ["ventas"] con refetchType "all"
+  it("DV-14: REGRESIÓN — devolución invalida ['ventas'] con refetchType 'all'", async () => {
+    setup();
+    selectItemAndAdvance();
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
+    });
+
+    // Debe invalidar el detalle de la venta
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["venta", "venta-test-123"] });
+    // Debe invalidar el listado con refetchType "all"
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
+    // También debe invalidar queries relacionadas
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"] });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"] });
+    // NO debe llamar ["ventas"] sin refetchType (versión bugueada)
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
+  });
 });

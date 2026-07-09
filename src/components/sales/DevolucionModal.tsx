@@ -79,6 +79,7 @@ export function DevolucionModal({
       setNumeroNc(data.numeroNc);
       setShowSuccess(true);
       queryClient.invalidateQueries({ queryKey: ["venta", ventaId] });
+      queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId] });
       queryClient.invalidateQueries({ queryKey: ["saldo", clienteId] });
       if (tipoReembolso === "saldo_a_favor" && data.notaCreditoId) {
