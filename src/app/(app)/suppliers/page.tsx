@@ -125,7 +125,7 @@ export default function SupplierHubPage() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const pendiente = allCuentas.filter(c => c.estado === "pendiente");
+    const pendiente = allCuentas.filter(c => c.estado === "pendiente" && Number(c.monto) > 0);
     const overdue = pendiente.filter(c => new Date(c.fecha_vencimiento) < hoy);
     const dueSoon = pendiente.filter(c => {
       const venc = new Date(c.fecha_vencimiento);
@@ -148,7 +148,7 @@ export default function SupplierHubPage() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    let filtered = cuentas.filter(c => c.estado === "pendiente");
+    let filtered = cuentas.filter(c => c.estado === "pendiente" && Number(c.monto) > 0);
 
     switch (payablesFilter) {
       case "overdue":

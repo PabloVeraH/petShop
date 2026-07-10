@@ -25,19 +25,20 @@ describe("GET /api/proveedores/stats", () => {
     const ordenesChain: any = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      neq: jest.fn().mockResolvedValue({ data: opts.ordenesData ?? [], error: null }),
+      neq: jest.fn().mockReturnThis(),
+    };
+    (ordenesChain as any).then = function(resolve: any) {
+      return resolve({ data: opts.ordenesData ?? [], error: null });
     };
 
     const cuentasChain: any = {
       select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
     };
-
-    let eqCall = 0;
-    cuentasChain.eq = jest.fn(function (this: any) {
-      eqCall++;
-      if (eqCall < 2) return this;
-      return Promise.resolve({ data: opts.cuentasData ?? [], error: null });
-    });
+    (cuentasChain as any).then = function(resolve: any) {
+      return resolve({ data: opts.cuentasData ?? [], error: null });
+    };
 
     return { ordenesChain, cuentasChain };
   }
@@ -102,6 +103,26 @@ describe("GET /api/proveedores/stats", () => {
 
     expect(ordenesChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
     expect(cuentasChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+  });
+
+  // I-316 — REGRESIÓN: cuentas con monto <= 0 no deben contarse en stats
+  it("I-316: filtra cuentas con monto <= 0 en la agregación de stats", async () => {
+    const { ordenesChain, cuentasChain } = makeChain({
+      ordenesData: [{ proveedor_id: PROVIDER_A }],
+      cuentasData: [{ proveedor_id: PROVIDER_A, monto: 50000 }],
+    });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenesChain;
+        if (table === "cuentas_pagar") return cuentasChain;
+      }),
+    });
+
+    await GET();
+
+    // Debe filtrar monto > 0 en la query
+    expect(cuentasChain.gt).toHaveBeenCalledWith("monto", 0);
   });
 
   // I-308

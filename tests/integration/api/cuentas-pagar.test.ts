@@ -88,23 +88,25 @@ describe("GET /api/cuentas-pagar", () => {
     mockFrom.mockReturnValue(chain());
   });
 
-  // I-87
-  it("I-87: GET sin filtro → lista todas las cuentas", async () => {
-    const mockChain = {
+  function makeGetChain(data: any[]) {
+    const c = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (mockChain as any).then = function(resolve: any) {
-      return resolve({
-        data: [
-          { id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" },
-          { id: "cp-2", monto: 1500, estado: "pagada", proveedor_id: "prov-2" },
-        ],
-        error: null,
-      });
+    (c as any).then = function(resolve: any) {
+      return resolve({ data, error: null });
     };
-    mockFrom.mockReturnValue(mockChain);
+    return c;
+  }
+
+  // I-87
+  it("I-87: GET sin filtro → lista todas las cuentas", async () => {
+    mockFrom.mockReturnValue(makeGetChain([
+      { id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" },
+      { id: "cp-2", monto: 1500, estado: "pagada", proveedor_id: "prov-2" },
+    ]));
 
     const { GET } = await import("@/app/api/cuentas-pagar/route");
     const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar"));
@@ -116,18 +118,9 @@ describe("GET /api/cuentas-pagar", () => {
 
   // I-88
   it("I-88: GET con estado=pendiente → filtra por estado", async () => {
-    const mockChain = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn(function() { return this; }),
-    };
-    (mockChain as any).then = function(resolve: any) {
-      return resolve({
-        data: [{ id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" }],
-        error: null,
-      });
-    };
-    mockFrom.mockReturnValue(mockChain);
+    mockFrom.mockReturnValue(makeGetChain([
+      { id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" },
+    ]));
 
     const { GET } = await import("@/app/api/cuentas-pagar/route");
     const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar?estado=pendiente"));
@@ -138,24 +131,30 @@ describe("GET /api/cuentas-pagar", () => {
 
   // I-89
   it("I-89: GET con proveedor_id=X → filtra por proveedor", async () => {
-    const mockChain = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn(function() { return this; }),
-    };
-    (mockChain as any).then = function(resolve: any) {
-      return resolve({
-        data: [{ id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" }],
-        error: null,
-      });
-    };
-    mockFrom.mockReturnValue(mockChain);
+    mockFrom.mockReturnValue(makeGetChain([
+      { id: "cp-1", monto: 3800, estado: "pendiente", proveedor_id: "prov-1" },
+    ]));
 
     const { GET } = await import("@/app/api/cuentas-pagar/route");
     const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar?proveedor_id=prov-1"));
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
+  });
+
+  // I-113 — REGRESIÓN: cuentas con monto <= 0 no deben filtrarse al frontend
+  it("I-113: GET filtra automáticamente cuentas con monto <= 0", async () => {
+    const chain = makeGetChain([
+      { id: "cp-1", monto: 5000, estado: "pendiente", proveedor_id: "prov-1" },
+    ]);
+    mockFrom.mockReturnValue(chain);
+
+    const { GET } = await import("@/app/api/cuentas-pagar/route");
+    const res = await GET(new NextRequest("http://localhost/api/cuentas-pagar"));
+
+    expect(res.status).toBe(200);
+    // Verificar que la query incluye .gt("monto", 0)
+    expect(chain.gt).toHaveBeenCalledWith("monto", 0);
   });
 });
 

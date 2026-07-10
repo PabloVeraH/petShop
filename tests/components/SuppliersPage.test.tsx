@@ -208,6 +208,30 @@ describe("SuppliersPage - Payment Modal", () => {
     expect(prov2Stats.length).toBeGreaterThanOrEqual(1);
   });
 
+  // SP-09 — REGRESIÓN: cuentas con monto $0 no deben aparecer en lista pendiente
+  it("SP-09: cuenta con monto $0 excluida de la lista de cuentas pendientes", async () => {
+    const cuentasConCero = [
+      { id: "cp-zero", monto: 0, fecha_vencimiento: "2025-06-01", estado: "pendiente" },
+      { id: "cp-normal", monto: 50000, fecha_vencimiento: "2025-06-01", estado: "pendiente" },
+    ];
+    useQuery.mockImplementation(({ queryKey }: any) => {
+      if (queryKey[0] === "proveedores") return { data: [MOCK_PROVEEDOR], isLoading: false };
+      if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR, productos: [] } };
+      if (queryKey[0] === "ordenes-proveedor") return { data: [] };
+      if (queryKey[0] === "cuentas-proveedor") return { data: cuentasConCero };
+      if (queryKey[0] === "productos-activos") return { data: [] };
+      if (queryKey[0] === "proveedores-stats") return { data: MOCK_SUPPLIER_STATS };
+      return { data: [], isLoading: false };
+    });
+
+    await renderPage();
+    await selectProveedor();
+
+    // La lista pendiente solo tiene 1 "Pagar" (cp-normal incluida, cp-zero filtrada por monto=0)
+    const pagarBtns = await screen.findAllByRole("button", { name: "Pagar" });
+    expect(pagarBtns).toHaveLength(1);
+  });
+
   // SP-05
   it("SP-05: Payment falla → muestra mensaje de error en el modal", async () => {
     await renderPage();

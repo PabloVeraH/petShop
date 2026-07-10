@@ -271,6 +271,9 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-307 | GET /api/proveedores/stats retorna 401 si no autenticado | GET /api/proveedores/stats | integration |
 | I-308 | GET /api/proveedores/stats retorna objetos vacios si no hay datos | GET /api/proveedores/stats | integration |
 | I-309 | GET /api/proveedores/stats filtra ordenes_compra y cuentas_pagar por store_id (multi-tenant) | GET /api/proveedores/stats | integration |
+| I-113 | REGRESIÓN: GET /api/cuentas-pagar filtra cuentas con monto ≤ 0 (no sirve cuentas $0 al frontend) | GET /api/cuentas-pagar | integration |
+| I-316 | REGRESIÓN: GET /api/proveedores/stats filtra cuentas con monto ≤ 0 en agregación | GET /api/proveedores/stats | integration |
+| SP-09 | REGRESIÓN: cuenta con monto $0 excluida de lista pendiente (no aparece con botón Pagar) | SuppliersPage | component |
 
 ## Tests unitarios (U-XX)
 
