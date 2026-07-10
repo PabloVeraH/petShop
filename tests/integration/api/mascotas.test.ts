@@ -19,6 +19,8 @@ const mockChain  = {
   insert: jest.fn().mockReturnThis(),
   update: jest.fn().mockReturnThis(),
   eq:     jest.fn().mockReturnThis(),
+  ilike:  jest.fn().mockReturnThis(),
+  neq:    jest.fn().mockReturnThis(),
   single: mockSingle,
   maybeSingle: mockMaybeSingle,
 };
@@ -210,10 +212,11 @@ describe("POST /api/mascotas", () => {
     mockChain.select.mockReturnThis();
     mockChain.insert.mockReturnThis();
     mockChain.eq.mockReturnThis();
+    mockChain.ilike.mockReturnThis();
     getStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
   });
 
-  // M-NEW: POST con mascota duplicada retorna 409
+  // M-21: POST con mascota duplicada retorna 409
   it("M-21: retorna 409 si ya existe mascota con mismo nombre para el cliente", async () => {
     mockSingle.mockResolvedValue({ data: { id: CLIENTE_ID }, error: null });  // cliente lookup
     mockMaybeSingle.mockResolvedValue({ data: { id: MASCOTA_ID }, error: null });  // duplicate found
@@ -221,6 +224,20 @@ describe("POST /api/mascotas", () => {
     const res = await POST(makePostRequest({
       cliente_id: CLIENTE_ID,
       nombre: "Grizzly",
+      tipo: "perro",
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("Ya existe");
+  });
+
+  it("M-22: retorna 409 si el nombre difiere solo en mayúsculas/minúsculas (case-insensitive)", async () => {
+    mockSingle.mockResolvedValue({ data: { id: CLIENTE_ID }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { id: MASCOTA_ID }, error: null });
+    const { POST } = await import("@/app/api/mascotas/route");
+    const res = await POST(makePostRequest({
+      cliente_id: CLIENTE_ID,
+      nombre: "grizzly",  // DB tiene "Grizzly" — case-insensitive match
       tipo: "perro",
     }));
     expect(res.status).toBe(409);
@@ -297,6 +314,8 @@ describe("PATCH /api/mascotas/[id]", () => {
     mockChain.select.mockReturnThis();
     mockChain.update.mockReturnThis();
     mockChain.eq.mockReturnThis();
+    mockChain.ilike.mockReturnThis();
+    mockChain.neq.mockReturnThis();
     getStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
   });
 
@@ -343,7 +362,9 @@ describe("PATCH /api/mascotas/[id]", () => {
   it("M-14: gramos_porcion y veces_dia son opcionales — PATCH sin ellos retorna 200", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
-      .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null });
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null }); // no duplicate
+    mockSingle
       .mockResolvedValueOnce({ data: { ...DB_MASCOTA }, error: null })
       .mockResolvedValueOnce({ data: { ...DB_MASCOTA, nombre: "Max" }, error: null });
 
@@ -351,6 +372,35 @@ describe("PATCH /api/mascotas/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.nombre).toBe("Max");
+  });
+
+  it("M-23: retorna 409 si se renombra a un nombre ya existente (case-insensitive)", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null });
+    // duplicate check — maybeSingle returns existing mascota
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: "other-mascota-id" }, error: null });
+
+    const res = await doPatch(MASCOTA_ID, { nombre: "Grizzly" });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("Ya existe");
+  });
+
+  it("M-24: PATCH sin nombre no verifica duplicados — retorna 200", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: MASCOTA_ID, cliente_id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { id: CLIENTE_ID }, error: null })
+      .mockResolvedValueOnce({ data: { ...DB_MASCOTA, gramos_porcion: 25, veces_dia: 3 }, error: null })
+      .mockResolvedValueOnce({ data: { ...DB_MASCOTA, gramos_porcion: 50, veces_dia: 2 }, error: null });
+
+    const res = await doPatch(MASCOTA_ID, { gramos_porcion: 50, veces_dia: 2 });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.gramos_porcion).toBe(50);
+    expect(body.veces_dia).toBe(2);
+    // maybeSingle no debe haberse llamado (no hay verificación de duplicado)
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
   });
 });
 

@@ -78,8 +78,15 @@ export default function ClienteDetalle({
 
   const { mutate: guardarMascota, isPending: savingMascota } = useMutation({
     mutationFn: () => {
+      const nuevoNombre = mascotaForm.nombre.trim();
+      // Pre-validación: nombre duplicado (case-insensitive) entre mascotas existentes
+      const duplicado = data?.mascotas.some(
+        (m) => m.id !== editingMascota!.id && m.nombre.toLowerCase() === nuevoNombre.toLowerCase()
+      );
+      if (duplicado) throw new Error("Ya existe una mascota con ese nombre para este cliente");
+
       const body: Record<string, unknown> = {
-        nombre: mascotaForm.nombre,
+        nombre: nuevoNombre,
         tipo: mascotaForm.tipo,
         raza: mascotaForm.raza,
         peso_kg: mascotaForm.peso_kg ? Number(mascotaForm.peso_kg) : undefined,
@@ -384,6 +391,7 @@ export default function ClienteDetalle({
       {showMascotaModal && (
         <ModalMascotaCreate
           clienteId={cliente.id}
+          existingNames={data.mascotas.map((m) => m.nombre)}
           onCreated={(mascota) => {
             queryClient.setQueryData<DetalleData>(
               ["cliente-detalle", cliente.id],

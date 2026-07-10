@@ -66,12 +66,12 @@ export async function POST(req: NextRequest) {
 
   if (!cliente) return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
 
-  // Evitar mascotas duplicadas por (cliente_id, nombre)
+  // Evitar mascotas duplicadas por (cliente_id, nombre) — case-insensitive
   const { data: existing } = await supabase
     .from("mascotas")
     .select("id")
     .eq("cliente_id", cliente_id)
-    .eq("nombre", nombre)
+    .ilike("nombre", nombre.trim())
     .maybeSingle();
 
   if (existing) {

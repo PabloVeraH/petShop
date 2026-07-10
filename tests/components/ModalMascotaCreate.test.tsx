@@ -1,5 +1,5 @@
 /**
- * Tests C-20 a C-24: ModalMascotaCreate — confirmación, refresco y campos de porción diaria
+ * Tests C-20 a C-25: ModalMascotaCreate — confirmación, refresco, porción diaria y advertencia de duplicado
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -163,5 +163,40 @@ describe("ModalMascotaCreate", () => {
     const body = JSON.parse(options.body);
     expect(body.gramos_porcion).toBe(150);
     expect(body.veces_dia).toBe(2);
+  });
+
+  // C-25: al escribir un nombre que ya existe, muestra advertencia y deshabilita Guardar
+  it("C-25: muestra advertencia y deshabilita botón si el nombre ya existe (case-insensitive)", async () => {
+    render(
+      <ModalMascotaCreate
+        clienteId="c1"
+        existingNames={["Luna", "Firulais"]}
+        onClose={jest.fn()}
+      />,
+      { wrapper: makeWrapper() }
+    );
+
+    const input = screen.getAllByRole("textbox")[0];
+    const guardarBtn = screen.getByRole("button", { name: "Guardar" });
+
+    // Sin advertencia al inicio
+    expect(screen.queryByText("Ya existe una mascota con este nombre")).not.toBeInTheDocument();
+    expect(guardarBtn).not.toBeDisabled();
+
+    // Escribe nombre que coincide (case-insensitive: "luna" coincide con "Luna")
+    fireEvent.change(input, { target: { value: "luna" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ya existe una mascota con este nombre")).toBeInTheDocument();
+      expect(guardarBtn).toBeDisabled();
+    });
+
+    // Cambia a nombre no existente → advertencia desaparece
+    fireEvent.change(input, { target: { value: "Max" } });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Ya existe una mascota con este nombre")).not.toBeInTheDocument();
+      expect(guardarBtn).not.toBeDisabled();
+    });
   });
 });

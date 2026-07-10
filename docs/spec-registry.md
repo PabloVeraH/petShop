@@ -22,6 +22,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-07 | GET mascotas filtra por store_id | GET /api/mascotas | integration |
 | I-08 | PATCH mascota actualiza peso y alimento habitual | PATCH /api/mascotas/[id] | integration |
 | M-21 | POST mascota duplicada (cliente_id + nombre) retorna 409 | POST /api/mascotas | integration |
+| M-22 | POST mascota con nombre que difiere solo en mayúsculas/minúsculas retorna 409 (case-insensitive) | POST /api/mascotas | integration |
+| M-23 | PATCH mascota renombrada a nombre ya existente retorna 409 (case-insensitive) | PATCH /api/mascotas/[id] | integration |
+| M-24 | PATCH mascota sin nombre en body no verifica duplicados (cambia solo gramos_porcion/veces_dia) | PATCH /api/mascotas/[id] | integration |
 
 ## Ventas — POS (I-34 a I-59)
 
@@ -235,6 +238,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | M-18 | DELETE mascota retorna 404 si no existe | DELETE /api/mascotas/[id] | integration |
 | M-19 | DELETE mascota retorna 403 si no pertenece al store | DELETE /api/mascotas/[id] | integration |
 | M-20 | DELETE mascota elimina correctamente y registra auditoría | DELETE /api/mascotas/[id] | integration |
+| MM-01 | Modal muestra advertencia al escribir nombre duplicado (case-insensitive) y deshabilita Guardar | ModalMascotaCreate | component |
 | CD-05 | Muestra botón Eliminar por cada mascota | ClienteDetalle | component |
 | CD-06 | Click en Eliminar muestra confirmación | ClienteDetalle | component |
 | CD-07 | Confirmar eliminación llama a DELETE /api/mascotas/[id] | ClienteDetalle | component |

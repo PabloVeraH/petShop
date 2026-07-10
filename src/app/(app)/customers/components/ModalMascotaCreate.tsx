@@ -14,16 +14,22 @@ type NuevaMascota = {
 
 export default function ModalMascotaCreate({
   clienteId,
+  existingNames = [],
   onClose,
   onCreated,
 }: {
   clienteId: string;
+  existingNames?: string[];
   onClose: () => void;
   onCreated?: (mascota: NuevaMascota) => void;
 }) {
   const [form, setForm] = useState({ nombre: "", tipo: "perro", raza: "", peso_kg: "", gramos_porcion: "", veces_dia: "" });
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+
+  const nombreTrimmed = form.nombre.trim().toLowerCase();
+  const existingNameMatch = nombreTrimmed.length >= 2
+    && existingNames.some((n) => n.toLowerCase() === nombreTrimmed);
 
   useEffect(() => {
     if (!saved) return;
@@ -64,6 +70,10 @@ export default function ModalMascotaCreate({
       setError("Nombre debe tener al menos 2 caracteres");
       return;
     }
+    if (existingNameMatch) {
+      setError("Ya existe una mascota con ese nombre");
+      return;
+    }
     mutate();
   };
 
@@ -90,6 +100,9 @@ export default function ModalMascotaCreate({
                 value={form.nombre}
                 onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
               />
+              {existingNameMatch && (
+                <p className="text-xs text-amber-600 mt-1">Ya existe una mascota con este nombre</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1">Tipo *</label>
@@ -144,7 +157,7 @@ export default function ModalMascotaCreate({
             {error && <p className="text-xs text-red-500">{error}</p>}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={isPending} className="flex-1">
+              <Button onClick={handleSubmit} disabled={isPending || existingNameMatch} className="flex-1">
                 {isPending ? "Guardando..." : "Guardar"}
               </Button>
             </div>

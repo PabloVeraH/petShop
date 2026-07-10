@@ -48,6 +48,23 @@ export async function PATCH(
 
   const { nombre, tipo, raza, peso_kg, alimento_habitual_id, gramos_porcion, veces_dia } = parsed.data;
 
+  // Evitar duplicado al renombrar: no permitir otro nombre ya existente (case-insensitive)
+  if (nombre !== undefined) {
+    const { data: existing } = await supabase
+      .from("mascotas")
+      .select("id")
+      .eq("cliente_id", ownership.mascota.cliente_id)
+      .ilike("nombre", nombre.trim())
+      .neq("id", id)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json(
+        { error: "Ya existe una mascota con ese nombre para este cliente" },
+        { status: 409 }
+      );
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (nombre !== undefined) updates.nombre = nombre.trim();
   if (tipo !== undefined) updates.tipo = tipo?.trim() || null;
