@@ -143,6 +143,43 @@ Tests de propiedades (fast-check) en `tests/unit/lib/property-invariants.test.ts
 5. **store_id**: todo SELECT/INSERT/UPDATE de datos de tienda debe llevar `.eq("store_id", store_id)`
 6. **Al terminar**: `npm run build && npm test` — deben pasar los 959 tests
 
+## Al cerrar un bug fix
+
+Estas reglas nacen de revisar fixes previos (propios o de otro LLM) que pasaban
+sus propios tests pero dejaban el bug parcialmente vivo. Antes de dar un fix
+por terminado:
+
+1. **Generaliza el repro.** No valides solo los pasos exactos del reporte —
+   identifica la invariante que el bug viola y verifícala en transiciones
+   adyacentes: crear **y** editar, mismo período **y** período distinto,
+   request único **y** concurrente, primer guardado **y** re-guardado sin
+   cambios. La mayoría de estos fixes fallan porque el test solo cubre el
+   escenario literal reportado.
+2. **Audita a los hermanos.** Si el bug vive en una función/helper compartido
+   (ej. `crearAsiento()`, un query builder, un validador), busca TODOS los
+   demás llamadores — el mismo defecto probablemente existe ahí también y
+   debe arreglarse en el mismo commit, no en uno futuro cuando alguien lo
+   reporte de nuevo desde otro endpoint.
+3. **"Presente" ≠ "con contenido real".** Nunca uses la presencia de un valor
+   (`if (x)`, `!!x`, columna `IS NOT NULL`) como proxy de "hay datos reales".
+   Un objeto vacío (`{}`), un string en blanco/whitespace, o un blob cifrado
+   de `"{}"` deben tratarse como ausencia de dato — si el chequeo no hace
+   `.trim() !== ""` o equivalente, probablemente hay un bypass.
+4. **Loguear un fallo no es arreglarlo.** Si agregaste `console.error`, una
+   alerta, o un mecanismo de backfill/detección para un caso de fallo, la
+   pregunta pendiente sigue siendo "¿por qué ocurre?", no solo "¿cómo lo
+   notamos la próxima vez?". No cierres el fix hasta responder eso.
+5. **Todo estado derivado/cacheado nuevo necesita invalidación completa.** Si
+   agregas una query key, un agregado, o un valor computado nuevo, busca
+   TODAS las mutaciones que deberían invalidarlo/afectarlo — no lo dejes
+   enganchado solo en el punto de lectura.
+6. **Verifica contra el sistema real cuando el bug lo amerite.** Los tests con
+   mocks no detectan cache de schema desactualizado (PostgREST), condiciones
+   de carrera reales, ni drift de migraciones. Si el bug depende de
+   infraestructura (DB real, concurrencia, cache externo), complementa los
+   tests con una verificación directa contra Supabase/el sistema real antes
+   de dar el fix por confirmado.
+
 ## Patrones de seguridad — no romper
 
 ```typescript
