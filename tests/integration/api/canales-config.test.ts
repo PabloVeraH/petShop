@@ -166,7 +166,8 @@ describe("POST /api/canales/config — activo handling", () => {
       }),
     });
 
-    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "valid" }, activo: true }));
+    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: allCreds, activo: true }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.activo).toBe(true);
@@ -230,6 +231,45 @@ describe("POST /api/canales/config — activo handling", () => {
     expect(insertData.credenciales_iv).toBeNull();
     expect(insertData.credenciales_auth_tag).toBeNull();
   });
+
+  // I-321 — Bug fix: POST activo=true con credenciales parciales → 422
+  it("I-321: POST activo=true con solo 1 de 4 campos necesarios para Rappi → 422", async () => {
+    const res = await POST(authReq("POST", {
+      canal_id: "rappi",
+      credenciales: { api_key: "rk_live" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("credenciales");
+  });
+
+  it("I-321: POST activo=true con solo 1 de 3 campos necesarios para PedidosYa → 422", async () => {
+    const res = await POST(authReq("POST", {
+      canal_id: "pedidosya",
+      credenciales: { client_id: "py_client" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
+
+  it("I-321: POST activo=true con solo 1 de 3 campos necesarios para UberEats → 422", async () => {
+    const res = await POST(authReq("POST", {
+      canal_id: "ubereats",
+      credenciales: { client_id: "ue_client" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
+
+  it("I-321: POST activo=true con solo 1 de 4 campos necesarios para Instagram → 422", async () => {
+    const res = await POST(authReq("POST", {
+      canal_id: "instagram",
+      credenciales: { app_id: "ig_app" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
 });
 
 describe("PATCH /api/canales/config — no modifica activo si no se envía", () => {
@@ -269,7 +309,8 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
-    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: { api_key: "new" } }));
+    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: allCreds }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.activo).toBe(true);
@@ -303,7 +344,8 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
-    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: { api_key: "valid" }, activo: true }));
+    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: allCreds, activo: true }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.activo).toBe(true);
@@ -433,5 +475,63 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.error).toContain("credenciales");
+  });
+
+  // I-322 — Bug fix: PATCH activo=true con credenciales parciales → 422
+  it("I-322: PATCH activo=true con solo 1 de 4 campos Rappi → 422", async () => {
+    const res = await PATCH(authReq("PATCH", {
+      canal_id: "rappi",
+      credenciales: { api_key: "rk_live" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toContain("credenciales");
+  });
+
+  it("I-322: PATCH activo=true con solo 1 de 3 campos PedidosYa → 422", async () => {
+    const res = await PATCH(authReq("PATCH", {
+      canal_id: "pedidosya",
+      credenciales: { client_id: "py_client" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
+
+  it("I-322: PATCH activo=true con solo 1 de 3 campos UberEats → 422", async () => {
+    const res = await PATCH(authReq("PATCH", {
+      canal_id: "ubereats",
+      credenciales: { client_id: "ue_client" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
+
+  it("I-322: PATCH activo=true con solo 1 de 4 campos Instagram → 422", async () => {
+    const res = await PATCH(authReq("PATCH", {
+      canal_id: "instagram",
+      credenciales: { app_id: "ig_app" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
+  });
+
+  // I-322 — PATCH activo=true con credenciales parciales SIN creds previas en DB → 422
+  it("I-322: PATCH activo=true con credencial parcial y sin creds previas en DB → 422", async () => {
+    const checkChain = buildChain();
+    checkChain.select.mockReturnValue(checkChain);
+    checkChain.eq.mockReturnValue(checkChain);
+    mockSingle.mockResolvedValue({ data: { credenciales_encriptada: null }, error: null });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn(() => checkChain),
+    });
+
+    const res = await PATCH(authReq("PATCH", {
+      canal_id: "rappi",
+      credenciales: { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345" },
+      activo: true,
+    }));
+    expect(res.status).toBe(422);
   });
 });

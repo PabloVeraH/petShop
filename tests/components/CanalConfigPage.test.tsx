@@ -6,6 +6,7 @@
  * CC-03: POST retorna activo=true → frontend sincroniza a true
  * CC-04: Activar toggle sin credenciales → muestra error, no envía request
  * CC-05: Activar toggle con credencial de solo espacios → muestra error, no envía request
+ * CC-06: Activar toggle con solo 1 de 4 campos → muestra error, no envía request
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -117,9 +118,12 @@ describe("CanalConfigPage — activo handling", () => {
       expect(screen.getByText("Rappi")).toBeInTheDocument();
     });
 
-    // Llenar credencial primero (necesario para activar)
+    // Llenar TODAS las credenciales (Rappi requiere 4 campos)
     const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
     fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
+    fireEvent.change(inputs[1], { target: { value: "ws_rappi_secret" } });
+    fireEvent.change(inputs[2], { target: { value: "12345" } });
+    fireEvent.change(inputs[3], { target: { value: "whsec_abc" } });
 
     // Activar toggle — click en el div toggle
     const toggleSwitch = document.querySelector(".bg-gray-300");
@@ -169,7 +173,7 @@ describe("CanalConfigPage — activo handling", () => {
     fireEvent.click(screen.getByText("Guardar configuración"));
 
     await waitFor(() => {
-      expect(screen.getByText(/debe ingresar al menos una credencial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Debe completar todas las credenciales/i)).toBeInTheDocument();
     });
 
     // No se envió ningún fetch nuevo
@@ -203,7 +207,41 @@ describe("CanalConfigPage — activo handling", () => {
     fireEvent.click(screen.getByText("Guardar configuración"));
 
     await waitFor(() => {
-      expect(screen.getByText(/debe ingresar al menos una credencial/i)).toBeInTheDocument();
+      expect(screen.getByText(/Debe completar todas las credenciales/i)).toBeInTheDocument();
+    });
+
+    // No se envió ningún fetch nuevo
+    expect(fetchCalls.length).toBe(initialFetchCount);
+  });
+
+  // CC-06 — Bug fix: activar con solo 1 de 4 campos muestra error, no envía request
+  it("CC-06: activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    // Llenar solo 1 de 4 campos requeridos
+    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
+
+    const initialFetchCount = fetchCalls.length;
+
+    // Activar toggle
+    const toggleSwitch = document.querySelector(".bg-gray-300");
+    expect(toggleSwitch).not.toBeNull();
+    fireEvent.click(toggleSwitch!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Activo")).toBeInTheDocument();
+    });
+
+    // Intentar guardar
+    fireEvent.click(screen.getByText("Guardar configuración"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Debe completar todas las credenciales/i)).toBeInTheDocument();
     });
 
     // No se envió ningún fetch nuevo

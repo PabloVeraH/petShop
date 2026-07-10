@@ -5,6 +5,19 @@ import { encryptJSON, decryptJSON } from "@/lib/canales/encryption";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { z } from "zod";
 
+const REQUIRED_CREDENTIAL_FIELDS: Record<string, string[]> = {
+  rappi: ["api_key", "api_secret", "store_id", "webhook_secret"],
+  pedidosya: ["client_id", "client_secret", "business_id"],
+  ubereats: ["client_id", "client_secret", "store_uuid"],
+  instagram: ["app_id", "app_secret", "ig_user_id", "access_token"],
+};
+
+function allCredentialsFilled(canalId: string, credenciales: Record<string, string>): boolean {
+  const required = REQUIRED_CREDENTIAL_FIELDS[canalId];
+  if (!required) return false;
+  return required.every((key) => credenciales[key] && credenciales[key].trim() !== "");
+}
+
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,15 +54,16 @@ export async function POST(req: NextRequest) {
 
   const { canal_id, credenciales, activo } = parsed.data;
 
-  const hasCredentials = Object.values(credenciales).some(v => v.trim() !== "");
   const wantsActive = activo === true;
 
-  if (wantsActive && !hasCredentials) {
+  if (wantsActive && !allCredentialsFilled(canal_id, credenciales)) {
     return NextResponse.json(
-      { error: "No se puede activar el canal sin ingresar credenciales" },
+      { error: "Todas las credenciales son requeridas para activar el canal" },
       { status: 422 }
     );
   }
+
+  const hasCredentials = Object.values(credenciales).some(v => v.trim() !== "");
 
   // Sin credenciales reales, no cifrar/guardar un blob vacío: dejar las
   // columnas en null. Un ciphertext de "{}" haría que el chequeo de
@@ -119,33 +133,46 @@ export async function PATCH(req: NextRequest) {
   const { canal_id, credenciales, activo } = parsed.data;
 
   const wantsActive = activo === true;
-  const hasCredentialsInPayload = credenciales !== undefined && Object.values(credenciales).some(v => v.trim() !== "");
 
-  if (wantsActive && !hasCredentialsInPayload) {
-    const supabaseCheck = createServiceClient();
-    const { data: existing } = await supabaseCheck
-      .from("canal_config")
-      .select("credenciales_encriptada")
-      .eq("store_id", store_id)
-      .eq("canal_id", canal_id)
-      .single();
+  if (wantsActive) {
+    const payloadHasRealCreds = credenciales !== undefined && Object.values(credenciales).some(v => v.trim() !== "");
 
-    if (!existing?.credenciales_encriptada) {
+    if (payloadHasRealCreds && !allCredentialsFilled(canal_id, credenciales)) {
       return NextResponse.json(
-        { error: "No se puede activar el canal sin credenciales configuradas" },
+        { error: "Todas las credenciales son requeridas para activar el canal" },
         { status: 422 }
       );
     }
+
+    if (!payloadHasRealCreds) {
+      const { data: existing } = await createServiceClient()
+        .from("canal_config")
+        .select("credenciales_encriptada")
+        .eq("store_id", store_id)
+        .eq("canal_id", canal_id)
+        .single();
+
+      if (!existing?.credenciales_encriptada) {
+        return NextResponse.json(
+          { error: "No se puede activar el canal sin credenciales configuradas" },
+          { status: 422 }
+        );
+      }
+    }
   }
+
+  const hasCredentialsInPayload = credenciales !== undefined && Object.values(credenciales).some(v => v.trim() !== "");
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  // Sólo tocar las credenciales cifradas si el payload trae valores reales.
-  // El formulario de edición nunca precarga las credenciales guardadas (no
-  // se devuelven desencriptadas por seguridad), así que un simple re-guardado
-  // sin tocar esos campos envía credenciales={} — si eso se cifrara y
-  // guardara igual, borraría las credenciales ya configuradas.
-  if (hasCredentialsInPayload && credenciales) {
+  // Sólo tocar las credenciales cifradas si el payload trae todos los campos
+  // requeridos para el canal. El formulario de edición nunca precarga las
+  // credenciales guardadas (no se devuelven desencriptadas por seguridad), así
+  // que un simple re-guardado sin tocar esos campos envía credenciales={} — si
+  // eso se cifrara y guardara igual, borraría las credenciales ya configuradas.
+  // Adicionalmente, credenciales parciales (solo algunos campos) no se guardan
+  // para no sobrescribir configuraciones completas con datos incompletos.
+  if (hasCredentialsInPayload && credenciales && allCredentialsFilled(canal_id, credenciales)) {
     const encryptedCreds = encryptJSON(credenciales);
     updateData.credenciales_encriptada = encryptedCreds.ciphertext;
     updateData.credenciales_iv = encryptedCreds.iv;

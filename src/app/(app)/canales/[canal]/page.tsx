@@ -107,14 +107,16 @@ export default function CanalConfigPage() {
       });
   }, [canalId, canalInfo]);
 
-  const hasAnyCredential = Object.values(credenciales).some(v => v.trim() !== "");
+  const allCredentialsFilled = canalInfo
+    ? canalInfo.campos.every((campo) => credenciales[campo.key] && credenciales[campo.key].trim() !== "")
+    : false;
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!canalInfo) return;
 
-    if (activo && !hasAnyCredential) {
-      setError("Debe ingresar al menos una credencial antes de activar el canal");
+    if (activo && !allCredentialsFilled) {
+      setError("Debe completar todas las credenciales antes de activar el canal");
       return;
     }
 
