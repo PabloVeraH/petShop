@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { netoDesdeBruto } from "@/lib/tax";
 
 export interface BoletaData {
   numeroComprobante: string;
@@ -32,7 +33,7 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   let y = 20;
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
-  const subtotalNeto = Math.round(data.subtotal / 1.19);
+  const subtotalNeto = netoDesdeBruto(data.subtotal);
   const fecha = new Date(data.fecha);
   const fechaStr = fecha.toLocaleDateString("es-CL");
   const horaStr = fecha.toLocaleTimeString("es-CL");

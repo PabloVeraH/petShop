@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePOSStore } from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { IVA_RATE } from "@/lib/tax";
+import { extraerIva } from "@/lib/tax";
 
 const METODOS_PAGO = [
   { value: "efectivo", label: "Efectivo" },
@@ -73,7 +73,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   const subNeto = subtotalNeto();
   const desc = (sub * descuento) / 100;
   const tot = Math.round(total());
-  const ivaAmount = Math.round(tot * IVA_RATE / (1 + IVA_RATE));
+  const ivaAmount = extraerIva(tot);
   const neto = tot - ivaAmount;
 
   // TRX validation

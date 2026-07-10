@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase";
+import { extraerIva } from "@/lib/tax";
 import type { CrearAsientoInput, LineaAsiento, TipoMovimiento } from "./types";
 import { CUENTAS } from "./types";
 
@@ -270,8 +271,8 @@ export function lineasNotaCredito(params: {
   tipoReembolso: string;
   metodoReembolso?: string;
 }): LineaAsiento[] {
-  const montoNeto = Math.round(params.monto / 1.19);
-  const ivaDevuelto = params.monto - montoNeto;
+  const ivaDevuelto = extraerIva(params.monto);
+  const montoNeto = params.monto - ivaDevuelto;
 
   let cuentaCredito;
   if (params.tipoReembolso === "saldo_a_favor") {

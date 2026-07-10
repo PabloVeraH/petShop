@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { netoDesdeBruto } from "@/lib/tax";
 
 export async function GET(
   req: NextRequest,
@@ -130,7 +131,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     .join("");
 
   const subtotalConIva = Number(venta.subtotal); // IVA-inclusive, antes del descuento
-  const subtotalNeto = Math.round(subtotalConIva / 1.19); // Extraído el IVA
+  const subtotalNeto = netoDesdeBruto(subtotalConIva); // Extraído el IVA
   const descuentoPct = Number(venta.descuento); // almacenado como porcentaje (ej: 10)
   const descuentoMonto = Math.round(subtotalConIva * descuentoPct / 100);
   const impuesto = Number(venta.impuesto);

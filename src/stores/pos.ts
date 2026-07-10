@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
-import { IVA_RATE } from "@/lib/tax";
+import { extraerIva, netoDesdeBruto } from "@/lib/tax";
 
 interface CartItem {
   id: string;
@@ -182,14 +182,13 @@ export const usePOSStore = create<POSStore>()(
       subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
 
       // Subtotal neto (sin IVA) — extrae el IVA del subtotal bruto
-      subtotalNeto: () => Math.round(get().subtotal() / (1 + IVA_RATE)),
+      subtotalNeto: () => netoDesdeBruto(get().subtotal()),
 
       // IVA extraído del total con descuento — los precios ya incluyen IVA
       impuesto: () => {
         const sub = get().subtotal();
         const desc = (sub * get().descuento) / 100;
-        const t = sub - desc;
-        return Math.round(t * IVA_RATE / (1 + IVA_RATE));
+        return extraerIva(sub - desc);
       },
 
       // Total = subtotal - descuento (IVA ya incluido en el precio) — pesos enteros

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { usePOSStore } from "@/stores/pos";
-import { IVA_RATE } from "@/lib/tax";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

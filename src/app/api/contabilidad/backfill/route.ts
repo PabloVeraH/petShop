@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
+import { extraerIva } from "@/lib/tax";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -34,8 +35,8 @@ export async function POST(req: NextRequest) {
 
   for (const venta of ventasBackfill ?? []) {
     const total = Number(venta.total);
-    const montoNeto = Math.round(total / 1.19);
-    const iva = total - montoNeto;
+    const iva = extraerIva(total);
+    const montoNeto = total - iva;
 
     // Fetch client name for description
     const { data: ventaDetalle } = await supabase

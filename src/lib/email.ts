@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { generateBoletaPDF, type BoletaData } from "@/lib/reports/pdf-generator";
+import { netoDesdeBruto } from "@/lib/tax";
 
 let _resend: Resend | null = null;
 
@@ -120,7 +121,7 @@ export async function sendBoletaEmail(params: {
 function buildBoletaEmailHTML(b: BoletaData): string {
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
   const fecha = new Date(b.fecha).toLocaleDateString("es-CL");
-  const subtotalNeto = Math.round(b.subtotal / 1.19);
+  const subtotalNeto = netoDesdeBruto(b.subtotal);
 
   const itemsHTML = b.items.map(i => `
     <tr>

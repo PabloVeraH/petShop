@@ -114,6 +114,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-314 | PATCH /api/canales/config activo=true con credencial de solo espacios y sin credenciales previas → 422 | PATCH /api/canales/config | integration |
 | I-321 | POST /api/canales/config activo=true con credenciales parciales (solo 1 de N campos) → 422 | POST /api/canales/config | integration |
 | I-322 | PATCH /api/canales/config activo=true con credenciales parciales → 422 | PATCH /api/canales/config | integration |
+| I-325 | REGRESIÓN: venta creada al aceptar orden de canal persiste `impuesto` con fórmula de extracción (antes quedaba NULL) | POST /api/canales/orders/[id]/accept | integration |
+| I-326 | REGRESIÓN: venta_items de orden de canal usa columna `precio_unitario` (antes usaba `precio`, inexistente — insert fallaba en silencio) | POST /api/canales/orders/[id]/accept | integration |
+| I-327 | Aceptar orden de canal responde accepted y vincula venta_id en canal_ordenes | POST /api/canales/orders/[id]/accept | integration |
 | CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
 
@@ -306,6 +309,26 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
 | U-119 | REGRESIÓN: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) no pierden ningún asiento por colisión de numero_asiento — causa raíz confirmada del bug "venta sin asiento de ingreso, solo aparece COGS" | lib/contabilidad | unit |
 
+## IVA — extracción canónica (IVA-01 a IVA-10)
+
+Archivo: `tests/unit/lib/iva-calculo.test.ts`. Testean los helpers reales
+`extraerIva()`/`netoDesdeBruto()` de `src/lib/tax.ts` (fuente única de la regla
+"precios brutos, IVA extraído"). Reemplaza la versión anterior del archivo, que
+afirmaba la fórmula aditiva obsoleta contra una réplica local.
+
+| ID | Requisito | Lib | Tipo |
+|----|-----------|-----|------|
+| IVA-01 | REGRESIÓN: $15.458 bruto → IVA $2.468 (extracción), no $2.937 (aditiva) — caso real Whiskas | lib/tax | unit |
+| IVA-02 | REGRESIÓN: $23.458 bruto → IVA $3.745, no $4.457 — caso real Whiskas+Bravery 20260622-0E91ECC3 | lib/tax | unit |
+| IVA-03 | $119.000 bruto → IVA $19.000, neto $100.000 (valores exactos) | lib/tax | unit |
+| IVA-04 | $0 → IVA $0, neto $0 | lib/tax | unit |
+| IVA-05 | $1 → IVA $0, neto $1 (fracción descartada, neto absorbe) | lib/tax | unit |
+| IVA-06 | IVA y neto enteros para cualquier bruto entero | lib/tax | unit |
+| IVA-07 | PROPIEDAD (fast-check): extraerIva(t) + netoDesdeBruto(t) === t ∀ t entero ≥ 0 | lib/tax | property |
+| IVA-08 | PROPIEDAD (fast-check): IVA extraído = 19% del neto ±1 peso ∀ t entero ≥ 0 | lib/tax | property |
+| IVA-09 | IVA se extrae del total post-descuento ($10.000 −10% → IVA $1.437) | lib/tax | unit |
+| IVA-10 | REGRESIÓN: $45.208 → IVA $7.218 siempre, nunca $8.590 (consistencia mayo vs junio) | lib/tax | unit |
+
 ---
 
 ## Redirects (RD-01 a RD-16)
@@ -370,6 +393,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 - `VS-NN` — test de componente de historial de ventas
 - `RD-NN` — test de redirección de ruta
 - `DA-NN` — test de componente de dashboard / alertas (AnaliticaTab)
+- `IVA-NN` — test de la fórmula canónica de IVA (lib/tax)
 - `PP-NN` — test de componente de POSPage
 - `DV-NN` — test de componente de DevolucionModal
 

@@ -1,6 +1,6 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { IVA_RATE } from "@/lib/tax";
+import { extraerIva } from "@/lib/tax";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { sendBoletaEmail } from "@/lib/email";
@@ -193,7 +193,7 @@ async function postVenta(req: NextRequest) {
   );
   const descuentoMonto = (subtotal * descuento_pct) / 100;
   const total = Math.round(subtotal - descuentoMonto);
-  const impuesto = Math.round(total * IVA_RATE / (1 + IVA_RATE));
+  const impuesto = extraerIva(total);
   const montoNetoVenta = total - impuesto;
 
   // Validar NC antes de abrir la transacción
@@ -422,7 +422,7 @@ async function postVenta(req: NextRequest) {
   }
 
   // Asiento contable
-  const ivaCalc = Math.round(total * IVA_RATE / (1 + IVA_RATE));
+  const ivaCalc = extraerIva(total);
   const montoNeto = total - ivaCalc;
 
   // Asiento contable (post-response fire-and-forget)

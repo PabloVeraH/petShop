@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
+import { extraerIva } from "@/lib/tax";
 import { getChannel } from "@/lib/canales/registry";
 import type { CanalId, CanalConfig } from "@/lib/canales/types";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  // Precios de canal son brutos (IVA incluido) — igual que el POS
+  const impuesto = extraerIva(total);
 
   const { data: nuevaVenta, error: ventaError } = await supabase
     .from("ventas")
@@ -52,6 +55,7 @@ export async function POST(req: NextRequest) {
       total,
       subtotal: total,
       descuento: 0,
+      impuesto,
       metodo_pago: "plataforma",
       estado: "completada",
     })
@@ -78,13 +82,17 @@ export async function POST(req: NextRequest) {
     }
     const productoId = productos[0].id;
 
-    await supabase.from("venta_items").insert({
+    const { error: itemError } = await supabase.from("venta_items").insert({
       venta_id: nuevaVenta.id,
       producto_id: productoId,
       cantidad: item.quantity,
-      precio: item.unit_price,
+      precio_unitario: item.unit_price,
       subtotal: item.unit_price * item.quantity,
     });
+    if (itemError) {
+      console.error(`[canales] Error insertando venta_item (venta ${nuevaVenta.id}, SKU ${item.id}):`, itemError.message);
+      continue;
+    }
 
     if (productoId) {
       await supabase.rpc("decrement_stock", {
