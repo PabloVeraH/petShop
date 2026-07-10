@@ -80,7 +80,7 @@ export default function SalesPage() {
   const [desde, setDesde] = useState(defaultDesde);
   const [hasta, setHasta] = useState("");
   const [offset, setOffset] = useState(0);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
