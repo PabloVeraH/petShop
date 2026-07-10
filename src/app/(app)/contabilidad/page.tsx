@@ -132,7 +132,11 @@ export default function ContabilidadPage() {
         body: JSON.stringify({ mes: Number(mes), año: Number(año), calcular_costo_venta: true }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? "Error al cerrar el mes");
+      if (!r.ok) {
+        const err = new Error(data.error ?? "Error al cerrar el mes");
+        (err as any).status = r.status;
+        throw err;
+      }
       return data as CierreResultado;
     },
     onSuccess: (data) => {
@@ -146,6 +150,10 @@ export default function ContabilidadPage() {
       setCierreError(err.message);
       setCierreResult(null);
       setShowCierreConfirm(false);
+      if ((err as any).status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
+        queryClient.invalidateQueries({ queryKey: ["balance-prueba"] });
+      }
     },
   });
 

@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-14: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
+ * Tests CP-01 a CP-15: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -12,6 +12,7 @@
  * CP-08  Botón "Cierre de Mes" está deshabilitado mientras cerrandoMes=true
  * CP-13  Período cerrado deshabilita botón y muestra badge ✓ Cerrado
  * CP-14  Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado
+ * CP-15  Error 409 concurrente refresca libro-diario y muestra "✓ Cerrado"
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -315,6 +316,85 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
     // Click en botón deshabilitado no abre el modal
     fireEvent.click(btn);
     expect(screen.queryByText(/Confirmar Cierre de Mes/i)).not.toBeInTheDocument();
+  });
+
+  // CP-15 — la UI refresca el estado después de un 409 concurrente
+  it("CP-15: error 409 concurrente refresca libro-diario y muestra ✓ Cerrado", async () => {
+    let libroDiarioCallCount = 0;
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (String(url).includes("cierre-mes")) {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: async () => ({ error: "cerrado por otro" }),
+        });
+      }
+      if (String(url).includes("libro-diario")) {
+        libroDiarioCallCount++;
+        // First fetch: no cierre entries
+        if (libroDiarioCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              periodo: "junio 2026",
+              desde: "2026-06-01",
+              hasta: "2026-06-30",
+              empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+              asientos: [],
+              resumen: { total_asientos: 5, total_debitos: 50000, total_creditos: 50000, balanceado: true },
+            }),
+          });
+        }
+        // Second fetch (after invalidation): now with CIERRE_MES
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            periodo: "junio 2026",
+            desde: "2026-06-01",
+            hasta: "2026-06-30",
+            empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+            asientos: [{
+              id: "cierre-1",
+              numero_asiento: 99,
+              fecha: "2026-06-30",
+              tipo_movimiento: "CIERRE_MES",
+              referencia_numero: "2026-06",
+              descripcion: "Cierre 2026-06",
+              total_debito: 5000,
+              total_credito: 5000,
+              esta_balanceado: true,
+            }],
+            resumen: { total_asientos: 6, total_debitos: 55000, total_creditos: 55000, balanceado: true },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+
+    setup();
+
+    // Verify initial state: button enabled, no badge
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Cierre de Mes/i })).not.toBeDisabled();
+    });
+    expect(screen.queryByText(/✓ Cerrado/i)).not.toBeInTheDocument();
+
+    // Try to close
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar cierre/i }));
+
+    // Error appears
+    await waitFor(() => {
+      expect(screen.getByText(/✗ Error en el cierre/i)).toBeInTheDocument();
+    });
+
+    // After invalidation, libro-diario re-fetches and shows closed state
+    await waitFor(() => {
+      expect(screen.getByText(/✓ Cerrado/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Cierre de Mes/i })).toBeDisabled();
   });
 });
 

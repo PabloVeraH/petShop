@@ -337,4 +337,51 @@ describe("POST /api/contabilidad/cierre-mes", () => {
       expect(body.error).toContain("2026-04");
     });
   });
+
+  // I-323 / I-324: manejo de carrera en crearAsiento — si retorna null porque
+  // otro request concurrente creó el cierre antes, devuelve 409 (no 201).
+  // Si retorna null sin concurrencia, devuelve 500.
+  describe("I-323/324: crearAsiento retorna null (race condition o fallo)", () => {
+    it("I-323: crearAsiento retorna null y existe cierre concurrente → 409", async () => {
+      (crearAsiento as jest.Mock).mockImplementationOnce(() => Promise.resolve(null));
+
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1 || callCount === 2) return createChain({ data: [], error: null });
+          if (callCount === 3) return createChain({ data: [{ id: "compra-1" }], error: null });
+          if (callCount === 4) return createChain({ data: [{ debito: 5000 }], error: null });
+          return createChain({ data: [{ id: "cierre-concurrente" }], error: null });
+        }),
+      });
+
+      const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
+
+      expect(res.status).toBe(409);
+      const body = await res.json();
+      expect(body.error).toContain("concurrente");
+      expect(body.error).toContain("2026-04");
+    });
+
+    it("I-324: crearAsiento retorna null sin cierre concurrente → 500", async () => {
+      (crearAsiento as jest.Mock).mockImplementationOnce(() => Promise.resolve(null));
+
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1 || callCount === 2) return createChain({ data: [], error: null });
+          if (callCount === 3) return createChain({ data: [{ id: "compra-1" }], error: null });
+          if (callCount === 4) return createChain({ data: [{ debito: 5000 }], error: null });
+          return createChain({ data: [], error: null });
+        }),
+      });
+
+      const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
+
+      expect(res.status).toBe(500);
+      expect((await res.json()).error).toContain("costo de ventas");
+    });
+  });
 });

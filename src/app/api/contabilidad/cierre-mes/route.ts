@@ -6,6 +6,20 @@ import { crearAsiento, lineasCierreCOGS } from "@/lib/contabilidad/generador-asi
 import { CUENTAS } from "@/lib/contabilidad/types";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
+async function checkExistingCierre(
+  supabase: ReturnType<typeof createServiceClient>,
+  storeId: string,
+  periodo: string
+): Promise<number> {
+  const { data } = await supabase
+    .from("journal_entries")
+    .select("id")
+    .eq("store_id", storeId)
+    .eq("tipo_movimiento", "CIERRE_MES")
+    .eq("referencia_numero", periodo);
+  return data?.length ?? 0;
+}
+
 const CierreMesSchema = z.object({
   mes: z.number().int().min(1).max(12),
   año: z.number().int().min(2020).max(2100),
@@ -33,16 +47,11 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient();
 
   // Verificar que no exista ya un asiento de cierre para este período
-  const { data: cierresExistentes } = await supabase
-    .from("journal_entries")
-    .select("id")
-    .eq("store_id", store_id)
-    .eq("tipo_movimiento", "CIERRE_MES")
-    .eq("referencia_numero", periodo);
+  const existentes = await checkExistingCierre(supabase, store_id, periodo);
 
-  if (cierresExistentes && cierresExistentes.length > 0) {
+  if (existentes > 0) {
     console.warn(
-      `[cierre-mes] Intento duplicado para ${periodo} (store=${store_id}, usuario=${ctx.userId}): ${cierresExistentes.length} asiento(s) existente(s)`
+      `[cierre-mes] Intento duplicado para ${periodo} (store=${store_id}, usuario=${ctx.userId}): ${existentes} asiento(s) existente(s)`
     );
     return NextResponse.json(
       { error: `El período ${periodo} ya tiene un asiento de cierre` },
@@ -95,7 +104,34 @@ export async function POST(req: NextRequest) {
           creadoPor: "cierre_automatico",
         });
 
-        if (cogsId) asientosCierre.push({ tipo: "COSTO_VENTA", id: cogsId });
+        if (cogsId) {
+          asientosCierre.push({ tipo: "COSTO_VENTA", id: cogsId });
+        } else {
+          // crearAsiento retornó null. Puede ser por:
+          //   1. race condition: otro request creó el cierre concurrentemente
+          //      (partial unique index bloqueó nuestro INSERT — el caso con migración 047)
+          //   2. error real de BD o lógica
+          // Re-verificar antes de decidir el código de respuesta.
+          const concurrentes = await checkExistingCierre(supabase, store_id, periodo);
+
+          if (concurrentes > 0) {
+            console.warn(
+              `[cierre-mes] Carrera detectada para ${periodo}: otro request cerró el período mientras este procesaba`
+            );
+            return NextResponse.json(
+              { error: `El período ${periodo} ya fue cerrado por otra operación concurrente` },
+              { status: 409 }
+            );
+          }
+
+          console.error(
+            `[cierre-mes] Error al crear asiento de cierre COGS para ${periodo} (store=${store_id}, costoTotal=${costoTotal})`
+          );
+          return NextResponse.json(
+            { error: `Error al generar el asiento de costo de ventas para ${periodo}` },
+            { status: 500 }
+          );
+        }
       }
     }
   }
