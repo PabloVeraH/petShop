@@ -48,9 +48,9 @@ async function getDashboardData() {
   return { ...dashboard, recompras };
 }
 
-async function getStockAlertas(): Promise<StockAlerta[]> {
+async function getStockAlertas(): Promise<{ total: number; items: StockAlerta[] }> {
   const res = await fetch("/api/dashboard/stock-alertas");
-  if (!res.ok) return [];
+  if (!res.ok) return { total: 0, items: [] };
   return res.json();
 }
 
@@ -67,7 +67,7 @@ export default function AnaliticaTab() {
     refetchInterval: 60_000,
   });
 
-  const { data: alertasStock = [] } = useQuery({
+  const { data: stockAlertas = { total: 0, items: [] } } = useQuery({
     queryKey: ["stock-alertas"],
     queryFn: getStockAlertas,
     refetchInterval: 60_000,
@@ -176,17 +176,17 @@ export default function AnaliticaTab() {
       <div className="bg-white rounded-lg border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">
             Stock bajo mínimo
-            {alertasStock.length > 0 && (
+            {stockAlertas.total > 0 && (
               <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                {alertasStock.length}
+                {stockAlertas.total}
               </span>
             )}
           </h2>
-          {alertasStock.length === 0 ? (
+          {stockAlertas.total === 0 ? (
             <p className="text-sm text-gray-400">Todo el stock sobre mínimo</p>
           ) : (
             <div className="space-y-2">
-              {alertasStock.map((p) => (
+              {stockAlertas.items.map((p) => (
                 <div key={p.id} className="flex justify-between items-center text-sm">
                   <span className="truncate flex-1 mr-2 text-gray-700">{p.nombre}</span>
                   <span className="text-red-600 font-medium whitespace-nowrap">

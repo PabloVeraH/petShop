@@ -118,11 +118,12 @@ describe("GET /api/dashboard/stock-alertas", () => {
   });
 
   // I-78
-  it("I-78: retorna 200 con array de alertas", async () => {
+  it("I-78: retorna 200 con total e items de alertas", async () => {
     const { GET } = await import("@/app/api/dashboard/stock-alertas/route");
     const res = await GET(new NextRequest("http://localhost/api/dashboard/stock-alertas"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
+    expect(typeof body.total).toBe("number");
+    expect(Array.isArray(body.items)).toBe(true);
   });
 });

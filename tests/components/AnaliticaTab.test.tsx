@@ -1,10 +1,11 @@
 /**
- * Tests DA-01 a DA-05: AnaliticaTab — widget "Stock bajo mínimo"
+ * Tests DA-01 a DA-06: AnaliticaTab — widget "Stock bajo mínimo"
  * DA-01: Sin alertas → muestra "Todo el stock sobre mínimo"
  * DA-02: Con alertas → lista productos y contador
  * DA-03: stock === stock_minimo → considerado alerta (regresión operador < vs <=)
  * DA-04: stock=0, mínimo=0 → considerado alerta
  * DA-05: fetch de stock-alertas falla → widget vacío sin error
+ * DA-06: contador muestra el total real, no el largo de la lista recortada a 10
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -114,7 +115,7 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
 
   // DA-01
   it("DA-01: sin alertas muestra 'Todo el stock sobre mínimo'", async () => {
-    endpoints.push({ path: "/api/dashboard/stock-alertas", ok: true, status: 200, body: [] });
+    endpoints.push({ path: "/api/dashboard/stock-alertas", ok: true, status: 200, body: { total: 0, items: [] } });
     setup();
 
     await waitFor(() => {
@@ -124,20 +125,22 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
 
   // DA-02
   it("DA-02: con alertas lista productos y muestra contador", async () => {
+    const items = [
+      { id: "p1", nombre: "Alimento X", sku: "ALI-X", stock: 2, stock_minimo: 10 },
+      { id: "p2", nombre: "Collar Y", sku: "COL-Y", stock: 1, stock_minimo: 5 },
+    ];
     endpoints.push({
       path: "/api/dashboard/stock-alertas",
       ok: true,
       status: 200,
-      body: [
-        { id: "p1", nombre: "Alimento X", sku: "ALI-X", stock: 2, stock_minimo: 10 },
-        { id: "p2", nombre: "Collar Y", sku: "COL-Y", stock: 1, stock_minimo: 5 },
-      ],
+      body: { total: items.length, items },
     });
     setup();
 
     await waitFor(() => {
       expect(screen.getByText("Alimento X")).toBeInTheDocument();
       expect(screen.getByText("Collar Y")).toBeInTheDocument();
+      expect(screen.getByText("2")).toBeInTheDocument(); // badge de contador
     });
   });
 
@@ -147,9 +150,10 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
       path: "/api/dashboard/stock-alertas",
       ok: true,
       status: 200,
-      body: [
-        { id: "p-coll", nombre: "Collar Ajustable M", sku: "COLLAR-M", stock: 5, stock_minimo: 5 },
-      ],
+      body: {
+        total: 1,
+        items: [{ id: "p-coll", nombre: "Collar Ajustable M", sku: "COLLAR-M", stock: 5, stock_minimo: 5 }],
+      },
     });
     setup();
 
@@ -167,9 +171,10 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
       path: "/api/dashboard/stock-alertas",
       ok: true,
       status: 200,
-      body: [
-        { id: "p-zero", nombre: "Producto Cero", sku: "ZERO", stock: 0, stock_minimo: 0 },
-      ],
+      body: {
+        total: 1,
+        items: [{ id: "p-zero", nombre: "Producto Cero", sku: "ZERO", stock: 0, stock_minimo: 0 }],
+      },
     });
     setup();
 
@@ -191,5 +196,34 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
     await waitFor(() => {
       expect(screen.getByText("Todo el stock sobre mínimo")).toBeInTheDocument();
     });
+  });
+
+  // DA-06 — REGRESIÓN: el widget debe mostrar el TOTAL real de productos bajo
+  // mínimo en el contador, no la cantidad de items de la lista recortada
+  // (el endpoint limita a 10). Antes de este fix, el contador usaba
+  // items.length y mostraba "10" en vez de "13", discrepando con Inventario
+  // igual que el bug original reportado.
+  it("DA-06: con más de 10 alertas, el contador muestra el total real (no el largo de la lista recortada)", async () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      id: `p-${i}`,
+      nombre: `Producto ${i}`,
+      sku: `SKU-${i}`,
+      stock: i,
+      stock_minimo: 10,
+    }));
+    endpoints.push({
+      path: "/api/dashboard/stock-alertas",
+      ok: true,
+      status: 200,
+      body: { total: 13, items },
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("Producto 0")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("13")).toBeInTheDocument();
+    expect(screen.queryByText("10")).not.toBeInTheDocument();
   });
 });

@@ -21,5 +21,9 @@ export async function GET() {
     (p) => p.stock <= (p.stock_minimo ?? 0)
   );
 
-  return NextResponse.json(alertas.slice(0, 10));
+  // total va aparte de la lista recortada: si se devolviera solo el array
+  // limitado a 10, el widget del dashboard (que cuenta con alertas.length)
+  // mostraría "10" aunque haya más productos bajo mínimo — la misma
+  // discrepancia con Inventario que este endpoint ya tuvo que corregir una vez.
+  return NextResponse.json({ total: alertas.length, items: alertas.slice(0, 10) });
 }

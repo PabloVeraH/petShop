@@ -52,9 +52,10 @@ describe("GET /api/dashboard/stock-alertas", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(data)).toBe(true);
-    expect(data).toHaveLength(1);
-    expect(data[0].nombre).toBe("Producto A");
+    expect(Array.isArray(data.items)).toBe(true);
+    expect(data.total).toBe(1);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].nombre).toBe("Producto A");
   });
 
   it("considera productos con stock exactamente igual al mínimo como alerta (regresión: operador < vs <=)", async () => {
@@ -93,8 +94,9 @@ describe("GET /api/dashboard/stock-alertas", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toHaveLength(1);
-    expect(data[0].nombre).toBe("Collar Ajustable M");
+    expect(data.total).toBe(1);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].nombre).toBe("Collar Ajustable M");
   });
 
   it("considera productos con stock=0 y mínimo=0 como alerta", async () => {
@@ -126,8 +128,9 @@ describe("GET /api/dashboard/stock-alertas", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toHaveLength(1);
-    expect(data[0].nombre).toBe("Sin stock");
+    expect(data.total).toBe(1);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].nombre).toBe("Sin stock");
   });
 
   it("limita a 10 resultados máximo", async () => {
@@ -157,7 +160,14 @@ describe("GET /api/dashboard/stock-alertas", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toHaveLength(10);
+    expect(data.items).toHaveLength(10);
+    // REGRESIÓN: de los 15 productos, 11 están realmente bajo mínimo
+    // (stock 0..10 <= stock_minimo=10; stock 11..14 están sobre el mínimo).
+    // total debe reflejar esos 11, no los 10 que se muestran en la lista —
+    // si el widget usara items.length como contador (en vez de total),
+    // mostraría "10" en vez de "11", discrepando con Inventario igual que
+    // el bug original reportado.
+    expect(data.total).toBe(11);
   });
 
   it("ordena por stock ASC (menor stock primero)", async () => {
@@ -186,8 +196,8 @@ describe("GET /api/dashboard/stock-alertas", () => {
     const data = await res.json();
 
     expect(chain.order).toHaveBeenCalledWith("stock", { ascending: true });
-    expect(data[0].nombre).toBe("Crítico");
-    expect(data[1].nombre).toBe("Bajo");
+    expect(data.items[0].nombre).toBe("Crítico");
+    expect(data.items[1].nombre).toBe("Bajo");
   });
 
   it("filtra solo productos activos", async () => {

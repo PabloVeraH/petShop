@@ -320,8 +320,9 @@ no tocar código ya commiteado fuera del alcance de este bug.
 |----|-----------|-------|------|
 | I-91 | stock === stock_minimo se considera alerta (regresión operador < vs <=) | GET /api/dashboard/stock-alertas | integration |
 | I-92 | stock=0, mínimo=0 se considera alerta | GET /api/dashboard/stock-alertas | integration |
+| I-93 | REGRESIÓN: con >10 productos bajo mínimo, el campo `total` refleja el conteo real (11), no el largo de `items` recortado a 10 — evita que el dashboard subestime el conteo frente a Inventario | GET /api/dashboard/stock-alertas | integration |
 
-## Dashboard Alerts Component (DA-01 a DA-05)
+## Dashboard Alerts Component (DA-01 a DA-06)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -330,6 +331,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | DA-03 | stock === stock_minimo se considera alerta (regresión) | AnaliticaTab | component |
 | DA-04 | stock=0, mínimo=0 se considera alerta | AnaliticaTab | component |
 | DA-05 | fetch de stock-alertas falla → widget vacío sin error | AnaliticaTab | component |
+| DA-06 | REGRESIÓN: con >10 alertas, el contador del badge usa `total` (conteo real) y no `items.length` (lista recortada a 10) | AnaliticaTab | component |
 
 ## POS Page Cache (PP-05)
 
