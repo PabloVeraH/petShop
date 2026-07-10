@@ -527,7 +527,78 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(1);
   });
 
-  it("sin cliente_id no actualiza fidelización", async () => {
+  it("I-319: retorna 500 si falla la restauración de stock durante anulación", async () => {
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "pagada", cliente_id: null, total: 20000, impuesto: 2520, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "CMP-001", created_at: "2026-04-17T10:00:00Z" },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({
+        data: [{ producto_id: "prod-1", cantidad: 2 }],
+        error: null,
+      }),
+    };
+
+    const prodChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: "prod-1", stock: 10, costo: 5000 },
+        error: null,
+      }),
+    };
+
+    const prodUpdateErrorChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: null, error: { message: "Stock update failed" } }),
+    };
+
+    const ventaUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    const insertChain = {
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        if (table === "productos" && callCount === 3) return prodChain;
+        if (table === "productos" && callCount === 4) return prodUpdateErrorChain;
+        if (table === "stock_movements") return insertChain;
+        if (table === "ventas" && callCount > 4) return ventaUpdateChain;
+      }),
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toContain("Error restaurando stock");
+  });
+
+  it("retorna 404 si venta no existe", async () => {
     const ventaChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),

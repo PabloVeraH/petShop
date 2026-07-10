@@ -48,6 +48,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["venta", id],
@@ -95,19 +96,24 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   });
 
   const { mutate: anularVenta, isPending: anulando } = useMutation({
-    mutationFn: () =>
-      fetch(`/api/ventas/${id}`, {
+    mutationFn: async () => {
+      const res = await fetch(`/api/ventas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "anular" }),
-      }).then((r) => r.json()),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Error al anular la venta");
+      return body;
+    },
     onSuccess: () => {
+      setErrorMsg(null);
       queryClient.invalidateQueries({ queryKey: ["venta", id] });
-      // refetchType: "all" fuerza refetch inmediato aunque la lista esté desmontada
-      // (sin observer activo). De lo contrario, sólo se marca stale y la lista no
-      // se actualiza hasta que el usuario navegue de vuelta y el componente remonte.
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       setConfirmAnular(false);
+    },
+    onError: (e: Error) => {
+      setErrorMsg(e.message);
     },
   });
 
@@ -197,6 +203,13 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           </>
         )}
       </div>
+
+      {/* Mensaje de error */}
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 print:hidden">
+          <p className="text-sm text-red-700">{errorMsg}</p>
+        </div>
+      )}
 
       {/* Saldo a favor del cliente */}
       {data?.clientes && saldoFavor?.saldo_disponible > 0 && (

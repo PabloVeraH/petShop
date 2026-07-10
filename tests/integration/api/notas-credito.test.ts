@@ -141,7 +141,7 @@ function makeFromDevolucion(
     }
     if (table === "saldos_a_favor") {
       queries.saldos++;
-      chain.single.mockResolvedValue({ data: saldo, error: saldo ? null : new Error("Not found") });
+      chain.single.mockResolvedValue({ data: saldo, error: saldo ? null : { message: "Not found", code: "PGRST116" } });
       chain.upsert.mockResolvedValue({ data: null, error: null });
       return chain;
     }
@@ -149,7 +149,7 @@ function makeFromDevolucion(
       queries.fidel++;
       if (queries.fidel % 2 === 1) {
         // SELECT fidelización
-        chain.single.mockResolvedValue({ data: fidel, error: fidel ? null : new Error("Not found") });
+        chain.single.mockResolvedValue({ data: fidel, error: fidel ? null : { message: "Not found", code: "PGRST116" } });
       } else {
         // UPDATE fidelización
         chain.eq.mockResolvedValue({ data: null, error: null });

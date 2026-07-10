@@ -35,6 +35,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-36 | Venta sin items retorna 400 | POST /api/ventas | integration |
 | I-37 | Venta con producto sin stock retorna 409 | POST /api/ventas | integration |
 | I-38 | Anular venta restaura stock | PATCH /api/ventas/[id] | integration |
+| I-319 | Anular venta con error de DB al restaurar stock retorna 500 en vez de éxito silencioso | PATCH /api/ventas/[id] | integration |
+| I-320 | GET saldo a favor con error real de DB retorna 500 en vez de 0 silencioso | GET /api/saldos-a-favor | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 
@@ -45,6 +47,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-60 | Pago con NC válida descuenta del monto total | POST /api/pagos | integration |
 | I-61 | Pago con NC vencida retorna 410 | POST /api/pagos | integration |
 | I-62 | Pago con saldo a favor descuenta correctamente | POST /api/pagos | integration |
+| I-317 | Pago con error de DB en pagos query retorna 500 en vez de éxito silencioso | POST /api/pagos | integration |
+| I-318 | Pago con error de DB al actualizar venta retorna 500 en vez de éxito silencioso | POST /api/pagos | integration |
 
 ## Inventario (I-71 a I-90)
 
@@ -191,6 +195,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
 | VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |
+| VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
 | REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
 
 ## Middleware / Routing (MW-XX)

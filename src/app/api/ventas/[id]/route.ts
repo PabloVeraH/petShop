@@ -80,6 +80,7 @@ export async function PATCH(
     .eq("venta_id", id);
 
   let costoTotal = 0;
+  const stockErrors: string[] = [];
   for (const item of items ?? []) {
     const { data: prod } = await supabase
       .from("productos")
@@ -90,12 +91,14 @@ export async function PATCH(
     if (prod) {
       costoTotal += (prod.costo ?? 0) * item.cantidad;
 
-      await supabase
+      const { error: stockErr } = await supabase
         .from("productos")
         .update({ stock: prod.stock + item.cantidad })
         .eq("id", item.producto_id);
 
-      await supabase.from("stock_movements").insert({
+      if (stockErr) stockErrors.push(`producto ${item.producto_id}: ${stockErr.message}`);
+
+      const { error: movErr } = await supabase.from("stock_movements").insert({
         producto_id: item.producto_id,
         tipo: "entrada",
         cantidad: item.cantidad,
@@ -103,7 +106,13 @@ export async function PATCH(
         notas: `Anulación ${venta.numero_comprobante ?? id.slice(0, 8)}`,
         user_id: ctx.userId,
       });
+
+      if (movErr) stockErrors.push(`stock_movement producto ${item.producto_id}: ${movErr.message}`);
     }
+  }
+
+  if (stockErrors.length > 0) {
+    return NextResponse.json({ error: `Error restaurando stock: ${stockErrors.join("; ")}` }, { status: 500 });
   }
 
   if (venta.cliente_id) {
@@ -128,12 +137,16 @@ export async function PATCH(
       ]).sort((a, b) => b.monto - a.monto);
       const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
 
-      await supabase.from("fidelizacion").update({
+      const { error: fidErr } = await supabase.from("fidelizacion").update({
         total_historico: nuevoTotal,
         frecuencia_compras: nuevaFrecuencia,
         descuento_actual: nuevoDescuento,
         updated_at: new Date().toISOString(),
       }).eq("cliente_id", venta.cliente_id);
+
+      if (fidErr) {
+        return NextResponse.json({ error: "Error actualizando fidelización del cliente" }, { status: 500 });
+      }
     }
   }
 
@@ -164,8 +177,9 @@ export async function PATCH(
   const numeroRef = venta.numero_comprobante ?? id.slice(0, 8);
   const canalVenta = (venta.canal ?? "pos") as "pos" | "rappi" | "pedidosya" | "ubereats";
 
-  ;(async () => {
-    crearAsiento({
+  // Asiento contable (post-response fire-and-forget)
+  (async () => {
+    const asiento = await crearAsiento({
       storeId: store_id,
       fecha: fechaAnulacion,
       tipoMovimiento: "ANULACION_VENTA",
@@ -181,10 +195,11 @@ export async function PATCH(
         total: totalVenta,
       }),
       usuarioId: ctx.userId ?? undefined,
-    }).catch((e) => console.error("[contabilidad] Error asiento anulación venta:", e));
+    });
+    if (!asiento) console.error(`[contabilidad] Asiento de anulación NO CREADO para venta ${numeroRef}`);
 
     if (costoTotal > 0) {
-      crearAsiento({
+      const reverso = await crearAsiento({
         storeId: store_id,
         fecha: fechaAnulacion,
         tipoMovimiento: "ANULACION_VENTA",
@@ -194,9 +209,10 @@ export async function PATCH(
         descripcion: `Reverso COGS anulación ${numeroRef}`,
         lineas: lineasAnulacionCOGS(Math.round(costoTotal)),
         usuarioId: ctx.userId ?? undefined,
-      }).catch((e) => console.error("[contabilidad] Error reverso COGS anulación:", e));
+      });
+      if (!reverso) console.error(`[contabilidad] Reverso COGS NO CREADO para venta ${numeroRef}`);
     }
-  })();
+  })().catch((e) => console.error("[contabilidad] Error en asiento de anulación:", e));
 
   return NextResponse.json(updated);
 }

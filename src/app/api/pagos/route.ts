@@ -86,18 +86,52 @@ export async function POST(req: NextRequest) {
     });
 
   // Actualizar estado de venta a "pagada" si el monto cubre el total
-  const { data: pagosVenta } = await supabase
+  const { data: pagosVenta, error: pagosQueryError } = await supabase
     .from("pagos")
     .select("monto")
     .eq("venta_id", ventaId);
 
+  if (pagosQueryError) {
+    const meta = await getRequestMetadata(req);
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId || "unknown",
+      action: "UPDATE",
+      entityType: "venta",
+      entityId: ventaId,
+      changeDescription: `Error verificando pagos de venta ${ventaId} tras registrar pago ${pago.id}`,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      result: "failure",
+      errorMessage: pagosQueryError.message,
+    });
+    return NextResponse.json({ error: "Error al verificar pagos de la venta" }, { status: 500 });
+  }
+
   const totalPagado = (pagosVenta ?? []).reduce((sum, p) => sum + Number(p.monto), 0);
 
   if (totalPagado >= venta.total) {
-    await supabase
+    const { error: updateError } = await supabase
       .from("ventas")
       .update({ estado: "pagada" })
       .eq("id", ventaId);
+
+    if (updateError) {
+      const meta = await getRequestMetadata(req);
+      await logAudit({
+        storeId: store_id,
+        userId: ctx.userId || "unknown",
+        action: "UPDATE",
+        entityType: "venta",
+        entityId: ventaId,
+        changeDescription: `Error marcando venta ${ventaId} como pagada tras registrar pago ${pago.id}`,
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+        result: "failure",
+        errorMessage: updateError.message,
+      });
+      return NextResponse.json({ error: "Error al actualizar estado de la venta" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({

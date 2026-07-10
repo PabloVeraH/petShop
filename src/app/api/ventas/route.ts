@@ -425,6 +425,8 @@ async function postVenta(req: NextRequest) {
   const ivaCalc = Math.round(total * IVA_RATE / (1 + IVA_RATE));
   const montoNeto = total - ivaCalc;
 
+  // Asiento contable (post-response fire-and-forget)
+  const fechaVenta = (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
   (async () => {
     let clienteNombre: string | undefined;
     if (clienteId) {
@@ -432,12 +434,8 @@ async function postVenta(req: NextRequest) {
       clienteNombre = cli?.nombre ?? undefined;
     }
 
-    const fechaVenta = (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
-
-    // Asiento 1: reconocimiento de ingreso — solo líneas de la venta.
-    // COGS va en un asiento separado para que total_debito refleje el valor real
-    // de la transacción ($11.682) y no la suma venta+COGS ($18.182).
-    crearAsiento({
+    // Asiento 1: reconocimiento de ingreso
+    const asiento1 = await crearAsiento({
       storeId: store_id,
       fecha: fechaVenta,
       tipoMovimiento: "VENTA",
@@ -456,13 +454,12 @@ async function postVenta(req: NextRequest) {
           })
         : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
       usuarioId: ctx.userId ?? undefined,
-    }).then((id) => {
-      if (!id) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante}) — revisar logs previos`);
-    }).catch((e) => console.error("[contabilidad] Error asiento venta:", e));
+    });
+    if (!asiento1) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
 
-    // Asiento 2: costo de la mercancía vendida (COGS) — asiento independiente
+    // Asiento 2: costo de la mercancía vendida (COGS)
     if (costoTotal > 0) {
-      crearAsiento({
+      const asiento2 = await crearAsiento({
         storeId: store_id,
         fecha: fechaVenta,
         tipoMovimiento: "VENTA",
@@ -472,11 +469,10 @@ async function postVenta(req: NextRequest) {
         descripcion: `COGS venta${clienteNombre ? ` a ${clienteNombre}` : ""} — costo mercancía`,
         lineas: lineasVentaCOGS(Math.round(costoTotal)),
         usuarioId: ctx.userId ?? undefined,
-      }).then((id) => {
-        if (!id) console.error(`[contabilidad] Asiento COGS NO CREADO para venta ${venta.id} (${venta.numero_comprobante}) — revisar logs previos`);
-      }).catch((e) => console.error("[contabilidad] Error asiento COGS:", e));
+      });
+      if (!asiento2) console.error(`[contabilidad] Asiento COGS NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
     }
-  })();
+  })().catch((e) => console.error("[contabilidad] Error en asiento de venta:", e));
 
   return NextResponse.json(venta);
 }

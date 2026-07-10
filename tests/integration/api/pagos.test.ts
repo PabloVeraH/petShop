@@ -173,6 +173,91 @@ describe("POST /api/pagos", () => {
     const res = await POST(req);
     expect(res.status).toBe(401);
   });
+
+  it("I-317: retorna 500 si falla la consulta de pagos al verificar estado de la venta", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+    };
+
+    let singleCalls = 0;
+    chain.single.mockImplementation(() => {
+      singleCalls++;
+      if (singleCalls === 1) return Promise.resolve({ data: { id: VENTA_ID, total: 5000, store_id: STORE_ID, estado: "pendiente" }, error: null });
+      return Promise.resolve({ data: { id: PAGO_ID, metodo: "efectivo", monto: 5000 }, error: null });
+    });
+
+    let eqCallCount = 0;
+    chain.eq.mockImplementation(function (...args) {
+      eqCallCount++;
+      if (eqCallCount === 3) {
+        return Promise.resolve({ data: null, error: { message: "DB error consultando pagos" } });
+      }
+      return this;
+    });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(chain),
+    });
+
+    const req = new NextRequest("http://localhost/api/pagos", {
+      method: "POST",
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 5000 }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toContain("Error al verificar pagos");
+  });
+
+  it("I-318: retorna 500 si falla el update de estado de venta a pagada", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn(),
+    };
+
+    let singleCalls = 0;
+    chain.single.mockImplementation(() => {
+      singleCalls++;
+      if (singleCalls === 1) return Promise.resolve({ data: { id: VENTA_ID, total: 5000, store_id: STORE_ID, estado: "pendiente" }, error: null });
+      return Promise.resolve({ data: { id: PAGO_ID, metodo: "efectivo", monto: 5000 }, error: null });
+    });
+
+    let eqCallCount = 0;
+    chain.eq.mockImplementation(function (...args) {
+      eqCallCount++;
+      if (eqCallCount === 3) {
+        return Promise.resolve({ data: [{ monto: 5000 }], error: null });
+      }
+      if (eqCallCount === 4) {
+        return Promise.resolve({ data: null, error: { message: "DB error actualizando venta" } });
+      }
+      return this;
+    });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(chain),
+    });
+
+    const req = new NextRequest("http://localhost/api/pagos", {
+      method: "POST",
+      body: JSON.stringify({ ventaId: VENTA_ID, metodoPago: "efectivo", monto: 5000 }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toContain("Error al actualizar estado de la venta");
+  });
 });
 
 describe("GET /api/pagos", () => {

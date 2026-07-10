@@ -207,6 +207,7 @@ export async function POST(req: NextRequest) {
 
   if (itemsError) return NextResponse.json({ error: "Error creando items de NC" }, { status: 500 });
 
+  const stockNcErrors: string[] = [];
   for (const item of itemsConDetalles) {
     if (item.restituirStock) {
       const { data: itemLotes } = await supabase
@@ -216,9 +217,10 @@ export async function POST(req: NextRequest) {
         .limit(1);
 
       if (itemLotes && itemLotes.length > 0) {
-        await supabase.rpc("devolver_stock_a_lotes", {
+        const { error: lotesErr } = await supabase.rpc("devolver_stock_a_lotes", {
           p_venta_item_id: item.ventaItemId,
         });
+        if (lotesErr) stockNcErrors.push(`lotes producto ${item.productoId}: ${lotesErr.message}`);
       } else {
         const { data: prod } = await supabase
           .from("productos")
@@ -227,14 +229,15 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (prod) {
-          await supabase
+          const { error: stockErr } = await supabase
             .from("productos")
             .update({ stock: prod.stock + item.cantidadDevuelta })
             .eq("id", item.productoId);
+          if (stockErr) stockNcErrors.push(`producto ${item.productoId}: ${stockErr.message}`);
         }
       }
 
-      await supabase.from("stock_movements").insert({
+      const { error: movErr } = await supabase.from("stock_movements").insert({
         producto_id: item.productoId,
         tipo: "entrada",
         cantidad: item.cantidadDevuelta,
@@ -242,7 +245,12 @@ export async function POST(req: NextRequest) {
         notas: `Devolución ${numero_nc}`,
         user_id: ctx.userId,
       });
+      if (movErr) stockNcErrors.push(`stock_movement producto ${item.productoId}: ${movErr.message}`);
     }
+  }
+
+  if (stockNcErrors.length > 0) {
+    return NextResponse.json({ error: `Error restaurando stock: ${stockNcErrors.join("; ")}` }, { status: 500 });
   }
 
   if (tipoReembolso === "saldo_a_favor" && venta.cliente_id) {
@@ -255,7 +263,7 @@ export async function POST(req: NextRequest) {
 
     const nuevoSaldo = (Number(saldo?.saldo_disponible ?? 0) + montoTotal).toFixed(2);
 
-    await supabase.from("saldos_a_favor").upsert(
+    const { error: saldoErr } = await supabase.from("saldos_a_favor").upsert(
       {
         store_id: venta_store_id,
         cliente_id: venta.cliente_id,
@@ -264,6 +272,10 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "store_id,cliente_id" }
     );
+
+    if (saldoErr) {
+      return NextResponse.json({ error: "Error actualizando saldo a favor del cliente" }, { status: 500 });
+    }
   }
 
   if (venta.cliente_id) {
@@ -282,20 +294,25 @@ export async function POST(req: NextRequest) {
 
     if (fid) {
       const nuevoTotal = Math.max(0, Number(fid.total_historico) - montoTotal);
-      const nuevaFrecuencia = fid.frecuencia_compras; // No decrementamos aquí, solo en anulación total
+      const nuevaFrecuencia = fid.frecuencia_compras;
       const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
         { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
       ]).sort((a, b) => b.monto - a.monto);
       const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
 
-      await supabase.from("fidelizacion").update({
+      const { error: fidErr } = await supabase.from("fidelizacion").update({
         total_historico: nuevoTotal,
         descuento_actual: nuevoDescuento,
         updated_at: new Date().toISOString(),
       }).eq("cliente_id", venta.cliente_id);
+
+      if (fidErr) {
+        return NextResponse.json({ error: "Error actualizando fidelización del cliente" }, { status: 500 });
+      }
     }
   }
 
+  // Asiento contable (post-response fire-and-forget)
   (async () => {
     let clienteNombre: string | undefined;
     if (venta.cliente_id) {
@@ -303,7 +320,7 @@ export async function POST(req: NextRequest) {
       clienteNombre = cli?.nombre ?? undefined;
     }
 
-    crearAsiento({
+    const asiento = await crearAsiento({
       storeId: venta_store_id,
       fecha: new Date().toISOString().split("T")[0],
       tipoMovimiento: "NOTA_CREDITO",
@@ -313,8 +330,9 @@ export async function POST(req: NextRequest) {
       descripcion: `Devolución${clienteNombre ? ` a ${clienteNombre}` : ""}${motivo ? ` — ${motivo}` : ""}`,
       lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
       usuarioId: ctx.userId ?? undefined,
-    }).catch((e) => console.error("[contabilidad] Error asiento NC:", e));
-  })();
+    });
+    if (!asiento) console.error(`[contabilidad] Asiento NC NO CREADO para ${numero_nc}`);
+  })().catch((e) => console.error("[contabilidad] Error en asiento NC:", e));
 
   return NextResponse.json({
     ok: true,

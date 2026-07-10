@@ -97,6 +97,7 @@ export async function PATCH(req: NextRequest) {
   }).catch(() => {});
 
   if (estado === "pagada" && data) {
+    // Asiento contable (post-response fire-and-forget)
     (async () => {
       let proveedorNombre: string | undefined;
       const { data: cp } = await supabase
@@ -107,7 +108,7 @@ export async function PATCH(req: NextRequest) {
       const rel = cp?.proveedores as unknown as { nombre: string } | null;
       proveedorNombre = rel?.nombre ?? undefined;
 
-      crearAsiento({
+      const asiento = await crearAsiento({
         storeId: store_id,
         fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
         tipoMovimiento: "PAGO_PROVEEDOR",
@@ -115,8 +116,9 @@ export async function PATCH(req: NextRequest) {
         descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,
         lineas: lineasPagoProveedor(Number(data.monto), metodo_pago),
         usuarioId: ctx.userId ?? undefined,
-      }).catch((e) => console.error("[contabilidad] Error asiento pago proveedor:", e));
-    })();
+      });
+      if (!asiento) console.error(`[contabilidad] Asiento PAGO_PROVEEDOR NO CREADO para cuenta ${data.id}`);
+    })().catch((e) => console.error("[contabilidad] Error en asiento pago proveedor:", e));
   }
 
   return NextResponse.json(data);

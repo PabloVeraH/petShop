@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
     .eq("store_id", store_id)
     .single();
 
-  if (error) {
-    return NextResponse.json({ saldo_disponible: 0 });
+  if (error && error.code !== "PGRST116") {
+    return NextResponse.json({ error: "Error consultando saldo" }, { status: 500 });
   }
 
   return NextResponse.json({ saldo_disponible: saldo?.saldo_disponible ?? 0 });

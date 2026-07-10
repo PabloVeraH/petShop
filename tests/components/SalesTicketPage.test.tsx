@@ -253,7 +253,7 @@ describe("SalesTicketPage — badge Dev. X y disponibilidad de items", () => {
 
 // ── Tests de anulación ─────────────────────────────────────────────────────
 
-describe("SalesTicketPage — anulación de venta (VT-01 a VT-03)", () => {
+describe("SalesTicketPage — anulación de venta (VT-01 a VT-04)", () => {
   beforeEach(() => jest.clearAllMocks());
 
   // VT-03: REGRESIÓN — anular venta debe invalidar queries de detalle Y listado con refetchType "all".
@@ -345,6 +345,56 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-03)", () => {
     expect(historyBackSpy).not.toHaveBeenCalled();
 
     historyBackSpy.mockRestore();
+  });
+
+  // VT-05: error del servidor al anular muestra mensaje en banner rojo
+  it("VT-05: anulación con error del servidor muestra mensaje en banner rojo", async () => {
+    const VENTA_ACTIVA = {
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Collar Perro", 1, 5000)],
+    };
+
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/ventas/") && opts?.method === "PATCH") {
+        return Promise.resolve({ ok: false, json: () => Promise.resolve({ error: "La venta ya está anulada" }) });
+      }
+      if (url.includes("/api/ventas/")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(VENTA_ACTIVA) });
+      }
+      if (url.includes("/api/notas-credito")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: "PetShop Test" }) });
+      }
+      if (url.includes("/api/saldos-a-favor")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ saldo_disponible: 0 }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar Perro")).toBeInTheDocument()
+    );
+
+    // Click "Anular venta" → se muestra confirmación
+    fireEvent.click(screen.getByRole("button", { name: /Anular venta/i }));
+
+    // Click "Sí, anular"
+    fireEvent.click(screen.getByRole("button", { name: /Sí, anular/i }));
+
+    // El banner rojo con el mensaje de error debe aparecer
+    await waitFor(() => {
+      expect(screen.getByText("La venta ya está anulada")).toBeInTheDocument();
+    });
   });
 
   // VT-01: ticket de venta no anulada mustra "Gracias por su compra"

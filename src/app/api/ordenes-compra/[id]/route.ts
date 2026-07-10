@@ -253,17 +253,20 @@ export async function PATCH(
       }
     }
 
-    // Asiento contable (fire-and-forget)
-    crearAsiento({
-      storeId: store_id,
-      fecha: new Date().toISOString().split("T")[0],
-      tipoMovimiento: "COMPRA",
-      referenciaId: id,
-      referenciaNomero: ordenBase.numero,
-      descripcion: `Recepción compra — ${ordenBase.numero}`,
-      lineas: lineasCompra({ montoNeto: totalNeto, iva: impuesto, total }),
-      usuarioId: ctx.userId ?? undefined,
-    }).catch(e => console.error("[contabilidad] Error asiento compra:", e));
+    // Asiento contable (post-response fire-and-forget)
+    (async () => {
+      const asiento = await crearAsiento({
+        storeId: store_id,
+        fecha: new Date().toISOString().split("T")[0],
+        tipoMovimiento: "COMPRA",
+        referenciaId: id,
+        referenciaNomero: ordenBase.numero,
+        descripcion: `Recepción compra — ${ordenBase.numero}`,
+        lineas: lineasCompra({ montoNeto: totalNeto, iva: impuesto, total }),
+        usuarioId: ctx.userId ?? undefined,
+      });
+      if (!asiento) console.error(`[contabilidad] Asiento COMPRA NO CREADO para OC ${ordenBase.numero}`);
+    })().catch((e) => console.error("[contabilidad] Error en asiento compra:", e));
 
     return NextResponse.json(orden);
   }

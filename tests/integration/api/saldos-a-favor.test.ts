@@ -45,7 +45,7 @@ describe("GET /api/saldos-a-favor", () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({
         data: null,
-        error: { message: "not found" },
+        error: { message: "JSON object requested, multiple (or no) rows found", code: "PGRST116" },
       }),
     };
 
@@ -59,6 +59,28 @@ describe("GET /api/saldos-a-favor", () => {
 
     expect(res.status).toBe(200);
     expect(data.saldo_disponible).toBe(0);
+  });
+
+  it("I-320: retorna 500 si hay un error real de base de datos", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: "connection refused", code: "CONN_ERR" },
+      }),
+    };
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(chain),
+    });
+
+    const req = new NextRequest(`http://localhost/api/saldos-a-favor?clienteId=${CLIENTE_ID}`);
+    const res = await GET(req);
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toContain("Error consultando saldo");
   });
 
   it("retorna 400 sin clienteId", async () => {
