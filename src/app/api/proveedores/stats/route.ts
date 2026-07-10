@@ -18,7 +18,8 @@ export async function GET() {
       .from("cuentas_pagar")
       .select("proveedor_id, monto")
       .eq("store_id", store_id)
-      .eq("estado", "pendiente"),
+      .eq("estado", "pendiente")
+      .gt("monto", 0),
   ]);
 
   if (ordenesRes.error || cuentasRes.error) {

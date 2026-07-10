@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     .from("cuentas_pagar")
     .select("id, monto, fecha_emision, fecha_vencimiento, estado, proveedores(nombre), ordenes_compra(numero)")
     .eq("store_id", store_id)
+    .gt("monto", 0)
     .order("fecha_vencimiento");
   if (estado) query = query.eq("estado", estado);
   if (proveedor_id) query = query.eq("proveedor_id", proveedor_id);

@@ -230,25 +230,27 @@ export async function PATCH(
       return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
     }
 
-    // Crear cuenta por pagar
-    const { data: existente } = await supabase
-      .from("cuentas_pagar")
-      .select("id")
-      .eq("orden_id", id)
-      .single();
+    // Crear cuenta por pagar (solo si el monto es mayor a 0)
+    if (total > 0) {
+      const { data: existente } = await supabase
+        .from("cuentas_pagar")
+        .select("id")
+        .eq("orden_id", id)
+        .single();
 
-    if (!existente) {
-      const vencimiento = new Date();
-      vencimiento.setDate(vencimiento.getDate() + 30);
-      await supabase.from("cuentas_pagar").insert({
-        store_id,
-        orden_id: id,
-        proveedor_id: ordenBase.proveedor_id,
-        monto: total,
-        fecha_emision: new Date().toISOString().split("T")[0],
-        fecha_vencimiento: vencimiento.toISOString().split("T")[0],
-        estado: "pendiente",
-      });
+      if (!existente) {
+        const vencimiento = new Date();
+        vencimiento.setDate(vencimiento.getDate() + 30);
+        await supabase.from("cuentas_pagar").insert({
+          store_id,
+          orden_id: id,
+          proveedor_id: ordenBase.proveedor_id,
+          monto: total,
+          fecha_emision: new Date().toISOString().split("T")[0],
+          fecha_vencimiento: vencimiento.toISOString().split("T")[0],
+          estado: "pendiente",
+        });
+      }
     }
 
     // Asiento contable (fire-and-forget)
