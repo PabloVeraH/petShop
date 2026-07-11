@@ -30,7 +30,44 @@ export async function GET() {
     .single();
 
   if (!data) return NextResponse.json(null);
-  return NextResponse.json(data);
+
+  // Cross-validar recomendaciones cacheadas contra el catálogo actual
+  const recs = data.recomendaciones as { producto_id: string; nombre: string; sku: string; dias_hasta_vencer: number; stock: number; precio_actual: number; descuento_recomendado: number; motivo: string }[];
+  if (!recs?.length) return NextResponse.json(data);
+
+  const productoIds = recs.map(r => r.producto_id);
+  const { data: productosActuales } = await supabase
+    .from("productos")
+    .select("id, activo, stock, fecha_vencimiento")
+    .eq("store_id", store_id)
+    .in("id", productoIds);
+
+  const currentMap = new Map((productosActuales ?? []).map(p => [p.id, p]));
+
+  const hoy = new Date();
+  const validas: typeof recs = [];
+  let productosObsoletos = 0;
+
+  for (const rec of recs) {
+    const actual = currentMap.get(rec.producto_id);
+    if (!actual || !actual.activo) {
+      productosObsoletos++;
+      continue;
+    }
+    validas.push({
+      ...rec,
+      dias_hasta_vencer: actual.fecha_vencimiento
+        ? Math.floor((new Date(actual.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+        : rec.dias_hasta_vencer,
+      stock: Number(actual.stock),
+    });
+  }
+
+  return NextResponse.json({
+    ...data,
+    recomendaciones: validas,
+    productos_obsoletos: productosObsoletos,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -135,11 +172,17 @@ export async function POST(req: NextRequest) {
     const rawRecs = await analizarVencimientosConIA(apiKey, model, productosParaIA, fechaHoyStr);
     // Merge back stock y dias_hasta_vencer desde productosParaIA (el LLM no los retorna)
     const productoMap = new Map(productosParaIA.map(p => [p.producto_id, p]));
-    recomendaciones = rawRecs.map(rec => ({
-      ...rec,
-      dias_hasta_vencer: productoMap.get(rec.producto_id)?.dias_hasta_vencer ?? 0,
-      stock:             productoMap.get(rec.producto_id)?.stock ?? 0,
-    }));
+    recomendaciones = rawRecs
+      .filter(rec => {
+        const existe = productoMap.has(rec.producto_id);
+        if (!existe) console.warn("IA devolvió producto_id no existente en el lote analizado:", rec.producto_id);
+        return existe;
+      })
+      .map(rec => ({
+        ...rec,
+        dias_hasta_vencer: productoMap.get(rec.producto_id)!.dias_hasta_vencer,
+        stock:             productoMap.get(rec.producto_id)!.stock,
+      }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error inesperado al llamar al modelo";
     return NextResponse.json({ error: msg }, { status: 502 });

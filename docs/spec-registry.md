@@ -423,6 +423,20 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 | MC-29 | REGRESIÓN: confirmar cuando fidelización retorna null aplica descuento 0 | ModalCliente | component |
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
 
+## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-09)
+
+| ID | Requisito | Route | Tipo |
+|----|-----------|-------|------|
+| I-AI-01 | POST rechaza no autenticado con 401 | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-02 | POST rechaza storeWorker con 403 | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-03 | POST retorna 503 si OPENROUTER_API_KEY no configurada | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-04 | POST retorna recomendaciones vacías si no hay productos próximos a vencer | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-05 | POST llama a analizarVencimientosConIA y retorna recomendaciones | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-06 | POST incluye unidades_vendidas_30d en datos al LLM | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-07 | POST retorna 502 si el LLM lanza error | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-08 | POST filtra producto_id que LLM alucinó (no existe en input) | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-09 | GET filtra recomendaciones cacheadas de inactivos y reporta productos_obsoletos | GET /api/ai/vencimientos/optimizar | integration |
+
 ## OpenRouter — analizarVencimientosConIA (U-OR-01 a U-OR-07)
 
 | ID | Requisito | Lib | Tipo |
@@ -447,7 +461,7 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 | U-REC-06 | Limita a 3 recomendaciones aunque LLM devuelva más | lib/openrouter | unit |
 | U-REC-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
 
-## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-08)
+## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-09)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -459,6 +473,7 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 | C-OPT-06 | Botón WhatsApp copia mensaje al portapapeles | OptimizadorVencimientosTab | component |
 | C-OPT-07 | Estado vacío cuando no hay productos próximos a vencer | OptimizadorVencimientosTab | component |
 | C-OPT-08 | Servidor retorna HTML en vez de JSON → error amigable (no Unexpected token '<') | OptimizadorVencimientosTab | component |
+| C-OPT-09 | Muestra advertencia cuando productos_obsoletos > 0 (recomendaciones filtradas por catálogo obsoleto) | OptimizadorVencimientosTab | component |
 
 ## RecomendacionesIA (C-REC-01 a C-REC-09)
 

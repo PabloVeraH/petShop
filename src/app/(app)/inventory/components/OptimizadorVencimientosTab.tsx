@@ -26,6 +26,7 @@ interface AnalisisResultado {
   productos_analizados: number;
   created_at?: string;
   dias_alerta?: number;
+  productos_obsoletos?: number;
 }
 
 const URGENCIA_COLORS = {
@@ -217,6 +218,12 @@ export function OptimizadorVencimientosTab() {
                   </p>
                 )}
               </div>
+              {resultado.productos_obsoletos && resultado.productos_obsoletos > 0 && (
+                <div className="mt-3 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <span className="font-medium">{resultado.productos_obsoletos}{" "}
+                  recomendación(es) omitidas</span> porque sus productos ya no están activos en el catálogo. Genera un nuevo análisis para obtener datos actualizados.
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>

@@ -1,10 +1,11 @@
 /**
- * Tests I-AI-01 a I-AI-07: POST /api/ai/vencimientos/optimizar
+ * Tests I-AI-01 a I-AI-09: POST /api/ai/vencimientos/optimizar + GET
  */
 import { NextRequest } from "next/server";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
+const HALLUCINATED_ID = "00000000-0000-0000-0000-000000000001";
 
 const mockFrom = jest.fn();
 const mockGetStoreId = jest.fn();
@@ -20,7 +21,7 @@ jest.mock("@/lib/audit", () => ({
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
 
-import { POST } from "@/app/api/ai/vencimientos/optimizar/route";
+import { POST, GET } from "@/app/api/ai/vencimientos/optimizar/route";
 
 // Fixture de producto DB
 const DB_PRODUCTO = {
@@ -197,5 +198,107 @@ describe("POST /api/ai/vencimientos/optimizar", () => {
     expect(res.status).toBe(502);
     const body = await res.json();
     expect(body.error).toContain("API key inválida");
+  });
+
+  // I-AI-08: filtra producto_id que LLM alucinó (no existe en input)
+  it("I-AI-08: filtra recomendaciones con producto_id que no existe en los productos analizados", async () => {
+    setupStoreAdmin();
+    const HALLUCINATED = {
+      producto_id: HALLUCINATED_ID, urgencia: "alta", estrategia: "descuento",
+      descuento_sugerido_pct: 50, precio_oferta_sugerido: 5000,
+      razon: "Producto inventado", mensaje_whatsapp: "Oferta!",
+    };
+    mockAnalizarIA.mockResolvedValue([DB_RECOMENDACION, HALLUCINATED]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.recomendaciones).toHaveLength(1);
+    expect(body.recomendaciones[0].producto_id).toBe(PRODUCTO_ID);
+  });
+});
+
+describe("GET /api/ai/vencimientos/optimizar", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // I-AI-09: filtra productos inactivos/eliminados del cache
+  it("I-AI-09: GET filtra recomendaciones cacheadas de productos inactivos y reporta productos_obsoletos", async () => {
+    const ACTIVE_ID   = "a0000000-0000-0000-0000-000000000001";
+    const INACTIVE_ID = "b0000000-0000-0000-0000-000000000002";
+
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+
+    const hoy = new Date();
+    const diasRestantes = Math.floor(
+      (new Date("2026-07-20").getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              { producto_id: ACTIVE_ID, nombre: "Activo", sku: "A-01", dias_hasta_vencer: 10, stock: 5, precio_actual: 1000, descuento_recomendado: 20, motivo: "Vence pronto" },
+              { producto_id: INACTIVE_ID, nombre: "Inactivo", sku: "I-01", dias_hasta_vencer: 3, stock: 2, precio_actual: 2000, descuento_recomendado: 30, motivo: "Urgente" },
+            ],
+            modelo_usado: "test-model",
+            productos_analizados: 2,
+            created_at: "2026-06-01T00:00:00Z",
+            dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          data: [
+            { id: ACTIVE_ID, activo: true, stock: 8, fecha_vencimiento: "2026-07-20" },
+            { id: INACTIVE_ID, activo: false, stock: 2, fecha_vencimiento: "2026-06-17" },
+          ],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Solo el producto activo debe permanecer
+    expect(body.recomendaciones).toHaveLength(1);
+    expect(body.recomendaciones[0].producto_id).toBe(ACTIVE_ID);
+    // El stock debe venir de la query actual, no del cache
+    expect(body.recomendaciones[0].stock).toBe(8);
+    // dias_hasta_vencer debe recalcularse desde fecha real
+    expect(body.recomendaciones[0].dias_hasta_vencer).toBe(diasRestantes);
+    // Debe reportar cuántos fueron omitidos
+    expect(body.productos_obsoletos).toBe(1);
   });
 });

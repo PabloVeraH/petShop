@@ -121,6 +121,20 @@ describe("OptimizadorVencimientosTab", () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Oferta 30% en Royal Canin!");
   });
 
+  // C-OPT-09: muestra warning cuando productos_obsoletos > 0
+  it("C-OPT-09: muestra advertencia cuando hay productos obsoletos filtrados del análisis cacheado", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [MOCK_RECOMENDACION],
+      modelo_usado: "test",
+      productos_analizados: 3,
+      productos_obsoletos: 2,
+    }));
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText(/recomendación.*omitidas|omitidas.*recomendaci/i)).toBeInTheDocument();
+    });
+  });
+
   // C-OPT-08
   it("C-OPT-08: muestra error amigable cuando el servidor retorna HTML en vez de JSON (previene Unexpected token '<')", async () => {
     mockFetch
