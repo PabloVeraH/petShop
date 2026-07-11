@@ -171,7 +171,9 @@ export default function ContabilidadPage() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Libro Diario</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            {tab === "libro" ? "Libro Diario" : tab === "balance" ? "Balance de Comprobación" : "Estado de Resultado"}
+          </h1>
           <p className="text-sm text-gray-500 mt-1">
             Registro contable conforme normativa SII Chile
           </p>
@@ -211,16 +213,34 @@ export default function ContabilidadPage() {
             </>
           )}
           {tab === "balance" && (
-            <a
-              href={`/api/contabilidad/balance-prueba/excel?mes=${Number(mes)}&año=${año}&fecha=${año}-${mes}-${new Date(Number(año), Number(mes), 0).getDate()}`}
-            >
-              <Button variant="outline" size="sm">Excel</Button>
-            </a>
+            <>
+              <a
+                href={`/api/contabilidad/balance-prueba/pdf?fecha=${año}-${mes}-${new Date(Number(año), Number(mes), 0).getDate()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">PDF</Button>
+              </a>
+              <a
+                href={`/api/contabilidad/balance-prueba/excel?mes=${Number(mes)}&año=${año}&fecha=${año}-${mes}-${new Date(Number(año), Number(mes), 0).getDate()}`}
+              >
+                <Button variant="outline" size="sm">Excel</Button>
+              </a>
+            </>
           )}
           {tab === "resultado" && (
-            <a href={`/api/contabilidad/estado-resultado/excel?mes=${Number(mes)}&año=${año}`}>
-              <Button variant="outline" size="sm">Excel</Button>
-            </a>
+            <>
+              <a
+                href={`/api/contabilidad/estado-resultado/pdf?mes=${Number(mes)}&año=${año}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">PDF</Button>
+              </a>
+              <a href={`/api/contabilidad/estado-resultado/excel?mes=${Number(mes)}&año=${año}`}>
+                <Button variant="outline" size="sm">Excel</Button>
+              </a>
+            </>
           )}
         </div>
       </div>

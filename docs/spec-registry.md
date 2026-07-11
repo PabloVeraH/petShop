@@ -92,6 +92,51 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-315 | REGRESIÓN: verificación de duplicados de cierre usa select+array en vez de .single() para evitar que PGRST116 permita un segundo cierre | POST /api/contabilidad/cierre-mes | integration |
 | I-323 | crearAsiento retorna null durante COGS y existe cierre concurrente → 409 | POST /api/contabilidad/cierre-mes | integration |
 | I-324 | crearAsiento retorna null durante COGS sin cierre concurrente → 500 | POST /api/contabilidad/cierre-mes | integration |
+| I-328 | Anular venta con NC activa (saldo_a_favor) cancela NC y revierte saldo | PATCH /api/ventas/[id] | integration |
+| I-329 | Anular venta con NC activa (reembolso_directo) solo cancela NC, sin tocar saldo | PATCH /api/ventas/[id] | integration |
+| I-330 | Anular venta con NC ya usada no la modifica | PATCH /api/ventas/[id] | integration |
+| I-331 | Anular venta sin NCs no falla ni toca NCs ni saldo | PATCH /api/ventas/[id] | integration |
+| BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
+| BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
+| BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |
+| BP-PDF-04 | Balance PDF Content-Type es text/html | GET /api/contabilidad/balance-prueba/pdf | integration |
+| ER-PDF-01 | Estado Resultado PDF retorna 401 sin autenticación | GET /api/contabilidad/estado-resultado/pdf | integration |
+| ER-PDF-02 | Estado Resultado PDF retorna HTML con título y empresa | GET /api/contabilidad/estado-resultado/pdf | integration |
+| ER-PDF-03 | Estado Resultado PDF incluye ingresos y gastos en HTML | GET /api/contabilidad/estado-resultado/pdf | integration |
+| ER-PDF-04 | Estado Resultado PDF Content-Type es text/html | GET /api/contabilidad/estado-resultado/pdf | integration |
+
+## Balance HTML (BP-01 a BP-12)
+
+| ID | Requisito | Route | Tipo |
+|----|-----------|-------|------|
+| BP-01 | generarHtmlBalancePrueba retorna HTML válido | lib/contabilidad/html-balance-prueba | unit |
+| BP-02 | Incluye nombre de empresa y RUT | lib/contabilidad/html-balance-prueba | unit |
+| BP-03 | Incluye título "Balance de Comprobación" | lib/contabilidad/html-balance-prueba | unit |
+| BP-04 | Incluye período y fecha | lib/contabilidad/html-balance-prueba | unit |
+| BP-05 | Incluye todas las cuentas con código, nombre, tipo, montos | lib/contabilidad/html-balance-prueba | unit |
+| BP-06 | Montos formateados en CLP ($ xxx.xxx) | lib/contabilidad/html-balance-prueba | unit |
+| BP-07 | Mensaje cuando no hay cuentas | lib/contabilidad/html-balance-prueba | unit |
+| BP-08 | Botón de impresión y CSS @media print | lib/contabilidad/html-balance-prueba | unit |
+| BP-09 | Indicador descuadrado cuando no balancea | lib/contabilidad/html-balance-prueba | unit |
+| BP-10 | Indicador balanceado cuando Dr = Cr | lib/contabilidad/html-balance-prueba | unit |
+| BP-11 | Empresa sin RUT muestra guión | lib/contabilidad/html-balance-prueba | unit |
+| BP-12 | Incluye totales en el pie | lib/contabilidad/html-balance-prueba | unit |
+
+## Estado Resultado HTML (ER-01 a ER-11)
+
+| ID | Requisito | Route | Tipo |
+|----|-----------|-------|------|
+| ER-01 | generarHtmlEstadoResultado retorna HTML válido | lib/contabilidad/html-estado-resultado | unit |
+| ER-02 | Incluye nombre de empresa y RUT | lib/contabilidad/html-estado-resultado | unit |
+| ER-03 | Incluye título "Estado de Resultado" | lib/contabilidad/html-estado-resultado | unit |
+| ER-04 | Incluye período | lib/contabilidad/html-estado-resultado | unit |
+| ER-05 | Incluye ingresos, gastos y utilidad | lib/contabilidad/html-estado-resultado | unit |
+| ER-06 | Montos formateados en CLP | lib/contabilidad/html-estado-resultado | unit |
+| ER-07 | Utilidad positiva muestra "UTILIDAD NETA" en verde | lib/contabilidad/html-estado-resultado | unit |
+| ER-08 | Pérdida muestra "PÉRDIDA" en rojo | lib/contabilidad/html-estado-resultado | unit |
+| ER-09 | No muestra línea de devoluciones si es cero | lib/contabilidad/html-estado-resultado | unit |
+| ER-10 | Botón de impresión y CSS @media print | lib/contabilidad/html-estado-resultado | unit |
+| ER-11 | Empresa sin RUT muestra guión | lib/contabilidad/html-estado-resultado | unit |
 
 ## Fidelización (I-141 a I-150)
 
@@ -408,6 +453,28 @@ Zustand persist en vez de simular el estado con `setState()`.
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
 | DV-14 | Confirmar devolución invalida ["ventas"] con refetchType "all" | DevolucionModal | component |
+
+## Devolución Modal Motivo (DV-15, DV-16)
+
+Regresión: el ModalOverlay llamaba `focus()` en el overlay en cada re-render porque `onClose`
+cambiaba de referencia, robando el foco del input de motivo. El fix estabilizó la dependencia
+del efecto a solo `[open]`, usando una ref para `onClose`.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| DV-15 | REGRESIÓN: motivo completo con acentos se envía en el body del fetch | DevolucionModal | component |
+| DV-16 | REGRESIÓN: motivo vacío se envía como null en el body | DevolucionModal | component |
+
+## ModalOverlay — foco y cierre (MO-01 a MO-06)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| MO-01 | Renderiza children cuando open=true | ModalOverlay | component |
+| MO-02 | No renderiza cuando open=false | ModalOverlay | component |
+| MO-03 | Llama onClose al hacer click fuera | ModalOverlay | component |
+| MO-04 | NO llama onClose al hacer click dentro | ModalOverlay | component |
+| MO-05 | Llama onClose al presionar Escape | ModalOverlay | component |
+| MO-06 | Solo enfoca el overlay cuando se abre, no en re-renders con onClose distinto | ModalOverlay | component |
 
 ## ModalCliente — fidelización descuento automático (MC-27 a MC-30)
 
