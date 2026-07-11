@@ -31,6 +31,15 @@ const MOCK_RESULTADO = {
   productos_analizados: 1,
 };
 
+function jsonResponse(data: unknown, ok = true) {
+  return {
+    ok,
+    headers: new Map([["content-type", "application/json"]]),
+    json: async () => data,
+    text: async () => JSON.stringify(data),
+  };
+}
+
 function renderTab() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -42,7 +51,7 @@ describe("OptimizadorVencimientosTab", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default para el GET de historial que dispara useEffect en mount
-    mockFetch.mockResolvedValue({ ok: false });
+    mockFetch.mockResolvedValue(jsonResponse(null, false));
   });
 
   // C-OPT-01
@@ -64,7 +73,7 @@ describe("OptimizadorVencimientosTab", () => {
 
   // C-OPT-03
   it("C-OPT-03: muestra tabla con recomendaciones después del análisis", async () => {
-    mockFetch.mockResolvedValue({ ok: true, json: async () => MOCK_RESULTADO });
+    mockFetch.mockResolvedValue(jsonResponse(MOCK_RESULTADO));
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
     await waitFor(() => {
@@ -74,7 +83,7 @@ describe("OptimizadorVencimientosTab", () => {
 
   // C-OPT-04
   it("C-OPT-04: badge de urgencia 'alta' tiene clase rojo", async () => {
-    mockFetch.mockResolvedValue({ ok: true, json: async () => MOCK_RESULTADO });
+    mockFetch.mockResolvedValue(jsonResponse(MOCK_RESULTADO));
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
     await waitFor(() => {
@@ -86,9 +95,9 @@ describe("OptimizadorVencimientosTab", () => {
   // C-OPT-05
   it("C-OPT-05: botón 'Aplicar descuento' llama al PATCH y muestra '✓ Aplicado'", async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: false })                                        // GET historial (mount)
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESULTADO })       // POST optimizar
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "prod-1" }) }); // PATCH producto
+      .mockResolvedValueOnce(jsonResponse(null, false))                      // GET historial (mount)
+      .mockResolvedValueOnce(jsonResponse(MOCK_RESULTADO))                   // POST optimizar
+      .mockResolvedValueOnce(jsonResponse({ id: "prod-1" }));                // PATCH producto
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
     await waitFor(() => screen.getByRole("button", { name: /aplicar descuento/i }));
@@ -104,7 +113,7 @@ describe("OptimizadorVencimientosTab", () => {
 
   // C-OPT-06
   it("C-OPT-06: botón WA copia el mensaje al portapapeles", async () => {
-    mockFetch.mockResolvedValue({ ok: true, json: async () => MOCK_RESULTADO });
+    mockFetch.mockResolvedValue(jsonResponse(MOCK_RESULTADO));
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
     await waitFor(() => screen.getByRole("button", { name: /wa|whatsapp|copiar/i }));
@@ -112,16 +121,31 @@ describe("OptimizadorVencimientosTab", () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Oferta 30% en Royal Canin!");
   });
 
+  // C-OPT-08
+  it("C-OPT-08: muestra error amigable cuando el servidor retorna HTML en vez de JSON (previene Unexpected token '<')", async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: false })                                       // GET historial (mount)
+      .mockResolvedValueOnce({                                                     // POST devuelve HTML
+        ok: true,
+        headers: new Map([["content-type", "text/html; charset=utf-8"]]),
+        json: async () => { throw new Error("Unexpected token '<'"); },
+        text: async () => "<html>Gateway Timeout</html>",
+      });
+    renderTab();
+    fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
+    await waitFor(() => {
+      // Debe mostrar mensaje amigable, no "Unexpected token '<'"
+      expect(screen.getByText(/servicio de IA|intente de nuevo/i)).toBeInTheDocument();
+    });
+  });
+
   // C-OPT-07
   it("C-OPT-07: muestra estado vacío cuando no hay productos próximos a vencer", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true, 
-      json: async () => ({ 
-        recomendaciones: [], 
-        modelo_usado: "z-ai/glm-4.5-air:free", 
-        productos_analizados: 0
-      }),
-    });
+    mockFetch.mockResolvedValue(jsonResponse({ 
+      recomendaciones: [], 
+      modelo_usado: "z-ai/glm-4.5-air:free", 
+      productos_analizados: 0
+    }));
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
     await waitFor(() => {

@@ -94,6 +94,20 @@ describe("analizarVencimientosConIA", () => {
       .rejects.toThrow(/parseable|JSON/i);
   });
 
+  it("U-OR-07: lanza error con mensaje claro cuando OpenRouter no responde a tiempo (timeout 20s)", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementation((_url, options) => {
+      return new Promise((_resolve, reject) => {
+        const onAbort = () => reject(new DOMException("The operation was aborted", "AbortError"));
+        options.signal.addEventListener("abort", onAbort, { once: true });
+      });
+    });
+    const promise = analizarVencimientosConIA("sk-test", "model", VALID_PRODUCTOS, "2026-05-25");
+    jest.advanceTimersByTime(20000);
+    await expect(promise).rejects.toThrow(/no respondió|tiempo/i);
+    jest.useRealTimers();
+  });
+
   it("U-OR-06: descarta entradas con urgencia inválida y retorna las válidas restantes", async () => {
     const mixed = JSON.stringify([
       { ...JSON.parse(VALID_RESPONSE_BODY)[0] },

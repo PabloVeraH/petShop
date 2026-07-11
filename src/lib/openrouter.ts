@@ -70,87 +70,99 @@ Esquema de cada entrada del array:
   "mensaje_whatsapp": "string"
 }`;
 
-  // Llamar a OpenRouter
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://petshop.ammatech.cl",
-      "X-Title": "PetShop Optimizador Vencimientos",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: promptSistema },
-        { role: "user", content: mensajeUsuario }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-    }),
-  });
-
-  // Manejo de errores HTTP
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error("API key inválida o sin créditos");
-    }
-    if (response.status === 429) {
-      throw new Error("Límite de requests alcanzado, intenta más tarde");
-    }
-    if (response.status >= 500) {
-      throw new Error("Error en OpenRouter, intenta más tarde");
-    }
-    throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const responseData = await response.json();
-  const content = responseData.choices[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("El modelo devolvió una respuesta vacía");
-  }
-
-  // Limpiar posibles bloques de markdown y parsear JSON
-  let cleanedContent = content.trim();
-  if (cleanedContent.startsWith("```json")) {
-    cleanedContent = cleanedContent.replace(/^```json/, "").replace(/```$/, "").trim();
-  }
-  if (cleanedContent.startsWith("```")) {
-    cleanedContent = cleanedContent.replace(/^```/, "").replace(/```$/, "").trim();
-  }
-
-  let parsedData;
+  // Llamar a OpenRouter con timeout de 20s
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    parsedData = JSON.parse(cleanedContent);
-  } catch {
-    throw new Error("El modelo devolvió una respuesta no parseable");
-  }
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://petshop.ammatech.cl",
+        "X-Title": "PetShop Optimizador Vencimientos",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: promptSistema },
+          { role: "user", content: mensajeUsuario }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  // Extraer array si está envuelto en un objeto
-  let recomendacionesArray: any[] = parsedData;
-  if (Array.isArray(parsedData)) {
-    recomendacionesArray = parsedData;
-  } else if (parsedData.recomendaciones && Array.isArray(parsedData.recomendaciones)) {
-    recomendacionesArray = parsedData.recomendaciones;
-  } else {
-    throw new Error("El modelo devolvió una estructura de respuesta inválida");
-  }
-
-  // Validar cada recomendación con Zod
-  const recomendacionesValidas: RecomendacionVencimiento[] = [];
-  
-  for (const item of recomendacionesArray) {
-    try {
-      const validated = RecomendacionVencimientoSchema.parse(item);
-      recomendacionesValidas.push(validated);
-    } catch {
-      // Descartar entradas inválidas sin romper el proceso
-      console.warn("Recomendación inválida descartada:", item);
+    // Manejo de errores HTTP
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("API key inválida o sin créditos");
+      }
+      if (response.status === 429) {
+        throw new Error("Límite de requests alcanzado, intenta más tarde");
+      }
+      if (response.status >= 500) {
+        throw new Error("Error en OpenRouter, intenta más tarde");
+      }
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
     }
-  }
 
-  return recomendacionesValidas;
+    const responseData = await response.json();
+    const content = responseData.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("El modelo devolvió una respuesta vacía");
+    }
+
+    // Limpiar posibles bloques de markdown y parsear JSON
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith("```json")) {
+      cleanedContent = cleanedContent.replace(/^```json/, "").replace(/```$/, "").trim();
+    }
+    if (cleanedContent.startsWith("```")) {
+      cleanedContent = cleanedContent.replace(/^```/, "").replace(/```$/, "").trim();
+    }
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(cleanedContent);
+    } catch {
+      throw new Error("El modelo devolvió una respuesta no parseable");
+    }
+
+    // Extraer array si está envuelto en un objeto
+    let recomendacionesArray: any[] = parsedData;
+    if (Array.isArray(parsedData)) {
+      recomendacionesArray = parsedData;
+    } else if (parsedData.recomendaciones && Array.isArray(parsedData.recomendaciones)) {
+      recomendacionesArray = parsedData.recomendaciones;
+    } else {
+      throw new Error("El modelo devolvió una estructura de respuesta inválida");
+    }
+
+    // Validar cada recomendación con Zod
+    const recomendacionesValidas: RecomendacionVencimiento[] = [];
+    
+    for (const item of recomendacionesArray) {
+      try {
+        const validated = RecomendacionVencimientoSchema.parse(item);
+        recomendacionesValidas.push(validated);
+      } catch {
+        // Descartar entradas inválidas sin romper el proceso
+        console.warn("Recomendación inválida descartada:", item);
+      }
+    }
+
+    return recomendacionesValidas;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("OpenRouter no respondió a tiempo. Intente de nuevo.");
+    }
+    throw e;
+  }
 }
 
 // ─── POS Recommender ─────────────────────────────────────────────────────────
@@ -229,63 +241,75 @@ Devuelve ÚNICAMENTE un array JSON de 1 a 3 elementos. Sin texto adicional ni ma
 Formato exacto de cada elemento:
 { "nombre_producto": "nombre exacto del catálogo", "razon": "una oración", "urgencia": "alta"|"media"|"baja" }`;
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://petshop.ammatech.cl",
-      "X-Title": "PetShop Recomendador POS",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: promptSistema },
-        { role: "user", content: mensajeUsuario },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.4,
-    }),
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error("API key inválida o sin créditos");
-    if (response.status === 429) throw new Error("Límite de requests alcanzado, intenta más tarde");
-    if (response.status >= 500) throw new Error("Error en OpenRouter, intenta más tarde");
-    throw new Error(`Error HTTP ${response.status}`);
-  }
-
-  const responseData = await response.json();
-  const content = responseData.choices[0]?.message?.content;
-  if (!content) throw new Error("El modelo devolvió una respuesta vacía");
-
-  let cleanedContent = content.trim();
-  if (cleanedContent.startsWith("```json")) {
-    cleanedContent = cleanedContent.replace(/^```json/, "").replace(/```$/, "").trim();
-  }
-  if (cleanedContent.startsWith("```")) {
-    cleanedContent = cleanedContent.replace(/^```/, "").replace(/```$/, "").trim();
-  }
-
-  let parsedData;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
   try {
-    parsedData = JSON.parse(cleanedContent);
-  } catch {
-    throw new Error("El modelo devolvió una respuesta no parseable");
-  }
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://petshop.ammatech.cl",
+        "X-Title": "PetShop Recomendador POS",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: promptSistema },
+          { role: "user", content: mensajeUsuario },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.4,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  let arr: unknown[] = parsedData;
-  if (!Array.isArray(parsedData)) {
-    const keys = Object.keys(parsedData);
-    const arrayKey = keys.find((k) => Array.isArray(parsedData[k]));
-    if (arrayKey) arr = parsedData[arrayKey];
-    else throw new Error("El modelo devolvió una estructura de respuesta inválida");
-  }
+    if (!response.ok) {
+      if (response.status === 401) throw new Error("API key inválida o sin créditos");
+      if (response.status === 429) throw new Error("Límite de requests alcanzado, intenta más tarde");
+      if (response.status >= 500) throw new Error("Error en OpenRouter, intenta más tarde");
+      throw new Error(`Error HTTP ${response.status}`);
+    }
 
-  const validas: RecomendacionPOS[] = [];
-  for (const item of arr) {
-    const r = RecomendacionPOSSchema.safeParse(item);
-    if (r.success) validas.push(r.data);
+    const responseData = await response.json();
+    const content = responseData.choices[0]?.message?.content;
+    if (!content) throw new Error("El modelo devolvió una respuesta vacía");
+
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith("```json")) {
+      cleanedContent = cleanedContent.replace(/^```json/, "").replace(/```$/, "").trim();
+    }
+    if (cleanedContent.startsWith("```")) {
+      cleanedContent = cleanedContent.replace(/^```/, "").replace(/```$/, "").trim();
+    }
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(cleanedContent);
+    } catch {
+      throw new Error("El modelo devolvió una respuesta no parseable");
+    }
+
+    let arr: unknown[] = parsedData;
+    if (!Array.isArray(parsedData)) {
+      const keys = Object.keys(parsedData);
+      const arrayKey = keys.find((k) => Array.isArray(parsedData[k]));
+      if (arrayKey) arr = parsedData[arrayKey];
+      else throw new Error("El modelo devolvió una estructura de respuesta inválida");
+    }
+
+    const validas: RecomendacionPOS[] = [];
+    for (const item of arr) {
+      const r = RecomendacionPOSSchema.safeParse(item);
+      if (r.success) validas.push(r.data);
+    }
+    return validas.slice(0, 3);
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("OpenRouter no respondió a tiempo. Intente de nuevo.");
+    }
+    throw e;
   }
-  return validas.slice(0, 3);
 }

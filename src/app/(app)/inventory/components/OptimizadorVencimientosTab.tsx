@@ -71,6 +71,10 @@ export function OptimizadorVencimientosTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ diasAlerta }),
       });
+      const ct = res.headers?.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        throw new Error("Error al conectar con el servicio de IA. Intente de nuevo.");
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error inesperado");
       setResultado(data);

@@ -423,6 +423,57 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 | MC-29 | REGRESIÓN: confirmar cuando fidelización retorna null aplica descuento 0 | ModalCliente | component |
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
 
+## OpenRouter — analizarVencimientosConIA (U-OR-01 a U-OR-07)
+
+| ID | Requisito | Lib | Tipo |
+|----|-----------|-----|------|
+| U-OR-01 | LLamada a OpenRouter incluye Authorization y HTTP-Referer | lib/openrouter | unit |
+| U-OR-02 | LLM responde JSON válido → array de recomendaciones | lib/openrouter | unit |
+| U-OR-03 | Respuesta envuelta en ```json ... ``` se limpia correctamente | lib/openrouter | unit |
+| U-OR-04 | HTTP 401 → error con mensaje "API key inválida" | lib/openrouter | unit |
+| U-OR-05 | LLM devuelve texto no parseable → error "no parseable" | lib/openrouter | unit |
+| U-OR-06 | Entrada con urgencia inválida se descarta, válidas se conservan | lib/openrouter | unit |
+| U-OR-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
+
+## OpenRouter — recomendarProductosEnPOS (U-REC-01 a U-REC-07)
+
+| ID | Requisito | Lib | Tipo |
+|----|-----------|-----|------|
+| U-REC-01 | LLamada a OpenRouter incluye cabeceras correctas | lib/openrouter | unit |
+| U-REC-02 | Retorna exactamente N recomendaciones (máx 3) | lib/openrouter | unit |
+| U-REC-03 | Entrada con urgencia inválida se descarta | lib/openrouter | unit |
+| U-REC-04 | LLM devuelve texto no parseable → error | lib/openrouter | unit |
+| U-REC-05 | Bloques markdown ```json se limpian | lib/openrouter | unit |
+| U-REC-06 | Limita a 3 recomendaciones aunque LLM devuelva más | lib/openrouter | unit |
+| U-REC-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
+
+## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-08)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| C-OPT-01 | Botón 'Analizar con IA' e input de días se renderizan | OptimizadorVencimientosTab | component |
+| C-OPT-02 | Spinner visible mientras analiza | OptimizadorVencimientosTab | component |
+| C-OPT-03 | Tabla con recomendaciones después del análisis | OptimizadorVencimientosTab | component |
+| C-OPT-04 | Badge de urgencia 'alta' tiene clase rojo | OptimizadorVencimientosTab | component |
+| C-OPT-05 | Botón 'Aplicar descuento' llama PATCH y muestra ✓ Aplicado | OptimizadorVencimientosTab | component |
+| C-OPT-06 | Botón WhatsApp copia mensaje al portapapeles | OptimizadorVencimientosTab | component |
+| C-OPT-07 | Estado vacío cuando no hay productos próximos a vencer | OptimizadorVencimientosTab | component |
+| C-OPT-08 | Servidor retorna HTML en vez de JSON → error amigable (no Unexpected token '<') | OptimizadorVencimientosTab | component |
+
+## RecomendacionesIA (C-REC-01 a C-REC-09)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| C-REC-01 | No renderiza cuando clienteId es undefined | RecomendacionesIA | component |
+| C-REC-02 | Muestra 'Buscando sugerencias' mientras carga | RecomendacionesIA | component |
+| C-REC-03 | Muestra nombre, razón y precio de cada recomendación | RecomendacionesIA | component |
+| C-REC-04 | Botón + llama a addItem del store | RecomendacionesIA | component |
+| C-REC-05 | API retorna error → muestra 'Sin sugerencias disponibles' | RecomendacionesIA | component |
+| C-REC-06 | Badges de urgencia con colores correctos | RecomendacionesIA | component |
+| C-REC-07 | Botón cambia a ✓ después de agregar producto | RecomendacionesIA | component |
+| C-REC-08 | No recarga cuando items cambian (solo clienteId/mascotaId) | RecomendacionesIA | component |
+| C-REC-09 | Servidor retorna HTML en vez de JSON → 'Sin sugerencias disponibles' (previene Unexpected token '<') | RecomendacionesIA | component |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API

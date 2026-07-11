@@ -98,6 +98,20 @@ describe("recomendarProductosEnPOS", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("U-REC-07: lanza error con mensaje claro cuando OpenRouter no responde a tiempo (timeout 20s)", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementation((_url, options) => {
+      return new Promise((_resolve, reject) => {
+        const onAbort = () => reject(new DOMException("The operation was aborted", "AbortError"));
+        options.signal.addEventListener("abort", onAbort, { once: true });
+      });
+    });
+    const promise = recomendarProductosEnPOS("sk-test", "model", CONTEXTO_BASE, CATALOGO);
+    jest.advanceTimersByTime(20000);
+    await expect(promise).rejects.toThrow(/no respondió|tiempo/i);
+    jest.useRealTimers();
+  });
+
   // Test adicional: límite de 3 recomendaciones
   it("U-REC-06: limita a 3 recomendaciones aunque el LLM devuelva más", async () => {
     const manyResponse = JSON.stringify([

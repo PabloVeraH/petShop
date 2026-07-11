@@ -52,7 +52,8 @@ export default function RecomendacionesIA() {
           }),
         });
         clearTimeout(timeoutId);
-        if (!res.ok) {
+        const ct = res.headers?.get("content-type") ?? "";
+        if (!res.ok || !ct.includes("application/json")) {
           setRecs([]);
           setError("Sin sugerencias disponibles");
           return;

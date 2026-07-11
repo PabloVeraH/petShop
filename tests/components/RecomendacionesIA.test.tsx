@@ -9,6 +9,15 @@ import RecomendacionesIA from "@/app/(app)/pos/components/RecomendacionesIA";
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+function jsonResponse(data: unknown, ok = true, contentType = "application/json") {
+  return {
+    ok,
+    headers: new Map([["content-type", contentType]]),
+    json: async () => data,
+    text: async () => JSON.stringify(data),
+  };
+}
+
 // Mock del store — controlar clienteId/items desde tests
 const mockAddItem = jest.fn();
 let mockClienteId: string | undefined = undefined;
@@ -33,7 +42,7 @@ describe("RecomendacionesIA", () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     mockAddItem.mockReset();
-    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ recomendaciones: MOCK_RECS }) });
+    mockFetch.mockResolvedValue(jsonResponse({ recomendaciones: MOCK_RECS }));
   });
   afterEach(() => jest.useRealTimers());
 
@@ -82,7 +91,7 @@ describe("RecomendacionesIA", () => {
   // C-REC-05: error de API muestra "Sin sugerencias disponibles" en vez de ocultar el panel
   it("C-REC-05: muestra 'Sin sugerencias disponibles' si la API retorna error", async () => {
     mockClienteId = "cliente-1";
-    mockFetch.mockResolvedValue({ ok: false, status: 502 });
+    mockFetch.mockResolvedValue(jsonResponse({ error: "Error" }, false));
     render(<RecomendacionesIA />);
     act(() => jest.advanceTimersByTime(900));
     await waitFor(() => {
@@ -116,6 +125,22 @@ describe("RecomendacionesIA", () => {
     
     // Verificar que el segundo botón sigue siendo "+"
     expect(screen.getAllByRole("button")[1]).toHaveTextContent("+");
+  });
+
+  // C-REC-09: maneja respuesta no-JSON
+  it("C-REC-09: muestra 'Sin sugerencias disponibles' cuando el servidor retorna HTML (previene Unexpected token '<')", async () => {
+    mockClienteId = "cliente-1";
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: new Map([["content-type", "text/html; charset=utf-8"]]),
+      json: async () => { throw new Error("Unexpected token '<'"); },
+      text: async () => "<html>Error</html>",
+    });
+    render(<RecomendacionesIA />);
+    act(() => jest.advanceTimersByTime(900));
+    await waitFor(() => {
+      expect(screen.getByText("Sin sugerencias disponibles")).toBeInTheDocument();
+    });
   });
 
   // Test adicional: no recarga cuando items cambian (debounce con clienteId/mascotaId solo)
