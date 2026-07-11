@@ -150,6 +150,47 @@ export async function PATCH(
     }
   }
 
+  // Cancelar NCs activas asociadas a esta venta y revertir sus saldos a favor
+  const { data: ncs } = await supabase
+    .from("notas_credito")
+    .select("id, tipo_reembolso, monto_total")
+    .eq("venta_id", id)
+    .eq("estado", "activa");
+
+  const ncErrors: string[] = [];
+  for (const nc of ncs ?? []) {
+    if (nc.tipo_reembolso === "saldo_a_favor" && venta.cliente_id) {
+      const { data: saldo } = await supabase
+        .from("saldos_a_favor")
+        .select("saldo_disponible")
+        .eq("cliente_id", venta.cliente_id)
+        .eq("store_id", store_id)
+        .single();
+
+      if (saldo) {
+        const nuevoSaldo = Math.max(0, Number(saldo.saldo_disponible) - nc.monto_total);
+        const { error: saldoErr } = await supabase
+          .from("saldos_a_favor")
+          .update({ saldo_disponible: nuevoSaldo, updated_at: new Date().toISOString() })
+          .eq("store_id", store_id)
+          .eq("cliente_id", venta.cliente_id);
+
+        if (saldoErr) ncErrors.push(`saldo NC ${nc.id}: ${saldoErr.message}`);
+      }
+    }
+
+    const { error: ncErr } = await supabase
+      .from("notas_credito")
+      .update({ estado: "anulada" })
+      .eq("id", nc.id);
+
+    if (ncErr) ncErrors.push(`actualizar NC ${nc.id}: ${ncErr.message}`);
+  }
+
+  if (ncErrors.length > 0) {
+    return NextResponse.json({ error: `Error cancelando NCs: ${ncErrors.join("; ")}` }, { status: 500 });
+  }
+
   const { data: updated, error } = await supabase
     .from("ventas")
     .update({ estado: "anulada" })

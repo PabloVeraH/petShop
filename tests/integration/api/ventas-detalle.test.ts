@@ -264,6 +264,14 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       single: jest.fn().mockResolvedValue({ data: { fidelizacion_niveles: null }, error: null }),
     };
 
+    const defaultChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      update: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+
     let callCount = 0;
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn((table: string) => {
@@ -276,6 +284,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
         if (table === "fidelizacion") return fidelChain;
         if (table === "stores") return storesChain;
         if (table === "ventas" && callCount > 4) return ventaUpdateChain;
+        return defaultChain;
       }),
     });
 
@@ -504,6 +513,14 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       single: jest.fn().mockResolvedValue({ data: { fidelizacion_niveles: null }, error: null }),
     };
 
+    const defaultChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      update: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+
     let callCount = 0;
     const mockFrom = jest.fn((table: string) => {
       callCount++;
@@ -512,6 +529,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       if (table === "fidelizacion") return fidelChain;
       if (table === "stores") return storesChain;
       if (table === "ventas") return updateChain;
+      return defaultChain;
     });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: mockFrom });
@@ -645,5 +663,368 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
 
     expect(res.status).toBe(200);
     expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(1);
+  });
+
+  it("I-328: anular venta con NC activa (saldo_a_favor) cancela NC y revierte saldo", async () => {
+    const mockNCId = "nc-active-1";
+    const mockSaldoDisponible = 30000;
+    const ncMonto = 20000;
+
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 100000, impuesto: 15966, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "VT-001", created_at: "2026-07-10T10:00:00Z" },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    const fidelChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    };
+
+    const ncsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+
+    const saldoChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { saldo_disponible: mockSaldoDisponible },
+        error: null,
+      }),
+    };
+
+    const saldoUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn()
+        .mockImplementationOnce(() => saldoUpdateChain)
+        .mockResolvedValue({ error: null }),
+    };
+
+    const ncUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ error: null }),
+    };
+
+    const ventaUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        if (table === "fidelizacion") return fidelChain;
+        if (table === "stores") return storesChain;
+        if (table === "notas_credito" && callCount === 5) return ncsChain;
+        if (table === "saldos_a_favor" && callCount === 6) return saldoChain;
+        if (table === "saldos_a_favor" && callCount === 7) return saldoUpdateChain;
+        if (table === "notas_credito" && callCount === 8) return ncUpdateChain;
+        if (table === "ventas" && callCount >= 9) return ventaUpdateChain;
+      }),
+    });
+
+    ncsChain.eq.mockImplementation((col: string, val: string) => {
+      if (col === "estado" && val === "activa") {
+        return Promise.resolve({
+          data: [{ id: mockNCId, tipo_reembolso: "saldo_a_favor", monto_total: ncMonto }],
+          error: null,
+        });
+      }
+      return ncsChain;
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+
+    const saldoUpdateCalls = (saldoUpdateChain.update as jest.Mock).mock.calls;
+    expect(saldoUpdateCalls.length).toBeGreaterThanOrEqual(1);
+    const updateArg = saldoUpdateCalls[0][0];
+    expect(updateArg.saldo_disponible).toBe(mockSaldoDisponible - ncMonto);
+
+    const ncUpdateCalls = (ncUpdateChain.update as jest.Mock).mock.calls;
+    expect(ncUpdateCalls.length).toBeGreaterThanOrEqual(1);
+    expect(ncUpdateCalls[0][0].estado).toBe("anulada");
+  });
+
+  it("I-329: anular venta con NC activa (reembolso_directo) solo cancela NC, sin tocar saldo", async () => {
+    const mockNCId = "nc-direct-1";
+
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 50000, impuesto: 7983, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "VT-002", created_at: "2026-07-10T10:00:00Z" },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    const ncsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+
+    const ncUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ error: null }),
+    };
+
+    const ventaUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    const fidelChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      }),
+    };
+
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        if (table === "fidelizacion") return fidelChain;
+        if (table === "stores") return storesChain;
+        if (table === "notas_credito" && callCount === 5) return ncsChain;
+        if (table === "notas_credito" && callCount > 5) return ncUpdateChain;
+        if (table === "ventas") return ventaUpdateChain;
+      }),
+    });
+
+    // Mock the NC query to return a reembolso_directo NC
+    ncsChain.eq.mockImplementation((col: string, val: string) => {
+      if (col === "estado" && val === "activa") {
+        return Promise.resolve({
+          data: [{ id: mockNCId, tipo_reembolso: "reembolso_directo", monto_total: 20000 }],
+          error: null,
+        });
+      }
+      return ncsChain;
+    });
+
+    const saldoSpy = jest.spyOn(supabaseModule.createServiceClient(), "from");
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+
+    // Verificar que la NC se marcó como anulada
+    const ncUpdateCalls = (ncUpdateChain.update as jest.Mock).mock.calls;
+    expect(ncUpdateCalls.length).toBeGreaterThanOrEqual(1);
+    expect(ncUpdateCalls[0][0].estado).toBe("anulada");
+
+    saldoSpy.mockRestore();
+  });
+
+  it("I-330: anular venta con NC ya usada no la modifica", async () => {
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 100000, impuesto: 15966, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "VT-003", created_at: "2026-07-10T10:00:00Z" },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    const ncsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+
+    const ventaUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    const fidelChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      }),
+    };
+
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        if (table === "fidelizacion") return fidelChain;
+        if (table === "stores") return storesChain;
+        if (table === "notas_credito" && callCount === 5) return ncsChain;
+        if (table === "ventas") return ventaUpdateChain;
+      }),
+    });
+
+    // Mock the NC query to return NO active NCs
+    ncsChain.eq.mockImplementation((col: string, val: string) => {
+      if (col === "estado" && val === "activa") {
+        return Promise.resolve({
+          data: [],
+          error: null,
+        });
+      }
+      return ncsChain;
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+    // Ninguna NC debería haberse actualizado (no hay activas)
+  });
+
+  it("I-331: anular venta sin NCs no falla ni toca NCs ni saldo", async () => {
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "pagada", cliente_id: mockClienteId, total: 100000, impuesto: 15966, metodo_pago: "efectivo", canal: "pos", numero_comprobante: "VT-004", created_at: "2026-07-10T10:00:00Z" },
+        error: null,
+      }),
+    };
+
+    const itemsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+
+    const ncsChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+
+    const ventaUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, estado: "anulada" },
+        error: null,
+      }),
+    };
+
+    const fidelChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      }),
+    };
+
+    const storesChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        callCount++;
+        if (table === "ventas" && callCount === 1) return ventaChain;
+        if (table === "venta_items") return itemsChain;
+        if (table === "fidelizacion") return fidelChain;
+        if (table === "stores") return storesChain;
+        if (table === "notas_credito" && callCount === 5) return ncsChain;
+        if (table === "ventas") return ventaUpdateChain;
+      }),
+    });
+
+    // Mock the NC query to return null (no NCs at all)
+    ncsChain.eq.mockImplementation((col: string, val: string) => {
+      if (col === "estado" && val === "activa") {
+        return Promise.resolve({
+          data: null,
+          error: null,
+        });
+      }
+      return ncsChain;
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "anular" }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
   });
 });
