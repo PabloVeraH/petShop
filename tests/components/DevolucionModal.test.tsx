@@ -265,6 +265,47 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     });
   });
 
+  // DV-15: REGRESIÓN — motivo completo se envía en el body, no truncado por focus steal
+  it("DV-15: el motivo completo con acentos se envía en el body del fetch", async () => {
+    setup();
+    selectItemAndAdvance();
+
+    const motivoInput = screen.getByPlaceholderText(/Producto defectuoso/i);
+    fireEvent.change(motivoInput, { target: { value: "QA test - devolución Arena Arenero" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
+    });
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([url]: [string]) => url === "/api/notas-credito"
+    );
+    expect(fetchCall).toBeDefined();
+    const body = JSON.parse(fetchCall![1].body);
+    expect(body.motivo).toBe("QA test - devolución Arena Arenero");
+  });
+
+  // DV-16: REGRESIÓN — motivo vacío se envía como null
+  it("DV-16: motivo vacío se envía como null en el body", async () => {
+    setup();
+    selectItemAndAdvance();
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
+    });
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([url]: [string]) => url === "/api/notas-credito"
+    );
+    expect(fetchCall).toBeDefined();
+    const body = JSON.parse(fetchCall![1].body);
+    expect(body.motivo).toBeNull();
+  });
+
   // DV-14: REGRESIÓN — confirmar devolución invalida ["ventas"] con refetchType "all"
   it("DV-14: REGRESIÓN — devolución invalida ['ventas'] con refetchType 'all'", async () => {
     setup();
