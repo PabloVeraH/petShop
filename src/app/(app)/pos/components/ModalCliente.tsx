@@ -128,7 +128,12 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
     }
     await Promise.allSettled(saves);
 
-    setCliente(cliente.id, selectedMascotaId, fidelizacion?.descuento_actual ?? 0, cliente.email ?? undefined);
+    // Refetch fidelización para asegurar descuento actual antes de aplicar
+    // (la query asíncrona puede no haber completado al hacer clic en Confirmar).
+    const { data: fidData } = await refetchFid();
+    const discountToApply = fidData?.descuento_actual ?? 0;
+
+    setCliente(cliente.id, selectedMascotaId, discountToApply, cliente.email ?? undefined);
     onClose();
   };
 

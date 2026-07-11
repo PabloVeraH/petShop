@@ -409,6 +409,20 @@ Zustand persist en vez de simular el estado con `setState()`.
 |----|-----------|------------|------|
 | DV-14 | Confirmar devolución invalida ["ventas"] con refetchType "all" | DevolucionModal | component |
 
+## ModalCliente — fidelización descuento automático (MC-27 a MC-30)
+
+Regresión: al confirmar un cliente existente en el POS, el descuento de fidelización
+no se aplicaba automáticamente porque `handleConfirm` leía `fidelizacion?.descuento_actual`
+de una TanStack Query que podía no haber completado, pasando `0` en vez del valor real.
+Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| MC-27 | REGRESIÓN: confirmar cliente con descuento_actual=10 aplica 10 como fidelizacionDescuento | ModalCliente | component |
+| MC-28 | REGRESIÓN: confirmar cliente sin fidelización pasa descuento 0 | ModalCliente | component |
+| MC-29 | REGRESIÓN: confirmar cuando fidelización retorna null aplica descuento 0 | ModalCliente | component |
+| MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API
@@ -422,6 +436,7 @@ Zustand persist en vez de simular el estado con `setState()`.
 - `IVA-NN` — test de la fórmula canónica de IVA (lib/tax)
 - `PP-NN` — test de componente de POSPage
 - `PC-NN` — test de componente de Carrito (POS)
+- `MC-NN` — test de componente de ModalCliente
 - `DV-NN` — test de componente de DevolucionModal
 - `S-NN` — test de store (Zustand)
 

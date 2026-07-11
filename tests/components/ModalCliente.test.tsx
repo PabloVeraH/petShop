@@ -406,3 +406,153 @@ describe("ModalCliente — deduplicación de mascotas en dropdown (MC-25/MC-26)"
     expect(screen.getByText("Luna (perro)")).toBeInTheDocument();
   });
 });
+
+// ── Suite 7: fidelización descuento automático (REGRESIÓN) ──────────────────
+
+describe("ModalCliente — fidelización descuento automático (MC-27/28/29)", () => {
+  const CLIENTE = { id: "cli-1", nombre: "María González", rut: "15.855.267-1", email: "maria@test.com", telefono: null };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Restaurar fetch mock por defecto
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+    mockGetClienteByRUT.mockResolvedValue(CLIENTE);
+    mockGetMascotasByCliente.mockResolvedValue([]);
+  });
+
+  // MC-27: REGRESIÓN — al confirmar cliente con fidelización 10%,
+  // setCliente recibe 10 como fidelizacionDescuento (auto-apply).
+  // El bug: handleConfirm leía fidelizacion?.descuento_actual de una query
+  // asíncrona que podía no haber completado, pasando 0 en vez del valor real.
+  it("MC-27: confirmar cliente con descuento_actual=10 aplica 10 como fidelizacionDescuento", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/fidelizacion")) {
+        return Promise.resolve({
+          ok:   true,
+          json: async () => ({
+            total_historico:    150_000,
+            frecuencia_compras: 5,
+            descuento_actual:   10,
+            niveles:            [{ monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    // Esperar a que aparezca el cliente y la fidelización
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Fidelización: 10%/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    // setCliente debe recibir el descuento real (10), no 0
+    await waitFor(() => {
+      expect(mockSetCliente).toHaveBeenCalledWith(
+        "cli-1",
+        undefined,     // selectedMascotaId (none selected)
+        10,            // fidelizacionDescuento
+        "maria@test.com",
+      );
+    });
+  });
+
+  // MC-28: REGRESIÓN — cliente sin fidelización: setCliente recibe 0
+  it("MC-28: confirmar cliente sin fidelización pasa descuento 0", async () => {
+    // mock por defecto: fetch devuelve ok=false → getFidelizacion retorna null
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+    // No debe mostrar fidelización (fetch returns ok=false → null)
+    expect(screen.queryByText(/Fidelización/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(mockSetCliente).toHaveBeenCalledWith(
+        "cli-1",
+        undefined,
+        0,             // sin fidelización → descuento 0
+        "maria@test.com",
+      );
+    });
+  });
+
+  // MC-29: REGRESIÓN — fidelización falla (API retorna null), descuento es 0
+  it("MC-29: confirmar cuando fidelización retorna null aplica descuento 0", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/fidelizacion")) {
+        return Promise.resolve({
+          ok:   true,
+          json: async () => null,   // API retorna null (cliente sin fidelización)
+        });
+      }
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(mockSetCliente).toHaveBeenCalledWith(
+        "cli-1",
+        undefined,
+        0,             // null → descuento 0
+        "maria@test.com",
+      );
+    });
+  });
+
+  // MC-30: REGRESIÓN — confirmar cliente con mascota seleccionada
+  // y fidelización activa, setCliente recibe ambos
+  it("MC-30: confirmar con mascota seleccionada y descuento 10%", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/fidelizacion")) {
+        return Promise.resolve({
+          ok:   true,
+          json: async () => ({
+            total_historico:    150_000,
+            frecuencia_compras: 5,
+            descuento_actual:   10,
+            niveles:            [{ monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false, json: async () => null });
+    });
+
+    mockGetMascotasByCliente.mockResolvedValue([
+      { id: "m-1", nombre: "Luna", tipo: "gato", gramos_porcion: 60, veces_dia: 1 },
+    ]);
+
+    const { input } = setup();
+    changeRUT(input, "158552671");
+
+    await waitFor(() => expect(screen.getByText("María González")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Fidelización: 10%/)).toBeInTheDocument());
+
+    // Seleccionar mascota
+    fireEvent.click(screen.getByText("Luna (gato)"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(mockSetCliente).toHaveBeenCalledWith(
+        "cli-1",
+        "m-1",   // mascota seleccionada
+        10,      // descuento fidelización
+        "maria@test.com",
+      );
+    });
+  });
+});
