@@ -81,21 +81,21 @@ export default function SupplierHubPage() {
   });
 
   const { data: ordenes } = useQuery<OrdenCompra[]>({
-    queryKey: ["ordenes-proveedor", selected?.id],
+    queryKey: ["ordenes-proveedor", selected?.id ?? "all"],
     queryFn: async () => {
-      const res = await fetch(`/api/ordenes-compra?proveedor_id=${selected!.id}`);
+      const params = selected?.id ? `?proveedor_id=${selected.id}` : "";
+      const res = await fetch(`/api/ordenes-compra${params}`);
       return res.json();
     },
-    enabled: !!selected?.id,
   });
 
   const { data: cuentas } = useQuery<CuentaPagar[]>({
-    queryKey: ["cuentas-proveedor", selected?.id],
+    queryKey: ["cuentas-proveedor", selected?.id ?? "all"],
     queryFn: async () => {
-      const res = await fetch(`/api/cuentas-pagar?proveedor_id=${selected!.id}`);
+      const params = selected?.id ? `?proveedor_id=${selected.id}` : "";
+      const res = await fetch(`/api/cuentas-pagar${params}`);
       return res.json();
     },
-    enabled: !!selected?.id,
   });
 
   const { data: todosProductos } = useQuery<ProductoOpt[]>({
@@ -136,7 +136,9 @@ export default function SupplierHubPage() {
     return {
       totalPendiente: pendiente.reduce((sum, c) => sum + Number(c.monto), 0),
       pendienteCount: pendiente.length,
+      totalOverdue: overdue.reduce((sum, c) => sum + Number(c.monto), 0),
       overdueCount: overdue.length,
+      totalDueSoon: dueSoon.reduce((sum, c) => sum + Number(c.monto), 0),
       dueSoonCount: dueSoon.length,
       ordersInProgress: (ordenes || []).filter(o => o.estado === "pendiente").length,
     };
@@ -427,12 +429,12 @@ export default function SupplierHubPage() {
         <div className="border-l-4 border-red-500 pl-3">
           <p className="text-xs text-gray-600">Vencidas</p>
           <p className="text-lg font-bold text-red-600">{kpiData.overdueCount}</p>
-          <p className="text-xs text-gray-500">${kpiData.totalPendiente.toLocaleString("es-CL")}</p>
+          <p className="text-xs text-gray-500">${kpiData.totalOverdue.toLocaleString("es-CL")}</p>
         </div>
         <div className="border-l-4 border-yellow-500 pl-3">
           <p className="text-xs text-gray-600">Próx. a vencer</p>
           <p className="text-lg font-bold text-yellow-600">{kpiData.dueSoonCount}</p>
-          <p className="text-xs text-gray-500">7 días</p>
+          <p className="text-xs text-gray-500">${kpiData.totalDueSoon.toLocaleString("es-CL")}</p>
         </div>
         <div className="border-l-4 border-blue-500 pl-3">
           <p className="text-xs text-gray-600">Pendiente</p>

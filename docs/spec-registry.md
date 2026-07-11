@@ -337,6 +337,11 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-113 | REGRESIÓN: GET /api/cuentas-pagar filtra cuentas con monto ≤ 0 (no sirve cuentas $0 al frontend) | GET /api/cuentas-pagar | integration |
 | I-316 | REGRESIÓN: GET /api/proveedores/stats filtra cuentas con monto ≤ 0 en agregación | GET /api/proveedores/stats | integration |
 | SP-09 | REGRESIÓN: cuenta con monto $0 excluida de lista pendiente (no aparece con botón Pagar) | SuppliersPage | component |
+| KPI-01 | KPIs globales no-cero sin proveedor seleccionado (regresión: enabled guard ocultaba queries) | SuppliersPage | component |
+| KPI-02 | Card Vencidas muestra monto específico de vencidas no total pendiente (regresión: usaba totalPendiente) | SuppliersPage | component |
+| KPI-03 | Card Próx. a vencer muestra monto de próximos a vencer | SuppliersPage | component |
+| KPI-04 | Card OC en Proceso cuenta órdenes pendientes | SuppliersPage | component |
+| KPI-05 | Sin proveedor seleccionado la query usa queryKey con "all" (global, no enabled guard) | SuppliersPage | component |
 
 ## Tests unitarios (U-XX)
 
