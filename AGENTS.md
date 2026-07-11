@@ -154,7 +154,7 @@ npm run test:components    # solo tests/components/**
 npm run test:coverage      # con thresholds: 70% líneas/funciones, 60% ramas
 ```
 
-IDs de test: `I-NNN` integración, `SEC-NN` seguridad, `U-NN` unitario, `PROP-NN` propiedad.
+IDs de test: `I-NNN` integración, `SEC-NN` seguridad, `U-NN` unitario, `PROP-NN` propiedad, `S-NN` store unitario.
 Registro completo en `docs/spec-registry.md`.
 Tests de propiedades (fast-check) en `tests/unit/lib/property-invariants.test.ts`.
 

@@ -26,16 +26,19 @@ let mockEnviarEmailRecibo                   = false;
 let mockWorkerClerkId: string | undefined   = undefined;
 let mockDescuento                           = 0;
 let mockSubtotalValue                       = 10000;
-let mockTotalValue                          = 10000;
 let mockMetodoPago                          = "efectivo";
 let mockNumeroTransaccion: string | undefined = undefined;
 
+// ModalPago ahora destructura `items` y computa subtotal/total con las
+// funciones puras reales de @/stores/pos (calcularSubtotalCarrito, etc.),
+// no vía getters del store. Un único item sintético cuyo subtotal es
+// mockSubtotalValue reproduce exactamente los mismos valores que antes
+// exponían mockSubtotalValue/mockTotalValue por separado.
 jest.mock("@/stores/pos", () => ({
+  ...jest.requireActual("@/stores/pos"),
   usePOSStore: jest.fn(() => ({
-    subtotal:              () => mockSubtotalValue,
-    subtotalNeto:          () => Math.round(mockSubtotalValue / 1.19),
+    items: [{ id: "mock-item", producto_id: "p1", nombre: "Mock", precio: mockSubtotalValue, cantidad: 1, subtotal: mockSubtotalValue }],
     descuento:             mockDescuento,
-    total:                 () => mockTotalValue,
     metodoPago:            mockMetodoPago,
     setMetodoPago:         mockSetMetodoPago,
     numeroTransaccion:     mockNumeroTransaccion,
@@ -115,7 +118,6 @@ describe("ModalPago — toggle email al cliente", () => {
     mockEnviarEmailRecibo = false;
     mockDescuento         = 0;
     mockSubtotalValue     = 10000;
-    mockTotalValue        = 10000;
   });
 
   // MP-01
@@ -176,7 +178,6 @@ describe("ModalPago — dropdown Asignar a vendedor (MP-06/MP-07/MP-08/MP-09)", 
     mockWorkers           = [];
     mockDescuento         = 0;
     mockSubtotalValue     = 10000;
-    mockTotalValue        = 10000;
   });
 
   // MP-06
@@ -234,14 +235,12 @@ describe("ModalPago — IVA breakdown correcto (MP-11/MP-12)", () => {
     mockWorkers           = [];
     mockDescuento         = 0;
     mockSubtotalValue     = 10000;
-    mockTotalValue        = 10000;
   });
 
   // MP-11: sin descuento muestra "Neto (sin IVA)" y no muestra "Subtotal" duplicado igual al total
   it("MP-11: sin descuento muestra 'Neto (sin IVA)' y no muestra 'Subtotal'", () => {
     // subtotal=10000 (IVA-incl), total=10000, ivaAmount=round(10000*0.19/1.19)=1597, neto=8403
     mockSubtotalValue = 10000;
-    mockTotalValue    = 10000;
     mockDescuento     = 0;
     setup();
     expect(screen.getByText("Neto (sin IVA)")).toBeInTheDocument();
@@ -252,7 +251,6 @@ describe("ModalPago — IVA breakdown correcto (MP-11/MP-12)", () => {
   it("MP-12: con descuento muestra 'Subtotal', 'Descuento' y 'Neto (sin IVA)'", () => {
     // subtotal=10000, 10% desc → total=9000
     mockSubtotalValue = 10000;
-    mockTotalValue    = 9000;
     mockDescuento     = 10;
     setup();
     expect(screen.getByText("Subtotal")).toBeInTheDocument();
@@ -269,7 +267,6 @@ describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
     mockMetodoPago         = "efectivo";
     mockNumeroTransaccion  = undefined;
     mockSubtotalValue      = 10000;
-    mockTotalValue         = 10000;
     mockDescuento          = 0;
     mockClienteEmail       = undefined;
     mockEnviarEmailRecibo  = false;

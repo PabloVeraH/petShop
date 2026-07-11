@@ -308,6 +308,9 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | U-117 | crearAsiento retorna null tras agotar reintentos si el conflicto de numero_asiento persiste | lib/contabilidad | unit |
 | U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
 | U-119 | REGRESIÓN: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) no pierden ningún asiento por colisión de numero_asiento — causa raíz confirmada del bug "venta sin asiento de ingreso, solo aparece COGS" | lib/contabilidad | unit |
+| S-40 | REGRESIÓN: calcularTotalCarrito(items, descuento) coincide con state.total() tras el merge real de rehidratación de Zustand persist | stores/pos | unit |
+| S-41 | Múltiples set() síncronos consecutivos (addItem en tanda) no pierden mutaciones — el total final refleja todos los items | stores/pos | unit |
+| S-42 | Re-aplicar el merge de rehidratación con el mismo contenido (nueva referencia de objeto) es idempotente — no duplica items ni altera el total | stores/pos | unit |
 
 ## IVA — extracción canónica (IVA-01 a IVA-10)
 
@@ -376,6 +379,29 @@ afirmaba la fórmula aditiva obsoleta contra una réplica local.
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
 | PP-05 | Completar venta invalida ["ventas"] con refetchType "all" | POSPage | component |
+| PP-06 | REGRESIÓN: el botón Cobrar computa el total con calcularTotalCarrito(items, descuento) del mismo render, coincide con la suma de subtotales menos descuento | POSPage | component |
+
+## POS Carrito — footer tras rehidratación (PC-05 a PC-13)
+
+Regresión: el footer del carrito (Subtotal/Descuento/IVA/Total) mostraba "$0"
+tras recargar /pos con un carrito persistido en localStorage, porque
+Carrito.tsx llamaba a los getters `subtotal()`/`impuesto()`/`total()` del store
+(que leen `get()` en el momento de la invocación) en vez de derivarlos de los
+`items`/`descuento` ya destructurados en el mismo render — ver la invariante
+documentada en `src/stores/pos.ts`. PC-13 usa el mecanismo real (asíncrono) de
+Zustand persist en vez de simular el estado con `setState()`.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| PC-05 | Muestra subtotal neto (sin IVA) cuando hay items en el carrito | Carrito | component |
+| PC-06 | Subtotal neto se actualiza al agregar múltiples items | Carrito | component |
+| PC-07 | Subtotal neto con descuento muestra neto correcto | Carrito | component |
+| PC-08 | Footer correcto en el primer render con el carrito ya rehidratado (simulado), sin interacción del usuario | Carrito | component |
+| PC-09 | Escenario adyacente "crear": tras rehidratar, addItem recalcula el total con el item nuevo incluido | Carrito | component |
+| PC-10 | Escenario adyacente "editar": tras rehidratar, updateQuantity recalcula el total del item persistido | Carrito | component |
+| PC-11 | Escenario adyacente "requests concurrentes": múltiples addItem síncronos tras rehidratar no pierden ninguna mutación | Carrito | component |
+| PC-12 | Escenario adyacente "re-guardado sin cambios": re-aplicar la misma rehidratación (nueva referencia, mismos datos) mantiene el total correcto | Carrito | component |
+| PC-13 | REGRESIÓN (rehidratación REAL de Zustand persist, no simulada): con carrito persistido en localStorage, el footer converge al total real tras la rehidratación asíncrona | Carrito | component |
 
 ## Devolución Modal Cache (DV-14)
 
@@ -395,6 +421,8 @@ afirmaba la fórmula aditiva obsoleta contra una réplica local.
 - `DA-NN` — test de componente de dashboard / alertas (AnaliticaTab)
 - `IVA-NN` — test de la fórmula canónica de IVA (lib/tax)
 - `PP-NN` — test de componente de POSPage
+- `PC-NN` — test de componente de Carrito (POS)
 - `DV-NN` — test de componente de DevolucionModal
+- `S-NN` — test de store (Zustand)
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

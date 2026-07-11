@@ -40,6 +40,7 @@ function makeMockStore(overrides: Record<string, unknown> = {}) {
 const mockUsePOSStore = jest.fn();
 
 jest.mock("@/stores/pos", () => ({
+  ...jest.requireActual("@/stores/pos"),
   usePOSStore: (...args: unknown[]) => mockUsePOSStore(...args),
 }));
 

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
 import { extraerIva, netoDesdeBruto } from "@/lib/tax";
 
-interface CartItem {
+export interface CartItem {
   id: string;
   producto_id: string;
   nombre: string;
@@ -17,6 +17,40 @@ interface CartItem {
   // Campos granel:
   es_granel?: boolean;       // true si la venta es a granel
   gramos?: number;           // gramos indicados por el vendedor (solo display/recibo)
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cálculos del carrito — funciones puras (items, descuento) => number.
+//
+// Invariante: cualquier UI que muestre un total derivado del carrito debe
+// llamar a estas funciones con el MISMO `items`/`descuento` que ya usa para
+// renderizar la lista de productos (el mismo destructure de usePOSStore()
+// en el mismo render), en vez de invocar un getter del store que lee
+// get() internamente. Esto garantiza que el total mostrado sea siempre
+// consistente con los items realmente renderizados — incluyendo el primer
+// render tras la rehidratación de Zustand persist desde localStorage,
+// donde depender de un getter separado puede quedar desincronizado del
+// array de items ya visible en pantalla.
+// ─────────────────────────────────────────────────────────────────────────
+
+export function calcularSubtotalCarrito(items: CartItem[]): number {
+  return items.reduce((sum, i) => sum + i.subtotal, 0);
+}
+
+export function calcularSubtotalNetoCarrito(items: CartItem[]): number {
+  return netoDesdeBruto(calcularSubtotalCarrito(items));
+}
+
+export function calcularTotalCarrito(items: CartItem[], descuentoPct: number): number {
+  const sub = calcularSubtotalCarrito(items);
+  const desc = (sub * descuentoPct) / 100;
+  return Math.round(sub - desc);
+}
+
+export function calcularImpuestoCarrito(items: CartItem[], descuentoPct: number): number {
+  const sub = calcularSubtotalCarrito(items);
+  const desc = (sub * descuentoPct) / 100;
+  return extraerIva(sub - desc);
 }
 
 interface PagoNc {
@@ -179,24 +213,16 @@ export const usePOSStore = create<POSStore>()(
       setNotas: (notas) => set({ notas }),
 
       // precio ya incluye IVA
-      subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
+      subtotal: () => calcularSubtotalCarrito(get().items),
 
       // Subtotal neto (sin IVA) — extrae el IVA del subtotal bruto
-      subtotalNeto: () => netoDesdeBruto(get().subtotal()),
+      subtotalNeto: () => calcularSubtotalNetoCarrito(get().items),
 
       // IVA extraído del total con descuento — los precios ya incluyen IVA
-      impuesto: () => {
-        const sub = get().subtotal();
-        const desc = (sub * get().descuento) / 100;
-        return extraerIva(sub - desc);
-      },
+      impuesto: () => calcularImpuestoCarrito(get().items, get().descuento),
 
       // Total = subtotal - descuento (IVA ya incluido en el precio) — pesos enteros
-      total: () => {
-        const sub = get().subtotal();
-        const desc = (sub * get().descuento) / 100;
-        return Math.round(sub - desc);
-      },
+      total: () => calcularTotalCarrito(get().items, get().descuento),
     }),
     {
       name: "pos-cart",

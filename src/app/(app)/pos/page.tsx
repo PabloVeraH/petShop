@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { usePOSStore } from "@/stores/pos";
+import { usePOSStore, calcularTotalCarrito } from "@/stores/pos";
 import { createVenta } from "./api";
 import SearchProductos from "./components/SearchProductos";
 import Carrito from "./components/Carrito";
@@ -25,9 +25,15 @@ export default function POSPage() {
 
   const queryClient = useQueryClient();
   const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, procedencia, pagoNc, notas, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
-  // Selector explícito para el total del botón: garantiza que Zustand re-renderice
-  // este valor cuando persist rehidrata desde localStorage (evita "Cobrar $0" en recarga)
-  const cartTotal = usePOSStore((state) => state.total());
+  // Total calculado con calcularTotalCarrito(items, descuento) — la MISMA
+  // función pura que Carrito.tsx y ModalPago.tsx, aplicada a los MISMOS
+  // items/descuento ya destructurados arriba en este render. Evita
+  // depender de state.total() (un getter del store que lee get() en el
+  // momento de la invocación): tras la rehidratación de Zustand persist
+  // desde localStorage, ese getter podía devolver un total inconsistente
+  // con los items ya visibles, mostrando "Cobrar $0" hasta que el usuario
+  // mutara el carrito (addItem/removeItem) y forzara un recálculo correcto.
+  const cartTotal = calcularTotalCarrito(items, descuento);
 
   // Rastrear para qué userId se inicializó workerClerkId — si el usuario autenticado
   // cambia (sesión compartida, turno de vendedores), resetear al usuario actual aunque

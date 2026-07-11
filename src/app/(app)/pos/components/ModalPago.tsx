@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { usePOSStore } from "@/stores/pos";
+import {
+  usePOSStore,
+  calcularSubtotalCarrito,
+  calcularSubtotalNetoCarrito,
+  calcularTotalCarrito,
+} from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { extraerIva } from "@/lib/tax";
@@ -49,7 +54,7 @@ interface ModalPagoProps {
 
 export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
   const {
-    subtotal, subtotalNeto, descuento, total, metodoPago, setMetodoPago,
+    items, descuento, metodoPago, setMetodoPago,
     numeroTransaccion, setNumeroTransaccion,
     setDescuento, fidelizacionDescuento,
     workerClerkId, setWorker,
@@ -69,10 +74,10 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     queryFn: () => fetch("/api/workers").then((r) => r.json()),
   });
 
-  const sub = subtotal();
-  const subNeto = subtotalNeto();
+  const sub = calcularSubtotalCarrito(items);
+  const subNeto = calcularSubtotalNetoCarrito(items);
   const desc = (sub * descuento) / 100;
-  const tot = Math.round(total());
+  const tot = calcularTotalCarrito(items, descuento);
   const ivaAmount = extraerIva(tot);
   const neto = tot - ivaAmount;
 

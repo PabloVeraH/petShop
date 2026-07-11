@@ -1,9 +1,11 @@
 /**
- * Tests PP-01 a PP-04: POSPage — botón "Cobrar" reactivo al total del carrito
- * Regresión: el botón mostraba "Cobrar $0" al cargar la página con items persistidos
- * en localStorage, porque usePOSStore() sin selector no garantizaba re-render tras
- * la rehidratación de Zustand persist. Fix: cartTotal = usePOSStore(state => state.total())
- * @jest-environment jsdom
+ * Tests PP-01 a PP-04, PP-06: POSPage — botón "Cobrar" reactivo al total del carrito
+ *
+ * PP-01  REGRESIÓN — botón muestra total real ($15.458), no $0, con items en carrito
+ * PP-02  REGRESIÓN — botón nunca dice $0 cuando items.length > 0
+ * PP-03  Carrito vacío → botón dice "Carrito vacío" y está deshabilitado
+ * PP-04  REGRESIÓN — setWorker se llama con userId al montar
+ * PP-06  Total se computa de items+descuento localmente (no vía selector separado)
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
@@ -16,37 +18,32 @@ const mockClearCart = jest.fn();
 const mockSetWorker = jest.fn();
 
 // Simula un carrito con un producto cargado (estado post-rehidratación de persist)
-function makeMockStore(overrides: { items?: unknown[]; cartTotal?: number } = {}) {
-  const items = overrides.items ?? [
-    { id: "item-1", producto_id: "prod-1", nombre: "Whiskas 1kg", precio: 15458, cantidad: 1, subtotal: 15458 },
-  ];
-  const total = overrides.cartTotal ?? 15458;
-
+function makeMockStore(overrides: { items?: unknown[]; descuento?: number } = {}) {
   return {
-    items,
+    items: overrides.items ?? [
+      { id: "item-1", producto_id: "prod-1", nombre: "Whiskas 1kg", precio: 15458, cantidad: 1, subtotal: 15458 },
+    ],
     clienteId: undefined,
     mascotaId: undefined,
     workerClerkId: undefined,
     metodoPago: "efectivo",
     numeroTransaccion: undefined,
-    descuento: 0,
+    descuento: overrides.descuento ?? 0,
     procedencia: "presencial",
     pagoNc: undefined,
     enviarEmailRecibo: false,
     clearCart: mockClearCart,
     setWorker: mockSetWorker,
-    total: () => total,
-    subtotal: () => total,
-    impuesto: () => Math.round(total * 0.19 / 1.19),
   };
 }
 
-// usePOSStore se llama dos veces en POSPage:
-// 1. usePOSStore()  → destructure general (items, clearCart, etc.)
-// 2. usePOSStore(selector) → selector para cartTotal = state.total()
+// POSPage ahora solo llama usePOSStore() sin selector — el total se computa
+// con calcularTotalCarrito(items, descuento) (función pura real, no mockeada)
+// localmente desde items + descuento en el mismo render.
 const mockUsePOSStore = jest.fn();
 
 jest.mock("@/stores/pos", () => ({
+  ...jest.requireActual("@/stores/pos"),
   usePOSStore: (...args: unknown[]) => mockUsePOSStore(...args),
 }));
 
@@ -91,12 +88,7 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
   // PP-01: REGRESIÓN — el botón muestra el total real, no $0, cuando hay items en el carrito
   it("PP-01: con carrito persistido ($15.458) el botón muestra 'Cobrar $15.458'", () => {
     const store = makeMockStore();
-    // Primera llamada: sin selector → devuelve el store completo
-    // Segunda llamada: con selector (state => state.total()) → devuelve el total
-    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
-      if (typeof selector === "function") return selector(store);
-      return store;
-    });
+    mockUsePOSStore.mockReturnValue(store);
 
     render(<POSPage />, { wrapper: makeWrapper() });
 
@@ -108,10 +100,7 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
   // PP-02: REGRESIÓN — el botón NO dice "Cobrar $0" cuando el carrito tiene items
   it("PP-02: el botón nunca muestra $0 cuando items.length > 0", () => {
     const store = makeMockStore();
-    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
-      if (typeof selector === "function") return selector(store);
-      return store;
-    });
+    mockUsePOSStore.mockReturnValue(store);
 
     render(<POSPage />, { wrapper: makeWrapper() });
 
@@ -121,11 +110,8 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
 
   // PP-03: carrito vacío → botón dice 'Carrito vacío' y está deshabilitado
   it("PP-03: con carrito vacío el botón dice 'Carrito vacío' y está deshabilitado", () => {
-    const store = makeMockStore({ items: [], cartTotal: 0 });
-    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
-      if (typeof selector === "function") return selector(store);
-      return store;
-    });
+    const store = makeMockStore({ items: [] });
+    mockUsePOSStore.mockReturnValue(store);
 
     render(<POSPage />, { wrapper: makeWrapper() });
 
@@ -140,17 +126,35 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
   // localStorage cuando un vendedor diferente iniciaba sesión en el mismo equipo.
   it("PP-04: setWorker se llama con userId al montar aunque workerClerkId ya tenga valor previo", () => {
     // Store con workerClerkId del admin de la sesión anterior
-    const store = makeMockStore();
-    const storeConWorkerPrevio = { ...store, workerClerkId: "admin-clerk-id-previo" };
-    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
-      if (typeof selector === "function") return selector(storeConWorkerPrevio);
-      return storeConWorkerPrevio;
-    });
+    const store = { ...makeMockStore(), workerClerkId: "admin-clerk-id-previo" };
+    mockUsePOSStore.mockReturnValue(store);
 
     render(<POSPage />, { wrapper: makeWrapper() });
 
     // El userId del mock de Clerk es "user-123" (el vendedor actual)
     // setWorker debe haberse llamado con el userId actual, no dejar el admin previo
     expect(mockSetWorker).toHaveBeenCalledWith("user-123");
+  });
+
+  // PP-06: REGRESIÓN — el total se computa con calcularTotalCarrito(items, descuento)
+  // sobre los mismos items/descuento ya destructurados en este render, no vía un
+  // getter del store (state.total()) que lee get() en el momento de la invocación.
+  it("PP-06: total local coincide con la suma de subtotales menos descuento", () => {
+    const store = makeMockStore({
+      items: [
+        { id: "a", subtotal: 10000 },
+        { id: "b", subtotal: 5000 },
+      ],
+      descuento: 10,
+    });
+    mockUsePOSStore.mockReturnValue(store);
+
+    render(<POSPage />, { wrapper: makeWrapper() });
+
+    // subtotal = 10000 + 5000 = 15000
+    // descuento 10% = 1500
+    // total = 15000 - 1500 = 13500
+    const button = screen.getByRole("button", { name: /Cobrar/i });
+    expect(button).toHaveTextContent("Cobrar $13.500");
   });
 });

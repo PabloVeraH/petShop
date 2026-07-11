@@ -14,7 +14,7 @@ const localStorageMock = {
 };
 Object.defineProperty(global, "localStorage", { value: localStorageMock, writable: true });
 
-import { usePOSStore } from "@/stores/pos";
+import { usePOSStore, calcularTotalCarrito } from "@/stores/pos";
 
 const ITEM_BASE = {
   producto_id: "prod-001",
@@ -406,5 +406,68 @@ describe("POS Store — email recibo toggle", () => {
     // Se puede desasignar (Sin asignar)
     usePOSStore.getState().setWorker(undefined);
     expect(usePOSStore.getState().workerClerkId).toBeUndefined();
+  });
+
+  // S-40: REGRESIÓN — calcularTotalCarrito(items, descuento) (la función pura que
+  // usan page.tsx/Carrito.tsx/ModalPago.tsx) coincide con el getter total() del
+  // store incluso cuando el estado se restaura vía el merge real de Zustand persist
+  // (simulado aquí con el mismo merge + set(state, true) que usa el middleware —
+  // ver node_modules/zustand/esm/middleware.mjs, persistImpl.hydrate).
+  it("S-40: calcularTotalCarrito coincide con state.total() tras rehidratación", () => {
+    // persistedState solo tiene datos (items, descuento), nunca funciones —
+    // currentState aporta todas las funciones (total, addItem, etc.), igual que
+    // en el merge real: (persistedState, currentState) => ({...currentState, ...persistedState})
+    const currentState = usePOSStore.getState();
+    const persistedState = {
+      items: [
+        { id: "a", producto_id: "p1", nombre: "Prod A", precio: 5000, cantidad: 2, subtotal: 10000 },
+        { id: "b", producto_id: "p2", nombre: "Prod B", precio: 3000, cantidad: 1, subtotal: 3000 },
+      ],
+      descuento: 10,
+    };
+    usePOSStore.setState({ ...currentState, ...persistedState }, true);
+
+    const state = usePOSStore.getState();
+    const cartTotal = calcularTotalCarrito(state.items, state.descuento);
+
+    expect(cartTotal).toBe(state.total());
+    // subtotal = 10000 + 3000 = 13000; descuento 10% = 1300; total = 11700
+    expect(cartTotal).toBe(11700);
+  });
+
+  // S-41: escenario adyacente "requests concurrentes" — múltiples set() síncronos
+  // (ej. addItem llamado varias veces en la misma tanda, como una pistola de
+  // código de barras escaneando rápido) no pierden ninguna mutación: el total
+  // final refleja TODOS los items agregados, no solo el primero o el último.
+  it("S-41: múltiples set() síncronos consecutivos no pierden mutaciones — total refleja todos los items", () => {
+    usePOSStore.getState().addItem({ producto_id: "p1", nombre: "P1", precio: 1000, cantidad: 1, subtotal: 1000 });
+    usePOSStore.getState().addItem({ producto_id: "p2", nombre: "P2", precio: 2000, cantidad: 1, subtotal: 2000 });
+    usePOSStore.getState().addItem({ producto_id: "p3", nombre: "P3", precio: 3000, cantidad: 1, subtotal: 3000 });
+
+    const state = usePOSStore.getState();
+    expect(state.items).toHaveLength(3);
+    expect(calcularTotalCarrito(state.items, state.descuento)).toBe(6000);
+  });
+
+  // S-42: escenario adyacente "re-guardado sin cambios" — re-aplicar el mismo
+  // merge de rehidratación con el MISMO contenido (nueva referencia de objeto,
+  // ej. una segunda pestaña o un segundo ciclo de hidratación) es idempotente:
+  // no duplica items ni altera el total.
+  it("S-42: re-aplicar el merge de rehidratación con el mismo contenido es idempotente", () => {
+    const items = [
+      { id: "a", producto_id: "p1", nombre: "Prod A", precio: 5000, cantidad: 1, subtotal: 5000 },
+    ];
+    const base = usePOSStore.getState();
+    usePOSStore.setState({ ...base, items: [...items], descuento: 0 }, true);
+    const totalPrimeraVez = calcularTotalCarrito(usePOSStore.getState().items, usePOSStore.getState().descuento);
+
+    // Segundo "guardado" — mismo contenido, nueva referencia de array/objeto
+    const base2 = usePOSStore.getState();
+    usePOSStore.setState({ ...base2, items: [{ ...items[0] }], descuento: 0 }, true);
+    const totalSegundaVez = calcularTotalCarrito(usePOSStore.getState().items, usePOSStore.getState().descuento);
+
+    expect(usePOSStore.getState().items).toHaveLength(1);
+    expect(totalSegundaVez).toBe(totalPrimeraVez);
+    expect(totalSegundaVez).toBe(5000);
   });
 });

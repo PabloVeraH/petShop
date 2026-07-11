@@ -1,14 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { usePOSStore } from "@/stores/pos";
+import {
+  usePOSStore,
+  calcularSubtotalCarrito,
+  calcularSubtotalNetoCarrito,
+  calcularImpuestoCarrito,
+  calcularTotalCarrito,
+} from "@/stores/pos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Carrito() {
-  const { items, removeItem, updateQuantity, subtotal, subtotalNeto, impuesto, total, descuento, clearCart } =
-    usePOSStore();
+  const { items, removeItem, updateQuantity, descuento, clearCart } = usePOSStore();
   const [confirmClear, setConfirmClear] = useState(false);
+
+  // Calculados con items/descuento del MISMO render (ver invariante en stores/pos.ts) —
+  // regresión: usar los getters subtotal()/impuesto()/total() del store aquí producía
+  // "Cobrar $0" tras rehidratar un carrito persistido en localStorage.
+  const cartSubtotal = calcularSubtotalCarrito(items);
+  const cartSubtotalNeto = calcularSubtotalNetoCarrito(items);
+  const cartDescuentoMonto = (cartSubtotal * descuento) / 100;
+  const cartImpuesto = calcularImpuestoCarrito(items, descuento);
+  const cartTotal = calcularTotalCarrito(items, descuento);
 
   const isVencido = (item: typeof items[0]) => {
     if (!item.fecha_vencimiento) return false;
@@ -161,21 +175,21 @@ export default function Carrito() {
       <div className="border-t p-3 space-y-1 text-sm">
         <div className="flex justify-between text-gray-600">
           <span>Subtotal</span>
-          <span>${subtotalNeto().toLocaleString("es-CL")}</span>
+          <span>${cartSubtotalNeto.toLocaleString("es-CL")}</span>
         </div>
         {descuento > 0 && (
           <div className="flex justify-between text-green-600">
             <span>Descuento ({descuento}%)</span>
-            <span>−${((subtotal() * descuento) / 100).toLocaleString("es-CL")}</span>
+            <span>−${cartDescuentoMonto.toLocaleString("es-CL")}</span>
           </div>
         )}
         <div className="flex justify-between text-gray-600">
           <span>IVA (19%)</span>
-          <span>${impuesto().toLocaleString("es-CL")}</span>
+          <span>${cartImpuesto.toLocaleString("es-CL")}</span>
         </div>
         <div className="flex justify-between font-bold text-base border-t pt-2 mt-1">
           <span>Total</span>
-          <span className="text-green-700">${Math.round(total()).toLocaleString("es-CL")}</span>
+          <span className="text-green-700">${cartTotal.toLocaleString("es-CL")}</span>
         </div>
       </div>
     </Card>
