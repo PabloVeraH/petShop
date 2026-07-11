@@ -254,24 +254,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (tipoReembolso === "saldo_a_favor" && venta.cliente_id) {
-    const { data: saldo } = await supabase
-      .from("saldos_a_favor")
-      .select("saldo_disponible")
-      .eq("cliente_id", venta.cliente_id)
-      .eq("store_id", venta_store_id)
-      .single();
-
-    const nuevoSaldo = (Number(saldo?.saldo_disponible ?? 0) + montoTotal).toFixed(2);
-
-    const { error: saldoErr } = await supabase.from("saldos_a_favor").upsert(
-      {
-        store_id: venta_store_id,
-        cliente_id: venta.cliente_id,
-        saldo_disponible: parseFloat(nuevoSaldo),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "store_id,cliente_id" }
-    );
+    // Incremento atómico (upsert de una sola sentencia vía RPC) — evita el
+    // lost-update que existía con el patrón previo de leer saldo_disponible
+    // en JS y recién después escribir el valor calculado.
+    const { error: saldoErr } = await supabase.rpc("incrementar_saldo_a_favor", {
+      p_store_id: venta_store_id,
+      p_cliente_id: venta.cliente_id,
+      p_monto: montoTotal,
+    });
 
     if (saldoErr) {
       return NextResponse.json({ error: "Error actualizando saldo a favor del cliente" }, { status: 500 });

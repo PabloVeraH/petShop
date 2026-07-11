@@ -10,10 +10,11 @@ const VENTA_ID = "323e4567-e89b-12d3-a456-426614174002";
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
+const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({
-  createServiceClient: jest.fn(() => ({ from: mockFrom })),
+  createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
 function makeFromWithPrevios(
@@ -322,11 +323,10 @@ describe("POST /api/notas-credito", () => {
     expect(res.status).toBe(200);
   });
 
-  it("devolución saldo_a_favor → UPSERT saldo con monto", async () => {
+  it("devolución saldo_a_favor → incrementa saldo atómicamente vía RPC", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
     const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
-    const saldoExistente = { saldo_disponible: 5000 };
-    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem], saldoExistente));
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
 
     const { POST } = await import("@/app/api/notas-credito/route");
     const res = await POST(
@@ -341,13 +341,20 @@ describe("POST /api/notas-credito", () => {
     );
 
     expect(res.status).toBe(200);
-    // Mock verifica que se llamó a saldos_a_favor.upsert con nuevo saldo = 5000 + 2000
+    // REGRESIÓN: el incremento debe hacerse vía RPC atómico (upsert de una sola
+    // sentencia en la BD), no vía SELECT+upsert en JS (lost-update bajo concurrencia).
+    expect(mockRpc).toHaveBeenCalledWith("incrementar_saldo_a_favor", {
+      p_store_id: STORE_ID,
+      p_cliente_id: CLIENTE_ID,
+      p_monto: 2000, // 2 unidades x $1000
+    });
   });
 
-  it("devolución saldo_a_favor (saldo no existe) → crea con monto", async () => {
+  it("devolución saldo_a_favor → 500 si el RPC de incremento falla", async () => {
     const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
     const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
-    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem], null));
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: "db error" } });
 
     const { POST } = await import("@/app/api/notas-credito/route");
     const res = await POST(
@@ -361,7 +368,7 @@ describe("POST /api/notas-credito", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(500);
   });
 
   it("devolución parcial → rollback fidelización (decrementa total_historico)", async () => {

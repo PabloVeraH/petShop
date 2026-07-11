@@ -43,47 +43,38 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  const { data: saldo, error: saldoError } = await supabase
-    .from("saldos_a_favor")
-    .select("saldo_disponible")
-    .eq("cliente_id", clienteId)
-    .eq("store_id", store_id)
-    .single();
+  // Decremento + registro de pago en una sola transacción atómica (RPC):
+  // el UPDATE es condicional (saldo_disponible >= monto) y se evalúa bajo el
+  // lock de fila, por lo que dos requests concurrentes para el mismo cliente
+  // se serializan — cierra el doble gasto real que existía con el patrón
+  // previo de SELECT en JS seguido de UPDATE con el valor calculado en la app.
+  const { data: rpcRows, error: rpcError } = await supabase.rpc("gastar_saldo_a_favor_pago", {
+    p_store_id: store_id,
+    p_cliente_id: clienteId,
+    p_venta_id: ventaId,
+    p_monto: monto,
+  });
 
-  const saldoDisponible = saldo?.saldo_disponible ?? 0;
-  if (saldoDisponible < monto) {
+  if (rpcError) {
+    return NextResponse.json({ error: "Error registrando el pago con saldo a favor" }, { status: 500 });
+  }
+
+  const resultado = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+  if (!resultado) {
+    const { data: saldo } = await supabase
+      .from("saldos_a_favor")
+      .select("saldo_disponible")
+      .eq("cliente_id", clienteId)
+      .eq("store_id", store_id)
+      .single();
+
     return NextResponse.json(
-      { error: `Saldo insuficiente. Disponible: $${saldoDisponible}` },
+      { error: `Saldo insuficiente. Disponible: $${saldo?.saldo_disponible ?? 0}` },
       { status: 400 }
     );
   }
 
-  const { data: pago, error: pagoError } = await supabase
-    .from("pagos")
-    .insert({
-      store_id,
-      venta_id: ventaId,
-      metodo: "saldo_a_favor",
-      monto,
-      numero_transaccion: null,
-    })
-    .select("id")
-    .single();
-
-  if (pagoError) {
-    return NextResponse.json({ error: "Error registering payment" }, { status: 500 });
-  }
-
-  const nuevoSaldo = saldoDisponible - monto;
-  const { error: updateError } = await supabase
-    .from("saldos_a_favor")
-    .update({ saldo_disponible: nuevoSaldo })
-    .eq("cliente_id", clienteId)
-    .eq("store_id", store_id);
-
-  if (updateError) {
-    return NextResponse.json({ error: "Error updating balance" }, { status: 500 });
-  }
+  const { pago_id: pagoId, saldo_nuevo: saldoNuevo } = resultado as { pago_id: string; saldo_nuevo: number };
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
   logAudit({
@@ -91,7 +82,7 @@ export async function POST(req: NextRequest) {
     userId: ctx.userId,
     action: "CREATE",
     entityType: "saldo_favor",
-    entityId: pago?.id,
+    entityId: pagoId,
     newValues: { clienteId, ventaId, monto },
     changeDescription: `Uso de saldo a favor: $${monto} para venta ${ventaId}`,
     ipAddress,
@@ -100,9 +91,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    pagoId: pago?.id,
-    saldoDisponibleAnterior: saldoDisponible,
+    pagoId,
     montoUsado: monto,
-    saldoDisponibleNuevo: nuevoSaldo,
+    saldoDisponibleNuevo: saldoNuevo,
   });
 }

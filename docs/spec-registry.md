@@ -94,8 +94,13 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-324 | crearAsiento retorna null durante COGS sin cierre concurrente → 500 | POST /api/contabilidad/cierre-mes | integration |
 | I-328 | Anular venta con NC activa (saldo_a_favor) cancela NC y revierte saldo | PATCH /api/ventas/[id] | integration |
 | I-329 | Anular venta con NC activa (reembolso_directo) solo cancela NC, sin tocar saldo | PATCH /api/ventas/[id] | integration |
-| I-330 | Anular venta con NC ya usada no la modifica | PATCH /api/ventas/[id] | integration |
+| I-330 | Anular venta con NC ya usada no revierte saldo (ya fue consumida por otra venta) | PATCH /api/ventas/[id] | integration |
 | I-331 | Anular venta sin NCs no falla ni toca NCs ni saldo | PATCH /api/ventas/[id] | integration |
+| I-332 | REGRESIÓN: NC parcial con restituir_stock=true no duplica la restitución de stock al anular la venta | PATCH /api/ventas/[id] | integration |
+| I-333 | REGRESIÓN: item totalmente devuelto vía NC (restituir_stock=true) no restaura stock al anular | PATCH /api/ventas/[id] | integration |
+| I-334 | REGRESIÓN: item devuelto con restituir_stock=false no se descuenta de la restauración de stock (nunca se sumó a stock al crear la NC) | PATCH /api/ventas/[id] | integration |
+| I-335 | REGRESIÓN: NC parcial no duplica el decremento de fidelización al anular la venta | PATCH /api/ventas/[id] | integration |
+| I-336 | REGRESIÓN: NC "usada" cuenta para el neto de stock y fidelización al anular, pero no se le revierte el saldo (ya consumido por otra venta) | PATCH /api/ventas/[id] | integration |
 | BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |

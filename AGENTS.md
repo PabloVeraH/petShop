@@ -777,3 +777,42 @@ calculan con las funciones puras `calcularSubtotalCarrito` /
 (`total()`, `impuesto()`) que leen `get()` en el momento de la invocación.
 Regresión conocida: "Cobrar $0" tras rehidratar un carrito persistido en
 localStorage.
+
+### 22.5 Anular venta no debe re-aplicar efectos ya aplicados por una NC previa
+
+Una nota de crédito (activa o usada) aplicó su efecto **una vez** al crearse:
+restituyó stock (si `restituir_stock=true`), decrementó
+`fidelizacion.total_historico` en su `monto_total`, e incrementó
+`saldos_a_favor` si `tipo_reembolso='saldo_a_favor'`. Al anular la venta
+completa (`PATCH /api/ventas/[id]`), el efecto a revertir es el **neto**
+remanente, no el original completo — de lo contrario se duplica el crédito:
+
+- **Stock**: restaurar `cantidad_venta_item − Σ(cantidad_devuelta` de
+  `nota_credito_items` con `restituir_stock=true`, de TODAS las NCs de esa
+  venta, cualquier `estado`)`, no la cantidad original completa.
+- **Fidelización**: decrementar `venta.total − Σ(monto_total` de TODAS las
+  NCs de esa venta, cualquier `estado`)`, no `venta.total` completo.
+- **Saldo a favor**: revertir (`revertir_saldo_a_favor`) solo para NCs con
+  `estado='activa'` — una NC `usada` ya fue consumida como pago de otra venta
+  (`crear_venta_tx` ya decrementó ese saldo en ese momento); revertirla de
+  nuevo sería un tercer descuento sobre el mismo crédito.
+
+Regresión conocida: el fix original (revertir NC activa + saldo_a_favor al
+anular) no cubría estas dos manifestaciones adyacentes en inventario y
+fidelización — mismo defecto, dos superficies sin corregir en el primer pase.
+
+### 22.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
+
+Las 3 mutaciones de `saldos_a_favor.saldo_disponible` usan funciones SQL
+(`migrations/051_atomic_saldos_a_favor.sql`), nunca un `SELECT` en JS seguido
+de un `UPDATE`/`upsert` con el valor calculado en la aplicación — ese patrón
+es una condición de carrera real (lost update) bajo requests concurrentes:
+
+- `incrementar_saldo_a_favor` — crear NC con `tipo_reembolso='saldo_a_favor'`.
+- `revertir_saldo_a_favor` — anular venta con NC activa (decremento clamped a 0).
+- `gastar_saldo_a_favor_pago` — usar saldo como pago (`POST /api/saldos-a-favor`).
+  Atómico Y condicional (falla si insuficiente) Y hace el INSERT del pago en
+  la MISMA transacción de función — evita la ventana de fallo parcial de
+  decrementar y registrar el pago como dos pasos separados. Antes de este fix,
+  este endpoint permitía doble gasto real (dos requests concurrentes con el
+  mismo saldo) sin siquiera un piso en 0.

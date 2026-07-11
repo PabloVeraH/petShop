@@ -73,15 +73,46 @@ export async function PATCH(
   if (!venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
   if (venta.estado === "anulada") return NextResponse.json({ error: "La venta ya está anulada" }, { status: 409 });
 
-  // Revert stock for each item
   const { data: items } = await supabase
     .from("venta_items")
-    .select("producto_id, cantidad")
+    .select("id, producto_id, cantidad")
     .eq("venta_id", id);
 
+  // Todas las NCs de esta venta (cualquier estado) con sus items — una sola
+  // consulta reutilizada para 3 correcciones (stock, fidelización, reversión
+  // de saldo). Cada NC ya emitida, sea "activa" o "usada", aplicó su efecto
+  // UNA VEZ al crearse (restituyó stock y decrementó fidelización) — anular
+  // la venta completa no debe volver a aplicar el efecto ya cubierto por esas
+  // NCs, sino solo el remanente. Ver invariante en AGENTS.md §22.5.
+  const { data: ncs } = await supabase
+    .from("notas_credito")
+    .select("id, estado, tipo_reembolso, monto_total, nota_credito_items(venta_item_id, cantidad_devuelta, restituir_stock)")
+    .eq("venta_id", id);
+
+  const yaDevueltoPorItem = new Map<string, number>();
+  let totalNcMonto = 0;
+  for (const nc of ncs ?? []) {
+    totalNcMonto += Number(nc.monto_total ?? 0);
+    for (const nci of (nc.nota_credito_items ?? []) as { venta_item_id: string; cantidad_devuelta: number; restituir_stock: boolean }[]) {
+      if (!nci.restituir_stock) continue;
+      yaDevueltoPorItem.set(
+        nci.venta_item_id,
+        (yaDevueltoPorItem.get(nci.venta_item_id) ?? 0) + Number(nci.cantidad_devuelta ?? 0)
+      );
+    }
+  }
+
+  // Restaurar stock: solo la cantidad AÚN NO devuelta vía NC — la porción ya
+  // devuelta con restituir_stock=true ya incrementó productos.stock cuando se
+  // creó la NC (POST /api/notas-credito). Restaurar la cantidad completa aquí
+  // duplicaría esas unidades (regresión: "doble crédito" también en inventario).
   let costoTotal = 0;
   const stockErrors: string[] = [];
   for (const item of items ?? []) {
+    const yaDevuelto = yaDevueltoPorItem.get(item.id) ?? 0;
+    const pendiente = Math.max(0, item.cantidad - yaDevuelto);
+    if (pendiente <= 0) continue;
+
     const { data: prod } = await supabase
       .from("productos")
       .select("stock, costo")
@@ -89,11 +120,11 @@ export async function PATCH(
       .single();
 
     if (prod) {
-      costoTotal += (prod.costo ?? 0) * item.cantidad;
+      costoTotal += (prod.costo ?? 0) * pendiente;
 
       const { error: stockErr } = await supabase
         .from("productos")
-        .update({ stock: prod.stock + item.cantidad })
+        .update({ stock: prod.stock + pendiente })
         .eq("id", item.producto_id);
 
       if (stockErr) stockErrors.push(`producto ${item.producto_id}: ${stockErr.message}`);
@@ -101,7 +132,7 @@ export async function PATCH(
       const { error: movErr } = await supabase.from("stock_movements").insert({
         producto_id: item.producto_id,
         tipo: "entrada",
-        cantidad: item.cantidad,
+        cantidad: pendiente,
         referencia_id: id,
         notas: `Anulación ${venta.numero_comprobante ?? id.slice(0, 8)}`,
         user_id: ctx.userId,
@@ -130,7 +161,11 @@ export async function PATCH(
     ]);
 
     if (fid) {
-      const nuevoTotal = Math.max(0, Number(fid.total_historico) - Number(venta.total ?? 0));
+      // Descontar solo el neto: cada NC ya emitida (activa o usada) restó su
+      // propio monto_total de total_historico al crearse (POST /api/notas-credito).
+      // Descontar venta.total completo aquí duplicaría esa resta.
+      const netoVenta = Math.max(0, Number(venta.total ?? 0) - totalNcMonto);
+      const nuevoTotal = Math.max(0, Number(fid.total_historico) - netoVenta);
       const nuevaFrecuencia = Math.max(0, fid.frecuencia_compras - 1);
       const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
         { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
@@ -150,33 +185,24 @@ export async function PATCH(
     }
   }
 
-  // Cancelar NCs activas asociadas a esta venta y revertir sus saldos a favor
-  const { data: ncs } = await supabase
-    .from("notas_credito")
-    .select("id, tipo_reembolso, monto_total")
-    .eq("venta_id", id)
-    .eq("estado", "activa");
-
+  // Cancelar NCs activas asociadas a esta venta y revertir sus saldos a favor.
+  // Solo NCs "activa": una NC "usada" ya fue consumida como pago de OTRA venta
+  // (crear_venta_tx ya decrementó su saldo_a_favor en ese momento) — revertirla
+  // de nuevo aquí sería un TERCER descuento sobre el mismo crédito.
+  const ncsActivas = (ncs ?? []).filter((nc) => nc.estado === "activa");
   const ncErrors: string[] = [];
-  for (const nc of ncs ?? []) {
+  for (const nc of ncsActivas) {
     if (nc.tipo_reembolso === "saldo_a_favor" && venta.cliente_id) {
-      const { data: saldo } = await supabase
-        .from("saldos_a_favor")
-        .select("saldo_disponible")
-        .eq("cliente_id", venta.cliente_id)
-        .eq("store_id", store_id)
-        .single();
+      // Decremento atómico (UPDATE de una sola sentencia) — evita el lost-update
+      // que existía con el patrón previo de leer saldo_disponible en JS y
+      // recién después escribir el valor calculado.
+      const { error: saldoErr } = await supabase.rpc("revertir_saldo_a_favor", {
+        p_store_id: store_id,
+        p_cliente_id: venta.cliente_id,
+        p_monto: nc.monto_total,
+      });
 
-      if (saldo) {
-        const nuevoSaldo = Math.max(0, Number(saldo.saldo_disponible) - nc.monto_total);
-        const { error: saldoErr } = await supabase
-          .from("saldos_a_favor")
-          .update({ saldo_disponible: nuevoSaldo, updated_at: new Date().toISOString() })
-          .eq("store_id", store_id)
-          .eq("cliente_id", venta.cliente_id);
-
-        if (saldoErr) ncErrors.push(`saldo NC ${nc.id}: ${saldoErr.message}`);
-      }
+      if (saldoErr) ncErrors.push(`saldo NC ${nc.id}: ${saldoErr.message}`);
     }
 
     const { error: ncErr } = await supabase
