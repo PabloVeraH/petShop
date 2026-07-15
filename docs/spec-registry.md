@@ -185,7 +185,22 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-182 | Recibir OC incrementa stock del producto | POST /api/ordenes-compra/[id] | integration |
 | I-183 | Cuenta a pagar no puede tener monto ≤ 0 | POST /api/cuentas-pagar | integration |
 
-## Workers (I-253 a I-262)
+## Workers (I-253 a I-262, I-406 a I-410)
+
+Regresión: "Ventas hoy" mostraba $0 para todos los vendedores. Causa raíz:
+ventas creadas sin asignar workerClerkId explícitamente en el modal de cobro
+quedaban con worker_clerk_id=null, y GET /api/workers las excluye (no las
+atribuye a nadie) al sumar por vendedor. Corregido en dos capas: frontend
+(pos/page.tsx auto-asigna el userId de la sesión al montar y al cambiar de
+usuario) y backend (POST /api/ventas: workerClerkId ?? ctx.userId como
+fallback, ver I-68 en tests/integration/api/ventas.post.test.ts). I-409/I-410
+prueban que la suma por vendedor de GET /api/workers funciona con datos
+reales (I-257 solo verificaba la forma de la respuesta contra data:[]).
+
+IDs I-260/I-261/I-293 de este archivo (tests/integration/api/workers.test.ts)
+colisionaban con IDs ya usados en otros archivos (workers-ventas.test.ts y
+ventas.get.test.ts respectivamente, ambos más antiguos) — renombrados a
+I-406/I-407/I-408.
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
@@ -197,6 +212,11 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-261 | GET workers/ventas retorna ventas del worker | GET /api/workers/[id]/ventas | integration |
 | I-262 | GET workers/ventas filtra por rango de fechas | GET /api/workers/[id]/ventas | integration |
 | I-293 | PATCH workers valida formato RUT (400 si inválido) | PATCH /api/workers | integration |
+| I-406 | PATCH workers retorna 401 si no hay sesión (renombrado desde I-260, colisión) | PATCH /api/workers | integration |
+| I-407 | PATCH workers retorna 403 si no es admin (renombrado desde I-261, colisión) | PATCH /api/workers | integration |
+| I-408 | GET ventas retorna 401 si no autenticado (renombrado desde I-293, colisión — ver también sección Ventas) | GET /api/ventas | integration |
+| I-409 | REGRESIÓN: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente (no $0) | GET /api/workers | integration |
+| I-410 | Venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás | GET /api/workers | integration |
 
 ## Infraestructura (I-263 a I-278)
 
@@ -454,12 +474,23 @@ código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
 | DA-05 | fetch de stock-alertas falla → widget vacío sin error | AnaliticaTab | component |
 | DA-06 | REGRESIÓN: con >10 alertas, el contador del badge usa `total` (conteo real) y no `items.length` (lista recortada a 10) | AnaliticaTab | component |
 
-## POS Page Cache (PP-05)
+## POS Page Cache y auto-asignación de vendedor (PP-05 a PP-11)
+
+PP-07 a PP-11: regresión "Ventas hoy $0" — el useEffect de pos/page.tsx que
+auto-asigna workerClerkId al userId de la sesión (ver también I-68, I-409,
+I-410). Archivo: tests/components/pos-worker-auto-assign.test.tsx.
+Renombrados desde PC-01..05: ese prefijo está reservado para tests de
+Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
 | PP-05 | Completar venta invalida ["ventas"] con refetchType "all" | POSPage | component |
 | PP-06 | REGRESIÓN: el botón Cobrar computa el total con calcularTotalCarrito(items, descuento) del mismo render, coincide con la suma de subtotales menos descuento | POSPage | component |
+| PP-07 | useEffect asigna workerClerkId al userId cuando el componente monta | POSPage | component |
+| PP-08 | useEffect no asigna worker cuando userId es null (Clerk loading) | POSPage | component |
+| PP-09 | useEffect asigna worker cuando userId cambia de null a un valor (Clerk carga después) | POSPage | component |
+| PP-10 | useEffect no sobreescribe workerClerkId si ya se inicializó para el mismo userId (preserva selección manual) | POSPage | component |
+| PP-11 | REGRESIÓN: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno) | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 

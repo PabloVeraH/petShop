@@ -32,9 +32,9 @@ function makeWorkerChain() {
   };
 }
 
-function makeVentasChain() {
+function makeVentasChain(data: Array<{ worker_clerk_id: string | null; total: number }> = []) {
   return {
-    data: [],
+    data,
     error: null,
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
@@ -91,6 +91,75 @@ describe("GET /api/workers", () => {
     expect(body[0]).toHaveProperty("ventas_mes");
     expect(body[0]).toHaveProperty("ventas_hoy");
   });
+
+  // I-409/I-410: REGRESIÓN — "Ventas hoy" mostraba $0 para todos los
+  // vendedores porque las ventas creadas sin asignar workerClerkId
+  // explícitamente en el modal del POS quedaban con worker_clerk_id=null
+  // (corregido en /api/ventas: workerClerkId ?? ctx.userId). I-257 solo
+  // verificaba la forma de la respuesta contra data:[] — nunca probaba que
+  // la suma por vendedor funcione con ventas reales.
+  const WORKERS_MULTI = [
+    { clerk_id: "w1", nombre: "Worker Uno", email: "w1@test.com", rut: null, meta_ventas: null, store_admin: false, store_worker: true },
+    { clerk_id: "w2", nombre: "Worker Dos", email: "w2@test.com", rut: null, meta_ventas: null, store_admin: false, store_worker: true },
+  ];
+
+  function makeWorkersMultiChain() {
+    return {
+      data: WORKERS_MULTI,
+      error: null,
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+    };
+  }
+
+  it("I-409: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente", async () => {
+    const VENTAS_HOY = [
+      { worker_clerk_id: "w1", total: 15000 },
+      { worker_clerk_id: "w1", total: 5000 },
+      { worker_clerk_id: "w2", total: 20000 },
+    ];
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return makeWorkersMultiChain();
+      // ventasMes y ventasHoy: misma data alcanza para probar la suma por worker
+      return makeVentasChain(VENTAS_HOY);
+    });
+    const { GET } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers");
+    const res = await GET(req);
+    const body = await res.json();
+
+    const w1 = body.find((w: { clerk_id: string }) => w.clerk_id === "w1");
+    const w2 = body.find((w: { clerk_id: string }) => w.clerk_id === "w2");
+    expect(w1.ventas_hoy).toBe(20000); // 15000 + 5000, no $0
+    expect(w2.ventas_hoy).toBe(20000);
+  });
+
+  it("I-410: venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás", async () => {
+    const VENTAS_HOY = [
+      { worker_clerk_id: "w1", total: 10000 },
+      { worker_clerk_id: null, total: 99999 }, // venta sin vendedor asignado (no debe romper ni sumarse a nadie)
+    ];
+    let call = 0;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return makeWorkersMultiChain();
+      return makeVentasChain(VENTAS_HOY);
+    });
+    const { GET } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    const w1 = body.find((w: { clerk_id: string }) => w.clerk_id === "w1");
+    const w2 = body.find((w: { clerk_id: string }) => w.clerk_id === "w2");
+    expect(w1.ventas_hoy).toBe(10000);
+    expect(w2.ventas_hoy).toBe(0);
+  });
 });
 
 describe("PATCH /api/workers", () => {
@@ -140,7 +209,7 @@ describe("PATCH /api/workers", () => {
     expect(captured[0]).toHaveProperty("updated_at");
   });
 
-  it("I-260: retorna 401 si no hay sesión", async () => {
+  it("I-406: retorna 401 si no hay sesión", async () => {
     mockAuth.mockResolvedValue({ userId: null, sessionClaims: null });
     const { PATCH } = await import("@/app/api/workers/route");
     const req = new NextRequest("http://localhost/api/workers", {
@@ -152,7 +221,7 @@ describe("PATCH /api/workers", () => {
     expect(res.status).toBe(401);
   });
 
-  it("I-261: retorna 403 si no es admin", async () => {
+  it("I-407: retorna 403 si no es admin", async () => {
     mockAuth.mockResolvedValue({
       userId: "u1",
       sessionClaims: {

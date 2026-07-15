@@ -1,12 +1,17 @@
 /** @jest-environment jsdom */
 /**
- * Tests PC-01 a PC-04: POS worker auto-assignment behavior
+ * Tests PP-07 a PP-11: POS worker auto-assignment behavior
  * Verifica que el useEffect en POSPage asigna automáticamente
  * al usuario logueado como vendedor por defecto.
+ *
+ * Renombrados desde PC-01..05: colisionaban con el prefijo PC-NN, ya
+ * reservado para tests de componente de Carrito (ver docs/spec-registry.md)
+ * — estos tests son de POSPage, no de Carrito, así que corresponden al
+ * prefijo PP-NN (continúa PP-01..06 de POSPage.test.tsx).
  */
 import "@testing-library/jest-dom";
 import React, { useEffect, useRef } from "react";
-import { render, renderHook, act } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { usePOSStore } from "@/stores/pos";
 
 // Mock para Zustand persist (localStorage no disponible en jsdom)
@@ -45,20 +50,20 @@ function AutoAssignWorker({ userId }: { userId: string | null }) {
   return null;
 }
 
-// PC-01
-it("PC-01: useEffect asigna workerClerkId al userId cuando el componente monta", () => {
+// PP-07
+it("PP-07: useEffect asigna workerClerkId al userId cuando el componente monta", () => {
   render(<AutoAssignWorker userId="user-clerk-123" />);
   expect(usePOSStore.getState().workerClerkId).toBe("user-clerk-123");
 });
 
-// PC-02
-it("PC-02: useEffect no asigna worker cuando userId es null (Clerk loading)", () => {
+// PP-08
+it("PP-08: useEffect no asigna worker cuando userId es null (Clerk loading)", () => {
   render(<AutoAssignWorker userId={null} />);
   expect(usePOSStore.getState().workerClerkId).toBeUndefined();
 });
 
-// PC-03
-it("PC-03: useEffect asigna worker cuando userId cambia de null a un valor (Clerk carga después)", () => {
+// PP-09
+it("PP-09: useEffect asigna worker cuando userId cambia de null a un valor (Clerk carga después)", () => {
   const { rerender } = render(<AutoAssignWorker userId={null} />);
   expect(usePOSStore.getState().workerClerkId).toBeUndefined();
 
@@ -66,8 +71,8 @@ it("PC-03: useEffect asigna worker cuando userId cambia de null a un valor (Cler
   expect(usePOSStore.getState().workerClerkId).toBe("user-loaded-456");
 });
 
-// PC-04
-it("PC-04: useEffect no sobreescribe workerClerkId si ya se inicializó para el mismo userId", () => {
+// PP-10
+it("PP-10: useEffect no sobreescribe workerClerkId si ya se inicializó para el mismo userId", () => {
   usePOSStore.getState().setWorker("user-existing-789");
   const { rerender } = render(<AutoAssignWorker userId="user-existing-789" />);
   // El ref se inicializa pero como "user-existing-789" ya está seteado, no cambia
@@ -83,8 +88,8 @@ it("PC-04: useEffect no sobreescribe workerClerkId si ya se inicializó para el 
   expect(usePOSStore.getState().workerClerkId).toBe("other-worker-999");
 });
 
-// PC-05: simula el escenario de cambio de turno (otro usuario se loguea)
-it("PC-05: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno)", () => {
+// PP-11: simula el escenario de cambio de turno (otro usuario se loguea)
+it("PP-11: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno)", () => {
   const { rerender } = render(<AutoAssignWorker userId="pedro" />);
   expect(usePOSStore.getState().workerClerkId).toBe("pedro");
 

@@ -80,7 +80,7 @@ describe("GET /api/ventas", () => {
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
   });
 
-  it("I-293: retorna 401 si no autenticado", async () => {
+  it("I-408: retorna 401 si no autenticado", async () => {
     mockGetStoreId.mockResolvedValue(null);
     const { GET } = await import("@/app/api/ventas/route");
     const req = new NextRequest("http://localhost/api/ventas");
