@@ -544,6 +544,23 @@ llamar `focus()` tras un cambio de estado — el mecanismo exacto del bug.
 | DV-16 | REGRESIÓN: motivo vacío se envía como null en el body | DevolucionModal | component |
 | DV-17 | REGRESIÓN: escribir en Motivo no vuelve a robar el foco del ModalOverlay real | DevolucionModal | component |
 
+## LotesPanel — formulario de Lote, Notas (LP-01 a LP-03)
+
+Tercera superficie con el mismo bug de raíz (ModalOverlay, commit 1270b13):
+`onClose={() => { setShowForm(false); setEditando(null); }}` es una función
+inline con referencia nueva en cada render, igual que DevolucionModal e
+InventoryPage. LotesPanel nunca tuvo test de componente propio — este
+archivo (`tests/components/LotesPanel.test.tsx`) es nuevo. LP-01 usa el
+mismo mecanismo de verificación que DV-17 (conteo de llamadas a `focus()`
+del ModalOverlay real); LP-02/LP-03 son el equivalente a DV-15/DV-16 para el
+campo Notas del formulario de Agregar/Editar Lote.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| LP-01 | REGRESIÓN: escribir en Notas no vuelve a robar el foco del ModalOverlay real | LotesPanel | component |
+| LP-02 | REGRESIÓN: el texto completo de Notas se envía en el body del POST /api/lotes, no truncado | LotesPanel | component |
+| LP-03 | Notas vacío se envía como null en el body del POST | LotesPanel | component |
+
 ## ModalOverlay — foco y cierre (MO-01 a MO-06)
 
 | ID | Requisito | Componente | Tipo |
@@ -676,5 +693,6 @@ producto inactivo.
 - `DV-NN` — test de componente de DevolucionModal
 - `S-NN` — test de store (Zustand)
 - `I-REC-NN` — test de integración de GET /api/recibos/[ventaId]
+- `LP-NN` — test de componente de LotesPanel
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.
