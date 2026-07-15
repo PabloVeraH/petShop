@@ -454,15 +454,20 @@ código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
 | PP-05 | Completar venta invalida ["ventas"] con refetchType "all" | POSPage | component |
 | PP-06 | REGRESIÓN: el botón Cobrar computa el total con calcularTotalCarrito(items, descuento) del mismo render, coincide con la suma de subtotales menos descuento | POSPage | component |
 
-## POS Carrito — footer tras rehidratación (PC-05 a PC-13)
+## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 
 Regresión: el footer del carrito (Subtotal/Descuento/IVA/Total) mostraba "$0"
 tras recargar /pos con un carrito persistido en localStorage, porque
 Carrito.tsx llamaba a los getters `subtotal()`/`impuesto()`/`total()` del store
 (que leen `get()` en el momento de la invocación) en vez de derivarlos de los
 `items`/`descuento` ya destructurados en el mismo render — ver la invariante
-documentada en `src/stores/pos.ts`. PC-13 usa el mecanismo real (asíncrono) de
-Zustand persist en vez de simular el estado con `setState()`.
+documentada en `src/stores/pos.ts`. PC-13 usa el mecanismo real de rehidratación
+de Zustand persist en vez de simular el estado con `setState()` — verificado que
+`hydrate()` es SÍNCRONO para `localStorage` (no asíncrono, corrección sobre la
+suposición original — ver comentario en el archivo). PC-14/PC-15 reproducen,
+con `renderToString` + `hydrateRoot` + `act` reales, el mecanismo que sí puede
+desincronizar servidor y cliente: `useSyncExternalStore`'s `getServerSnapshot`
+fijado al estado pre-hidratación de `persist`.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -474,7 +479,9 @@ Zustand persist en vez de simular el estado con `setState()`.
 | PC-10 | Escenario adyacente "editar": tras rehidratar, updateQuantity recalcula el total del item persistido | Carrito | component |
 | PC-11 | Escenario adyacente "requests concurrentes": múltiples addItem síncronos tras rehidratar no pierden ninguna mutación | Carrito | component |
 | PC-12 | Escenario adyacente "re-guardado sin cambios": re-aplicar la misma rehidratación (nueva referencia, mismos datos) mantiene el total correcto | Carrito | component |
-| PC-13 | REGRESIÓN (rehidratación REAL de Zustand persist, no simulada): con carrito persistido en localStorage, el footer converge al total real tras la rehidratación asíncrona | Carrito | component |
+| PC-13 | REGRESIÓN (rehidratación REAL de Zustand persist, no simulada): con carrito persistido en localStorage, el footer converge al total real tras la rehidratación real de persist | Carrito | component |
+| PC-14 | REGRESIÓN (SSR + hydrateRoot reales): servidor sin localStorage (carrito vacío) + hidratación con carrito persistido converge al total real ($15.458) sin waitFor | Carrito | component |
+| PC-15 | Sin carrito persistido, SSR + hydrateRoot reales mantienen el estado vacío coherente (no inventa contenido) | Carrito | component |
 
 ## Devolución Modal Cache (DV-14)
 
