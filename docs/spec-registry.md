@@ -534,7 +534,7 @@ sin ninguna acción manual del vendedor.
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
 | MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual | ModalCliente + Carrito | component |
 
-## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-09)
+## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-12)
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
@@ -547,6 +547,9 @@ sin ninguna acción manual del vendedor.
 | I-AI-07 | POST retorna 502 si el LLM lanza error | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-08 | POST filtra producto_id que LLM alucinó (no existe en input) | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-09 | GET filtra recomendaciones cacheadas de inactivos y reporta productos_obsoletos | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-10 | Reintenta una vez cuando el primer intento hace timeout y el segundo responde | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-11 | Retorna 502 si ambos intentos (original + reintento) hacen timeout | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-12 | No reintenta cuando el error no es de timeout (ej. API key inválida) | POST /api/ai/vencimientos/optimizar | integration |
 
 ## OpenRouter — analizarVencimientosConIA (U-OR-01 a U-OR-07)
 
@@ -572,7 +575,7 @@ sin ninguna acción manual del vendedor.
 | U-REC-06 | Limita a 3 recomendaciones aunque LLM devuelva más | lib/openrouter | unit |
 | U-REC-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
 
-## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-09)
+## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-10)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -585,6 +588,7 @@ sin ninguna acción manual del vendedor.
 | C-OPT-07 | Estado vacío cuando no hay productos próximos a vencer | OptimizadorVencimientosTab | component |
 | C-OPT-08 | Servidor retorna HTML en vez de JSON → error amigable (no Unexpected token '<') | OptimizadorVencimientosTab | component |
 | C-OPT-09 | Muestra advertencia cuando productos_obsoletos > 0 (recomendaciones filtradas por catálogo obsoleto) | OptimizadorVencimientosTab | component |
+| C-OPT-10 | Timeout defensivo del cliente (55s) ante backend que no responde → mensaje amigable | OptimizadorVencimientosTab | component |
 
 ## RecomendacionesIA (C-REC-01 a C-REC-09)
 

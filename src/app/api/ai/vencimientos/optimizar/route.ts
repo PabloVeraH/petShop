@@ -7,6 +7,33 @@ import { analizarVencimientosConIA } from "@/lib/openrouter";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
+// El modelo free-tier de OpenRouter puede tener cold-start (~20-30s). Un solo
+// reintento tras esa ventana suele alcanzar al modelo ya "tibio". maxDuration
+// se declara explícitamente para que ambos intentos (20s c/u) + la espera entre
+// ellos quepan dentro del límite de la función antes de que la plataforma la
+// mate y sirva una página de error HTML (la causa raíz original del bug).
+export const maxDuration = 50;
+
+const REINTENTOS_TIMEOUT_IA = 1;
+const ESPERA_ENTRE_REINTENTOS_MS = 2000;
+
+// Reintenta analizarVencimientosConIA una vez, únicamente cuando el fallo es
+// el timeout de cold-start (nunca ante 401/429/5xx/parseo — esos no se
+// resuelven reintentando de inmediato).
+async function analizarConReintentoSiTimeout(
+  ...args: Parameters<typeof analizarVencimientosConIA>
+): ReturnType<typeof analizarVencimientosConIA> {
+  for (let intento = 0; ; intento++) {
+    try {
+      return await analizarVencimientosConIA(...args);
+    } catch (e) {
+      const esTimeout = e instanceof Error && e.message.includes("no respondió a tiempo");
+      if (!esTimeout || intento >= REINTENTOS_TIMEOUT_IA) throw e;
+      await new Promise((resolve) => setTimeout(resolve, ESPERA_ENTRE_REINTENTOS_MS));
+    }
+  }
+}
+
 export async function GET() {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -169,7 +196,7 @@ export async function POST(req: NextRequest) {
   // 8. Llamar al LLM vía OpenRouter
   let recomendaciones;
   try {
-    const rawRecs = await analizarVencimientosConIA(apiKey, model, productosParaIA, fechaHoyStr);
+    const rawRecs = await analizarConReintentoSiTimeout(apiKey, model, productosParaIA, fechaHoyStr);
     // Merge back stock y dias_hasta_vencer desde productosParaIA (el LLM no los retorna)
     const productoMap = new Map(productosParaIA.map(p => [p.producto_id, p]));
     recomendaciones = rawRecs

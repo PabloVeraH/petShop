@@ -66,12 +66,19 @@ export function OptimizadorVencimientosTab() {
     setIsLoading(true);
     setError(null);
     setResultado(null);
+    // El backend puede tardar hasta ~45s en casos de cold-start + reintento
+    // (ver maxDuration en la API route). Este timeout evita un spinner
+    // indefinido si la respuesta nunca llega.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     try {
       const res = await fetch("/api/ai/vencimientos/optimizar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ diasAlerta }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const ct = res.headers?.get("content-type") ?? "";
       if (!ct.includes("application/json")) {
         throw new Error("Error al conectar con el servicio de IA. Intente de nuevo.");
@@ -80,7 +87,12 @@ export function OptimizadorVencimientosTab() {
       if (!res.ok) throw new Error(data.error ?? "Error inesperado");
       setResultado(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error inesperado");
+      clearTimeout(timeoutId);
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setError("El análisis está tardando demasiado. Intente de nuevo.");
+      } else {
+        setError(e instanceof Error ? e.message : "Error inesperado");
+      }
     } finally {
       setIsLoading(false);
     }

@@ -3,7 +3,7 @@
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OptimizadorVencimientosTab } from "@/app/(app)/inventory/components/OptimizadorVencimientosTab";
 
@@ -151,6 +151,29 @@ describe("OptimizadorVencimientosTab", () => {
       // Debe mostrar mensaje amigable, no "Unexpected token '<'"
       expect(screen.getByText(/servicio de IA|intente de nuevo/i)).toBeInTheDocument();
     });
+  });
+
+  // C-OPT-10: timeout defensivo del cliente ante backend que no responde
+  it("C-OPT-10: muestra mensaje de timeout cuando el backend no responde dentro del límite del cliente", async () => {
+    jest.useFakeTimers();
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(null, false)) // GET historial (mount)
+      .mockImplementationOnce((_url: string, options: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted", "AbortError"));
+          }, { once: true });
+        })
+      );
+    renderTab();
+    fireEvent.click(screen.getByRole("button", { name: /analizar/i }));
+    act(() => {
+      jest.advanceTimersByTime(55000);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/tardando demasiado/i)).toBeInTheDocument();
+    });
+    jest.useRealTimers();
   });
 
   // C-OPT-07

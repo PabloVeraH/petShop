@@ -231,6 +231,103 @@ describe("POST /api/ai/vencimientos/optimizar", () => {
     expect(body.recomendaciones).toHaveLength(1);
     expect(body.recomendaciones[0].producto_id).toBe(PRODUCTO_ID);
   });
+
+  // I-AI-10: cold-start transitorio — reintenta una vez y el segundo intento tiene éxito
+  it("I-AI-10: reintenta una vez cuando el primer intento hace timeout y el segundo responde", async () => {
+    jest.useFakeTimers();
+    setupStoreAdmin();
+    mockAnalizarIA
+      .mockRejectedValueOnce(new Error("OpenRouter no respondió a tiempo. Intente de nuevo."))
+      .mockResolvedValueOnce([DB_RECOMENDACION]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const resPromise = POST(makeRequest());
+    await jest.advanceTimersByTimeAsync(2000); // espera entre reintentos
+    const res = await resPromise;
+
+    expect(mockAnalizarIA).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.recomendaciones).toHaveLength(1);
+    jest.useRealTimers();
+  });
+
+  // I-AI-11: ambos intentos hacen timeout → 502, sin reintentos infinitos
+  it("I-AI-11: retorna 502 si ambos intentos (original + reintento) hacen timeout", async () => {
+    jest.useFakeTimers();
+    setupStoreAdmin();
+    mockAnalizarIA.mockRejectedValue(new Error("OpenRouter no respondió a tiempo. Intente de nuevo."));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const resPromise = POST(makeRequest());
+    await jest.advanceTimersByTimeAsync(2000);
+    const res = await resPromise;
+
+    expect(mockAnalizarIA).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toContain("no respondió a tiempo");
+    jest.useRealTimers();
+  });
+
+  // I-AI-12: error no relacionado a timeout (ej. API key inválida) no dispara reintento
+  it("I-AI-12: no reintenta cuando el error no es de timeout", async () => {
+    setupStoreAdmin();
+    mockAnalizarIA.mockRejectedValue(new Error("API key inválida o sin créditos"));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: null }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const res = await POST(makeRequest());
+
+    expect(mockAnalizarIA).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toContain("API key inválida");
+  });
 });
 
 describe("GET /api/ai/vencimientos/optimizar", () => {
