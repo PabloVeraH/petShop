@@ -7,6 +7,16 @@ import { recomendarProductosEnPOS }  from "@/lib/openrouter";
 import { POSRecomendadorRequestSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
+// Mismo mecanismo de cold-start que /api/ai/vencimientos/optimizar (ver ese
+// route.ts): recomendarProductosEnPOS tiene su propio timeout interno de 20s
+// (lib/openrouter.ts). Sin maxDuration explícito, esta ruta dependía del
+// límite implícito de la plataforma en vez de garantizar que el timeout
+// interno complete antes de que la plataforma mate la función y sirva HTML
+// en vez de JSON — la causa raíz original de este bug. No tiene reintento
+// (a diferencia de vencimientos): es una sugerencia pasiva no bloqueante con
+// timeout de cliente de 8s (RecomendacionesIA.tsx), un solo intento basta.
+export const maxDuration = 25;
+
 export async function POST(req: NextRequest) {
   // 1. Auth — cualquier usuario autenticado de la tienda (workers y admins)
   const ctx = await getStoreId();
