@@ -27,6 +27,14 @@ type SavedFilter = { id: string; name: string; type: "overdue" | "due-soon" | "d
 const EMPTY_FORM = { nombre: "", rut: "", contacto: "", telefono: "", email: "" };
 const SAVED_FILTERS_KEY = "supply-chain-saved-filters";
 
+// fecha_vencimiento se guarda como "YYYY-MM-DD" (sin hora). new Date(str) sobre
+// un string así lo parsea como medianoche UTC, no local — en timezones detrás
+// de UTC (todo el continente) una cuenta que vence "hoy" se lee como si ya
+// hubiera vencido horas antes. Mismo patrón que src/lib/lote-helpers.ts.
+function parseFechaLocal(fecha: string): Date {
+  return new Date(`${fecha}T00:00:00`);
+}
+
 export default function SupplierHubPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Proveedor | null>(null);
@@ -126,9 +134,9 @@ export default function SupplierHubPage() {
     hoy.setHours(0, 0, 0, 0);
 
     const pendiente = allCuentas.filter(c => c.estado === "pendiente" && Number(c.monto) > 0);
-    const overdue = pendiente.filter(c => new Date(c.fecha_vencimiento) < hoy);
+    const overdue = pendiente.filter(c => parseFechaLocal(c.fecha_vencimiento) < hoy);
     const dueSoon = pendiente.filter(c => {
-      const venc = new Date(c.fecha_vencimiento);
+      const venc = parseFechaLocal(c.fecha_vencimiento);
       const daysUntil = Math.ceil((venc.getTime() - hoy.getTime()) / 86400000);
       return daysUntil > 0 && daysUntil <= 7;
     });
@@ -154,11 +162,11 @@ export default function SupplierHubPage() {
 
     switch (payablesFilter) {
       case "overdue":
-        filtered = filtered.filter(c => new Date(c.fecha_vencimiento) < hoy);
+        filtered = filtered.filter(c => parseFechaLocal(c.fecha_vencimiento) < hoy);
         break;
       case "due-soon":
         filtered = filtered.filter(c => {
-          const venc = new Date(c.fecha_vencimiento);
+          const venc = parseFechaLocal(c.fecha_vencimiento);
           const daysUntil = Math.ceil((venc.getTime() - hoy.getTime()) / 86400000);
           return daysUntil > 0 && daysUntil <= 7;
         });
@@ -168,7 +176,7 @@ export default function SupplierHubPage() {
         const weekEnd = new Date(hoy);
         weekEnd.setDate(weekEnd.getDate() + 7);
         filtered = filtered.filter(c => {
-          const venc = new Date(c.fecha_vencimiento);
+          const venc = parseFechaLocal(c.fecha_vencimiento);
           return venc >= weekStart && venc <= weekEnd;
         });
         break;
@@ -177,7 +185,7 @@ export default function SupplierHubPage() {
         break;
     }
 
-    return filtered.sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime());
+    return filtered.sort((a, b) => parseFechaLocal(a.fecha_vencimiento).getTime() - parseFechaLocal(b.fecha_vencimiento).getTime());
   }, [cuentas, payablesFilter]);
 
   const { mutate: createProveedor, isPending: creating } = useMutation({
@@ -226,7 +234,7 @@ export default function SupplierHubPage() {
   });
 
   const handleOrderCreated = () => {
-    queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+    queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
   };
 
   const { data: ordenDetalle } = useQuery<OrdenCompra & { items: OrdenItem[] }>({
@@ -249,7 +257,7 @@ export default function SupplierHubPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedOrden(null);
       setCancelConfirm(null);
@@ -275,8 +283,8 @@ export default function SupplierHubPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
-      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedOrden(null);
       setShowReceiving(null);
@@ -293,7 +301,7 @@ export default function SupplierHubPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setPayModal(null);
       setPayError("");
@@ -320,7 +328,7 @@ export default function SupplierHubPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
       setSelectedPayables(new Set());
       setPayModal(null);
@@ -340,7 +348,7 @@ export default function SupplierHubPage() {
       "Cuenta ID": c.id,
       "Proveedor": selected?.nombre ?? "—",
       "Monto": Number(c.monto),
-      "Vencimiento": new Date(c.fecha_vencimiento).toLocaleDateString("es-CL"),
+      "Vencimiento": parseFechaLocal(c.fecha_vencimiento).toLocaleDateString("es-CL"),
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -583,7 +591,7 @@ export default function SupplierHubPage() {
                     productos={todosProductos ?? []}
                     existingItems={ordenDetalle.items}
                     onOrderEdited={() => {
-                      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id] });
+                      queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
                       setShowEditItems(null);
                       setSelectedOrden(null);
                     }}
@@ -853,8 +861,9 @@ export default function SupplierHubPage() {
                 ) : (
                   <div className="space-y-1 max-h-96 overflow-y-auto">
                     {filteredPayables.map((cp) => {
-                      const venc = new Date(cp.fecha_vencimiento);
+                      const venc = parseFechaLocal(cp.fecha_vencimiento);
                       const hoy = new Date();
+                      hoy.setHours(0, 0, 0, 0);
                       const vencida = venc < hoy;
                       const daysUntil = Math.ceil((venc.getTime() - hoy.getTime()) / 86400000);
 

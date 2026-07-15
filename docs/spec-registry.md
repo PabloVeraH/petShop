@@ -347,6 +347,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | KPI-03 | Card Próx. a vencer muestra monto de próximos a vencer | SuppliersPage | component |
 | KPI-04 | Card OC en Proceso cuenta órdenes pendientes | SuppliersPage | component |
 | KPI-05 | Sin proveedor seleccionado la query usa queryKey con "all" (global, no enabled guard) | SuppliersPage | component |
+| KPI-06 | REGRESIÓN: invalidar cuentas/ordenes-proveedor sin proveedor seleccionado usa key "all" (no undefined) | SuppliersPage | component |
 
 ## Tests unitarios (U-XX)
 

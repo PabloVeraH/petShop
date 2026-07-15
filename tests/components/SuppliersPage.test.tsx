@@ -296,10 +296,24 @@ describe("SuppliersPage - KPI Dashboard", () => {
     mockInvalidateQueries.mockClear();
   });
 
+  // Fechas relativas a "hoy" en tiempo de ejecución (no absolutas): fechas
+  // hardcodeadas se corrían de bucket a medida que pasaba el tiempo real
+  // (KPI-01/02/03 fallaban en producción por esto — ver commit relacionado).
+  // Construida con getters locales (no toISOString) para no desfasar un día
+  // si el test corre de noche en un timezone detrás de UTC.
+  function fechaRelativa(diasDesdeHoy: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + diasDesdeHoy);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   // Cuentas con diferentes estados para probar KPI
-  const MOCK_CUENTA_VENCIDA = { id: "cp-overdue", monto: 53550, fecha_vencimiento: "2026-06-15", estado: "pendiente" };
-  const MOCK_CUENTA_PENDIENTE = { id: "cp-pending", monto: 800000, fecha_vencimiento: "2026-07-20", estado: "pendiente" };
-  const MOCK_CUENTA_DUE_SOON = { id: "cp-duesoon", monto: 450000, fecha_vencimiento: "2026-07-15", estado: "pendiente" };
+  const MOCK_CUENTA_VENCIDA = { id: "cp-overdue", monto: 53550, fecha_vencimiento: fechaRelativa(-30), estado: "pendiente" };
+  const MOCK_CUENTA_PENDIENTE = { id: "cp-pending", monto: 800000, fecha_vencimiento: fechaRelativa(30), estado: "pendiente" };
+  const MOCK_CUENTA_DUE_SOON = { id: "cp-duesoon", monto: 450000, fecha_vencimiento: fechaRelativa(4), estado: "pendiente" };
   const ALL_CUENTAS = [MOCK_CUENTA_VENCIDA, MOCK_CUENTA_PENDIENTE, MOCK_CUENTA_DUE_SOON];
 
   const MOCK_ORDENES = [
@@ -350,7 +364,7 @@ describe("SuppliersPage - KPI Dashboard", () => {
     await waitFor(() => {
       expect(screen.getByText("Próx. a vencer")).toBeInTheDocument();
     });
-    // MOCK_CUENTA_DUE_SOON tiene monto 450.000 y vence en 4 dias (2026-07-15 - 2026-07-11 = 4)
+    // MOCK_CUENTA_DUE_SOON tiene monto 450.000 y vence en 4 dias desde hoy
     expect(screen.getByText("$450.000")).toBeInTheDocument();
   });
 
@@ -376,5 +390,45 @@ describe("SuppliersPage - KPI Dashboard", () => {
     );
     expect(cuentaQueryCalls.length).toBeGreaterThanOrEqual(1);
     expect(cuentaQueryCalls[0][0].queryKey[1]).toBe("all");
+  });
+
+  // KPI-06 — REGRESIÓN: el fix original cambió la queryKey de cuentas/ordenes-proveedor
+  // a usar "all" cuando no hay proveedor seleccionado, pero dejó las invalidaciones
+  // (onSuccess de pagar/recibir/cancelar OC) apuntando a `selected?.id` (undefined en
+  // ese caso). TanStack Query NO hace match parcial entre `undefined` y "all"
+  // (verificado en node_modules/@tanstack/query-core: partialMatchKey compara tipos),
+  // por lo que esas invalidaciones nunca alcanzaban la cache global y los KPIs
+  // quedaban desactualizados tras una mutación en la vista global.
+  it("KPI-06: sin proveedor seleccionado, invalidar cuentas/ordenes-proveedor usa la key 'all' (no undefined)", async () => {
+    setupKpiMocks();
+    await renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Vencidas")).toBeInTheDocument();
+    });
+
+    // Cada render vuelve a registrar los useMutation — dedupe por el cuerpo
+    // de onSuccess (estable entre renders) para invocar cada mutación una sola vez.
+    const seen = new Set<string>();
+    const uniqueCallbacks = mutationCallbacks.filter((cb) => {
+      if (!cb.onSuccess) return false;
+      const key = cb.onSuccess.toString();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    await act(async () => {
+      uniqueCallbacks.forEach((cb) => cb.onSuccess?.());
+    });
+
+    const scopedInvalidations = mockInvalidateQueries.mock.calls.filter(
+      ([arg]: [{ queryKey?: unknown[] }]) =>
+        arg?.queryKey?.[0] === "cuentas-proveedor" || arg?.queryKey?.[0] === "ordenes-proveedor"
+    );
+    expect(scopedInvalidations.length).toBeGreaterThan(0);
+    scopedInvalidations.forEach(([arg]: [{ queryKey?: unknown[] }]) => {
+      // Debe coincidir con la queryKey realmente cacheada ("all"), no quedar en undefined
+      expect(arg.queryKey?.[1]).toBe("all");
+    });
   });
 });
