@@ -387,6 +387,24 @@ afirmaba la fórmula aditiva obsoleta contra una réplica local.
 | IVA-09 | IVA se extrae del total post-descuento ($10.000 −10% → IVA $1.437) | lib/tax | unit |
 | IVA-10 | REGRESIÓN: $45.208 → IVA $7.218 siempre, nunca $8.590 (consistencia mayo vs junio) | lib/tax | unit |
 
+## IVA — cobertura en otras capas (S-20 a S-27, I-405, I-REC-10 a I-REC-12)
+
+Mismo bug de IVA-01/02 (fórmula aditiva vs. extracción), cubierto además en las
+capas que consumen `extraerIva()`/`netoDesdeBruto()` en vez de recalcular:
+carrito POS, persistencia de la venta y HTML del recibo. IDs ya existían en el
+código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| S-20 | impuesto() extrae IVA del subtotal (precio ya incluye IVA) | stores/pos | unit |
+| S-21 | impuesto() extrae IVA del total con descuento | stores/pos | unit |
+| S-23 | impuesto() coincide con la fórmula del ModalPago (sub − desc) × (0.19/1.19) | stores/pos | unit |
+| S-27 | REGRESIÓN: Whiskas 1kg $15.458 con IVA incluido → IVA extraído = $2.468, no $2.937 (aditiva) | stores/pos | unit |
+| I-405 | REGRESIÓN: producto $15.458 con IVA incluido → p_impuesto persistido = $2.468, no $2.937 (aditiva) | POST /api/ventas | integration |
+| I-REC-10 | Descuento 10% sobre $44.800 muestra "(10%)" y "-$4.480" en el HTML del recibo, no "-$10" | GET /api/recibos/[ventaId] | integration |
+| I-REC-11 | Sin descuento el recibo muestra "Neto (sin IVA)" correcto y no duplica TOTAL como Subtotal | GET /api/recibos/[ventaId] | integration |
+| I-REC-12 | Con descuento el recibo muestra subtotal c/IVA, descuento, neto y total coherentes | GET /api/recibos/[ventaId] | integration |
+
 ---
 
 ## Redirects (RD-01 a RD-16)
@@ -582,5 +600,6 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 - `MC-NN` — test de componente de ModalCliente
 - `DV-NN` — test de componente de DevolucionModal
 - `S-NN` — test de store (Zustand)
+- `I-REC-NN` — test de integración de GET /api/recibos/[ventaId]
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

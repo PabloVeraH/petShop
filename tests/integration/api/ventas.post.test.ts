@@ -777,15 +777,15 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
 // Bug: el backend usaba total × 0.19 (aditiva) en lugar de total × (0.19/1.19) (extracción),
 // sobreestimando el IVA registrado en BD. Los precios del catálogo ya incluyen IVA.
 
-describe("POST /api/ventas — IVA correcto enviado al RPC (I-66)", () => {
+describe("POST /api/ventas — IVA correcto enviado al RPC (I-405)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupHappyPath();
     mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
   });
 
-  // I-66: REGRESIÓN — Whiskas 1kg $15.458 → IVA persistido = $2.468, no $2.937
-  it("I-66: producto $15.458 con IVA incluido → p_impuesto = $2.468 (extracción, no aditiva)", async () => {
+  // I-405: REGRESIÓN — Whiskas 1kg $15.458 → IVA persistido = $2.468, no $2.937
+  it("I-405: producto $15.458 con IVA incluido → p_impuesto = $2.468 (extracción, no aditiva)", async () => {
     const productoWhiskas = { ...DB_PRODUCTO, precio: 15458, precio_oferta: null, en_oferta: false };
     const productoWhiskasSync = { ...DB_PRODUCTO_SYNC, precio: 15458 };
     let productosCall = 0;
