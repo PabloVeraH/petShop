@@ -511,12 +511,19 @@ del efecto a solo `[open]`, usando una ref para `onClose`.
 | MO-05 | Llama onClose al presionar Escape | ModalOverlay | component |
 | MO-06 | Solo enfoca el overlay cuando se abre, no en re-renders con onClose distinto | ModalOverlay | component |
 
-## ModalCliente — fidelización descuento automático (MC-27 a MC-30)
+## ModalCliente — fidelización descuento automático (MC-27 a MC-31)
 
 Regresión: al confirmar un cliente existente en el POS, el descuento de fidelización
 no se aplicaba automáticamente porque `handleConfirm` leía `fidelizacion?.descuento_actual`
 de una TanStack Query que podía no haber completado, pasando `0` en vez del valor real.
-Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
+Se corrigió usando `await refetchFid()` dentro de `handleConfirm`. A nivel de store,
+`setCliente()` guardaba `fidelizacionDescuento` pero nunca escribía `descuento` (el
+campo que consume `calcularTotalCarrito`) — corregido en `stores/pos.ts` (ver S-28 a
+S-31 en `tests/unit/lib/pos-store.test.ts`). MC-27 a MC-30 prueban la capa de
+ModalCliente con `@/stores/pos` mockeado (verifican los argumentos pasados a
+`setCliente`); MC-31 cierra el último eslabón: store real (sin mock) + ModalCliente
+real + Carrito real, verificando que el total mostrado en pantalla queda descontado
+sin ninguna acción manual del vendedor.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -524,6 +531,7 @@ Se corrigió usando `await refetchFid()` dentro de `handleConfirm`.
 | MC-28 | REGRESIÓN: confirmar cliente sin fidelización pasa descuento 0 | ModalCliente | component |
 | MC-29 | REGRESIÓN: confirmar cuando fidelización retorna null aplica descuento 0 | ModalCliente | component |
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
+| MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual | ModalCliente + Carrito | component |
 
 ## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-09)
 
