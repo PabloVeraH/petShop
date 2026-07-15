@@ -310,6 +310,10 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | CP-13 | Período cerrado deshabilita botón Cierre de Mes y muestra badge ✓ Cerrado | ContabilidadPage | component |
 | CP-14 | Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado | ContabilidadPage | component |
 | CP-15 | Error 409 concurrente refresca libro-diario y muestra badge "✓ Cerrado" | ContabilidadPage | component |
+| CP-16 | REGRESIÓN — botón PDF (y Excel) permanece visible en tab Balance de Comprobación, con href correcto | ContabilidadPage | component |
+| CP-17 | REGRESIÓN — botón PDF (y Excel) permanece visible en tab Estado de Resultado, con href correcto | ContabilidadPage | component |
+| CP-18 | Al alternar entre tabs solo hay un botón PDF visible a la vez, con el href de la tab activa | ContabilidadPage | component |
+| CP-19 | El título (h1) refleja el tab activo (Libro Diario / Balance de Comprobación / Estado de Resultado) | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |

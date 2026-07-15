@@ -396,6 +396,75 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
     });
     expect(screen.getByRole("button", { name: /Cierre de Mes/i })).toBeDisabled();
   });
+
+  // CP-16 — REGRESIÓN: el botón PDF (y Excel) desaparecía al navegar a Balance de Comprobación
+  it("CP-16: REGRESIÓN — botón PDF (y Excel) visible en tab Balance de Comprobación con href correcto", async () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Balance de Comprobación" })).toBeInTheDocument();
+    });
+    const pdfLink = screen.getByRole("button", { name: "PDF" }).closest("a");
+    expect(pdfLink).toHaveAttribute("href", expect.stringContaining("/api/contabilidad/balance-prueba/pdf"));
+    const excelLink = screen.getByRole("button", { name: "Excel" }).closest("a");
+    expect(excelLink).toHaveAttribute("href", expect.stringContaining("/api/contabilidad/balance-prueba/excel"));
+  });
+
+  // CP-17 — REGRESIÓN: el botón PDF (y Excel) desaparecía al navegar a Estado de Resultado
+  it("CP-17: REGRESIÓN — botón PDF (y Excel) visible en tab Estado de Resultado con href correcto", async () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /Estado de Resultado/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Estado de Resultado" })).toBeInTheDocument();
+    });
+    const pdfLink = screen.getByRole("button", { name: "PDF" }).closest("a");
+    expect(pdfLink).toHaveAttribute("href", expect.stringContaining("/api/contabilidad/estado-resultado/pdf"));
+    const excelLink = screen.getByRole("button", { name: "Excel" }).closest("a");
+    expect(excelLink).toHaveAttribute("href", expect.stringContaining("/api/contabilidad/estado-resultado/excel"));
+  });
+
+  // CP-18 — al alternar entre tabs no deben quedar botones de exportación duplicados/obsoletos
+  it("CP-18: al alternar entre tabs solo hay un botón PDF visible, con el href de la tab activa", async () => {
+    setup();
+    expect(screen.getAllByRole("button", { name: "PDF" })).toHaveLength(1); // Libro Diario (tab por defecto)
+    expect(screen.getByRole("button", { name: "PDF" }).closest("a"))
+      .toHaveAttribute("href", expect.stringContaining("/api/contabilidad/libro-diario/pdf"));
+
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "PDF" })).toHaveLength(1);
+    });
+    expect(screen.getByRole("button", { name: "PDF" }).closest("a"))
+      .toHaveAttribute("href", expect.stringContaining("/api/contabilidad/balance-prueba/pdf"));
+
+    fireEvent.click(screen.getByRole("button", { name: /Estado de Resultado/i }));
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "PDF" })).toHaveLength(1);
+    });
+    expect(screen.getByRole("button", { name: "PDF" }).closest("a"))
+      .toHaveAttribute("href", expect.stringContaining("/api/contabilidad/estado-resultado/pdf"));
+
+    fireEvent.click(screen.getByRole("button", { name: /Libro Diario/i }));
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "PDF" })).toHaveLength(1);
+    });
+    expect(screen.getByRole("button", { name: "PDF" }).closest("a"))
+      .toHaveAttribute("href", expect.stringContaining("/api/contabilidad/libro-diario/pdf"));
+  });
+
+  // CP-19 — el título de la página debe reflejar el tab activo
+  it("CP-19: el título (h1) refleja el tab activo", async () => {
+    setup();
+    expect(screen.getByRole("heading", { name: "Libro Diario" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+    expect(screen.getByRole("heading", { name: "Balance de Comprobación" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Estado de Resultado/i }));
+    expect(screen.getByRole("heading", { name: "Estado de Resultado" })).toBeInTheDocument();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
