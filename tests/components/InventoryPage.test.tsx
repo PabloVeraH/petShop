@@ -443,3 +443,80 @@ describe("InventoryPage — acciones responsivas", () => {
     expect(td!.classList.contains("truncate")).toBe(true);
   });
 });
+
+// ── Ajuste de stock — regresión robo de foco (Motivo truncado) ────────────────
+//
+// Bug reportado: el campo "Motivo" del modal de ajuste de stock (y el de
+// devolución parcial/NC) guardaba solo 1-2 caracteres del texto ingresado
+// (ej. "QA test conteo fisico" → "Q"). Causa raíz real (no una columna
+// VARCHAR(1) — se verificó que motivo/notas son TEXT sin límite en el schema):
+// ModalOverlay volvía a robar el foco del input en cada re-render porque su
+// efecto de foco dependía de `[open, onClose]`, y el modal de ajuste pasa un
+// onClose inline (`function() {...}`) que es una referencia NUEVA en cada
+// render — corregido en src/components/ui/modal-overlay.tsx (commit 1270b13)
+// separando el efecto de foco (ahora solo depende de `[open]`) del efecto que
+// sincroniza onCloseRef. Los tests MO-05/MO-06 prueban esto de forma aislada
+// en ModalOverlay; estos dos tests prueban el mismo mecanismo end-to-end en
+// el consumidor real que el bug reportó afectado.
+describe("InventoryPage — ajuste de stock (Motivo)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+    setupFetch([PRODUCTO]);
+  });
+
+  // IV-02: el texto completo (con acentos) ingresado en Motivo se envía
+  // íntegro en el body del PATCH — no un prefijo truncado.
+  it("IV-02: el Motivo completo con acentos se envía íntegro en el body del ajuste", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+
+    const motivoInput = screen.getByPlaceholderText(/conteo físico, devolución, merma/i);
+    fireEvent.change(motivoInput, { target: { value: "QA test - devolución Arena Arenero" } });
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(PRODUCTO) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
+
+    await waitFor(() => {
+      const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+        ([, opts]: [string, RequestInit]) => opts?.method === "PATCH"
+      );
+      expect(patchCall).toBeDefined();
+    });
+
+    const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([, opts]: [string, RequestInit]) => opts?.method === "PATCH"
+    )!;
+    const body = JSON.parse(patchCall[1].body as string);
+    expect(body.notas).toBe("QA test - devolución Arena Arenero");
+  });
+
+  // IV-03: REGRESIÓN — re-renderizar mientras el modal de ajuste está abierto
+  // (ej. al cambiar Cantidad, que pasa un onClose inline nuevo a ModalOverlay
+  // en cada render) NO debe volver a robar el foco. Este test habría fallado
+  // contra el ModalOverlay anterior a 1270b13 (focus() se llamaba de nuevo en
+  // cada re-render por la dependencia [open, onClose]).
+  it("IV-03: REGRESIÓN — cambiar Cantidad no vuelve a robar el foco del modal de ajuste", async () => {
+    const focusSpy = jest.spyOn(HTMLElement.prototype, "focus");
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+    const llamadasAlAbrir = focusSpy.mock.calls.length;
+    expect(llamadasAlAbrir).toBeGreaterThan(0);
+
+    // Forzar un re-render del modal cambiando otro estado del mismo componente
+    // (Cantidad) — esto recrea el onClose inline pasado a ModalOverlay.
+    const cantidadInput = screen.getByRole("spinbutton");
+    fireEvent.change(cantidadInput, { target: { value: "5" } });
+
+    expect(focusSpy).toHaveBeenCalledTimes(llamadasAlAbrir);
+
+    focusSpy.mockRestore();
+  });
+});

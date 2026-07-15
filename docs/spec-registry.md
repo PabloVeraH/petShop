@@ -244,6 +244,8 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
+| IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
+| IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
 | FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
@@ -617,6 +619,7 @@ sin ninguna acción manual del vendedor.
 - `IVA-NN` — test de la fórmula canónica de IVA (lib/tax)
 - `PP-NN` — test de componente de POSPage
 - `PC-NN` — test de componente de Carrito (POS)
+- `IV-NN` — test de componente de InventoryPage
 - `MC-NN` — test de componente de ModalCliente
 - `DV-NN` — test de componente de DevolucionModal
 - `S-NN` — test de store (Zustand)
