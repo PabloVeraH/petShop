@@ -571,7 +571,17 @@ sin ninguna acción manual del vendedor.
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
 | MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual | ModalCliente + Carrito | component |
 
-## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-12)
+## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-13)
+
+Regresión verificada contra datos reales de producción (26-05-2026): una
+recomendación cacheada referenciaba "Alimento Perro Pro Plan 3kg"
+(`activo=false` en el catálogo actual) — I-AI-09 cubre exactamente ese caso
+(producto inactivo/eliminado). I-AI-13 cubre una variante adyacente
+descubierta al revisar la completitud del fix: un producto **activo** cuyo
+`fecha_vencimiento` se limpió (seguimiento de vencimiento desactivado) tras
+el análisis cacheado — sin este fix, `dias_hasta_vencer` quedaba con el
+valor cacheado obsoleto en vez de marcarse como obsoleto igual que un
+producto inactivo.
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
@@ -587,6 +597,7 @@ sin ninguna acción manual del vendedor.
 | I-AI-10 | Reintenta una vez cuando el primer intento hace timeout y el segundo responde | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-11 | Retorna 502 si ambos intentos (original + reintento) hacen timeout | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-12 | No reintenta cuando el error no es de timeout (ej. API key inválida) | POST /api/ai/vencimientos/optimizar | integration |
+| I-AI-13 | REGRESIÓN: GET trata como obsoleta una recomendación de un producto activo sin fecha_vencimiento (seguimiento de vencimiento desactivado) | GET /api/ai/vencimientos/optimizar | integration |
 
 ## OpenRouter — analizarVencimientosConIA (U-OR-01 a U-OR-07)
 

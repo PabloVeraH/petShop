@@ -398,4 +398,61 @@ describe("GET /api/ai/vencimientos/optimizar", () => {
     // Debe reportar cuántos fueron omitidos
     expect(body.productos_obsoletos).toBe(1);
   });
+
+  // I-AI-13: REGRESIÓN — producto activo pero sin fecha_vencimiento (se
+  // desactivó el seguimiento de vencimiento después del análisis cacheado)
+  // debe tratarse como obsoleto, igual que uno inactivo — la premisa "esto
+  // vence pronto" ya no tiene base real. Caso real verificado en producción
+  // (26-05-2026): "Alimento Perro Pro Plan 3kg" quedó con activo=false;
+  // este test cubre la variante donde en cambio se limpia fecha_vencimiento
+  // manteniendo el producto activo.
+  it("I-AI-13: GET trata como obsoleta una recomendación de un producto activo sin fecha_vencimiento", async () => {
+    const SIN_VENCIMIENTO_ID = "c0000000-0000-0000-0000-000000000003";
+
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              { producto_id: SIN_VENCIMIENTO_ID, nombre: "Pro Plan 3kg", sku: "DOG002", dias_hasta_vencer: 21, stock: 80, precio_actual: 61870, descuento_recomendado: 20, motivo: "Vence pronto" },
+            ],
+            modelo_usado: "test-model",
+            productos_analizados: 1,
+            created_at: "2026-05-26T05:18:12Z",
+            dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        // Producto sigue activo, pero ya no tiene fecha_vencimiento (se
+        // desactivó el seguimiento) — fecha_vencimiento: null.
+        in: jest.fn().mockResolvedValue({
+          data: [
+            { id: SIN_VENCIMIENTO_ID, activo: true, stock: 80, fecha_vencimiento: null },
+          ],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.recomendaciones).toHaveLength(0);
+    expect(body.productos_obsoletos).toBe(1);
+  });
 });

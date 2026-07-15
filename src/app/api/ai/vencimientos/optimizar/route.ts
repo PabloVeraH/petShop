@@ -77,15 +77,18 @@ export async function GET() {
 
   for (const rec of recs) {
     const actual = currentMap.get(rec.producto_id);
-    if (!actual || !actual.activo) {
+    // Obsoleta si el producto ya no existe, fue desactivado, o ya no tiene
+    // fecha_vencimiento (ej. se desactivó el seguimiento de vencimiento tras
+    // el análisis) — en ese caso la premisa de la recomendación ("esto
+    // vence pronto") ya no tiene base real y mostrar el dias_hasta_vencer
+    // cacheado sería una referencia obsoleta, igual que un producto inactivo.
+    if (!actual || !actual.activo || !actual.fecha_vencimiento) {
       productosObsoletos++;
       continue;
     }
     validas.push({
       ...rec,
-      dias_hasta_vencer: actual.fecha_vencimiento
-        ? Math.floor((new Date(actual.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-        : rec.dias_hasta_vencer,
+      dias_hasta_vencer: Math.floor((new Date(actual.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)),
       stock: Number(actual.stock),
     });
   }

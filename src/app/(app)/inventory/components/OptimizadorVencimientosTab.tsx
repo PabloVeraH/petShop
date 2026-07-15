@@ -233,7 +233,7 @@ export function OptimizadorVencimientosTab() {
               {resultado.productos_obsoletos && resultado.productos_obsoletos > 0 && (
                 <div className="mt-3 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
                   <span className="font-medium">{resultado.productos_obsoletos}{" "}
-                  recomendación(es) omitidas</span> porque sus productos ya no están activos en el catálogo. Genera un nuevo análisis para obtener datos actualizados.
+                  recomendación(es) omitidas</span> porque sus productos ya no son válidos en el catálogo actual (inactivos, eliminados o sin seguimiento de vencimiento). Genera un nuevo análisis para obtener datos actualizados.
                 </div>
               )}
             </div>
