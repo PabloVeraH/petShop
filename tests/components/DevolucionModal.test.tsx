@@ -76,9 +76,10 @@ const BASE_PROPS = {
 
 function makeWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
-  );
+  function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  }
+  return Wrapper;
 }
 
 function setup(overrideProps = {}) {
@@ -304,6 +305,33 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     expect(fetchCall).toBeDefined();
     const body = JSON.parse(fetchCall![1].body);
     expect(body.motivo).toBeNull();
+  });
+
+  // DV-17: REGRESIÓN — escribir en Motivo no vuelve a robar el foco del
+  // ModalOverlay real (no mockeado en este archivo). DV-15 solo prueba que
+  // el valor final llega íntegro al fetch con un solo fireEvent.change (todo
+  // el texto de una vez), lo cual nunca ejercita el mecanismo real del bug:
+  // cada keystroke dispara onChange → setMotivo → re-render → resetForm (no
+  // memoizado) obtiene una referencia nueva → ModalOverlay recibe un onClose
+  // nuevo. Antes del fix (commit 1270b13), el efecto de foco de ModalOverlay
+  // dependía de [open, onClose], así que esa referencia nueva lo hacía
+  // volver a llamar ref.current?.focus() en cada keystroke, robando el foco
+  // del input Motivo. Este test verifica el mecanismo real: que escribir no
+  // dispara un nuevo focus() del overlay tras el que ya ocurrió al abrir.
+  it("DV-17: REGRESIÓN — escribir en Motivo no vuelve a robar el foco del ModalOverlay", async () => {
+    const focusSpy = jest.spyOn(HTMLElement.prototype, "focus");
+    setup();
+    selectItemAndAdvance();
+    const llamadasAlAbrir = focusSpy.mock.calls.length;
+    expect(llamadasAlAbrir).toBeGreaterThan(0);
+
+    const motivoInput = screen.getByPlaceholderText(/Producto defectuoso/i);
+    fireEvent.change(motivoInput, { target: { value: "QA test - devolución Arena Arenero" } });
+
+    expect(motivoInput).toHaveValue("QA test - devolución Arena Arenero");
+    expect(focusSpy).toHaveBeenCalledTimes(llamadasAlAbrir);
+
+    focusSpy.mockRestore();
   });
 
   // DV-14: REGRESIÓN — confirmar devolución invalida ["ventas"] con refetchType "all"

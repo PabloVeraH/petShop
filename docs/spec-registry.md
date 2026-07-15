@@ -527,16 +527,22 @@ fijado al estado pre-hidratación de `persist`.
 |----|-----------|------------|------|
 | DV-14 | Confirmar devolución invalida ["ventas"] con refetchType "all" | DevolucionModal | component |
 
-## Devolución Modal Motivo (DV-15, DV-16)
+## Devolución Modal Motivo (DV-15 a DV-17)
 
 Regresión: el ModalOverlay llamaba `focus()` en el overlay en cada re-render porque `onClose`
 cambiaba de referencia, robando el foco del input de motivo. El fix estabilizó la dependencia
-del efecto a solo `[open]`, usando una ref para `onClose`.
+del efecto a solo `[open]`, usando una ref para `onClose` (commit 1270b13; ver también MO-01 a
+MO-06 en ModalOverlay.test.tsx e IV-02/IV-03 para la misma regresión en InventoryPage).
+DV-15/DV-16 verifican el valor final con un solo `fireEvent.change` (todo el texto de una vez),
+lo que no ejercita el mecanismo real (re-render por cada keystroke). DV-17 cierra ese gap
+verificando directamente que `ModalOverlay` (real, no mockeado en este archivo) no vuelve a
+llamar `focus()` tras un cambio de estado — el mecanismo exacto del bug.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
 | DV-15 | REGRESIÓN: motivo completo con acentos se envía en el body del fetch | DevolucionModal | component |
 | DV-16 | REGRESIÓN: motivo vacío se envía como null en el body | DevolucionModal | component |
+| DV-17 | REGRESIÓN: escribir en Motivo no vuelve a robar el foco del ModalOverlay real | DevolucionModal | component |
 
 ## ModalOverlay — foco y cierre (MO-01 a MO-06)
 
