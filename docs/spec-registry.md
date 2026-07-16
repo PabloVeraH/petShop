@@ -35,8 +35,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-36 | Venta sin items retorna 400 | POST /api/ventas | integration |
 | I-37 | Venta con producto sin stock retorna 409 | POST /api/ventas | integration |
 | I-38 | Anular venta restaura stock | PATCH /api/ventas/[id] | integration |
-| I-319 | Anular venta con error de DB al restaurar stock retorna 500 en vez de éxito silencioso | PATCH /api/ventas/[id] | integration |
+| I-319 | **RETIRADO** (migración 053) — probaba manejo de error de un `.update()` de JS que ya no existe; cualquier error dentro de `anular_venta_tx` ahora hace ROLLBACK automático y se mapea a 500 genérico (ver I-412). | PATCH /api/ventas/[id] | — |
 | I-320 | GET saldo a favor con error real de DB retorna 500 en vez de 0 silencioso | GET /api/saldos-a-favor | integration |
+| I-411 | REGRESIÓN: anular venta ya anulada retorna 409 — cubre tanto doble clic secuencial como anulación concurrente (reclamo atómico de `anular_venta_tx`, verificado contra la función real: la segunda llamada para la misma venta falla con "La venta ya está anulada") | PATCH /api/ventas/[id] | integration |
+| I-412 | Anular venta ante error inesperado del RPC retorna 500 (rollback automático de la transacción, sin estado parcial) | PATCH /api/ventas/[id] | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 
@@ -92,15 +94,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-315 | REGRESIÓN: verificación de duplicados de cierre usa select+array en vez de .single() para evitar que PGRST116 permita un segundo cierre | POST /api/contabilidad/cierre-mes | integration |
 | I-323 | crearAsiento retorna null durante COGS y existe cierre concurrente → 409 | POST /api/contabilidad/cierre-mes | integration |
 | I-324 | crearAsiento retorna null durante COGS sin cierre concurrente → 500 | POST /api/contabilidad/cierre-mes | integration |
-| I-328 | Anular venta con NC activa (saldo_a_favor) cancela NC y revierte saldo | PATCH /api/ventas/[id] | integration |
-| I-329 | Anular venta con NC activa (reembolso_directo) solo cancela NC, sin tocar saldo | PATCH /api/ventas/[id] | integration |
-| I-330 | Anular venta con NC ya usada no revierte saldo (ya fue consumida por otra venta) | PATCH /api/ventas/[id] | integration |
-| I-331 | Anular venta sin NCs no falla ni toca NCs ni saldo | PATCH /api/ventas/[id] | integration |
-| I-332 | REGRESIÓN: NC parcial con restituir_stock=true no duplica la restitución de stock al anular la venta | PATCH /api/ventas/[id] | integration |
-| I-333 | REGRESIÓN: item totalmente devuelto vía NC (restituir_stock=true) no restaura stock al anular | PATCH /api/ventas/[id] | integration |
-| I-334 | REGRESIÓN: item devuelto con restituir_stock=false no se descuenta de la restauración de stock (nunca se sumó a stock al crear la NC) | PATCH /api/ventas/[id] | integration |
-| I-335 | REGRESIÓN: NC parcial no duplica el decremento de fidelización al anular la venta | PATCH /api/ventas/[id] | integration |
-| I-336 | REGRESIÓN: NC "usada" cuenta para el neto de stock y fidelización al anular, pero no se le revierte el saldo (ya consumido por otra venta) | PATCH /api/ventas/[id] | integration |
+| I-328 a I-336 | **RETIRADOS** (migración 053) — probaban la lógica de reversión NC-aware (stock/fidelización/saldo) vía mocks de `.from()`; esa lógica se movió a la función transaccional `anular_venta_tx` y dejaron de ejercitar código de la ruta. Verificados directamente contra la función real en Supabase (transacción con ROLLBACK) — ver AGENTS.md §22.5 y el commit de la revisión. | PATCH /api/ventas/[id] | — |
 | BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |

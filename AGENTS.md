@@ -784,8 +784,8 @@ Una nota de crédito (activa o usada) aplicó su efecto **una vez** al crearse:
 restituyó stock (si `restituir_stock=true`), decrementó
 `fidelizacion.total_historico` en su `monto_total`, e incrementó
 `saldos_a_favor` si `tipo_reembolso='saldo_a_favor'`. Al anular la venta
-completa (`PATCH /api/ventas/[id]`), el efecto a revertir es el **neto**
-remanente, no el original completo — de lo contrario se duplica el crédito:
+completa, el efecto a revertir es el **neto** remanente, no el original
+completo — de lo contrario se duplica el crédito:
 
 - **Stock**: restaurar `cantidad_venta_item − Σ(cantidad_devuelta` de
   `nota_credito_items` con `restituir_stock=true`, de TODAS las NCs de esa
@@ -797,9 +797,35 @@ remanente, no el original completo — de lo contrario se duplica el crédito:
   (`crear_venta_tx` ya decrementó ese saldo en ese momento); revertirla de
   nuevo sería un tercer descuento sobre el mismo crédito.
 
+**Implementación (desde migración 053):** toda esta lógica vive en la función
+transaccional `anular_venta_tx` (análoga a `crear_venta_tx`, migración 037),
+llamada vía RPC desde `PATCH /api/ventas/[id]`. La ruta ya no contiene lógica
+de negocio — solo llama al RPC y mapea el resultado/error a la respuesta
+HTTP. Dos motivos para la migración a RPC:
+
+1. **Race condition de doble crédito por concurrencia**: la versión anterior
+   (JS con múltiples `SELECT`/`UPDATE` secuenciales) verificaba
+   `estado !== 'anulada'` en un `SELECT` temprano y recién marcaba
+   `estado = 'anulada'` al final, después de restaurar stock/fidelización/
+   saldo. Dos requests concurrentes para la misma venta (doble clic, dos
+   pestañas, reintento de red) pasaban ambos la verificación inicial y
+   ejecutaban la reversión completa dos veces — incluyendo
+   `revertir_saldo_a_favor` dos veces. `anular_venta_tx` hace el `UPDATE` de
+   `estado` como **primera** operación, con `WHERE estado != 'anulada'` como
+   reclamo atómico: si 0 filas se actualizan (alguien ganó la carrera), la
+   función aborta con `RAISE EXCEPTION` antes de tocar cualquier otra tabla.
+2. **Atomicidad**: al ser una única función `plpgsql`, cualquier error en
+   cualquier paso hace `ROLLBACK` automático de toda la operación — no puede
+   quedar stock restaurado sin fidelización actualizada, ni saldo revertido
+   sin la NC marcada como anulada.
+
 Regresión conocida: el fix original (revertir NC activa + saldo_a_favor al
 anular) no cubría estas dos manifestaciones adyacentes en inventario y
 fidelización — mismo defecto, dos superficies sin corregir en el primer pase.
+Verificado contra la función real en Supabase (transacción con `ROLLBACK`,
+sin datos persistidos): reclamo atómico ante doble llamada, stock/
+fidelización/saldo/NC calculados correctamente para el caso NC parcial con
+`restituir_stock=true` — ver commit de la revisión para el detalle exacto.
 
 ### 22.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
 
@@ -810,6 +836,10 @@ es una condición de carrera real (lost update) bajo requests concurrentes:
 
 - `incrementar_saldo_a_favor` — crear NC con `tipo_reembolso='saldo_a_favor'`.
 - `revertir_saldo_a_favor` — anular venta con NC activa (decremento clamped a 0).
+  Desde la migración 053, `anular_venta_tx` la invoca internamente (`PERFORM`,
+  no una llamada RPC separada desde JS) — sigue siendo la misma función
+  atómica, ahora compuesta dentro de una transacción más grande en vez de
+  llamada suelta desde la ruta.
 - `gastar_saldo_a_favor_pago` — usar saldo como pago (`POST /api/saldos-a-favor`).
   Atómico Y condicional (falla si insuficiente) Y hace el INSERT del pago en
   la MISMA transacción de función — evita la ventana de fallo parcial de

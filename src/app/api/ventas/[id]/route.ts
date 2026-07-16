@@ -63,168 +63,36 @@ export async function PATCH(
     return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
   }
 
-  const { data: venta } = await supabase
-    .from("ventas")
-    .select("id, estado, cliente_id, total, impuesto, metodo_pago, canal, numero_comprobante, created_at")
-    .eq("id", id)
-    .eq("store_id", store_id)
-    .single();
+  // ── Transacción ACID en una sola llamada RPC ──────────────────────────────
+  // anular_venta_tx (migración 053) hace el reclamo atómico de estado='anulada'
+  // ANTES de restaurar stock/fidelización/saldo — cierra la race condition de
+  // doble crédito por anulaciones concurrentes de la misma venta — y envuelve
+  // toda la reversión en una sola transacción (rollback automático ante
+  // cualquier error parcial). Ver comentario en la migración y AGENTS.md §22.5/
+  // §22.6 para el detalle de la lógica de negocio preservada.
+  const { data: txResult, error: txError } = await supabase.rpc("anular_venta_tx", {
+    p_store_id: store_id,
+    p_venta_id: id,
+    p_user_id: ctx.userId,
+  });
 
-  if (!venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
-  if (venta.estado === "anulada") return NextResponse.json({ error: "La venta ya está anulada" }, { status: 409 });
-
-  const { data: items } = await supabase
-    .from("venta_items")
-    .select("id, producto_id, cantidad")
-    .eq("venta_id", id);
-
-  // Todas las NCs de esta venta (cualquier estado) con sus items — una sola
-  // consulta reutilizada para 3 correcciones (stock, fidelización, reversión
-  // de saldo). Cada NC ya emitida, sea "activa" o "usada", aplicó su efecto
-  // UNA VEZ al crearse (restituyó stock y decrementó fidelización) — anular
-  // la venta completa no debe volver a aplicar el efecto ya cubierto por esas
-  // NCs, sino solo el remanente. Ver invariante en AGENTS.md §22.5.
-  const { data: ncs } = await supabase
-    .from("notas_credito")
-    .select("id, estado, tipo_reembolso, monto_total, nota_credito_items(venta_item_id, cantidad_devuelta, restituir_stock)")
-    .eq("venta_id", id);
-
-  const yaDevueltoPorItem = new Map<string, number>();
-  let totalNcMonto = 0;
-  for (const nc of ncs ?? []) {
-    totalNcMonto += Number(nc.monto_total ?? 0);
-    for (const nci of (nc.nota_credito_items ?? []) as { venta_item_id: string; cantidad_devuelta: number; restituir_stock: boolean }[]) {
-      if (!nci.restituir_stock) continue;
-      yaDevueltoPorItem.set(
-        nci.venta_item_id,
-        (yaDevueltoPorItem.get(nci.venta_item_id) ?? 0) + Number(nci.cantidad_devuelta ?? 0)
-      );
+  if (txError) {
+    if (txError.message.includes("no encontrada")) {
+      return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
     }
-  }
-
-  // Restaurar stock: solo la cantidad AÚN NO devuelta vía NC — la porción ya
-  // devuelta con restituir_stock=true ya incrementó productos.stock cuando se
-  // creó la NC (POST /api/notas-credito). Restaurar la cantidad completa aquí
-  // duplicaría esas unidades (regresión: "doble crédito" también en inventario).
-  let costoTotal = 0;
-  const stockErrors: string[] = [];
-  for (const item of items ?? []) {
-    const yaDevuelto = yaDevueltoPorItem.get(item.id) ?? 0;
-    const pendiente = Math.max(0, item.cantidad - yaDevuelto);
-    if (pendiente <= 0) continue;
-
-    const { data: prod } = await supabase
-      .from("productos")
-      .select("stock, costo")
-      .eq("id", item.producto_id)
-      .single();
-
-    if (prod) {
-      costoTotal += (prod.costo ?? 0) * pendiente;
-
-      const { error: stockErr } = await supabase
-        .from("productos")
-        .update({ stock: prod.stock + pendiente })
-        .eq("id", item.producto_id);
-
-      if (stockErr) stockErrors.push(`producto ${item.producto_id}: ${stockErr.message}`);
-
-      const { error: movErr } = await supabase.from("stock_movements").insert({
-        producto_id: item.producto_id,
-        tipo: "entrada",
-        cantidad: pendiente,
-        referencia_id: id,
-        notas: `Anulación ${venta.numero_comprobante ?? id.slice(0, 8)}`,
-        user_id: ctx.userId,
-      });
-
-      if (movErr) stockErrors.push(`stock_movement producto ${item.producto_id}: ${movErr.message}`);
+    if (txError.message.includes("ya está anulada")) {
+      return NextResponse.json({ error: "La venta ya está anulada" }, { status: 409 });
     }
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
-  if (stockErrors.length > 0) {
-    return NextResponse.json({ error: `Error restaurando stock: ${stockErrors.join("; ")}` }, { status: 500 });
-  }
-
-  if (venta.cliente_id) {
-    const [{ data: fid }, { data: storeNiveles }] = await Promise.all([
-      supabase
-        .from("fidelizacion")
-        .select("id, total_historico, frecuencia_compras")
-        .eq("cliente_id", venta.cliente_id)
-        .single(),
-      supabase
-        .from("stores")
-        .select("fidelizacion_niveles")
-        .eq("id", store_id)
-        .single(),
-    ]);
-
-    if (fid) {
-      // Descontar solo el neto: cada NC ya emitida (activa o usada) restó su
-      // propio monto_total de total_historico al crearse (POST /api/notas-credito).
-      // Descontar venta.total completo aquí duplicaría esa resta.
-      const netoVenta = Math.max(0, Number(venta.total ?? 0) - totalNcMonto);
-      const nuevoTotal = Math.max(0, Number(fid.total_historico) - netoVenta);
-      const nuevaFrecuencia = Math.max(0, fid.frecuencia_compras - 1);
-      const niveles = ((storeNiveles?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
-        { monto: 50000, descuento: 5 }, { monto: 150000, descuento: 10 }, { monto: 300000, descuento: 20 },
-      ]).sort((a, b) => b.monto - a.monto);
-      const nuevoDescuento = niveles.find((n) => nuevoTotal >= n.monto)?.descuento ?? 0;
-
-      const { error: fidErr } = await supabase.from("fidelizacion").update({
-        total_historico: nuevoTotal,
-        frecuencia_compras: nuevaFrecuencia,
-        descuento_actual: nuevoDescuento,
-        updated_at: new Date().toISOString(),
-      }).eq("cliente_id", venta.cliente_id);
-
-      if (fidErr) {
-        return NextResponse.json({ error: "Error actualizando fidelización del cliente" }, { status: 500 });
-      }
-    }
-  }
-
-  // Cancelar NCs activas asociadas a esta venta y revertir sus saldos a favor.
-  // Solo NCs "activa": una NC "usada" ya fue consumida como pago de OTRA venta
-  // (crear_venta_tx ya decrementó su saldo_a_favor en ese momento) — revertirla
-  // de nuevo aquí sería un TERCER descuento sobre el mismo crédito.
-  const ncsActivas = (ncs ?? []).filter((nc) => nc.estado === "activa");
-  const ncErrors: string[] = [];
-  for (const nc of ncsActivas) {
-    if (nc.tipo_reembolso === "saldo_a_favor" && venta.cliente_id) {
-      // Decremento atómico (UPDATE de una sola sentencia) — evita el lost-update
-      // que existía con el patrón previo de leer saldo_disponible en JS y
-      // recién después escribir el valor calculado.
-      const { error: saldoErr } = await supabase.rpc("revertir_saldo_a_favor", {
-        p_store_id: store_id,
-        p_cliente_id: venta.cliente_id,
-        p_monto: nc.monto_total,
-      });
-
-      if (saldoErr) ncErrors.push(`saldo NC ${nc.id}: ${saldoErr.message}`);
-    }
-
-    const { error: ncErr } = await supabase
-      .from("notas_credito")
-      .update({ estado: "anulada" })
-      .eq("id", nc.id);
-
-    if (ncErr) ncErrors.push(`actualizar NC ${nc.id}: ${ncErr.message}`);
-  }
-
-  if (ncErrors.length > 0) {
-    return NextResponse.json({ error: `Error cancelando NCs: ${ncErrors.join("; ")}` }, { status: 500 });
-  }
-
-  const { data: updated, error } = await supabase
-    .from("ventas")
-    .update({ estado: "anulada" })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  const { venta, costo_total: costoTotal } = txResult as {
+    venta: {
+      id: string; total: number; impuesto: number | null; metodo_pago: string | null;
+      canal: string | null; numero_comprobante: string | null; created_at: string;
+    };
+    costo_total: number;
+  };
 
   // Fire-and-forget: contra-asientos de anulación en el Libro Diario.
   // Dos asientos independientes (igual que la venta original):
@@ -281,5 +149,5 @@ export async function PATCH(
     }
   })().catch((e) => console.error("[contabilidad] Error en asiento de anulación:", e));
 
-  return NextResponse.json(updated);
+  return NextResponse.json(venta);
 }
