@@ -45,7 +45,7 @@ Los datos de mayor riesgo si se ignoran. El detalle está en la sección indicad
 3. **`venta_items` y `nota_credito_items` no tienen columna `store_id`.** Su
    ownership se valida vía la tabla padre (`ventas`/`notas_credito`). No
    agregues `.eq("store_id", ...)` a tablas sin esa columna; no elimines los
-   joins de ownership existentes. (§6.3, §22.1)
+   joins de ownership existentes. (§6.3, §23.1)
 4. **`requireSystemAdmin()` y `requireStoreAdmin(admin, requiredStoreId?)`
    lanzan `Error`, no retornan `false`.** Todo caller debe envolverlos en
    try/catch que retorne 403; sin él producen un 500 no controlado. (§5.4)
@@ -61,7 +61,7 @@ Los datos de mayor riesgo si se ignoran. El detalle está en la sección indicad
 8. **Todos los precios del sistema son brutos (IVA incluido).** El IVA se
    EXTRAE del monto bruto, nunca se suma sobre él. Fuente única:
    `extraerIva()`/`netoDesdeBruto()` en `src/lib/tax.ts`. No dupliques la
-   fórmula ni hardcodees `1.19`/`0.19`. (§22.3)
+   fórmula ni hardcodees `1.19`/`0.19`. (§23.3)
 
 ## 1. Reglas no negociables
 
@@ -117,11 +117,11 @@ alguno:
    — porque el registry puede estar desincronizado del código. Registra el ID
    nuevo en el registry en el mismo commit.
 4. **Suite** (cambios de código): `npm run build && npm test` en verde (o
-   fallos preexistentes demostrados como tales, ver §18.2), `npm run typecheck`
+   fallos preexistentes demostrados como tales, ver §19.2), `npm run typecheck`
    y `npm run lint` sin errores nuevos introducidos por el cambio.
 5. **Diff**: revisa el diff completo — sin logs de depuración, código
    temporal, imports muertos, secretos ni cambios de formato ajenos.
-6. **Cierre**: emite el formato de §21. No es opcional ni implícito.
+6. **Cierre**: emite el formato de §22. No es opcional ni implícito.
 
 ## 3. Jerarquía de fuentes
 
@@ -131,11 +131,13 @@ Orden de autoridad:
 1. schema real, migraciones aplicadas, constraints, RLS y configuración
    efectiva;
 2. código y tipos actualmente en uso;
-3. tests que representan contratos vigentes;
-4. documentación versionada en el repo (este archivo, `docs/`);
-5. documentación externa (bóveda Obsidian);
-6. comentarios y memoria histórica;
-7. suposiciones del agente.
+3. grafos de conocimiento (graphify en `graphify-out/`, codebase-memory-mcp) — reflejan
+   relaciones reales del código;
+4. tests que representan contratos vigentes;
+5. documentación versionada en el repo (este archivo, `docs/`);
+6. documentación externa (bóveda Obsidian);
+7. comentarios y memoria histórica;
+8. suposiciones del agente.
 
 Los tests no convierten un comportamiento incorrecto en el contrato correcto
 (ha ocurrido: un archivo de test afirmaba una fórmula de IVA obsoleta). El
@@ -267,7 +269,7 @@ ownership.
 
 `venta_items`, `nota_credito_items` y similares validan ownership mediante la
 entidad padre: join con el padre tenant-scoped, consulta previa del padre con
-filtro por tenant, doble condición de ownership (§22.1), o RPC transaccional.
+filtro por tenant, doble condición de ownership (§23.1), o RPC transaccional.
 No agregues `.eq("store_id", ...)` a una tabla que no tiene esa columna; no
 asumas que filtrar por el ID del hijo basta.
 
@@ -521,7 +523,7 @@ Al cambiar query keys, caches o actualizaciones optimistas:
 
 Los valores derivados de estado de UI (ej. totales del carrito POS) deben
 calcularse desde los mismos datos ya destructurados en el mismo render — ver
-§22.4.
+§23.4.
 
 ## 16. Módulos y rutas (orientativo)
 
@@ -547,22 +549,96 @@ está terminado o desplegado. Confirma en código, tests y configuración.
 | Control de licencia | `/api/admin/license`, `/api/license`, `/sistema-suspendido` | 🔧 pendiente |
 | IA / Recomendador | `/api/ai/**` | ✅ parcial |
 
-## 17. Flujo antes de hacer cambios
+## 17. Grafos de conocimiento (graphify y codebase-memory-mcp)
+
+Este proyecto mantiene DOS grafos de conocimiento del código, complementarios y respaldados
+por el proyecto. Cualquier agente (Claude Code, opencode, Codex u otro) debe usarlos como
+primera fuente para toda pregunta sobre el código, antes de grepear o leer archivos, sin que
+el usuario lo pida. Si una de las dos herramientas no está disponible en tu entorno,
+decláralo y usa la otra; si ninguna lo está, recurre a grep/lectura — su ausencia no bloquea
+el trabajo.
+
+### 17.1 Cuándo usar cuál
+
+- **graphify** — exploración semántica y de arquitectura: comunidades, contexto amplio,
+  relaciones código↔docs↔migraciones↔config ("¿qué área toca X?", "¿cómo se relaciona A
+  con B?").
+- **codebase-memory-mcp** — precisión AST: quién llama a qué (`trace_path`), fuente exacta
+  de un símbolo (`get_code_snippet`), búsqueda estructural rankeada (`search_graph`),
+  patrones Cypher (`query_graph`), estructura del proyecto (`get_architecture`).
+- Si solo uno está disponible, usa ese. No dupliques la misma consulta en ambos.
+
+### 17.2 graphify (CLI — cualquier agente con shell)
+
+1. **Primera fuente para preguntas del codebase.** Antes de hacer `grep`, `glob`, o leer
+   archivos para entender relaciones, ejecuta `graphify query "<pregunta>"`. Devuelve un
+   subgrafo acotado, mucho más pequeño que GRAPH_REPORT.md o que grepear archivos.
+2. **`graphify path "<A>" "<B>"`** para trazar la ruta entre dos conceptos (ej. `"getStoreId"
+   "requireStoreAdmin"`).
+3. **`graphify explain "<concepto>"`** para explicar un nodo y sus vecinos (ej.
+   `"createServiceClient"`).
+4. **Leer `graphify-out/GRAPH_REPORT.md`** solo para revisión de arquitectura general o cuando
+   query/path/explain no den suficiente contexto.
+5. **Si `graphify-out/wiki/index.md` existe**, úsalo para navegación amplia en vez de leer
+   archivos de código directamente.
+6. **Después de modificar código**, ejecuta `graphify update .` para mantener el grafo al día
+   (solo AST, sin costo de API).
+7. Los archivos sucios en `graphify-out/` son esperables tras hooks o actualizaciones
+   incrementales — no es razón para saltarse graphify.
+
+**Alcance del grafo graphify:**
+
+- `.graphifyignore` (raíz del repo) excluye `.claude/`, `.claude-flow/` y `.opencode/` —
+  tooling de agentes, no código de la app. Sin esa exclusión el grafo se contamina (llegó a
+  ser 63% tooling). No la elimines; si agregas directorios de tooling nuevos, inclúyelos ahí.
+- Las migraciones SQL de `migrations/` SÍ están en el grafo, pero solo si graphify se instaló
+  con el extra SQL (`uv tool install "graphifyy[sql]"`). Si un `graphify update` advierte
+  `tree_sitter_sql not installed`, las migraciones están quedando fuera — reinstala con el
+  extra antes de confiar en respuestas sobre el schema.
+
+### 17.3 codebase-memory-mcp (MCP o CLI)
+
+Grafo AST del código con índice **local por máquina** (nombre del proyecto indexado:
+`petShop`).
+
+- **Con soporte MCP** (Claude Code lo carga desde `.mcp.json`; opencode desde
+  `.opencode/opencode.json`): usa las tools `search_graph`, `trace_path`,
+  `get_code_snippet`, `query_graph`, `get_architecture`, `search_code`.
+- **Sin soporte MCP**: el mismo binario expone modo CLI —
+  `codebase-memory-mcp cli <tool> --project petShop --<flag> <valor>`.
+  `codebase-memory-mcp cli <tool> --help` lista los flags reales de cada tool.
+- **El índice NO viaja con el repo.** En una máquina nueva verifica con
+  `codebase-memory-mcp cli list_projects`; si el proyecto no aparece, ejecuta
+  `index_repository` antes de confiar en resultados. `detect_changes --project petShop
+  --since <ref>` reporta cambios desde un ref git.
+
+### 17.4 Prioridad de los grafos en la jerarquía de fuentes
+
+Los grafos están al mismo nivel que el código y los tipos. Si un grafo muestra una relación
+que parece contradecir el `AGENTS.md`, el grafo refleja el código real — puede que este
+archivo esté desactualizado. Confirma en el código fuente antes de asumir que el grafo se
+equivoca.
+
+## 18. Flujo antes de hacer cambios
 
 1. Lee este archivo y cualquier `AGENTS.md` más específico aplicable.
-2. Lee íntegramente los archivos que modificarás (§1.3).
-3. Localiza tests, schemas Zod, tipos y migraciones relacionados.
-4. Si cambiarás una abstracción compartida, enumera sus llamadores (§2.2).
-5. Identifica límites de tenant, autorización y datos sensibles.
-6. Determina si el cambio requiere: migración, RLS, backfill, cambio de
+2. **Consulta los grafos de conocimiento primero** — `graphify query` para
+   explorar el área afectada, `graphify explain` para un concepto concreto,
+   o codebase-memory-mcp (`trace_path`, `search_graph`) para llamadores y
+   call chains exactos. Esto reemplaza la necesidad de grepear ciegamente. (§17)
+3. Lee íntegramente los archivos que modificarás (§1.3).
+4. Localiza tests, schemas Zod, tipos y migraciones relacionados.
+5. Si cambiarás una abstracción compartida, enumera sus llamadores (§2.2).
+6. Identifica límites de tenant, autorización y datos sensibles.
+7. Determina si el cambio requiere: migración, RLS, backfill, cambio de
    contrato, operación sobre infraestructura real, tipos manuales,
    invalidación de cache, auditoría.
-7. Formula causa/hipótesis y una invariante verificable; identifica el test de
+8. Formula causa/hipótesis y una invariante verificable; identifica el test de
    regresión.
-8. Detente si falta una decisión de negocio o autorización para una operación
+9. Detente si falta una decisión de negocio o autorización para una operación
    riesgosa. No pidas confirmación para ediciones normales.
 
-## 18. Tests y comandos
+## 19. Tests y comandos
 
 Patrón: TDD London School (mock-first). Ver `tests/` para ejemplos.
 
@@ -588,14 +664,14 @@ IDs de test — los principales: `I-NNN` integración, `SEC-NN` seguridad,
 
 Tests de propiedades en `tests/unit/lib/property-invariants.test.ts`.
 
-### 18.1 Estrategia de ejecución
+### 19.1 Estrategia de ejecución
 
 Durante el desarrollo: primero el test de regresión específico, luego la suite
 del módulo, `typecheck`/`lint` cuando corresponda. Al finalizar, como mínimo
 `npm run build && npm test`. Si no puedes ejecutar algo por límites del
 entorno, márcalo **pendiente** y reporta qué sí ejecutaste.
 
-### 18.2 Fallos preexistentes
+### 19.2 Fallos preexistentes
 
 No declares un fallo como preexistente solo porque parece no relacionado.
 Evidencia aceptable: se reproduce sin tu cambio (ej. con `git stash`), afecta
@@ -603,12 +679,12 @@ código no modificado y ya existía, o consta en un baseline verificable.
 Registra comando, fallo y evidencia. No los ocultes ni los mezcles con los
 introducidos por tu cambio.
 
-## 19. Protocolo para cerrar un bug fix
+## 20. Protocolo para cerrar un bug fix
 
 Un cambio puede resolver el repro literal y pasar sus propios tests sin
 eliminar la causa raíz. No declares un bug cerrado sin completar lo aplicable:
 
-### 19.1 Causa raíz e invariante
+### 20.1 Causa raíz e invariante
 
 Identifica: estado inicial, transición que dispara el fallo, dónde se
 introduce el estado incorrecto, causa raíz (distinta del síntoma) e invariante
@@ -622,7 +698,7 @@ adyacentes según apliquen: crear/editar; borrar/restaurar; mismo período/otro
 período; primer guardado/re-guardado sin cambios; éxito/error/timeout/retry;
 request único/concurrente/duplicado; datos nuevos/históricos.
 
-### 19.2 Regresión efectiva
+### 20.2 Regresión efectiva
 
 Agrega o actualiza una prueba que: falle con el comportamiento defectuoso
 (demuéstralo, ej. revirtiendo temporalmente el fix con `git stash`),
@@ -632,7 +708,7 @@ fallo previo (ej. el entorno de test no reproduce la condición), dilo
 explícitamente en el test y en el cierre, y explica qué valor aporta igual la
 prueba — no afirmes protección que no verificaste.
 
-### 19.3 Superficie afectada
+### 20.3 Superficie afectada
 
 Aplica el gate §2.2 y amplíalo a: wrappers, adaptadores, flujos equivalentes
 que dupliquen la lógica sin llamar la abstracción, endpoints, pantallas, jobs,
@@ -640,7 +716,7 @@ crons, scripts, importaciones, tests, fixtures, migraciones y datos derivados.
 Corrige en el mismo cambio las manifestaciones confirmadas de la misma causa;
 documenta aparte lo que requiera otra decisión.
 
-### 19.4 Semántica del contenido, no solo presencia
+### 20.4 Semántica del contenido, no solo presencia
 
 No uses `if (x)`, `!!x`, `IS NOT NULL` o `NOT NULL` como proxy de "tiene
 contenido real". Según el contrato, considera: `null`, `undefined`, strings
@@ -649,7 +725,7 @@ serializados/cifrados con contenido vacío, datos parcialmente formados. No
 asumas que `{}`/`[]`/`""` son siempre inválidos: determina su semántica de
 negocio y mantenla consistente entre UI, API, dominio y persistencia.
 
-### 19.5 Prevención ≠ observabilidad
+### 20.5 Prevención ≠ observabilidad
 
 Logs, métricas, alertas, validaciones defensivas y backfills no reemplazan la
 corrección de la causa. Determina por separado: **prevención** (qué evita
@@ -658,7 +734,7 @@ nuevos estados inválidos), **detección** (cómo se sabrá si reaparece),
 los datos ya afectados). Todo backfill: autorizado, acotado, auditable,
 idempotente, seguro ante reintentos y ejecución parcial.
 
-### 19.6 Estado derivado
+### 20.6 Estado derivado
 
 Si el cambio toca query keys, caches, agregados, contadores, campos
 denormalizados o valores calculados: identifica todos los flujos que los
@@ -668,7 +744,7 @@ atomicidad fuente↔derivado, ámbito de tenant, eventos
 duplicados/retrasados/fuera de orden, reintentos, rollbacks y
 read-after-write.
 
-### 19.7 Concurrencia, idempotencia y fallos parciales
+### 20.7 Concurrencia, idempotencia y fallos parciales
 
 Si involucra unicidad, saldos, stock, límites, orden o estado transaccional:
 requests simultáneos, ejecución duplicada, retry, timeout antes/después del
@@ -677,13 +753,13 @@ previa en aplicación no basta cuando la garantía debe imponerse atómicamente:
 usa constraint, transacción, operación atómica, bloqueo, control de versión,
 idempotency key o deduplicación en la capa que puede garantizar la invariante.
 
-### 19.8 Infraestructura real
+### 20.8 Infraestructura real
 
 Ver §11.4. Si no puede verificarse de forma segura, registra: qué quedó
 pendiente, por qué, pasos exactos de validación, resultado esperado y riesgo
 residual.
 
-### 19.9 Contratos, seguridad y compatibilidad
+### 20.9 Contratos, seguridad y compatibilidad
 
 Comprueba impacto sobre: APIs, tipos, schemas, formatos persistidos, clientes
 y datos existentes, autenticación/autorización/aislamiento de tenant, manejo
@@ -691,7 +767,7 @@ de errores, rendimiento/número de queries, compatibilidad hacia atrás. No
 resuelvas un repro con un bypass de validación, relajación de permisos o
 exposición de datos.
 
-## 20. Matriz de verificaciones condicionales
+## 21. Matriz de verificaciones condicionales
 
 Aplica las verificaciones mínimas del área que toques:
 
@@ -709,9 +785,9 @@ Aplica las verificaciones mínimas del área que toques:
 | Edge Function | runtime Deno, CORS, auth, service role, tenant, despliegue autorizado |
 | PATCH/DELETE/settings | Zod, autorización, tenant, `logAudit()`, error parcial |
 | Next.js | documentación local, server/client boundary, cache y APIs de la versión instalada |
-| Cálculos de dinero/IVA | fuente única `src/lib/tax.ts`, pesos enteros, invariante neto+IVA=total (§22.3) |
+| Cálculos de dinero/IVA | fuente única `src/lib/tax.ts`, pesos enteros, invariante neto+IVA=total (§23.3) |
 
-## 21. Formato obligatorio de cierre
+## 22. Formato obligatorio de cierre
 
 Al finalizar un cambio no trivial, reporta de forma concisa (omite líneas
 genuinamente no aplicables diciendo por qué):
@@ -728,12 +804,12 @@ genuinamente no aplicables diciendo por qué):
 - **Riesgos pendientes**: escenarios sin confirmar y cómo validarlos.
 - **Estado final**: **confirmado** o **implementado pero pendiente de validación**.
 
-## 22. Invariantes históricas — no romper
+## 23. Invariantes históricas — no romper
 
 Protegen vulnerabilidades y bugs ya ocurridos. No elimines estos controles
 porque parezcan redundantes.
 
-### 22.1 Ownership de `nota_credito_items` (IDOR)
+### 23.1 Ownership de `nota_credito_items` (IDOR)
 
 ```typescript
 .from("nota_credito_items")
@@ -745,7 +821,7 @@ porque parezcan redundantes.
 Si se refactoriza la query, conserva y prueba la misma invariante de
 ownership vía el padre.
 
-### 22.2 Evento Clerk `session.created`
+### 23.2 Evento Clerk `session.created`
 
 La sesión debe insertarse aunque el `clerk_user` aún no exista; `store_id`
 nullable es deliberado:
@@ -758,7 +834,7 @@ await supabase.from("user_sessions").insert({
 });
 ```
 
-### 22.3 IVA por extracción (precios brutos)
+### 23.3 IVA por extracción (precios brutos)
 
 Todos los precios incluyen IVA. La única fórmula válida es la de extracción:
 `extraerIva(bruto)` y `netoDesdeBruto(bruto)` en `src/lib/tax.ts`
@@ -767,7 +843,7 @@ Todos los precios incluyen IVA. La única fórmula válida es la de extracción:
 (reparadas en `migrations/050`). No dupliques la fórmula en call sites ni
 hardcodees `1.19`/`0.19` — importa los helpers.
 
-### 22.4 Totales del carrito POS derivados del mismo render
+### 23.4 Totales del carrito POS derivados del mismo render
 
 Los totales visibles (botón Cobrar, footer del carrito, modal de pago) se
 calculan con las funciones puras `calcularSubtotalCarrito` /
@@ -778,7 +854,7 @@ calculan con las funciones puras `calcularSubtotalCarrito` /
 Regresión conocida: "Cobrar $0" tras rehidratar un carrito persistido en
 localStorage.
 
-### 22.5 Anular venta no debe re-aplicar efectos ya aplicados por una NC previa
+### 23.5 Anular venta no debe re-aplicar efectos ya aplicados por una NC previa
 
 Una nota de crédito (activa o usada) aplicó su efecto **una vez** al crearse:
 restituyó stock (si `restituir_stock=true`), decrementó
@@ -827,7 +903,7 @@ sin datos persistidos): reclamo atómico ante doble llamada, stock/
 fidelización/saldo/NC calculados correctamente para el caso NC parcial con
 `restituir_stock=true` — ver commit de la revisión para el detalle exacto.
 
-### 22.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
+### 23.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
 
 Las 3 mutaciones de `saldos_a_favor.saldo_disponible` usan funciones SQL
 (`migrations/051_atomic_saldos_a_favor.sql`), nunca un `SELECT` en JS seguido
@@ -846,3 +922,5 @@ es una condición de carrera real (lost update) bajo requests concurrentes:
   decrementar y registrar el pago como dos pasos separados. Antes de este fix,
   este endpoint permitía doble gasto real (dos requests concurrentes con el
   mismo saldo) sin siquiera un piso en 0.
+
+
