@@ -48,3 +48,11 @@ supabase/.temp/
 
 #deploy local
 deploy.sh
+
+# graphify — cache y backups locales; el grafo (graph.json, GRAPH_REPORT.md,
+# manifest.json) sí puede versionarse para que viaje con el repo
+/graphify-out/cache/
+/graphify-out/20*/
+
+# opencode — dependencias locales del directorio de plugins
+.opencode/node_modules/

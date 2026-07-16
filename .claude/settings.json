@@ -6,7 +6,7 @@
   },
   "attribution": {
     "commit": "Co-Authored-By: claude-flow <ruv@ruv.net>",
-    "pr": "🤖 Generated with [claude-flow](https://github.com/ruvnet/claude-flow)"
+    "pr": "\ud83e\udd16 Generated with [claude-flow](https://github.com/ruvnet/claude-flow)"
   },
   "permissions": {
     "allow": [
@@ -44,6 +44,24 @@
             "timeout": 5000
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard search"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard read"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -71,11 +89,11 @@
             "type": "command",
             "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'src/app/api/.*\\.ts$' || exit 0; helper=\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/security-scanner.sh\"; [ -x \"$helper\" ] && sh \"$helper\" \"$f\" 2>&1 | head -20 || exit 0",
             "timeout": 10000,
-            "statusMessage": "Revisión de seguridad..."
+            "statusMessage": "Revisi\u00f3n de seguridad..."
           },
           {
             "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'migrations/.*\\.sql$' || exit 0; nombre=$(basename \"$f\"); echo \"[migración] $nombre editada — recuerda aplicarla con mcp__supabase__apply_migration\"",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE 'migrations/.*\\.sql$' || exit 0; nombre=$(basename \"$f\"); echo \"[migraci\u00f3n] $nombre editada \u2014 recuerda aplicarla con mcp__supabase__apply_migration\"",
             "timeout": 2000
           },
           {
@@ -145,7 +163,7 @@
           },
           {
             "type": "command",
-            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && errs=$(npm run typecheck --silent 2>&1 | grep -c 'error TS' || true); [ \"$errs\" -gt 0 ] && echo \"[stop] $errs errores TypeScript pendientes — revisar antes del próximo commit\" || true",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && errs=$(npm run typecheck --silent 2>&1 | grep -c 'error TS' || true); [ \"$errs\" -gt 0 ] && echo \"[stop] $errs errores TypeScript pendientes \u2014 revisar antes del pr\u00f3ximo commit\" || true",
             "timeout": 30000
           }
         ]

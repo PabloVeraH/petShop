@@ -1,0 +1,6 @@
+# Excluir tooling de agentes del knowledge graph — no es código de la app.
+# Sin esto, .claude/ (helpers y skills de claude-flow) aporta ~63% de los
+# nodos y contamina los resultados de `graphify query`.
+.claude/
+.claude-flow/
+.opencode/
