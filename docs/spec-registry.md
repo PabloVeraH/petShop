@@ -523,7 +523,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
-| PP-05 | Completar venta invalida ["ventas"] con refetchType "all" | POSPage | component |
+| PP-05 | Completar venta invalida ["productos"] y ["ventas"] con refetchType "all" | POSPage | component |
 | PP-06 | REGRESIÓN: el botón Cobrar computa el total con calcularTotalCarrito(items, descuento) del mismo render, coincide con la suma de subtotales menos descuento | POSPage | component |
 | PP-07 | useEffect asigna workerClerkId al userId cuando el componente monta | POSPage | component |
 | PP-08 | useEffect no asigna worker cuando userId es null (Clerk loading) | POSPage | component |
@@ -531,6 +531,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-10 | useEffect no sobreescribe workerClerkId si ya se inicializó para el mismo userId (preserva selección manual) | POSPage | component |
 | PP-11 | REGRESIÓN: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno) | POSPage | component |
 | PP-12 | El stock en la grilla de productos (SearchProductos real, no mockeado) se actualiza automáticamente tras una venta exitosa, sin recargar la página — investigado como reporte de bug, no reprodujo contra el código actual; test agregado como regresión permanente | POSPage | component |
+| PP-13 | clearCart se llama tras venta exitosa y botón Cobrar cambia a Carrito vacío (regresión: carrito no se limpiaba tras venta) | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 

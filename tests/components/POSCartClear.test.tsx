@@ -1,13 +1,18 @@
 /**
- * Tests PP-05: POSPage — invalidación de caché tras venta exitosa
- * PP-05: REGRESIÓN — completar venta invalida ["ventas"] con refetchType "all"
- *         (no solo activos). Sin refetchType: "all", al navegar a Ventas la lista
- *         muestra datos stale hasta recargar la página.
+ * Test PP-13: POSPage — el carrito se limpia automáticamente tras una
+ * venta exitosa.
+ *
+ * Reporte: "el carrito/grilla de productos no se refresca automáticamente
+ * después de completar una venta".
+ *
+ * PP-12 ya verifica que la grilla (SearchProductos real) actualiza el stock.
+ * PP-05 verifica que invalida ["productos"] y ["ventas"] con refetchType "all".
+ * PP-13 verifica que clearCart se llama tras una venta exitosa.
  *
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -15,25 +20,25 @@ const mockCreateVenta = jest.fn();
 const mockClearCart = jest.fn();
 const mockSetWorker = jest.fn();
 
-function makeMockStore(overrides: Record<string, unknown> = {}) {
+function buildStore() {
   return {
     items: [{ id: "i1", producto_id: "p1", nombre: "Test", precio: 1000, cantidad: 1, subtotal: 1000 }],
     clienteId: undefined,
     mascotaId: undefined,
-    workerClerkId: undefined,
+    workerClerkId: "user-123",
     metodoPago: "efectivo",
     numeroTransaccion: undefined,
     descuento: 0,
+    fidelizacionDescuento: 0,
     procedencia: "presencial",
     pagoNc: undefined,
-    enviarEmailRecibo: false,
     notas: "",
+    enviarEmailRecibo: false,
+    total: () => 1000,
     clearCart: mockClearCart,
     setWorker: mockSetWorker,
-    total: () => 1000,
-    subtotal: () => 1000,
-    impuesto: () => 160,
-    ...overrides,
+    addItem: jest.fn(),
+    removeItem: jest.fn(),
   };
 }
 
@@ -55,7 +60,7 @@ jest.mock("@/app/(app)/pos/api", () => ({ createVenta: mockCreateVenta }));
 
 jest.mock("@/app/(app)/pos/components/SearchProductos", () => ({
   __esModule: true,
-  default: () => <div />,
+  default: () => <div data-testid="search-productos" />,
 }));
 
 jest.mock("@/app/(app)/pos/components/Carrito", () => ({
@@ -82,66 +87,44 @@ jest.mock("@/app/(app)/pos/components/RecomendacionesIA", () => ({
 
 import POSPage from "@/app/(app)/pos/page";
 
-describe("POSPage — invalidación de caché post-venta", () => {
+describe("POSPage — cart clear after sale (PP-13)", () => {
   let qc: QueryClient;
-  let spy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateVenta.mockReset();
     mockClearCart.mockClear();
     mockSetWorker.mockClear();
+    (window as unknown as { open: jest.Mock }).open = jest.fn().mockReturnValue({});
 
     qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    spy = jest.spyOn(qc, "invalidateQueries");
 
-    const store = makeMockStore();
+    const store = buildStore();
     mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) => {
       if (typeof selector === "function") return selector(store);
       return store;
     });
   });
 
-  afterEach(() => {
-    spy.mockRestore();
-  });
-
-  // PP-05 — REGRESIÓN: completar venta debe invalidar ["ventas"] con refetchType "all"
-  it("PP-05: REGRESIÓN — completar venta invalida ['ventas'] con refetchType 'all'", async () => {
-    mockCreateVenta.mockResolvedValue({ id: "new-venta-123" });
+  // PP-13 — igual patrón que PP-05 (store mock estático)
+  it("PP-13: clearCart se llama tras venta exitosa y botón cambia a Carrito vacío", async () => {
+    mockCreateVenta.mockResolvedValue({ id: "venta-1" });
 
     render(<POSPage />, { wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     )});
 
-    // Click "Cobrar" → ModalPago se abre con su onConfirm
-    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    // Botón muestra Cobrar y monto
+    expect(screen.getByRole("button", { name: /Cobrar/ })).toBeInTheDocument();
+    expect(screen.getByText(/\$1\.000/)).toBeInTheDocument();
 
-    // Click confirmar en ModalPago → procesarVenta() se ejecuta
+    // Completar venta
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/ }));
     await act(async () => {
       fireEvent.click(screen.getByTestId("confirm-pago"));
     });
 
-    // Verificar que createVenta fue llamada
     expect(mockCreateVenta).toHaveBeenCalledTimes(1);
-    expect(mockCreateVenta).toHaveBeenCalledWith(
-      expect.objectContaining({ metodoPago: "efectivo" })
-    );
-
-    // DEBE invalidar ["productos"] con refetchType "all" — fuerza refetch incluso
-    // sin observer activo (regresión: usaba refetchType por defecto "active", que
-    // no refetch si SearchProductos no tiene observer activo, ej. React concurrent
-    // o re-render que remonta brevemente el componente)
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
-
-    // DEBE llamar con refetchType: "all" — fuerza refetch aunque no haya observer activo
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
-
-    // NO debe llamar sin refetchType (esa es la versión bugueada)
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
-
-    // clearCart debe haberse llamado
     expect(mockClearCart).toHaveBeenCalledTimes(1);
   });
 });
