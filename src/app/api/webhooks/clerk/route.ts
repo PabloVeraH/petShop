@@ -75,7 +75,12 @@ export async function POST(req: NextRequest) {
     event.type === "session.ended" ||
     event.type === "session.removed"
   ) {
-    const sessionData = event.data as unknown as { user_id: string; id: string };
+    const sessionData = event.data as unknown as {
+      user_id: string;
+      id: string;
+      ip_address?: string;
+      user_agent?: string;
+    };
 
     let { data: clerkUser } = await supabase
       .from("clerk_users")
@@ -121,6 +126,8 @@ export async function POST(req: NextRequest) {
       user_id: sessionData.user_id,
       clerk_session_id: sessionData.id,
       event_type: event.type,
+      ip_address: sessionData.ip_address ?? null,
+      user_agent: sessionData.user_agent ?? null,
     });
   }
 
