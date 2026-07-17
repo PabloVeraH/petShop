@@ -271,6 +271,8 @@ I-406/I-407/I-408.
 | VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |
 | VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
 | REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
+| C-39 | REGRESIÓN: Subtotal muestra el neto (total − impuesto), no el bruto que igualaba a Total | SalesTicketPage | component |
+| C-40 | Con descuento, Subtotal + IVA sigue sumando exactamente Total | SalesTicketPage | component |
 
 ## Middleware / Routing (MW-XX)
 
@@ -384,6 +386,10 @@ I-406/I-407/I-408.
 | U-117 | crearAsiento retorna null tras agotar reintentos si el conflicto de numero_asiento persiste | lib/contabilidad | unit |
 | U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
 | U-119 | REGRESIÓN: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) no pierden ningún asiento por colisión de numero_asiento — causa raíz confirmada del bug "venta sin asiento de ingreso, solo aparece COGS" | lib/contabilidad | unit |
+| U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
+| U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
+| U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |
+| U-123 | REGRESIÓN: buildBoletaEmailHTML — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/email | unit |
 | S-40 | REGRESIÓN: calcularTotalCarrito(items, descuento) coincide con state.total() tras el merge real de rehidratación de Zustand persist | stores/pos | unit |
 | S-41 | Múltiples set() síncronos consecutivos (addItem en tanda) no pierden mutaciones — el total final refleja todos los items | stores/pos | unit |
 | S-42 | Re-aplicar el merge de rehidratación con el mismo contenido (nueva referencia de objeto) es idempotente — no duplica items ni altera el total | stores/pos | unit |

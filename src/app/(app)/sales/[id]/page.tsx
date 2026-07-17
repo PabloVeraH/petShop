@@ -133,6 +133,11 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const vendedor = data.worker as unknown as { nombre: string | null; email: string } | null;
   const fecha = new Date(data.created_at).toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
 
+  // Subtotal (sin IVA) del monto efectivamente cobrado — NO netoDesdeBruto(data.subtotal),
+  // que es el bruto pre-descuento y rompe la invariante Subtotal + IVA = Total en el ticket
+  // (ver AGENTS.md §23.3; mismo patrón que "Neto (sin IVA)" en /api/recibos/[ventaId]).
+  const subtotalNeto = Number(data.total) - Number(data.impuesto);
+
   const whatsappText = encodeURIComponent(
     `*Comprobante ${storeName}*\n` +
     `N°: ${data.numero_comprobante ?? data.id.slice(0, 8)}\n` +
@@ -143,7 +148,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       const prod = i.productos as unknown as { nombre: string } | null;
       return `• ${prod?.nombre ?? "Producto"} x${i.cantidad} = $${Math.round(i.subtotal).toLocaleString("es-CL")}`;
     }).join("\n")) +
-    `\n\nSubtotal: $${Math.round(Number(data.subtotal)).toLocaleString("es-CL")}` +
+    `\n\nSubtotal: $${Math.round(subtotalNeto).toLocaleString("es-CL")}` +
     (Number(data.descuento) > 0 ? `\nDescuento (${Number(data.descuento)}%): -$${Math.round(Number(data.subtotal) * Number(data.descuento) / 100).toLocaleString("es-CL")}` : "") +
     `\nIVA: $${Math.round(Number(data.impuesto)).toLocaleString("es-CL")}` +
     `\n*TOTAL: $${Math.round(Number(data.total)).toLocaleString("es-CL")}*` +
@@ -270,7 +275,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="border-t pt-3 space-y-1 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Subtotal</span>
-            <span>${Math.round(Number(data.subtotal)).toLocaleString("es-CL")}</span>
+            <span>${Math.round(subtotalNeto).toLocaleString("es-CL")}</span>
           </div>
           {Number(data.descuento) > 0 && (
             <div className="flex justify-between text-green-600">

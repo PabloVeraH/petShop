@@ -1,5 +1,4 @@
 import jsPDF from "jspdf";
-import { netoDesdeBruto } from "@/lib/tax";
 
 export interface BoletaData {
   numeroComprobante: string;
@@ -33,7 +32,10 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   let y = 20;
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
-  const subtotalNeto = netoDesdeBruto(data.subtotal);
+  // Subtotal (sin IVA) del monto efectivamente cobrado — NO netoDesdeBruto(data.subtotal),
+  // que es el bruto pre-descuento y rompe la invariante Subtotal + IVA = Total en la boleta
+  // cuando hay descuento (ver AGENTS.md §23.3).
+  const subtotalNeto = data.total - data.impuesto;
   const fecha = new Date(data.fecha);
   const fechaStr = fecha.toLocaleDateString("es-CL");
   const horaStr = fecha.toLocaleTimeString("es-CL");

@@ -1,6 +1,5 @@
 import { Resend } from "resend";
 import { generateBoletaPDF, type BoletaData } from "@/lib/reports/pdf-generator";
-import { netoDesdeBruto } from "@/lib/tax";
 
 let _resend: Resend | null = null;
 
@@ -118,10 +117,13 @@ export async function sendBoletaEmail(params: {
   return true;
 }
 
-function buildBoletaEmailHTML(b: BoletaData): string {
+export function buildBoletaEmailHTML(b: BoletaData): string {
   const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
   const fecha = new Date(b.fecha).toLocaleDateString("es-CL");
-  const subtotalNeto = netoDesdeBruto(b.subtotal);
+  // Subtotal (sin IVA) del monto efectivamente cobrado — NO netoDesdeBruto(b.subtotal),
+  // que es el bruto pre-descuento y rompe la invariante Subtotal + IVA = Total en el email
+  // cuando hay descuento (ver AGENTS.md §23.3).
+  const subtotalNeto = b.total - b.impuesto;
 
   const itemsHTML = b.items.map(i => `
     <tr>

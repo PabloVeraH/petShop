@@ -157,6 +157,60 @@ describe("SalesTicketPage — display de descuento (C-23/C-24)", () => {
     );
     expect(screen.queryByText(/Descuento/)).not.toBeInTheDocument();
   });
+
+  // C-39: REGRESIÓN — Subtotal mostraba el bruto (data.subtotal) en vez del neto
+  // sin IVA, causando Subtotal = Total en vez de Subtotal + IVA = Total.
+  it("C-39: REGRESIÓN — Subtotal muestra el neto (total − impuesto), no el bruto que iguala a Total", async () => {
+    mockFetch({
+      ...VENTA_BASE,
+      subtotal: 11900,  // bruto pre-descuento — buggy: se mostraba tal cual
+      descuento: 0,
+      impuesto: 1900,
+      total: 11900,     // bruto == subtotal cuando no hay descuento (caso reportado)
+      items: [makeItem("i1", "Alimento Pro Plan 3kg", 1, 11900)],
+    });
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Alimento Pro Plan 3kg")).toBeInTheDocument()
+    );
+
+    // Subtotal correcto: 11900 − 1900 = 10000 (neto), NO 11900 (bruto == Total)
+    expect(screen.getByText("$10.000")).toBeInTheDocument();
+    const subtotalLabel = screen.getByText("Subtotal");
+    expect(subtotalLabel.nextSibling?.textContent).toBe("$10.000");
+    expect(subtotalLabel.nextSibling?.textContent).not.toBe("$11.900");
+  });
+
+  // C-40: adyacente a C-39 — con descuento, Subtotal + IVA = Total sigue cumpliéndose
+  // (Subtotal es el neto del TOTAL post-descuento, no el neto del bruto pre-descuento).
+  it("C-40: con descuento, Subtotal + IVA sigue sumando exactamente Total", async () => {
+    mockFetch({
+      ...VENTA_BASE,
+      subtotal: 20000,  // bruto pre-descuento
+      descuento: 10,
+      impuesto: 2874,
+      total: 18000,     // 20000 × 0.9 = 18000
+      items: [makeItem("i1", "Alimento Pro Plan 3kg", 1, 20000)],
+    });
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, {
+      wrapper: makeWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Alimento Pro Plan 3kg")).toBeInTheDocument()
+    );
+
+    // Subtotal correcto: 18000 − 2874 = 15126 (neto del total post-descuento)
+    const subtotalLabel = screen.getByText("Subtotal");
+    expect(subtotalLabel.nextSibling?.textContent).toBe("$15.126");
+    // Invariante: Subtotal + IVA = Total
+    expect(15126 + 2874).toBe(18000);
+  });
 });
 
 // ── Tests de devoluciones ─────────────────────────────────────────────────────
