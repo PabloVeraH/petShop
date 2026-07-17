@@ -190,6 +190,12 @@ export default function CanalConfigPage() {
                   setCredenciales({ ...credenciales, [campo.key]: e.target.value })
                 }
                 placeholder={campo.placeholder}
+                // Credenciales de un canal externo, no un login del usuario actual.
+                // "new-password" para type="password" es más confiable entre
+                // navegadores que "off" para evitar que el gestor de contraseñas
+                // sugiera credenciales guardadas de otro contexto; "off" para el
+                // resto (Store ID, Client ID, etc. — identificadores, no logins).
+                autoComplete={campo.type === "password" ? "new-password" : "off"}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>

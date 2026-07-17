@@ -284,6 +284,9 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           placeholder="Email"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          // Formulario crea la cuenta de OTRA persona — autoComplete="off" evita que
+          // el navegador sugiera el email guardado del admin que está logueado.
+          autoComplete="off"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
         <input
@@ -292,6 +295,11 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           placeholder="Contraseña"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          // "new-password" (no "off"): es la forma estándar de decirle al gestor de
+          // contraseñas del navegador "esto no es un login existente, no sugieras ni
+          // ofrezcas guardar credenciales guardadas aquí" — más confiable entre
+          // navegadores que autoComplete="off" para inputs type="password".
+          autoComplete="new-password"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
       </div>
@@ -303,6 +311,7 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           placeholder="Nombre"
           value={formData.firstName}
           onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+          autoComplete="off"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
         <input
@@ -311,6 +320,7 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           placeholder="Apellido"
           value={formData.lastName}
           onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+          autoComplete="off"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
       </div>

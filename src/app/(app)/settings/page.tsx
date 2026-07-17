@@ -181,6 +181,7 @@ export default function SettingsPage() {
                 value={settings.whatsapp_phone_number_id ?? ""}
                 onChange={(e) => setSettings({ ...settings, whatsapp_phone_number_id: e.target.value })}
                 placeholder="123456789012345"
+                autoComplete="off"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="text-xs text-gray-400 mt-1">Obtenido en Meta Developer Console → WhatsApp → API Setup</p>
@@ -193,6 +194,10 @@ export default function SettingsPage() {
                 value={settings.whatsapp_access_token ?? ""}
                 onChange={(e) => setSettings({ ...settings, whatsapp_access_token: e.target.value })}
                 placeholder="EAAxxxx..."
+                // "new-password", no "off": más confiable entre navegadores para
+                // evitar que el gestor de contraseñas sugiera credenciales de otro
+                // contexto en un campo type="password" que no es un login real.
+                autoComplete="new-password"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <p className="text-xs text-gray-400 mt-1">Token permanente generado en Meta Business Manager</p>
@@ -206,6 +211,7 @@ export default function SettingsPage() {
                   value={settings.whatsapp_webhook_verify_token ?? ""}
                   onChange={(e) => setSettings({ ...settings, whatsapp_webhook_verify_token: e.target.value })}
                   placeholder="mi-token-secreto-123"
+                  autoComplete="off"
                   className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
                 <button

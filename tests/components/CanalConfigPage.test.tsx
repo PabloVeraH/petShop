@@ -247,4 +247,37 @@ describe("CanalConfigPage — activo handling", () => {
     // No se envió ningún fetch nuevo
     expect(fetchCalls.length).toBe(initialFetchCount);
   });
+
+  // CC-07 — REGRESIÓN: sin autoComplete, el navegador ofrecía autocompletar
+  // API Key/Secret con credenciales guardadas de otro contexto (email/password).
+  it("CC-07: REGRESIÓN — campos type=\"password\" (API Key, API Secret, Webhook Secret) tienen autoComplete=\"new-password\"", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
+    // Rappi: API Key, API Secret, Webhook Secret → 3 campos password
+    expect(passwordInputs.length).toBe(3);
+    passwordInputs.forEach((input) => {
+      expect(input).toHaveAttribute("autocomplete", "new-password");
+    });
+  });
+
+  // CC-08 — mismo defecto en campos type="text" (Store ID, Client ID, etc.):
+  // sin autoComplete="off", el navegador aplica heurísticas propias sobre
+  // identificadores que no son datos de perfil del usuario.
+  it("CC-08: campo type=\"text\" (Store ID) tiene autoComplete=\"off\"", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    const textInputs = document.querySelectorAll('input[type="text"]');
+    // Rappi: Store ID → 1 campo text
+    expect(textInputs.length).toBe(1);
+    expect(textInputs[0]).toHaveAttribute("autocomplete", "off");
+  });
 });

@@ -71,6 +71,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-89 | PATCH con placeholder de token no actualiza DB | PATCH /api/settings | integration |
 | I-93 | GET incluye fidelizacion_niveles del store | GET /api/settings | integration |
 | I-94 | GET devuelve campo direccion con coordenadas | GET /api/settings | integration |
+| C-42 | REGRESIÓN: sección WhatsApp — Access Token tiene autoComplete="new-password"; Phone Number ID y Verify Token tienen autoComplete="off" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | SettingsPage | component |
 
 ## Notas de Crédito (I-100 a I-115)
 
@@ -169,6 +170,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-327 | Aceptar orden de canal responde accepted y vincula venta_id en canal_ordenes | POST /api/canales/orders/[id]/accept | integration |
 | CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
+| CC-07 | REGRESIÓN: campos type="password" (API Key, API Secret, Webhook Secret) tienen autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | CanalConfigPage | component |
+| CC-08 | Campo type="text" (Store ID) tiene autoComplete="off" | CanalConfigPage | component |
 
 Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
 credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`
@@ -241,6 +244,7 @@ I-406/I-407/I-408.
 | I-290 | GET stores como storeAdmin retorna solo su propia tienda | GET /api/admin/stores | integration |
 | I-291 | GET users como storeAdmin retorna usuarios de su tienda | GET /api/admin/users | integration |
 | I-292 | GET stores como storeAdmin sin storeId retorna 403 | GET /api/admin/stores | integration |
+| C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
 
