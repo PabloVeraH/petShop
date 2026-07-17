@@ -28,6 +28,19 @@ type CierreResultado = {
   asientos_cierre: Array<{ tipo: string; id: string }>;
 };
 
+type CierreMesPreview = {
+  periodo: string;
+  desde: string;
+  hasta: string;
+  numero_asientos: number;
+  total_debitos: number;
+  total_creditos: number;
+  balanceado: boolean;
+  cogs_estimado: number;
+  ya_tiene_cierre: boolean;
+  asientos_cierre_count: number;
+};
+
 type LibroDiarioResumen = {
   periodo: string;
   desde: string;
@@ -109,6 +122,17 @@ export default function ContabilidadPage() {
     queryFn: () =>
       fetch(`/api/contabilidad/estado-resultado?${params}`).then((r) => r.json()),
     enabled: tab === "resultado",
+  });
+
+  const { data: preview, isLoading: loadingPreview, error: previewError } = useQuery<CierreMesPreview>({
+    queryKey: ["cierre-mes-preview", año, mes],
+    queryFn: async () => {
+      const r = await fetch(`/api/contabilidad/cierre-mes/preview?mes=${Number(mes)}&año=${Number(año)}&calcular_costo_venta=true`);
+      if (!r.ok) throw new Error("Error al obtener vista previa");
+      return r.json();
+    },
+    enabled: showCierreConfirm && !!mes,
+    staleTime: 30000,
   });
 
   const { mutate: eliminarAsiento, isPending: eliminandoAsiento } = useMutation({
@@ -640,7 +664,7 @@ export default function ContabilidadPage() {
         </ModalOverlay>
       )}
 
-      {/* Modal confirmación cierre de mes */}
+      {/* Modal confirmación cierre de mes — con vista previa */}
       {showCierreConfirm && (
         <ModalOverlay open onClose={() => setShowCierreConfirm(false)}>
         <div className="bg-white rounded-lg max-w-md w-full shadow-xl m-4">
@@ -655,23 +679,54 @@ export default function ContabilidadPage() {
                   </p>
                 </div>
               </div>
-              {periodoCerrado && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700 space-y-1">
-                  <p className="font-medium">⚠ Este período ya está cerrado</p>
-                  <p className="text-xs">
-                    El período <strong>{periodoLabel(año, mes)}</strong> ya tiene un asiento de
-                    cierre registrado. Si continúas, podrías duplicar asientos contables.
-                  </p>
+
+              {/* Vista previa del cierre */}
+              {loadingPreview && (
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-500 text-center">
+                  Cargando vista previa...
                 </div>
               )}
+
+              {previewError && !loadingPreview && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">
+                  No se pudo cargar la vista previa. Puedes continuar sin ella.
+                </div>
+              )}
+
+              {preview && !loadingPreview && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm space-y-2">
+                  <p className="font-medium text-blue-800">Vista previa del período:</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-blue-700">
+                    <span>Asientos en el período:</span>
+                    <span className="font-bold text-right">{preview.numero_asientos}</span>
+                    <span>Total Débitos:</span>
+                    <span className="font-bold text-right">{fmt(preview.total_debitos)}</span>
+                    <span>Total Créditos:</span>
+                    <span className="font-bold text-right">{fmt(preview.total_creditos)}</span>
+                    <span>Balance:</span>
+                    <span className={`font-bold text-right ${preview.balanceado ? "text-green-700" : "text-red-600"}`}>
+                      {preview.balanceado ? "✓ Cuadrado" : "✗ Descuadrado"}
+                    </span>
+                    <span>COGS a generar:</span>
+                    <span className="font-bold text-right">
+                      {preview.cogs_estimado > 0 ? fmt(preview.cogs_estimado) : "N/A"}
+                    </span>
+                    <span>Asientos de cierre:</span>
+                    <span className="font-bold text-right">{preview.asientos_cierre_count}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 space-y-1">
                 <p className="font-medium">Esta operación:</p>
                 <ul className="list-disc list-inside space-y-0.5 text-xs">
                   <li>Genera el asiento de costo de ventas del período</li>
                   <li>No puede deshacerse desde la interfaz</li>
+                  <li>Crea un respaldo automático del estado contable antes de ejecutarse</li>
                   <li>Quedará registrada en el log de auditoría</li>
                 </ul>
               </div>
+
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
