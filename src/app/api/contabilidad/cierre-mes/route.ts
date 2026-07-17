@@ -3,22 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { crearAsiento, lineasCierreCOGS } from "@/lib/contabilidad/generador-asientos";
-import { CUENTAS } from "@/lib/contabilidad/types";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
-
-async function checkExistingCierre(
-  supabase: ReturnType<typeof createServiceClient>,
-  storeId: string,
-  periodo: string
-): Promise<number> {
-  const { data } = await supabase
-    .from("journal_entries")
-    .select("id")
-    .eq("store_id", storeId)
-    .eq("tipo_movimiento", "CIERRE_MES")
-    .eq("referencia_numero", periodo);
-  return data?.length ?? 0;
-}
+import { computeCierrePreview, checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
 
 const CierreMesSchema = z.object({
   mes: z.number().int().min(1).max(12),
@@ -46,12 +32,12 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Verificar que no exista ya un asiento de cierre para este período
-  const existentes = await checkExistingCierre(supabase, store_id, periodo);
+  // Compute preview data: checks existing cierre, period totals, COGS estimate
+  const preview = await computeCierrePreview(supabase, store_id, mes, año, calcular_costo_venta);
 
-  if (existentes > 0) {
+  if (preview.ya_tiene_cierre) {
     console.warn(
-      `[cierre-mes] Intento duplicado para ${periodo} (store=${store_id}, usuario=${ctx.userId}): ${existentes} asiento(s) existente(s)`
+      `[cierre-mes] Intento duplicado para ${periodo} (store=${store_id}, usuario=${ctx.userId})`
     );
     return NextResponse.json(
       { error: `El período ${periodo} ya tiene un asiento de cierre` },
@@ -59,80 +45,52 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("id, total_debito, total_credito")
-    .eq("store_id", store_id)
-    .gte("fecha", desde)
-    .lte("fecha", hasta);
+  const asientosCierre: Array<{ tipo: string; id: string }> = [];
 
-  const totalDebitos = (entries ?? []).reduce((s, e) => s + Number(e.total_debito), 0);
-  const totalCreditos = (entries ?? []).reduce((s, e) => s + Number(e.total_credito), 0);
+  if (calcular_costo_venta && preview.cogs_estimado > 0) {
+    // Respaldo automático antes de la mutación irreversible
+    await tomarRespaldoCierre(supabase, store_id, periodo, preview);
 
-  const asientosCierre = [];
+    const cogsId = await crearAsiento({
+      storeId: store_id,
+      fecha: hasta,
+      tipoMovimiento: "CIERRE_MES",
+      referenciaNomero: periodo,
+      descripcion: `Cierre ${periodo} - Costo de ventas`,
+      lineas: lineasCierreCOGS(preview.cogs_estimado),
+      usuarioId: ctx.userId ?? undefined,
+      creadoPor: "cierre_automatico",
+    });
 
-  if (calcular_costo_venta) {
-    // Estimar COGS como suma de compras del período (método simplificado)
-    const { data: compras } = await supabase
-      .from("journal_entries")
-      .select("id")
-      .eq("store_id", store_id)
-      .eq("tipo_movimiento", "COMPRA")
-      .gte("fecha", desde)
-      .lte("fecha", hasta);
+    if (cogsId) {
+      asientosCierre.push({ tipo: "COSTO_VENTA", id: cogsId });
 
-    const compraIds = (compras ?? []).map((c) => c.id);
+      // Vincular respaldo con el asiento de cierre creado
+      await supabase
+        .from("cierre_mes_backups")
+        .update({ cierre_asiento_id: cogsId })
+        .eq("store_id", store_id)
+        .eq("periodo", periodo);
+    } else {
+      const concurrentes = await checkExistingCierre(supabase, store_id, periodo);
 
-    if (compraIds.length > 0) {
-      const { data: inventarioLines } = await supabase
-        .from("journal_detail")
-        .select("debito")
-        .in("journal_entry_id", compraIds)
-        .eq("cuenta_codigo", CUENTAS.INVENTARIO.codigo);
-
-      const costoTotal = (inventarioLines ?? []).reduce((s, l) => s + Number(l.debito), 0);
-
-      if (costoTotal > 0) {
-        const cogsId = await crearAsiento({
-          storeId: store_id,
-          fecha: hasta,
-          tipoMovimiento: "CIERRE_MES",
-          referenciaNomero: periodo,
-          descripcion: `Cierre ${periodo} - Costo de ventas`,
-          lineas: lineasCierreCOGS(Math.round(costoTotal)),
-          usuarioId: ctx.userId ?? undefined,
-          creadoPor: "cierre_automatico",
-        });
-
-        if (cogsId) {
-          asientosCierre.push({ tipo: "COSTO_VENTA", id: cogsId });
-        } else {
-          // crearAsiento retornó null. Puede ser por:
-          //   1. race condition: otro request creó el cierre concurrentemente
-          //      (partial unique index bloqueó nuestro INSERT — el caso con migración 047)
-          //   2. error real de BD o lógica
-          // Re-verificar antes de decidir el código de respuesta.
-          const concurrentes = await checkExistingCierre(supabase, store_id, periodo);
-
-          if (concurrentes > 0) {
-            console.warn(
-              `[cierre-mes] Carrera detectada para ${periodo}: otro request cerró el período mientras este procesaba`
-            );
-            return NextResponse.json(
-              { error: `El período ${periodo} ya fue cerrado por otra operación concurrente` },
-              { status: 409 }
-            );
-          }
-
-          console.error(
-            `[cierre-mes] Error al crear asiento de cierre COGS para ${periodo} (store=${store_id}, costoTotal=${costoTotal})`
-          );
-          return NextResponse.json(
-            { error: `Error al generar el asiento de costo de ventas para ${periodo}` },
-            { status: 500 }
-          );
-        }
+      if (concurrentes > 0) {
+        console.warn(
+          `[cierre-mes] Carrera detectada para ${periodo}: otro request cerró el período mientras este procesaba`
+        );
+        return NextResponse.json(
+          { error: `El período ${periodo} ya fue cerrado por otra operación concurrente` },
+          { status: 409 }
+        );
       }
+
+      console.error(
+        `[cierre-mes] Error al crear asiento de cierre COGS para ${periodo} (store=${store_id}, cogsEstimado=${preview.cogs_estimado})`
+      );
+      return NextResponse.json(
+        { error: `Error al generar el asiento de costo de ventas para ${periodo}` },
+        { status: 500 }
+      );
     }
   }
 
@@ -151,10 +109,34 @@ export async function POST(req: NextRequest) {
     mes_cerrado: periodo,
     desde,
     hasta,
-    numero_asientos: entries?.length ?? 0,
-    total_debitos: Math.round(totalDebitos * 100) / 100,
-    total_creditos: Math.round(totalCreditos * 100) / 100,
-    balanceado: Math.abs(totalDebitos - totalCreditos) < 0.01,
+    numero_asientos: preview.numero_asientos,
+    total_debitos: preview.total_debitos,
+    total_creditos: preview.total_creditos,
+    balanceado: preview.balanceado,
     asientos_cierre: asientosCierre,
   }, { status: 201 });
+}
+
+async function tomarRespaldoCierre(
+  supabase: ReturnType<typeof createServiceClient>,
+  storeId: string,
+  periodo: string,
+  preview: { desde: string; hasta: string; numero_asientos: number; total_debitos: number; total_creditos: number; cogs_estimado: number }
+): Promise<void> {
+  const { data: entries } = await supabase
+    .from("journal_entries")
+    .select("*, journal_detail(*)")
+    .eq("store_id", storeId)
+    .gte("fecha", preview.desde)
+    .lte("fecha", preview.hasta);
+
+  await supabase.from("cierre_mes_backups").insert({
+    store_id: storeId,
+    periodo,
+    asientos_count: preview.numero_asientos,
+    total_debitos: preview.total_debitos,
+    total_creditos: preview.total_creditos,
+    cogs_estimado: preview.cogs_estimado,
+    snapshot: JSON.stringify(entries ?? []),
+  });
 }
