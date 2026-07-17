@@ -235,7 +235,7 @@
     "semantic_hash": "b6da2b68ff1f7fc934760ca283ccdcd2"
   },
   ".mcp.json": {
-    "mtime": 1784180153.706979,
+    "mtime": 1784180732.2337265,
     "ast_hash": "9e6f990298714365339ca36850a8d6b2",
     "semantic_hash": ""
   },
@@ -550,9 +550,9 @@
     "semantic_hash": "8d79ec456ce96be709ed6ca4ec6f56b6"
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1783661476.4677336,
-    "ast_hash": "51b4f4c1adebde0c3f7099f6b60230f1",
-    "semantic_hash": "51b4f4c1adebde0c3f7099f6b60230f1"
+    "mtime": 1784314966.2674258,
+    "ast_hash": "e2933cb45c77f75f9a8f62d555abe190",
+    "semantic_hash": ""
   },
   "src/app/(app)/canales/instagram/posts/editor/page.tsx": {
     "mtime": 1780687681.0613668,
@@ -710,9 +710,9 @@
     "semantic_hash": "6c8e9b08c19fd92f4e58075675f19d14"
   },
   "src/app/(app)/inventory/components/OptimizadorVencimientosTab.tsx": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "59010cb2441099b45353d3a0b64d60a8",
-    "semantic_hash": "59010cb2441099b45353d3a0b64d60a8"
+    "mtime": 1784317820.272536,
+    "ast_hash": "81de18fe40475a269e41c2c240ebb8c5",
+    "semantic_hash": ""
   },
   "src/app/(app)/inventory/import/page.tsx": {
     "mtime": 1779811940.0625453,
@@ -800,9 +800,9 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1783656750.0911903,
-    "ast_hash": "b756d5396771417e1aede42195edecf1",
-    "semantic_hash": "b756d5396771417e1aede42195edecf1"
+    "mtime": 1784264740.2519581,
+    "ast_hash": "201ee38bb8a2d077dbf8ccf7f9eed5e4",
+    "semantic_hash": ""
   },
   "src/app/(app)/sales/page.tsx": {
     "mtime": 1783657049.7998877,
@@ -810,9 +810,9 @@
     "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1780687681.0636945,
-    "ast_hash": "fd8c46b49bbb72c7ad1d0821a22c105f",
-    "semantic_hash": "fd8c46b49bbb72c7ad1d0821a22c105f"
+    "mtime": 1784314966.2674258,
+    "ast_hash": "9b805e64711ea76e3116e615076d814a",
+    "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
     "mtime": 1784169253.3611145,
@@ -865,9 +865,9 @@
     "semantic_hash": "7249e595292058cfcb7638b9ecd0a7ed"
   },
   "src/app/api/ai/vencimientos/optimizar/route.ts": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "64139f9a0645b809aae09d82e2a77c0c",
-    "semantic_hash": "64139f9a0645b809aae09d82e2a77c0c"
+    "mtime": 1784318088.9650702,
+    "ast_hash": "5f31b00a235f6666d9a6193b1dfc946a",
+    "semantic_hash": ""
   },
   "src/app/api/analytics/recompras-avanzadas/route.ts": {
     "mtime": 1777046460.717277,
@@ -965,9 +965,9 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1783739374.1142807,
-    "ast_hash": "2d1117da73e3b92e6e4e7c37083770f8",
-    "semantic_hash": "2d1117da73e3b92e6e4e7c37083770f8"
+    "mtime": 1784297212.9409716,
+    "ast_hash": "6f1fedd0dbf2857fcaf362ed50e1f78b",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/excel/route.ts": {
     "mtime": 1776524991.5968082,
@@ -1375,9 +1375,9 @@
     "semantic_hash": "2ed3ef4d33bbef982573ecab16fd5d71"
   },
   "src/components/admin/UsuariosCard.tsx": {
-    "mtime": 1781725091.9260798,
-    "ast_hash": "eea1bf9f9d626918a11b05ac45ad1c52",
-    "semantic_hash": "eea1bf9f9d626918a11b05ac45ad1c52"
+    "mtime": 1784314966.2674258,
+    "ast_hash": "c6da2d5049aa2c6b79427c249c2009d1",
+    "semantic_hash": ""
   },
   "src/components/orders/create-order-dialog.tsx": {
     "mtime": 1782362967.723186,
@@ -1580,9 +1580,9 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1783739374.1142807,
-    "ast_hash": "a715c09314f4b11da19207d08f6bc5a3",
-    "semantic_hash": "a715c09314f4b11da19207d08f6bc5a3"
+    "mtime": 1784297212.9409716,
+    "ast_hash": "764fc1669f2d8c0792c5d8bd5a07d650",
+    "semantic_hash": ""
   },
   "src/lib/contabilidad/html-balance-prueba.ts": {
     "mtime": 1783785316.8548775,
@@ -1610,9 +1610,9 @@
     "semantic_hash": "8f7a414336739573b34b1bc110bf326c"
   },
   "src/lib/email.ts": {
-    "mtime": 1783739374.1152806,
-    "ast_hash": "c01c8123fd28351cd80bb71c5b262819",
-    "semantic_hash": "c01c8123fd28351cd80bb71c5b262819"
+    "mtime": 1784264740.2519581,
+    "ast_hash": "c6b44900ef3b1edc2bdc2c6117261a72",
+    "semantic_hash": ""
   },
   "src/lib/excel/parser.ts": {
     "mtime": 1779811940.0834012,
@@ -1650,9 +1650,9 @@
     "semantic_hash": "d75b3d3e21f4dc966c34e5b8d5692c47"
   },
   "src/lib/reports/pdf-generator.ts": {
-    "mtime": 1783739374.1152806,
-    "ast_hash": "01ef88ad4a08d6220f9c6f12e8bb4c76",
-    "semantic_hash": "01ef88ad4a08d6220f9c6f12e8bb4c76"
+    "mtime": 1784264740.2519581,
+    "ast_hash": "a1fdfc2125f9828bb023701f8e9d40ee",
+    "semantic_hash": ""
   },
   "src/lib/security-alerts.ts": {
     "mtime": 1776487219.710256,
@@ -1780,9 +1780,9 @@
     "semantic_hash": "9a5c2f15c3ec07622c90ec9fc71e7b0c"
   },
   "tests/components/CanalConfigPage.test.tsx": {
-    "mtime": 1783661476.4677336,
-    "ast_hash": "52d2ea066658d3180594b32356148906",
-    "semantic_hash": "52d2ea066658d3180594b32356148906"
+    "mtime": 1784314966.2674258,
+    "ast_hash": "3cb38d71786387e66d177af86ed21e8c",
+    "semantic_hash": ""
   },
   "tests/components/CategoriasTab.test.tsx": {
     "mtime": 1782538637.9447312,
@@ -1845,9 +1845,9 @@
     "semantic_hash": "9c2fda2d40dffe4609566af7abafa28e"
   },
   "tests/components/OptimizadorVencimientosTab.test.tsx": {
-    "mtime": 1784094885.1286416,
-    "ast_hash": "f0ce43d2d802a97401662a496db44346",
-    "semantic_hash": "f0ce43d2d802a97401662a496db44346"
+    "mtime": 1784317782.3746018,
+    "ast_hash": "b190fa27e91fcdbfa0997146ebc2dfe4",
+    "semantic_hash": ""
   },
   "tests/components/POSCleanup.test.tsx": {
     "mtime": 1782538637.9447312,
@@ -1885,9 +1885,9 @@
     "semantic_hash": "55d0dbeb61e4446be82d401334851344"
   },
   "tests/components/SalesTicketPage.test.tsx": {
-    "mtime": 1783656750.0951903,
-    "ast_hash": "cc38c4cff82d83fc1c3ebd33b3319967",
-    "semantic_hash": "cc38c4cff82d83fc1c3ebd33b3319967"
+    "mtime": 1784264740.2519581,
+    "ast_hash": "dc541ba6244a53c90bc2019e47384f53",
+    "semantic_hash": ""
   },
   "tests/components/SearchProductos.test.tsx": {
     "mtime": 1782355600.3319542,
@@ -1950,9 +1950,9 @@
     "semantic_hash": "56262e594c574ef95a4668b1816a0f0d"
   },
   "tests/integration/api/ai-vencimientos.test.ts": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "f00bd9560d76dd1d4a441cfc0a9b53a1",
-    "semantic_hash": "f00bd9560d76dd1d4a441cfc0a9b53a1"
+    "mtime": 1784317730.240541,
+    "ast_hash": "4b63d74b4b8f96ee41c860896e6909d2",
+    "semantic_hash": ""
   },
   "tests/integration/api/alimento-check.test.ts": {
     "mtime": 1779811940.0874012,
@@ -2045,9 +2045,9 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1783625512.6740143,
-    "ast_hash": "ae836b1cac4b88dff9fdf2eeca312c4d",
-    "semantic_hash": "ae836b1cac4b88dff9fdf2eeca312c4d"
+    "mtime": 1784297212.9409716,
+    "ast_hash": "c7efcd37b36902d928a938f6ccc94600",
+    "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-pdf.test.ts": {
     "mtime": 1783785316.8568773,
@@ -2360,9 +2360,9 @@
     "semantic_hash": "c539d1efaa7d3334a093c6710f3e7f42"
   },
   "tests/unit/lib/contabilidad-crear-asiento.test.ts": {
-    "mtime": 1783626270.6040413,
-    "ast_hash": "f1f2bb2a0c05450e9263d3d9719b3b7d",
-    "semantic_hash": "f1f2bb2a0c05450e9263d3d9719b3b7d"
+    "mtime": 1784297212.9419718,
+    "ast_hash": "045ce4ee1bc8d1cb8b2f2b69e9b9cd07",
+    "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-e2e-balance.test.ts": {
     "mtime": 1782362967.7241862,
@@ -2395,9 +2395,9 @@
     "semantic_hash": "5ee3b3c6d556283951c5515f6a065db2"
   },
   "tests/unit/lib/email.test.ts": {
-    "mtime": 1779811940.0934012,
-    "ast_hash": "d57b4537c330e29f54a1679aa0c24988",
-    "semantic_hash": "d57b4537c330e29f54a1679aa0c24988"
+    "mtime": 1784264740.2519581,
+    "ast_hash": "56005d9dca9b7337008739cf08013d6b",
+    "semantic_hash": ""
   },
   "tests/unit/lib/excel-parser.test.ts": {
     "mtime": 1779811940.0934012,
@@ -3650,12 +3650,12 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784180184.1267138,
+    "mtime": 1784180732.2354755,
     "ast_hash": "4c24f681348bc9176e6287532614bacc",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1784179544.7908685,
+    "mtime": 1784180732.2354755,
     "ast_hash": "03e3d38ba74cf8886d3d8fc322d9da8a",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784167966.3511982,
-    "ast_hash": "5e346cead350119124f84442c87f0fc3",
+    "mtime": 1784317869.5984507,
+    "ast_hash": "7f2dc2706a5dfc05630f1c68ff037172",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3857,6 +3857,21 @@
   ".claude/skills/graphify/references/update.md": {
     "mtime": 1784178365.5294933,
     "ast_hash": "c698309979460d0f02ba616417844399",
+    "semantic_hash": ""
+  },
+  "tests/components/SettingsPageAutoComplete.test.tsx": {
+    "mtime": 1784313957.1523101,
+    "ast_hash": "403c863492f6ca471485a0748b2b0de5",
+    "semantic_hash": ""
+  },
+  "tests/components/UsuariosCard.test.tsx": {
+    "mtime": 1784313928.8714242,
+    "ast_hash": "650caff609e012d57ed03e90f1a1c38e",
+    "semantic_hash": ""
+  },
+  "tests/unit/lib/pdf-generator-boleta.test.ts": {
+    "mtime": 1784264740.2519581,
+    "ast_hash": "33c6cbe13ebb1d0dc9ca77fe291fe0a2",
     "semantic_hash": ""
   }
 }
