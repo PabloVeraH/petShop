@@ -103,6 +103,12 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | ER-PDF-02 | Estado Resultado PDF retorna HTML con título y empresa | GET /api/contabilidad/estado-resultado/pdf | integration |
 | ER-PDF-03 | Estado Resultado PDF incluye ingresos y gastos en HTML | GET /api/contabilidad/estado-resultado/pdf | integration |
 | ER-PDF-04 | Estado Resultado PDF Content-Type es text/html | GET /api/contabilidad/estado-resultado/pdf | integration |
+| I-400 | Backfill crea asiento de ingreso + COGS para venta sin ningún asiento | POST /api/contabilidad/backfill | integration |
+| I-401 | REGRESIÓN: backfill crea asiento de ingreso faltante cuando venta solo tiene COGS (antes saltaba porque COGS y VENTA comparten tipo_movimiento="VENTA") | POST /api/contabilidad/backfill | integration |
+| I-402 | Backfill crea COGS faltante cuando venta solo tiene asiento de ingreso | POST /api/contabilidad/backfill | integration |
+| I-403 | Backfill salta venta que tiene ambos asientos (ingreso + COGS) | POST /api/contabilidad/backfill | integration |
+| I-404 | Backfill no crea COGS si costoTotal=0 | POST /api/contabilidad/backfill | integration |
+| I-413 | REGRESIÓN: backfill de ventas excluye estado='anulada' (`.neq("estado","anulada")`) — una venta anulada sin asiento de ingreso original no debe recibir uno nuevo (ingreso fantasma) | POST /api/contabilidad/backfill | integration |
 
 ## Balance HTML (BP-01 a BP-12)
 
@@ -386,6 +392,9 @@ I-406/I-407/I-408.
 | U-117 | crearAsiento retorna null tras agotar reintentos si el conflicto de numero_asiento persiste | lib/contabilidad | unit |
 | U-118 | crearAsiento NO reintenta ante errores que no sean de colisión de unicidad | lib/contabilidad | unit |
 | U-119 | REGRESIÓN: dos crearAsiento() concurrentes para la misma tienda (venta + COGS) no pierden ningún asiento por colisión de numero_asiento — causa raíz confirmada del bug "venta sin asiento de ingreso, solo aparece COGS" | lib/contabilidad | unit |
+| U-124 | REGRESIÓN: crearAsiento reintenta el ciclo completo (nuevo numero_asiento + insert) cuando journal_detail falla en el 1er intento y tiene éxito en el 2do — causa raíz real confirmada contra producción: venta 20260707-9CE8F125 con asiento COGS pero sin asiento de ingreso, sin colisión de numero_asiento ni venta concurrente | lib/contabilidad | unit |
+| U-125 | crearAsiento retorna null y hace rollback (delete) tras agotar los reintentos si journal_detail falla en todos los intentos | lib/contabilidad | unit |
+| U-126 | crearAsiento loguea el número de intentos agotados cuando journal_detail falla persistentemente | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

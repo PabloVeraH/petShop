@@ -17,19 +17,26 @@ interface MockOptions {
   deleteResult?: { error: null };
 }
 
+// Cíclico por intento — [0]=nextNumeroAsiento (select), [1]=insert entry,
+// [2]=delete de rollback (solo ocurre si journal_detail falló). Necesario
+// porque crearAsiento() ahora reintenta el ciclo completo (select→insert→
+// detail→[delete si falla]) hasta MAX_DETALLE_RETRIES veces — un mock lineal
+// de solo 2 pasos + "todo lo demás es delete" rompería en el 2do intento
+// (nextNumeroAsiento necesita .select(), no .delete()).
 function makeSupabaseMock({
   lastNumero = 5,
   entryResult = { data: { id: "entry-uuid-1" }, error: null },
   detailResult = { error: null },
   deleteResult = { error: null },
 }: MockOptions = {}) {
-  let journalEntriesCallIdx = 0;
+  let step = 0;
 
   const mockFrom = jest.fn((table: string) => {
     if (table === "journal_entries") {
-      journalEntriesCallIdx++;
+      const currentStep = step % 3;
+      step++;
 
-      if (journalEntriesCallIdx === 1) {
+      if (currentStep === 0) {
         // nextNumeroAsiento: .select().eq().order().limit().single()
         return {
           select: jest.fn().mockReturnThis(),
@@ -43,7 +50,7 @@ function makeSupabaseMock({
         };
       }
 
-      if (journalEntriesCallIdx === 2) {
+      if (currentStep === 1) {
         // insert entry: .insert().select().single()
         return {
           insert: jest.fn().mockReturnThis(),
@@ -52,7 +59,7 @@ function makeSupabaseMock({
         };
       }
 
-      // delete (rollback): .delete().eq()
+      // delete (rollback tras fallo de journal_detail): .delete().eq()
       return {
         delete: jest.fn().mockReturnThis(),
         eq: jest.fn().mockResolvedValue(deleteResult),
@@ -216,7 +223,7 @@ describe("crearAsiento", () => {
       expect(result).toBeNull();
     });
 
-    it("retorna null y hace rollback cuando journal_detail insert falla", async () => {
+    it("retorna null y hace rollback cuando journal_detail insert falla en todos los intentos", async () => {
       const client = makeSupabaseMock({
         detailResult: { error: { message: "FK violation" } },
       });
@@ -399,6 +406,132 @@ describe("crearAsiento", () => {
       expect(cogsId).not.toBeNull();
       expect(ventaId).not.toBe(cogsId);
       expect(createdIds).toHaveLength(2);
+    });
+  });
+
+  // REGRESIÓN CRÍTICA — causa raíz real confirmada contra producción (proyecto
+  // wnxrdbnvreofrrmhcybc): venta 20260707-9CE8F125 tiene únicamente el asiento
+  // COGS (numero_asiento 79) en journal_entries; no existe asiento de ingreso
+  // para esa venta. Se descartó colisión de numero_asiento (ninguna otra fila
+  // ocupa el número 79 ni hay hueco en la secuencia) y concurrencia externa
+  // (no hay otra venta de la misma tienda en la misma ventana de tiempo). El
+  // único punto de falla sin reintento en crearAsiento() es el insert de
+  // journal_detail: si falla por CUALQUIER razón transitoria, el rollback
+  // (delete de journal_entries) libera el numero_asiento recién usado — la
+  // SIGUIENTE llamada a crearAsiento() en la misma request (asiento2/COGS)
+  // recalcula next-numero-asiento, ve el número liberado, y lo reclama con
+  // éxito, ocultando el hueco. El asiento de ingreso (asiento1) se pierde sin
+  // más intentos porque insertJournalEntryConNumeroUnico solo reintenta ante
+  // colisión UNIQUE (23505), no ante fallos del insert de journal_detail.
+  describe("reintento por fallo transitorio de journal_detail (causa raíz venta 20260707-9CE8F125)", () => {
+    function makeDetalleRetryMock(detailResults: Array<{ error: { message: string } | null }>) {
+      let step = 0;
+      let detailCallIdx = 0;
+      const insertedNumeros: number[] = [];
+      const deletedIds: string[] = [];
+
+      const mockFrom = jest.fn((table: string) => {
+        if (table === "journal_entries") {
+          const currentStep = step % 3;
+          step++;
+
+          if (currentStep === 0) {
+            const lastNumero = insertedNumeros.length > 0 ? Math.max(...insertedNumeros) : 5;
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              order: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockReturnThis(),
+              single: jest.fn().mockResolvedValue({ data: { numero_asiento: lastNumero }, error: null }),
+            };
+          }
+
+          if (currentStep === 1) {
+            return {
+              insert: jest.fn((payload: { numero_asiento: number }) => {
+                insertedNumeros.push(payload.numero_asiento);
+                return {
+                  select: jest.fn().mockReturnThis(),
+                  single: jest.fn().mockResolvedValue({
+                    data: { id: `entry-intento-${insertedNumeros.length}` },
+                    error: null,
+                  }),
+                };
+              }),
+            };
+          }
+
+          // delete (rollback tras fallo de journal_detail)
+          return {
+            delete: jest.fn().mockReturnThis(),
+            eq: jest.fn((_field: string, id: string) => {
+              deletedIds.push(id);
+              // "libera" el número asociado a esa entrada para el próximo intento
+              return Promise.resolve({ error: null });
+            }),
+          };
+        }
+
+        if (table === "journal_detail") {
+          const result = detailResults[detailCallIdx] ?? detailResults[detailResults.length - 1];
+          detailCallIdx++;
+          return { insert: jest.fn().mockResolvedValue(result) };
+        }
+
+        return {};
+      });
+
+      return { from: mockFrom, insertedNumeros, deletedIds, getDetailCallCount: () => detailCallIdx };
+    }
+
+    // U-124
+    it("U-124: REGRESIÓN — reintenta con nuevo numero_asiento cuando journal_detail falla en el 1er intento y tiene éxito en el 2do", async () => {
+      const client = makeDetalleRetryMock([
+        { error: { message: "connection reset" } },
+        { error: null },
+      ]);
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBe("entry-intento-2");
+      expect(client.getDetailCallCount()).toBe(2);
+      expect(client.deletedIds).toHaveLength(1); // rollback del 1er intento fallido
+      expect(client.insertedNumeros).toHaveLength(2); // 2 números distintos usados
+    });
+
+    // U-125
+    it("U-125: retorna null y hace rollback tras agotar reintentos si journal_detail falla en todos los intentos", async () => {
+      const client = makeDetalleRetryMock([
+        { error: { message: "connection reset" } },
+        { error: { message: "connection reset" } },
+        { error: { message: "connection reset" } },
+      ]);
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBeNull();
+      expect(client.getDetailCallCount()).toBe(3);
+      expect(client.deletedIds).toHaveLength(3); // rollback en cada uno de los 3 intentos
+    });
+
+    // U-126
+    it("U-126: loguea el número de intentos agotados cuando journal_detail falla persistentemente", async () => {
+      const client = makeDetalleRetryMock([
+        { error: { message: "connection reset" } },
+        { error: { message: "connection reset" } },
+        { error: { message: "connection reset" } },
+      ]);
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      await crearAsiento(INPUT_BASE);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("No se pudo crear el detalle del asiento tras 3 intentos")
+      );
+      consoleSpy.mockRestore();
     });
   });
 

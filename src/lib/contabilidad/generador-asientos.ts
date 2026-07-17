@@ -17,6 +17,7 @@ async function nextNumeroAsiento(supabase: ReturnType<typeof createServiceClient
 // Código de error Postgres para violación de constraint UNIQUE
 const UNIQUE_VIOLATION = "23505";
 const MAX_NUMERO_ASIENTO_RETRIES = 5;
+const MAX_DETALLE_RETRIES = 3;
 
 // nextNumeroAsiento() hace lectura-luego-escritura sin lock: dos crearAsiento()
 // concurrentes para la misma tienda (ej. pago múltiple de cuentas por pagar,
@@ -91,29 +92,43 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
     return null;
   }
 
-  const entry = await insertJournalEntryConNumeroUnico(supabase, input, td, tc, balanceado);
-  if (!entry) return null;
+  // El insert de journal_detail puede fallar por razones transitorias (timeout,
+  // colisión de conexión, staleness del schema cache de PostgREST — ver commit
+  // 24cfb1a) independientes de la colisión de numero_asiento que ya reintenta
+  // insertJournalEntryConNumeroUnico. Sin este reintento externo, un fallo aquí
+  // borra el asiento recién creado (rollback) y lo pierde para siempre en el
+  // primer intento — causa raíz confirmada de "venta con asiento COGS pero sin
+  // asiento de ingreso" (venta real 20260707-9CE8F125, verificado contra
+  // producción: sin numero_asiento en colisión, sin venta concurrente — el
+  // asiento de ingreso simplemente nunca tuvo una segunda oportunidad).
+  for (let intento = 0; intento < MAX_DETALLE_RETRIES; intento++) {
+    const entry = await insertJournalEntryConNumeroUnico(supabase, input, td, tc, balanceado);
+    if (!entry) return null;
 
-  const detalles = input.lineas.map((l, i) => ({
-    journal_entry_id: entry.id,
-    numero_linea: i + 1,
-    cuenta_codigo: l.cuentaCodigo,
-    cuenta_nombre: l.cuentaNombre,
-    cuenta_tipo: l.cuentaTipo ?? null,
-    debito: l.debito ?? 0,
-    credito: l.credito ?? 0,
-    descripcion_linea: l.descripcionLinea ?? null,
-  }));
+    const detalles = input.lineas.map((l, i) => ({
+      journal_entry_id: entry.id,
+      numero_linea: i + 1,
+      cuenta_codigo: l.cuentaCodigo,
+      cuenta_nombre: l.cuentaNombre,
+      cuenta_tipo: l.cuentaTipo ?? null,
+      debito: l.debito ?? 0,
+      credito: l.credito ?? 0,
+      descripcion_linea: l.descripcionLinea ?? null,
+    }));
 
-  const { error: detErr } = await supabase.from("journal_detail").insert(detalles);
+    const { error: detErr } = await supabase.from("journal_detail").insert(detalles);
 
-  if (detErr) {
-    console.error("[contabilidad] Error creando journal_detail:", detErr.message);
+    if (!detErr) return entry.id;
+
+    console.error(
+      `[contabilidad] Error creando journal_detail (intento ${intento + 1}/${MAX_DETALLE_RETRIES}):`,
+      detErr.message
+    );
     await supabase.from("journal_entries").delete().eq("id", entry.id);
-    return null;
   }
 
-  return entry.id;
+  console.error(`[contabilidad] No se pudo crear el detalle del asiento tras ${MAX_DETALLE_RETRIES} intentos | ${input.descripcion}`);
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────

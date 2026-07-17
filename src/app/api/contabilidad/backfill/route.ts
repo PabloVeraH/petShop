@@ -18,10 +18,17 @@ export async function POST(req: NextRequest) {
   // tipo_movimiento="VENTA". La consulta debe filtrar SOLO los de ingreso
   // (descripcion empieza con "Venta") para no saltarse ventas cuyo asiento
   // de COGS existe pero el de ingreso falló.
+  //
+  // Excluye ventas anuladas: una venta 'anulada' que perdió su asiento de
+  // ingreso original NO debe recibir uno nuevo — no hay ingreso que reconocer
+  // para una venta sin efecto económico vigente, y crearlo generaría un
+  // ingreso fantasma que el Estado de Resultado no debe contar (mismo
+  // principio que 685f07a: ventas anuladas fuera de ingresos).
   const { data: ventasBackfill } = await supabase
     .from("ventas")
     .select("id, created_at, total, metodo_pago, numero_comprobante")
     .eq("store_id", store_id)
+    .neq("estado", "anulada")
     .order("created_at", { ascending: true });
 
   const { data: asientosIngreso } = await supabase

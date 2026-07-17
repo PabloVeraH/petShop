@@ -36,6 +36,7 @@ function chain(thenData: unknown = { data: null, error: null }) {
     insert: jest.fn(() => c),
     update: jest.fn(() => c),
     eq: jest.fn(() => c),
+    neq: jest.fn(() => c),
     in: jest.fn(() => c),
     order: jest.fn(() => c),
     not: jest.fn(() => c),
@@ -167,6 +168,30 @@ describe("POST /api/contabilidad/backfill", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.creados).toBe(0);
+    expect(crearAsiento).not.toHaveBeenCalled();
+  });
+
+  // I-413 — REGRESIÓN: una venta anulada que perdió su asiento de ingreso
+  // original (mismo bug de U-124) no debe recibir uno nuevo vía backfill —
+  // crear ingreso para una venta sin efecto económico vigente sería un
+  // ingreso fantasma (mismo principio que 685f07a: anuladas fuera de
+  // ingresos). La query de ventas del backfill debe filtrar por
+  // estado != 'anulada' antes de decidir a quién le falta el asiento.
+  it("I-413: REGRESIÓN — la consulta de ventas para backfill excluye estado='anulada'", async () => {
+    const ventasChain = chain(Promise.resolve({ data: [], error: null }));
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "ventas") return ventasChain;
+        return chain(Promise.resolve({ data: [], error: null }));
+      }),
+      rpc: jest.fn(),
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+
+    expect(ventasChain.neq).toHaveBeenCalledWith("estado", "anulada");
     expect(crearAsiento).not.toHaveBeenCalled();
   });
 });
