@@ -1,6 +1,6 @@
 /**
  * Tests adicionales: Clerk webhook session.created
- * I-251 a I-252
+ * I-251, I-252, I-281
  */
 import { NextRequest } from "next/server";
 
@@ -33,10 +33,15 @@ describe("POST /api/webhooks/clerk — session.created", () => {
   });
 
   // I-251
-  it("I-251: session.created → inserta en user_sessions", async () => {
+  it("I-251: session.created inserta ip_address y user_agent del evento", async () => {
     const event = {
       type: "session.created",
-      data: { user_id: "user_abc", id: "sess_xyz123" },
+      data: {
+        user_id: "user_abc",
+        id: "sess_xyz123",
+        ip_address: "192.168.1.1",
+        user_agent: "Mozilla/5.0 TestBrowser",
+      },
     };
     mockVerify.mockReturnValue(event);
 
@@ -59,7 +64,14 @@ describe("POST /api/webhooks/clerk — session.created", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockInsert).toHaveBeenCalled();
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: "user_abc",
+      store_id: "store_xyz",
+      clerk_session_id: "sess_xyz123",
+      event_type: "session.created",
+      ip_address: "192.168.1.1",
+      user_agent: "Mozilla/5.0 TestBrowser",
+    }));
   });
 
   // I-252
@@ -94,6 +106,42 @@ describe("POST /api/webhooks/clerk — session.created", () => {
       store_id: null,
       clerk_session_id: "sess_unknown",
       event_type: "session.created",
+      ip_address: null,
+      user_agent: null,
+    }));
+  });
+
+  // I-281
+  it("I-281: session.ended inserta ip_address null cuando el evento no los trae", async () => {
+    const event = {
+      type: "session.ended",
+      data: { user_id: "user_abc", id: "sess_xyz123" },
+    };
+    mockVerify.mockReturnValue(event);
+
+    const singleMock = jest.fn().mockResolvedValue({ data: { store_id: "store_xyz" }, error: null });
+    const eqMock = jest.fn().mockReturnValue({ single: singleMock });
+    const selectChain = { eq: eqMock };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") return { select: mockSelect.mockReturnValue(selectChain) };
+      return { insert: mockInsert.mockResolvedValue({ error: null }) };
+    });
+    mockSelect.mockReturnValue(selectChain);
+
+    const { POST } = await import("@/app/api/webhooks/clerk/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/webhooks/clerk", {
+        method: "POST",
+        headers: svixHeaders(),
+        body: JSON.stringify(event),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      event_type: "session.ended",
+      ip_address: null,
+      user_agent: null,
     }));
   });
 });

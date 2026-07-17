@@ -75,6 +75,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-95 | GET retorna null en license fields cuando no hay licencia configurada | GET /api/settings | integration |
 | I-96 | GET retorna licencia con fecha vencida | GET /api/settings | integration |
 | C-42 | REGRESIÓN: sección WhatsApp — Access Token tiene autoComplete="new-password"; Phone Number ID y Verify Token tienen autoComplete="off" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | SettingsPage | component |
+| C-43 | Tab Sesiones muestra IP y User-Agent cuando están presentes en datos | AuditoriaCard | component |
 | S-01 | Sección Licencia visible con fechas y estado Activa | SettingsPage | component |
 | S-02 | Sin fechas configuradas muestra "Sin configurar" | SettingsPage | component |
 | S-03 | Licencia vencida muestra "VENCIDA" | SettingsPage | component |
@@ -239,10 +240,12 @@ I-406/I-407/I-408.
 | I-409 | REGRESIÓN: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente (no $0) | GET /api/workers | integration |
 | I-410 | Venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás | GET /api/workers | integration |
 
-## Infraestructura (I-263 a I-278)
+## Infraestructura (I-251 a I-282)
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
+| I-251 | session.created inserta ip_address y user_agent del evento Clerk | POST /api/webhooks/clerk | integration |
+| I-252 | session.created sin clerk_user inserta sesión con store_id null | POST /api/webhooks/clerk | integration |
 | I-253 | GET /health retorna status:ok con timestamp ISO | GET /api/health | integration |
 | I-254 | GET recompras retorna lista vacía si no hay alertas | GET /api/recompras | integration |
 | I-255 | GET recompras filtra sugerencias a ≤ 14 días | GET /api/recompras | integration |
@@ -259,6 +262,7 @@ I-406/I-407/I-408.
 | I-278 | GET analytics/recompras-avanzadas delega a getReorderSuggestions | GET /api/analytics/recompras-avanzadas | integration |
 | I-279 | Venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × producto.costo | POST /api/ventas | integration |
 | I-280 | Descripcion del asiento contable incluye metodo de pago y nombre del cliente (sin UUID) | POST /api/ventas | integration |
+| I-281 | session.ended inserta ip_address null cuando el evento no trae el campo | POST /api/webhooks/clerk | integration |
 | I-290 | GET stores como storeAdmin retorna solo su propia tienda | GET /api/admin/stores | integration |
 | I-291 | GET users como storeAdmin retorna usuarios de su tienda | GET /api/admin/users | integration |
 | I-292 | GET stores como storeAdmin sin storeId retorna 403 | GET /api/admin/stores | integration |

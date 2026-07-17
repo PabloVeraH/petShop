@@ -327,6 +327,27 @@ describe("AuditoriaCard — extended tabs", () => {
     }, { timeout: 5000 });
   });
 
+  // C-43
+  it("C-43: tab 'Sesiones' muestra IP y User-Agent cuando están presentes", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("user-sessions")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: mockSessions, count: 1 }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: [], count: 0 }) });
+    });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.click(screen.getByText("Sesiones de usuarios"));
+
+    await waitFor(() => {
+      expect(screen.getByText(mockSessions[0].ip_address)).toBeInTheDocument();
+    }, { timeout: 5000 });
+    expect(screen.getByText(mockSessions[0].user_agent)).toBeInTheDocument();
+  });
+
   // C-37
   it("C-37: cards de resumen muestran stats", async () => {
     mockFetch.mockImplementation((url: string) => {
