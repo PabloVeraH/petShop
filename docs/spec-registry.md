@@ -96,6 +96,16 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-323 | crearAsiento retorna null durante COGS y existe cierre concurrente → 409 | POST /api/contabilidad/cierre-mes | integration |
 | I-324 | crearAsiento retorna null durante COGS sin cierre concurrente → 500 | POST /api/contabilidad/cierre-mes | integration |
 | I-328 a I-336 | **RETIRADOS** (migración 053) — probaban la lógica de reversión NC-aware (stock/fidelización/saldo) vía mocks de `.from()`; esa lógica se movió a la función transaccional `anular_venta_tx` y dejaron de ejercitar código de la ruta. Verificados directamente contra la función real en Supabase (transacción con ROLLBACK) — ver AGENTS.md §22.5 y el commit de la revisión. | PATCH /api/ventas/[id] | — |
+| I-330 | POST cierre-mes crea respaldo en cierre_mes_backups antes de ejecutar | POST /api/contabilidad/cierre-mes | integration |
+| I-331 | POST cierre-mes NO crea respaldo cuando calcular_costo_venta=false | POST /api/contabilidad/cierre-mes | integration |
+| I-332 | POST cierre-mes NO crea respaldo cuando cogs_estimado=0 | POST /api/contabilidad/cierre-mes | integration |
+| I-333 | Respaldo incluye snapshot del período antes del cierre | POST /api/contabilidad/cierre-mes | integration |
+| I-340 | Preview retorna 401 sin autenticación | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-341 | Preview retorna 400 con parámetros inválidos | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-342 | Preview retorna datos del período sin crear asientos | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-343 | Preview calcula cogs_estimado desde compras del período | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-344 | Preview detecta período ya cerrado (ya_tiene_cierre=true) | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-345 | Preview no produce efectos secundarios (no INSERT/UPDATE/DELETE) | GET /api/contabilidad/cierre-mes/preview | integration |
 | BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |
@@ -340,6 +350,10 @@ I-406/I-407/I-408.
 | CP-17 | REGRESIÓN — botón PDF (y Excel) permanece visible en tab Estado de Resultado, con href correcto | ContabilidadPage | component |
 | CP-18 | Al alternar entre tabs solo hay un botón PDF visible a la vez, con el href de la tab activa | ContabilidadPage | component |
 | CP-19 | El título (h1) refleja el tab activo (Libro Diario / Balance de Comprobación / Estado de Resultado) | ContabilidadPage | component |
+| CP-20 | Al abrir modal de cierre se fetchea vista previa | ContabilidadPage | component |
+| CP-21 | Modal muestra datos de la vista previa (asientos, COGS, balance) | ContabilidadPage | component |
+| CP-22 | Vista previa en loading no bloquea apertura del modal | ContabilidadPage | component |
+| CP-23 | Confirmar cierre funciona aunque preview haya fallado | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |

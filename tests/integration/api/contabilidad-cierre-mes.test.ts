@@ -35,6 +35,8 @@ function createChain(resolveValue: object) {
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
   };
   // Make the chain thenable (resolves to the provided data)
   chain.then = (resolve: Function) => resolve(resolveValue);

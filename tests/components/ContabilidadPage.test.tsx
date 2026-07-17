@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-15: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
+ * Tests CP-01 a CP-23: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -13,6 +13,10 @@
  * CP-13  Período cerrado deshabilita botón y muestra badge ✓ Cerrado
  * CP-14  Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado
  * CP-15  Error 409 concurrente refresca libro-diario y muestra "✓ Cerrado"
+ * CP-20  Al abrir modal se fetchea vista previa del cierre
+ * CP-21  Modal muestra datos de la vista previa (asientos, COGS, balance)
+ * CP-22  Vista previa en loading no bloquea apertura del modal
+ * CP-23  Confirmar cierre funciona aunque preview haya fallado
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -49,6 +53,19 @@ let mockLibroDiarioResponse: object = {
   resumen: { total_asientos: 5, total_debitos: 50000, total_creditos: 50000, balanceado: true },
 };
 
+let mockPreviewResponse: object = {
+  periodo: "2026-06",
+  desde: "2026-06-01",
+  hasta: "2026-06-30",
+  numero_asientos: 5,
+  total_debitos: 50000,
+  total_creditos: 50000,
+  balanceado: true,
+  cogs_estimado: 8000,
+  ya_tiene_cierre: false,
+  asientos_cierre_count: 1,
+};
+
 let mockCierreResponse: { ok: boolean; status: number; body: object } = {
   ok: true,
   status: 201,
@@ -65,6 +82,13 @@ let mockCierreResponse: { ok: boolean; status: number; body: object } = {
 };
 
 function defaultFetchMock(url: string) {
+  if (String(url).includes("cierre-mes/preview")) {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => mockPreviewResponse,
+    });
+  }
   if (String(url).includes("cierre-mes")) {
     return Promise.resolve({
       ok: mockCierreResponse.ok,
@@ -106,6 +130,26 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
     // Restore default fetch mock (tests like CP-07 may override)
     (global.fetch as jest.Mock).mockReset();
     (global.fetch as jest.Mock).mockImplementation(defaultFetchMock);
+    mockLibroDiarioResponse = {
+      periodo: "junio 2026",
+      desde: "2026-06-01",
+      hasta: "2026-06-30",
+      empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+      asientos: [],
+      resumen: { total_asientos: 5, total_debitos: 50000, total_creditos: 50000, balanceado: true },
+    };
+    mockPreviewResponse = {
+      periodo: "2026-06",
+      desde: "2026-06-01",
+      hasta: "2026-06-30",
+      numero_asientos: 5,
+      total_debitos: 50000,
+      total_creditos: 50000,
+      balanceado: true,
+      cogs_estimado: 8000,
+      ya_tiene_cierre: false,
+      asientos_cierre_count: 1,
+    };
     mockCierreResponse = {
       ok: true,
       status: 201,
@@ -395,6 +439,123 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
       expect(screen.getByText(/✓ Cerrado/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /Cierre de Mes/i })).toBeDisabled();
+  });
+
+  // CP-20 — al abrir modal se fetchea preview
+  it("CP-20: al abrir modal se fetchea vista previa del cierre", async () => {
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+
+    await waitFor(() => {
+      // Solo primer argumento (URL) — GET fetch no pasa segundo argumento
+      const calls = (global.fetch as jest.Mock).mock.calls.filter(
+        (c: unknown[]) => String(c[0]).includes("cierre-mes/preview")
+      );
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // CP-21 — modal muestra datos de preview: asientos, COGS, balance
+  it("CP-21: modal muestra datos de la vista previa (asientos, COGS, balance)", async () => {
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Vista previa del período/i)).toBeInTheDocument();
+    });
+
+    // Preview data should be visible
+    // Some values appear in both resumen cards AND preview grid:
+    expect(screen.getAllByText("5").length).toBeGreaterThanOrEqual(2);      // asientos
+    expect(screen.getAllByText("$50.000").length).toBeGreaterThanOrEqual(2); // débitos y créditos
+    expect(screen.getAllByText(/✓ Cuadrado/i).length).toBeGreaterThanOrEqual(2);
+    // Values unique to the preview section:
+    expect(screen.getByText("$8.000")).toBeInTheDocument();  // cogs_estimado (only in preview)
+    expect(screen.getByText("1")).toBeInTheDocument();        // asientos_cierre_count (only in preview)
+  });
+
+  // CP-22 — preview loading no bloquea el modal
+  it("CP-22: vista previa en loading no bloquea apertura del modal", async () => {
+    // Make preview hang by using a promise that never resolves quickly
+    const hangController = new AbortController();
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (String(url).includes("cierre-mes/preview")) {
+        return new Promise(() => {}); // never resolves
+      }
+      if (String(url).includes("cierre-mes")) {
+        return Promise.resolve({
+          ok: mockCierreResponse.ok,
+          status: mockCierreResponse.status,
+          json: async () => mockCierreResponse.body,
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => mockLibroDiarioResponse,
+      });
+    });
+
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+
+    // Modal is visible even while preview loads
+    expect(screen.getByText(/Confirmar Cierre de Mes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cargando vista previa/i)).toBeInTheDocument();
+
+    // Cancel button works
+    fireEvent.click(screen.getByRole("button", { name: /^Cancelar$/i }));
+    expect(screen.queryByText(/Confirmar Cierre de Mes/i)).not.toBeInTheDocument();
+  });
+
+  // CP-23 — confirmar cierre funciona aunque preview haya fallado
+  it("CP-23: confirmar cierre funciona aunque preview haya fallado", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (String(url).includes("cierre-mes/preview")) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: "preview error" }),
+        });
+      }
+      if (String(url).includes("cierre-mes")) {
+        return Promise.resolve({
+          ok: mockCierreResponse.ok,
+          status: mockCierreResponse.status,
+          json: async () => mockCierreResponse.body,
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => mockLibroDiarioResponse,
+      });
+    });
+
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/No se pudo cargar la vista previa/i)).toBeInTheDocument();
+    });
+
+    // Confirm still works
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar cierre/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/contabilidad/cierre-mes",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/✓ Cierre realizado/i)).toBeInTheDocument();
+    });
   });
 
   // CP-16 — REGRESIÓN: el botón PDF (y Excel) desaparecía al navegar a Balance de Comprobación
