@@ -79,7 +79,7 @@ export default function POSPage() {
       setShowPagoModal(false);
       setVentaError(null);
       setVentaExito(true);
-      queryClient.invalidateQueries({ queryKey: ["productos"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {
