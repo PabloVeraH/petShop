@@ -59,7 +59,7 @@ export async function GET() {
   if (!data) return NextResponse.json(null);
 
   // Cross-validar recomendaciones cacheadas contra el catálogo actual
-  const recs = data.recomendaciones as { producto_id: string; nombre: string; sku: string; dias_hasta_vencer: number; stock: number; precio_actual: number; descuento_recomendado: number; motivo: string }[];
+  const recs = data.recomendaciones as { producto_id: string; nombre: string; sku: string; dias_hasta_vencer: number; stock: number; precio_actual: number; descuento_recomendado: number; motivo: string; fecha_vencimiento?: string }[];
   if (!recs?.length) return NextResponse.json(data);
 
   const productoIds = recs.map(r => r.producto_id);
@@ -72,7 +72,7 @@ export async function GET() {
   const currentMap = new Map((productosActuales ?? []).map(p => [p.id, p]));
 
   const hoy = new Date();
-  const validas: typeof recs = [];
+  const validas: (typeof recs[number] & { datos_desactualizados: boolean })[] = [];
   let productosObsoletos = 0;
 
   for (const rec of recs) {
@@ -86,10 +86,24 @@ export async function GET() {
       productosObsoletos++;
       continue;
     }
+    const stockFresco = Number(actual.stock);
+    // Días/Stock se refrescan contra el catálogo actual, pero razon/
+    // mensaje_whatsapp/urgencia/estrategia/descuento fueron generados por el
+    // LLM en el momento del análisis y NO se regeneran aquí. Si el stock o la
+    // fecha_vencimiento cambiaron desde entonces (nuevo lote, venta, ajuste),
+    // ese texto ya no describe los números que se muestran en la fila —
+    // marcarlo para que el frontend lo señale en vez de mezclar datos vivos
+    // y texto obsoleto sin aviso (fecha_vencimiento solo se compara si el
+    // análisis cacheado la registró; análisis previos a este fix no la
+    // tienen y no deben generar falsos positivos).
+    const datosDesactualizados =
+      (rec.fecha_vencimiento != null && rec.fecha_vencimiento !== actual.fecha_vencimiento) ||
+      Number(rec.stock) !== stockFresco;
     validas.push({
       ...rec,
       dias_hasta_vencer: Math.floor((new Date(actual.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)),
-      stock: Number(actual.stock),
+      stock: stockFresco,
+      datos_desactualizados: datosDesactualizados,
     });
   }
 
@@ -200,7 +214,12 @@ export async function POST(req: NextRequest) {
   let recomendaciones;
   try {
     const rawRecs = await analizarConReintentoSiTimeout(apiKey, model, productosParaIA, fechaHoyStr);
-    // Merge back stock y dias_hasta_vencer desde productosParaIA (el LLM no los retorna)
+    // Merge back stock, dias_hasta_vencer y fecha_vencimiento desde
+    // productosParaIA (el LLM no los retorna). fecha_vencimiento se persiste
+    // junto a la recomendación para que GET() pueda detectar más adelante si
+    // el producto cambió desde este análisis (nuevo lote, restock) y marcar
+    // la fila como desactualizada en vez de mezclar texto viejo con columnas
+    // de datos en vivo sin aviso.
     const productoMap = new Map(productosParaIA.map(p => [p.producto_id, p]));
     recomendaciones = rawRecs
       .filter(rec => {
@@ -212,6 +231,7 @@ export async function POST(req: NextRequest) {
         ...rec,
         dias_hasta_vencer: productoMap.get(rec.producto_id)!.dias_hasta_vencer,
         stock:             productoMap.get(rec.producto_id)!.stock,
+        fecha_vencimiento: productoMap.get(rec.producto_id)!.fecha_vencimiento,
       }));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error inesperado al llamar al modelo";

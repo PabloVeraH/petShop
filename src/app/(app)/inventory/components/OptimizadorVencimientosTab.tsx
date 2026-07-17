@@ -18,6 +18,12 @@ interface RecomendacionVencimiento {
   mensaje_whatsapp: string;
   dias_hasta_vencer: number;
   stock: number;
+  // Solo presente en resultados servidos desde caché (GET). true cuando el
+  // producto cambió (nuevo lote, venta, ajuste) desde que se generó este
+  // texto — las columnas Días/Stock ya muestran datos en vivo, pero razon/
+  // mensaje_whatsapp/urgencia/estrategia/descuento siguen siendo los del
+  // análisis original y pueden no coincidir con esos números.
+  datos_desactualizados?: boolean;
 }
 
 interface AnalisisResultado {
@@ -260,7 +266,17 @@ export function OptimizadorVencimientosTab() {
                     >
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium">{rec.razon}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{rec.razon}</p>
+                            {rec.datos_desactualizados && (
+                              <Badge
+                                className="bg-amber-100 text-amber-700 shrink-0"
+                                title="El producto cambió (nuevo lote, venta o ajuste) desde que se generó este texto — Días y Stock ya son actuales, pero la recomendación puede no coincidir"
+                              >
+                                Texto desactualizado
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             {rec.mensaje_whatsapp.length > 60
                               ? `${rec.mensaje_whatsapp.substring(0, 60)}...`
@@ -348,6 +364,12 @@ export function OptimizadorVencimientosTab() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {detalle.datos_desactualizados && (
+                <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  El producto cambió (nuevo lote, venta o ajuste) desde que se generó este análisis.
+                  Días y Stock ya muestran datos actuales, pero el texto de abajo puede no coincidir.
+                </div>
+              )}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Análisis</p>
                 <p className="text-sm">{detalle.razon}</p>

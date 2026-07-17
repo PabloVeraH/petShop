@@ -328,6 +328,46 @@ describe("POST /api/ai/vencimientos/optimizar", () => {
     const body = await res.json();
     expect(body.error).toContain("API key inválida");
   });
+
+  // I-AI-18: POST persiste fecha_vencimiento junto a cada recomendación
+  // guardada, para que GET pueda detectar más adelante si el producto
+  // cambió desde el análisis (nuevo lote, restock).
+  it("I-AI-18: POST persiste fecha_vencimiento del producto en cada recomendación guardada", async () => {
+    setupStoreAdmin();
+    mockAnalizarIA.mockResolvedValue([DB_RECOMENDACION]);
+    const mockInsert = jest.fn().mockResolvedValue({ data: null, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "stores") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { openrouter_model: "z-ai/glm-4.5-air:free" }, error: null }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(), lte: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+      };
+      if (table === "ai_vencimientos_analisis") return { insert: mockInsert };
+      // venta_items
+      return {
+        select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const res = await POST(makeRequest({ diasAlerta: 30 }));
+    expect(res.status).toBe(200);
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recomendaciones: expect.arrayContaining([
+          expect.objectContaining({
+            producto_id: PRODUCTO_ID,
+            fecha_vencimiento: DB_PRODUCTO.fecha_vencimiento,
+          }),
+        ]),
+      })
+    );
+  });
 });
 
 describe("GET /api/ai/vencimientos/optimizar", () => {
@@ -454,5 +494,198 @@ describe("GET /api/ai/vencimientos/optimizar", () => {
 
     expect(body.recomendaciones).toHaveLength(0);
     expect(body.productos_obsoletos).toBe(1);
+  });
+
+  // I-AI-14: REGRESIÓN — el texto de la recomendación (razon, mensaje_whatsapp,
+  // urgencia) no se regenera al servir la caché; GET solo refresca Días/Stock
+  // contra el catálogo actual. Si el stock cambió desde el análisis (venta,
+  // restock, ajuste) mientras el producto sigue activo con la misma
+  // fecha_vencimiento, el texto ya no describe esos números — GET debe
+  // marcar datos_desactualizados=true para que el frontend lo señale en vez
+  // de mostrar ambos sin aviso. Repro real: texto "vence en 1 día, 90
+  // unidades" junto a columnas Días=105/Stock=101 sin ninguna indicación de
+  // que el texto es del análisis original.
+  it("I-AI-14: REGRESIÓN — GET marca datos_desactualizados=true cuando el stock cambió desde el análisis", async () => {
+    const PROD_ID = "d0000000-0000-0000-0000-000000000004";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              {
+                producto_id: PROD_ID, urgencia: "alta", estrategia: "descuento",
+                descuento_sugerido_pct: 30, precio_oferta_sugerido: 17500,
+                razon: "Vence en 1 día, quedan 90 unidades.", mensaje_whatsapp: "Oferta!",
+                dias_hasta_vencer: 1, stock: 90, fecha_vencimiento: "2026-07-18",
+              },
+            ],
+            modelo_usado: "test-model", productos_analizados: 1,
+            created_at: "2026-07-17T00:00:00Z", dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          data: [{ id: PROD_ID, activo: true, stock: 101, fecha_vencimiento: "2026-07-18" }],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.recomendaciones).toHaveLength(1);
+    expect(body.recomendaciones[0].stock).toBe(101); // columna en vivo
+    expect(body.recomendaciones[0].razon).toBe("Vence en 1 día, quedan 90 unidades."); // texto sin regenerar
+    expect(body.recomendaciones[0].datos_desactualizados).toBe(true);
+  });
+
+  // I-AI-15: REGRESIÓN — mismo mecanismo, disparado por un cambio de
+  // fecha_vencimiento (ej. nuevo lote reemplazó el que estaba por vencer)
+  // en vez de un cambio de stock.
+  it("I-AI-15: REGRESIÓN — GET marca datos_desactualizados=true cuando fecha_vencimiento cambió desde el análisis (nuevo lote)", async () => {
+    const PROD_ID = "e0000000-0000-0000-0000-000000000005";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              {
+                producto_id: PROD_ID, urgencia: "alta", estrategia: "descuento",
+                descuento_sugerido_pct: 30, precio_oferta_sugerido: 17500,
+                razon: "Vence en 1 día.", mensaje_whatsapp: "Oferta!",
+                dias_hasta_vencer: 1, stock: 90, fecha_vencimiento: "2026-07-18",
+              },
+            ],
+            modelo_usado: "test-model", productos_analizados: 1,
+            created_at: "2026-07-17T00:00:00Z", dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          // Stock igual al cacheado, pero fecha_vencimiento se extendió: llegó
+          // un nuevo lote y reemplazó el que estaba por vencer.
+          data: [{ id: PROD_ID, activo: true, stock: 90, fecha_vencimiento: "2026-10-30" }],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.recomendaciones[0].datos_desactualizados).toBe(true);
+  });
+
+  // I-AI-16: caso feliz — sin drift, no debe marcarse la fila.
+  it("I-AI-16: GET no marca datos_desactualizados cuando stock y fecha_vencimiento coinciden con el análisis cacheado", async () => {
+    const PROD_ID = "f0000000-0000-0000-0000-000000000006";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              {
+                producto_id: PROD_ID, urgencia: "alta", estrategia: "descuento",
+                descuento_sugerido_pct: 30, precio_oferta_sugerido: 17500,
+                razon: "Vence pronto.", mensaje_whatsapp: "Oferta!",
+                dias_hasta_vencer: 1, stock: 90, fecha_vencimiento: "2026-07-18",
+              },
+            ],
+            modelo_usado: "test-model", productos_analizados: 1,
+            created_at: "2026-07-17T00:00:00Z", dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          data: [{ id: PROD_ID, activo: true, stock: 90, fecha_vencimiento: "2026-07-18" }],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.recomendaciones[0].datos_desactualizados).toBe(false);
+  });
+
+  // I-AI-17: compatibilidad hacia atrás — un análisis persistido ANTES de
+  // este fix no tiene fecha_vencimiento en su JSON cacheado. GET no debe
+  // generar un falso positivo comparando contra un valor inexistente; solo
+  // el drift de stock sigue siendo detectable para esas filas antiguas.
+  it("I-AI-17: análisis cacheado sin fecha_vencimiento persistida (previo a este fix) no genera falso positivo por fecha", async () => {
+    const PROD_ID = "10000000-0000-0000-0000-000000000007";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ai_vencimientos_analisis") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            recomendaciones: [
+              // Sin fecha_vencimiento — simula un análisis persistido antes de este fix.
+              {
+                producto_id: PROD_ID, urgencia: "alta", estrategia: "descuento",
+                descuento_sugerido_pct: 30, precio_oferta_sugerido: 17500,
+                razon: "Vence pronto.", mensaje_whatsapp: "Oferta!",
+                dias_hasta_vencer: 1, stock: 90,
+              },
+            ],
+            modelo_usado: "test-model", productos_analizados: 1,
+            created_at: "2026-07-17T00:00:00Z", dias_alerta: 30,
+          },
+          error: null,
+        }),
+      };
+      if (table === "productos") return {
+        select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({
+          // fecha_vencimiento actual difiere de cualquier valor supuesto, pero
+          // como el cache no la registró, no debe compararse ni marcar drift.
+          data: [{ id: PROD_ID, activo: true, stock: 90, fecha_vencimiento: "2026-12-25" }],
+          error: null,
+        }),
+      };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), gte: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.recomendaciones[0].datos_desactualizados).toBe(false);
   });
 });

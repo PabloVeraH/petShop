@@ -607,7 +607,7 @@ sin ninguna acción manual del vendedor.
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
 | MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual | ModalCliente + Carrito | component |
 
-## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-13)
+## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-18)
 
 Regresión verificada contra datos reales de producción (26-05-2026): una
 recomendación cacheada referenciaba "Alimento Perro Pro Plan 3kg"
@@ -618,6 +618,20 @@ descubierta al revisar la completitud del fix: un producto **activo** cuyo
 el análisis cacheado — sin este fix, `dias_hasta_vencer` quedaba con el
 valor cacheado obsoleto en vez de marcarse como obsoleto igual que un
 producto inactivo.
+
+I-AI-14 a I-AI-18 cubren un defecto distinto reportado en Inventario >
+Optimizador de Vencimientos: GET refresca Días/Stock contra el catálogo
+actual, pero razon/mensaje_whatsapp/urgencia/estrategia/descuento del LLM
+no se regeneran — quedan del análisis original. Sin señal por fila, la
+misma fila mostraba texto "vence en 1 día, 90 unidades" junto a columnas
+Días=105/Stock=101 sin ninguna advertencia visible (el badge global "Puede
+estar desactualizado" solo depende de la antigüedad de `created_at`, no de
+si esa fila específica cambió). El fix persiste `fecha_vencimiento` junto a
+cada recomendación al analizar (I-AI-18) y en GET compara stock/
+fecha_vencimiento cacheados contra el catálogo actual para marcar
+`datos_desactualizados` por fila (I-AI-14, I-AI-15), sin falsos positivos en
+el caso feliz (I-AI-16) ni en análisis cacheados antes de este fix que no
+tienen `fecha_vencimiento` persistida (I-AI-17).
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
@@ -634,6 +648,11 @@ producto inactivo.
 | I-AI-11 | Retorna 502 si ambos intentos (original + reintento) hacen timeout | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-12 | No reintenta cuando el error no es de timeout (ej. API key inválida) | POST /api/ai/vencimientos/optimizar | integration |
 | I-AI-13 | REGRESIÓN: GET trata como obsoleta una recomendación de un producto activo sin fecha_vencimiento (seguimiento de vencimiento desactivado) | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-14 | REGRESIÓN: GET marca datos_desactualizados=true cuando el stock cambió desde el análisis | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-15 | REGRESIÓN: GET marca datos_desactualizados=true cuando fecha_vencimiento cambió desde el análisis (nuevo lote) | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-16 | GET no marca datos_desactualizados cuando stock y fecha_vencimiento coinciden con el análisis cacheado | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-17 | Análisis cacheado sin fecha_vencimiento persistida (previo al fix) no genera falso positivo por fecha | GET /api/ai/vencimientos/optimizar | integration |
+| I-AI-18 | POST persiste fecha_vencimiento del producto en cada recomendación guardada | POST /api/ai/vencimientos/optimizar | integration |
 
 ## OpenRouter — analizarVencimientosConIA (U-OR-01 a U-OR-07)
 
@@ -659,7 +678,7 @@ producto inactivo.
 | U-REC-06 | Limita a 3 recomendaciones aunque LLM devuelva más | lib/openrouter | unit |
 | U-REC-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
 
-## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-10)
+## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-12)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -673,6 +692,8 @@ producto inactivo.
 | C-OPT-08 | Servidor retorna HTML en vez de JSON → error amigable (no Unexpected token '<') | OptimizadorVencimientosTab | component |
 | C-OPT-09 | Muestra advertencia cuando productos_obsoletos > 0 (recomendaciones filtradas por catálogo obsoleto) | OptimizadorVencimientosTab | component |
 | C-OPT-10 | Timeout defensivo del cliente (55s) ante backend que no responde → mensaje amigable | OptimizadorVencimientosTab | component |
+| C-OPT-11 | REGRESIÓN: fila muestra aviso "Texto desactualizado" cuando datos_desactualizados=true (texto de análisis viejo junto a columnas Días/Stock en vivo) | OptimizadorVencimientosTab | component |
+| C-OPT-12 | Fila NO muestra aviso cuando datos_desactualizados es false/ausente | OptimizadorVencimientosTab | component |
 
 ## RecomendacionesIA (C-REC-01 a C-REC-09)
 

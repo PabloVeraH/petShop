@@ -178,9 +178,9 @@ describe("OptimizadorVencimientosTab", () => {
 
   // C-OPT-07
   it("C-OPT-07: muestra estado vacío cuando no hay productos próximos a vencer", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ 
-      recomendaciones: [], 
-      modelo_usado: "z-ai/glm-4.5-air:free", 
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [],
+      modelo_usado: "z-ai/glm-4.5-air:free",
       productos_analizados: 0
     }));
     renderTab();
@@ -188,5 +188,43 @@ describe("OptimizadorVencimientosTab", () => {
     await waitFor(() => {
       expect(screen.getByText(/no hay productos|ningún producto/i)).toBeInTheDocument();
     });
+  });
+
+  // C-OPT-11: REGRESIÓN — el texto de una recomendación cacheada (razon,
+  // mensaje_whatsapp) puede seguir siendo el del análisis original mientras
+  // las columnas Días/Stock ya muestran datos en vivo refrescados por el
+  // backend (ver GET /api/ai/vencimientos/optimizar). Sin una señal por
+  // fila, la fila mezcla "vence en 1 día, 90 unidades" (texto) con
+  // "105 días / 101" (columnas) sin ninguna advertencia visible. Cuando el
+  // backend marca datos_desactualizados=true, la fila debe mostrar un aviso.
+  it("C-OPT-11: REGRESIÓN — fila muestra aviso 'Texto desactualizado' cuando datos_desactualizados=true", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [{
+        ...MOCK_RECOMENDACION,
+        razon: "Vence en 1 día, quedan 90 unidades.",
+        dias_hasta_vencer: 105,
+        stock: 101,
+        datos_desactualizados: true,
+      }],
+      modelo_usado: "z-ai/glm-4.5-air:free",
+      productos_analizados: 1,
+    }));
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Vence en 1 día, quedan 90 unidades.")).toBeInTheDocument();
+    });
+    expect(screen.getByText("105")).toBeInTheDocument();
+    expect(screen.getByText("101")).toBeInTheDocument();
+    expect(screen.getByText(/texto desactualizado/i)).toBeInTheDocument();
+  });
+
+  // C-OPT-12: caso feliz — sin datos_desactualizados, no debe mostrarse el aviso.
+  it("C-OPT-12: fila NO muestra aviso cuando datos_desactualizados es false/ausente", async () => {
+    mockFetch.mockResolvedValue(jsonResponse(MOCK_RESULTADO));
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Vence en 7 días.")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/texto desactualizado/i)).not.toBeInTheDocument();
   });
 });
