@@ -780,7 +780,7 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1783739374.1135464,
+    "mtime": 1784320750.4920056,
     "ast_hash": "44e4b2dd0cad7b57c88de0fefd25cef6",
     "semantic_hash": "44e4b2dd0cad7b57c88de0fefd25cef6"
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784317869.5984507,
-    "ast_hash": "7f2dc2706a5dfc05630f1c68ff037172",
+    "mtime": 1784320764.3645551,
+    "ast_hash": "cddda7fb67a9822792f1b23c4f39a6c1",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3872,6 +3872,11 @@
   "tests/unit/lib/pdf-generator-boleta.test.ts": {
     "mtime": 1784264740.2519581,
     "ast_hash": "33c6cbe13ebb1d0dc9ca77fe291fe0a2",
+    "semantic_hash": ""
+  },
+  "tests/components/POSStockRefresh.test.tsx": {
+    "mtime": 1784320728.7747293,
+    "ast_hash": "856e67696706de0385a19ea9ad4da0f5",
     "semantic_hash": ""
   }
 }
