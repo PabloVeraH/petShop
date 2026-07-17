@@ -7,6 +7,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
+jest.mock("@clerk/nextjs", () => ({
+  useAuth: jest.fn(() => ({
+    userId: "admin-1",
+    sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },
+  })),
+}));
+
 jest.mock("@/components/StoreLocationPicker", () => ({
   __esModule: true,
   default: () => null,
@@ -27,6 +34,9 @@ const SETTINGS_BASE = {
   email_reminder_dias_aviso: 5,
   resend_from_email: "",
   fidelizacion_niveles: [],
+  license_start_date: null,
+  license_end_date: null,
+  license_warning_days: 7,
   ciudad: "",
   lat: null,
   lon: null,

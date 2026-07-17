@@ -346,6 +346,73 @@ describe("PATCH /api/settings", () => {
     expect(updateData).not.toHaveProperty("whatsapp_webhook_verify_token");
   });
 
+  // I-100: GET incluye campos de licencia
+  it("I-100: GET incluye license_start_date, license_end_date y license_warning_days", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        whatsapp_access_token: "",
+        license_start_date: "2026-01-01",
+        license_end_date: "2026-12-31",
+        license_warning_days: 30,
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.license_start_date).toBe("2026-01-01");
+    expect(body.license_end_date).toBe("2026-12-31");
+    expect(body.license_warning_days).toBe(30);
+  });
+
+  // I-101: GET retorna null en license fields cuando no hay licencia configurada
+  it("I-101: GET retorna null en license fields cuando no hay licencia", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        whatsapp_access_token: "",
+        license_start_date: null,
+        license_end_date: null,
+        license_warning_days: 7,
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.license_start_date).toBeNull();
+    expect(body.license_end_date).toBeNull();
+    expect(body.license_warning_days).toBe(7);
+  });
+
+  // I-102: GET retorna licencia con fecha vencida
+  it("I-102: GET retorna licencia con fecha vencida", async () => {
+    const pastDate = "2025-01-01";
+    mockSingle.mockResolvedValue({
+      data: {
+        id: STORE_ID,
+        name: "Test Store",
+        whatsapp_access_token: "",
+        license_start_date: "2024-01-01",
+        license_end_date: pastDate,
+        license_warning_days: 30,
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.license_end_date).toBe(pastDate);
+    expect(body.license_start_date).toBe("2024-01-01");
+    expect(body.license_warning_days).toBe(30);
+  });
+
   // SEC-06: GET enmascara ambos tokens simultáneamente
   it("SEC-06: GET enmascara tanto access_token como verify_token al mismo tiempo", async () => {
     mockSingle.mockResolvedValue({
