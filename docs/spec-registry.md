@@ -504,6 +504,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-09 | useEffect asigna worker cuando userId cambia de null a un valor (Clerk carga después) | POSPage | component |
 | PP-10 | useEffect no sobreescribe workerClerkId si ya se inicializó para el mismo userId (preserva selección manual) | POSPage | component |
 | PP-11 | REGRESIÓN: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno) | POSPage | component |
+| PP-12 | El stock en la grilla de productos (SearchProductos real, no mockeado) se actualiza automáticamente tras una venta exitosa, sin recargar la página — investigado como reporte de bug, no reprodujo contra el código actual; test agregado como regresión permanente | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 
