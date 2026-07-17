@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token, email_reminder_enabled, email_reminder_dias_aviso, resend_from_email, fidelizacion_niveles, ciudad, lat, lon, direccion")
+    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token, email_reminder_enabled, email_reminder_dias_aviso, resend_from_email, fidelizacion_niveles, ciudad, lat, lon, direccion, license_start_date, license_end_date, license_warning_days")
     .eq("id", store_id)
     .single();
 

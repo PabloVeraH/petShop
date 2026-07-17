@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import StoreLocationPicker from "@/components/StoreLocationPicker";
+import { computeLicenseStatus } from "@/lib/license";
 
 interface FidelizacionNivel {
   monto: number;
@@ -24,6 +26,9 @@ interface StoreSettings {
   email_reminder_dias_aviso: number;
   resend_from_email: string;
   fidelizacion_niveles: FidelizacionNivel[];
+  license_start_date: string | null;
+  license_end_date: string | null;
+  license_warning_days: number;
   ciudad: string;
   lat: number | null;
   lon: number | null;
@@ -32,6 +37,11 @@ interface StoreSettings {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { sessionClaims } = useAuth();
+  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
+  const currentRole: "systemAdmin" | "storeAdmin" | "storeWorker" | null =
+    meta?.systemAdmin ? "systemAdmin" : meta?.storeAdmin ? "storeAdmin" : meta?.storeWorker ? "storeWorker" : null;
+
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -346,6 +356,63 @@ export default function SettingsPage() {
               </button>
             )}
           </div>
+        </section>
+
+        {/* Licencia */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-700">Licencia</h2>
+            {(computeLicenseStatus(settings)).isAutoBlocked && (
+              <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">VENCIDA</span>
+            )}
+            {(computeLicenseStatus(settings)).isInWarningPeriod && (
+              <span className="text-xs font-medium text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full">Próximo a vencer</span>
+            )}
+            {!settings.license_end_date && (
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Sin configurar</span>
+            )}
+            {settings.license_end_date && !(computeLicenseStatus(settings)).isAutoBlocked && !(computeLicenseStatus(settings)).isInWarningPeriod && (
+              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Activa</span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="block text-gray-500 mb-1">Fecha de inicio</span>
+              <span className="font-medium text-gray-800">
+                {settings.license_start_date
+                  ? new Date(settings.license_start_date).toLocaleDateString("es-CL")
+                  : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-gray-500 mb-1">Fecha de término</span>
+              <span className="font-medium text-gray-800">
+                {settings.license_end_date
+                  ? new Date(settings.license_end_date).toLocaleDateString("es-CL")
+                  : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-gray-500 mb-1">Estado</span>
+              <span className="font-medium text-gray-800">
+                {!settings.license_end_date
+                  ? "Sin configurar"
+                  : (computeLicenseStatus(settings)).isAutoBlocked
+                    ? "VENCIDA"
+                    : (computeLicenseStatus(settings)).isInWarningPeriod
+                      ? `${(computeLicenseStatus(settings)).daysUntilExpiry} días restantes`
+                      : "Activa"}
+              </span>
+            </div>
+          </div>
+          {currentRole === "systemAdmin" && (
+            <a
+              href="/admin"
+              className="inline-block mt-4 text-sm text-[#1a5f3f] hover:underline font-medium"
+            >
+              Ir a Administración para gestionar licencia →
+            </a>
+          )}
         </section>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
