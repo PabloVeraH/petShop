@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import StoreLocationPicker from "@/components/StoreLocationPicker";
 import { computeLicenseStatus } from "@/lib/license";
 
@@ -93,6 +94,15 @@ export default function SettingsPage() {
   const webhookUrl = typeof window !== "undefined"
     ? `${window.location.origin}/api/whatsapp/webhook`
     : "/api/whatsapp/webhook";
+
+  const licenseStatus = computeLicenseStatus(settings);
+  const licenseStateLabel = !settings.license_end_date
+    ? "Sin configurar"
+    : licenseStatus.isAutoBlocked
+      ? "VENCIDA"
+      : licenseStatus.isInWarningPeriod
+        ? `${licenseStatus.daysUntilExpiry} días restantes`
+        : "Activa";
 
   return (
     <div className="max-w-2xl">
@@ -362,16 +372,16 @@ export default function SettingsPage() {
         <section className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-700">Licencia</h2>
-            {(computeLicenseStatus(settings)).isAutoBlocked && (
+            {licenseStatus.isAutoBlocked && (
               <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">VENCIDA</span>
             )}
-            {(computeLicenseStatus(settings)).isInWarningPeriod && (
+            {licenseStatus.isInWarningPeriod && (
               <span className="text-xs font-medium text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full">Próximo a vencer</span>
             )}
             {!settings.license_end_date && (
               <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Sin configurar</span>
             )}
-            {settings.license_end_date && !(computeLicenseStatus(settings)).isAutoBlocked && !(computeLicenseStatus(settings)).isInWarningPeriod && (
+            {settings.license_end_date && !licenseStatus.isAutoBlocked && !licenseStatus.isInWarningPeriod && (
               <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Activa</span>
             )}
           </div>
@@ -394,24 +404,16 @@ export default function SettingsPage() {
             </div>
             <div>
               <span className="block text-gray-500 mb-1">Estado</span>
-              <span className="font-medium text-gray-800">
-                {!settings.license_end_date
-                  ? "Sin configurar"
-                  : (computeLicenseStatus(settings)).isAutoBlocked
-                    ? "VENCIDA"
-                    : (computeLicenseStatus(settings)).isInWarningPeriod
-                      ? `${(computeLicenseStatus(settings)).daysUntilExpiry} días restantes`
-                      : "Activa"}
-              </span>
+              <span className="font-medium text-gray-800">{licenseStateLabel}</span>
             </div>
           </div>
           {currentRole === "systemAdmin" && (
-            <a
+            <Link
               href="/admin"
               className="inline-block mt-4 text-sm text-[#1a5f3f] hover:underline font-medium"
             >
               Ir a Administración para gestionar licencia →
-            </a>
+            </Link>
           )}
         </section>
 

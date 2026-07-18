@@ -1,11 +1,11 @@
 /**
- * Tests S-01 a S-05: SettingsPage — sección de Licencia
+ * Tests C-45 a C-49: SettingsPage — sección de Licencia
  *
- * S-01  Sección Licencia visible con fecha de inicio, término y estado
- * S-02  Sin fechas configuradas muestra "Sin configurar"
- * S-03  Licencia vencida muestra "VENCIDA"
- * S-04  systemAdmin ve enlace a /admin para gestionar
- * S-05  storeAdmin NO ve enlace a /admin
+ * C-45  Sección Licencia visible con fecha de inicio, término y estado
+ * C-46  Sin fechas configuradas muestra "Sin configurar"
+ * C-47  Licencia vencida muestra "VENCIDA"
+ * C-48  systemAdmin ve enlace a /admin para gestionar
+ * C-49  storeAdmin NO ve enlace a /admin
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -62,8 +62,8 @@ describe("SettingsPage — Licencia section", () => {
     jest.clearAllMocks();
   });
 
-  // S-01: license section renders with dates
-  it("S-01: sección Licencia visible con fechas y estado Activa", async () => {
+  // C-45: license section renders with dates
+  it("C-45: sección Licencia visible con fechas y estado Activa", async () => {
     mockUseAuth = {
       userId: "admin-1",
       sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },
@@ -103,8 +103,8 @@ describe("SettingsPage — Licencia section", () => {
     expect(screen.getByText(new Date(end).toLocaleDateString("es-CL"))).toBeInTheDocument();
   });
 
-  // S-02: no license dates
-  it("S-02: sin fechas configuradas muestra Sin configurar", async () => {
+  // C-46: no license dates
+  it("C-46: sin fechas configuradas muestra Sin configurar", async () => {
     mockUseAuth = {
       userId: "admin-1",
       sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },
@@ -131,8 +131,8 @@ describe("SettingsPage — Licencia section", () => {
     expect(screen.getAllByText("Sin configurar").length).toBeGreaterThanOrEqual(2);
   });
 
-  // S-03: expired license
-  it("S-03: licencia vencida muestra VENCIDA", async () => {
+  // C-47: expired license
+  it("C-47: licencia vencida muestra VENCIDA", async () => {
     mockUseAuth = {
       userId: "admin-1",
       sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },
@@ -159,8 +159,8 @@ describe("SettingsPage — Licencia section", () => {
     expect(screen.getAllByText("VENCIDA").length).toBeGreaterThanOrEqual(2);
   });
 
-  // S-04: systemAdmin sees link to /admin
-  it("S-04: systemAdmin ve enlace a Administración para gestionar licencia", async () => {
+  // C-48: systemAdmin sees link to /admin
+  it("C-48: systemAdmin ve enlace a Administración para gestionar licencia", async () => {
     mockUseAuth = {
       userId: "admin-1",
       sessionClaims: { publicMetadata: { systemAdmin: true, storeId: "store-1" } },
@@ -189,8 +189,8 @@ describe("SettingsPage — Licencia section", () => {
     expect(adminLink.closest("a")).toHaveAttribute("href", "/admin");
   });
 
-  // S-05: storeAdmin does NOT see link to /admin
-  it("S-05: storeAdmin NO ve enlace a /admin", async () => {
+  // C-49: storeAdmin does NOT see link to /admin
+  it("C-49: storeAdmin NO ve enlace a /admin", async () => {
     mockUseAuth = {
       userId: "admin-2",
       sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },

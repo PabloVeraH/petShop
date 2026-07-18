@@ -346,8 +346,8 @@ describe("PATCH /api/settings", () => {
     expect(updateData).not.toHaveProperty("whatsapp_webhook_verify_token");
   });
 
-  // I-100: GET incluye campos de licencia
-  it("I-100: GET incluye license_start_date, license_end_date y license_warning_days", async () => {
+  // I-414: GET incluye campos de licencia
+  it("I-414: GET incluye license_start_date, license_end_date y license_warning_days", async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: STORE_ID,
@@ -368,8 +368,8 @@ describe("PATCH /api/settings", () => {
     expect(body.license_warning_days).toBe(30);
   });
 
-  // I-101: GET retorna null en license fields cuando no hay licencia configurada
-  it("I-101: GET retorna null en license fields cuando no hay licencia", async () => {
+  // I-415: GET retorna null en license fields cuando no hay licencia configurada
+  it("I-415: GET retorna null en license fields cuando no hay licencia", async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: STORE_ID,
@@ -390,8 +390,8 @@ describe("PATCH /api/settings", () => {
     expect(body.license_warning_days).toBe(7);
   });
 
-  // I-102: GET retorna licencia con fecha vencida
-  it("I-102: GET retorna licencia con fecha vencida", async () => {
+  // I-416: GET retorna licencia con fecha vencida
+  it("I-416: GET retorna licencia con fecha vencida", async () => {
     const pastDate = "2025-01-01";
     mockSingle.mockResolvedValue({
       data: {

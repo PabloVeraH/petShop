@@ -62,26 +62,26 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-74 | DELETE producto no elimina si tiene ventas | DELETE /api/productos/[id] | integration |
 | I-75 | Import masivo limita a 500 filas | POST /api/inventario/import | integration |
 
-## Settings (I-87 a I-99)
+## Settings (I-87 a I-99, I-414 a I-416)
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
 | I-87 | GET enmascara whatsapp_access_token | GET /api/settings | integration |
 | I-88 | PATCH no acepta campos no permitidos (mass assignment) | PATCH /api/settings | integration |
 | I-89 | PATCH con placeholder de token no actualiza DB | PATCH /api/settings | integration |
-| I-90 | GET incluye license_start_date, license_end_date y license_warning_days | GET /api/settings | integration |
 | I-93 | GET incluye fidelizacion_niveles del store | GET /api/settings | integration |
 | I-94 | GET devuelve campo direccion con coordenadas | GET /api/settings | integration |
-| I-95 | GET retorna null en license fields cuando no hay licencia configurada | GET /api/settings | integration |
-| I-96 | GET retorna licencia con fecha vencida | GET /api/settings | integration |
+| I-414 | GET incluye license_start_date, license_end_date y license_warning_days | GET /api/settings | integration |
+| I-415 | GET retorna null en license fields cuando no hay licencia configurada | GET /api/settings | integration |
+| I-416 | GET retorna licencia con fecha vencida | GET /api/settings | integration |
 | C-42 | REGRESIÓN: sección WhatsApp — Access Token tiene autoComplete="new-password"; Phone Number ID y Verify Token tienen autoComplete="off" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | SettingsPage | component |
 | C-43 | Tab Sesiones muestra IP y User-Agent cuando están presentes en datos | AuditoriaCard | component |
 | C-44 | REGRESIÓN: inline edit (✏) en UsuariosCard — inputs email y nombre tienen autoComplete="off" — mismo defecto que C-41: el navegador ofrecía autocompletar con credenciales guardadas del admin logueado al editar datos de OTRA persona | UsuariosCard | component |
-| S-01 | Sección Licencia visible con fechas y estado Activa | SettingsPage | component |
-| S-02 | Sin fechas configuradas muestra "Sin configurar" | SettingsPage | component |
-| S-03 | Licencia vencida muestra "VENCIDA" | SettingsPage | component |
-| S-04 | systemAdmin ve enlace a /admin para gestionar licencia | SettingsPage | component |
-| S-05 | storeAdmin NO ve enlace a /admin | SettingsPage | component |
+| C-45 | Sección Licencia visible con fechas y estado Activa | SettingsPage | component |
+| C-46 | Sin fechas configuradas muestra "Sin configurar" | SettingsPage | component |
+| C-47 | Licencia vencida muestra "VENCIDA" | SettingsPage | component |
+| C-48 | systemAdmin ve enlace a /admin para gestionar licencia | SettingsPage | component |
+| C-49 | storeAdmin NO ve enlace a /admin | SettingsPage | component |
 
 ## Notas de Crédito (I-100 a I-115)
 
