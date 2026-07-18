@@ -1,12 +1,22 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { auth } from "@clerk/nextjs/server";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { computeCierrePreview } from "@/lib/contabilidad/cierre-mes";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  try {
+    requireStoreAdmin(admin, store_id);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { searchParams } = new URL(req.url);
   const mes = parseInt(searchParams.get("mes") ?? "");

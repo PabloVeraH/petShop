@@ -1,5 +1,6 @@
-import { POST } from "@/app/api/contabilidad/cierre-mes/route";
 import { NextRequest } from "next/server";
+
+const mockAuth = jest.fn();
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
@@ -7,10 +8,12 @@ jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   ...jest.requireActual("@/lib/contabilidad/generador-asientos"),
   crearAsiento: jest.fn().mockResolvedValue("cogs-entry-uuid"),
 }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
+import { POST } from "@/app/api/contabilidad/cierre-mes/route";
 
 const STORE_ID = "store-uuid-cierre";
 
@@ -50,6 +53,9 @@ describe("POST /api/contabilidad/cierre-mes", () => {
       storeId: STORE_ID,
       userId: "user-001",
     });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
   });
 
   describe("autenticación", () => {
@@ -62,6 +68,21 @@ describe("POST /api/contabilidad/cierre-mes", () => {
       const res = await POST(makeRequest({ mes: 4, año: 2026 }));
 
       expect(res.status).toBe(401);
+    });
+
+    // I-350: REGRESIÓN — Cierre de Mes es una acción irreversible; sin
+    // requireStoreAdmin, cualquier storeWorker autenticado podía ejecutarla.
+    it("I-350: REGRESIÓN — retorna 403 cuando el usuario autenticado no es storeAdmin ni systemAdmin", async () => {
+      mockAuth.mockResolvedValue({
+        sessionClaims: { publicMetadata: { storeWorker: true, storeId: STORE_ID } },
+      });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn().mockReturnValue(createChain({ data: [], error: null })),
+      });
+
+      const res = await POST(makeRequest({ mes: 4, año: 2026 }));
+
+      expect(res.status).toBe(403);
     });
   });
 

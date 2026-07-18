@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-23: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
+ * Tests CP-01 a CP-24: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -17,6 +17,7 @@
  * CP-21  Modal muestra datos de la vista previa (asientos, COGS, balance)
  * CP-22  Vista previa en loading no bloquea apertura del modal
  * CP-23  Confirmar cierre funciona aunque preview haya fallado
+ * CP-24  REGRESIÓN — preview.ya_tiene_cierre muestra advertencia y deshabilita confirmar
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -556,6 +557,25 @@ describe("ContabilidadPage — Cierre de Mes: modal y feedback", () => {
     await waitFor(() => {
       expect(screen.getByText(/✓ Cierre realizado/i)).toBeInTheDocument();
     });
+  });
+
+  // CP-24 — REGRESIÓN: preview.ya_tiene_cierre es defensa adicional a
+  // periodoCerrado (derivado de `libro`, que puede estar stale si otro
+  // admin cerró el período concurrentemente). Si la vista previa —
+  // fetcheada fresca al abrir el modal — reporta ya_tiene_cierre=true,
+  // debe mostrarse la advertencia y deshabilitarse "Confirmar cierre"
+  // aunque `libro` (posiblemente desactualizado) no lo refleje todavía.
+  it("CP-24: REGRESIÓN — muestra advertencia y deshabilita confirmar cuando preview.ya_tiene_cierre=true", async () => {
+    mockPreviewResponse = { ...mockPreviewResponse, ya_tiene_cierre: true };
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cierre de Mes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Este período ya está cerrado/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Confirmar cierre/i })).toBeDisabled();
   });
 
   // CP-16 — REGRESIÓN: el botón PDF (y Excel) desaparecía al navegar a Balance de Comprobación

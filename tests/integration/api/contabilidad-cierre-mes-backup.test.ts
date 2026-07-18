@@ -1,5 +1,6 @@
-import { POST } from "@/app/api/contabilidad/cierre-mes/route";
 import { NextRequest } from "next/server";
+
+const mockAuth = jest.fn();
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
@@ -7,9 +8,11 @@ jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   ...jest.requireActual("@/lib/contabilidad/generador-asientos"),
   crearAsiento: jest.fn().mockResolvedValue("cogs-entry-uuid"),
 }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
+import { POST } from "@/app/api/contabilidad/cierre-mes/route";
 
 const STORE_ID = "store-uuid-backup";
 
@@ -20,7 +23,7 @@ function createChain(resolveValue: object) {
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnValue({ then: (resolve: Function) => resolve({ data: null, error: null }) }),
     update: jest.fn().mockReturnThis(),
   };
   chain.then = (resolve: Function) => resolve(resolveValue);
@@ -42,16 +45,18 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
       storeId: STORE_ID,
       userId: "user-backup-001",
     });
+    mockAuth.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
   });
 
-  it("I-330: crea respaldo en cierre_mes_backups antes de ejecutar el cierre", async () => {
+  it("I-346: crea respaldo en cierre_mes_backups antes de ejecutar el cierre", async () => {
     let callCount = 0;
-    const fromCalls: string[] = [];
+    const backupChain = createChain({ data: [{ id: "backup-uuid" }], error: null });
 
     const fromMock = jest.fn((table: string) => {
+      if (table === "cierre_mes_backups") return backupChain;
       callCount++;
-      fromCalls.push(table);
-
       if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
       if (callCount === 2) return createChain({
         data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
@@ -69,8 +74,7 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         data: [{ id: "e1", total_debito: 11900, total_credito: 11900, journal_detail: [] }],
         error: null,
       }); // backup entries + detail
-      if (callCount === 6) return createChain({ data: [{ id: "backup-uuid" }], error: null }); // backup insert
-      return createChain({ data: [], error: null }); // fallback (backup update)
+      return createChain({ data: [], error: null });
     });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -81,26 +85,20 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
 
     expect(res.status).toBe(201);
 
-    // Verify backup was created
-    const backupInserts = fromCalls.filter((t, i) => {
-      if (t === "cierre_mes_backups") {
-        const fnCall = fromMock.mock.calls[i];
-        return fnCall && fnCall[0] === "cierre_mes_backups";
-      }
-      return false;
+    // El respaldo debe insertarse ANTES de que exista el asiento de cierre
+    // (verificado indirectamente: el insert ocurre en el mismo request que
+    // crea el asiento COGS, y el test I-349 verifica el contenido exacto).
+    expect(backupChain.insert).toHaveBeenCalledTimes(1);
+    expect(backupChain.insert.mock.calls[0][0]).toMatchObject({
+      store_id: STORE_ID,
+      periodo: "2026-04",
     });
-
-    // Should have inserted into cierre_mes_backups (call 6)
-    const insertCall = fromMock.mock.calls[5];
-    expect(insertCall).toBeDefined();
-    expect(insertCall[0]).toBe("cierre_mes_backups");
   });
 
-  it("I-331: NO crea respaldo cuando calcular_costo_venta=false", async () => {
+  it("I-347: NO crea respaldo cuando calcular_costo_venta=false", async () => {
+    const backupChain = createChain({ data: [], error: null });
     const fromMock = jest.fn((table: string) => {
-      if (table === "journal_entries") {
-        return createChain({ data: [], error: null });
-      }
+      if (table === "cierre_mes_backups") return backupChain;
       return createChain({ data: [], error: null });
     });
 
@@ -111,20 +109,18 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
     const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: false }));
 
     expect(res.status).toBe(201);
-
-    const backupCalls = fromMock.mock.calls.filter(
-      (c: string[]) => c[0] === "cierre_mes_backups"
-    );
-    expect(backupCalls).toHaveLength(0);
+    expect(backupChain.insert).not.toHaveBeenCalled();
   });
 
-  it("I-332: NO crea respaldo cuando cogs_estimado=0", async () => {
+  it("I-348: NO crea respaldo cuando cogs_estimado=0", async () => {
     let callCount = 0;
+    const backupChain = createChain({ data: [], error: null });
     const fromMock = jest.fn((table: string) => {
+      if (table === "cierre_mes_backups") return backupChain;
       callCount++;
-      if (callCount === 1) return createChain({ data: [], error: null });
-      if (callCount === 2) return createChain({ data: [], error: null });
-      return createChain({ data: [], error: null });
+      if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+      if (callCount === 2) return createChain({ data: [], error: null }); // entries
+      return createChain({ data: [], error: null }); // compras (vacío)
     });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -134,21 +130,19 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
     const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
 
     expect(res.status).toBe(201);
-
-    const backupCalls = fromMock.mock.calls.filter(
-      (c: string[]) => c[0] === "cierre_mes_backups"
-    );
-    expect(backupCalls).toHaveLength(0);
+    expect(backupChain.insert).not.toHaveBeenCalled();
   });
 
-  it("I-333: respaldo incluye snapshot del período antes del cierre", async () => {
+  it("I-349: respaldo incluye snapshot del período y totales antes del cierre", async () => {
     const fakeEntries = [
       { id: "e1", total_debito: 10000, total_credito: 10000, journal_detail: [] },
     ];
 
     let callCount = 0;
+    const backupChain = createChain({ data: [{ id: "backup-uuid" }], error: null });
 
     const fromMock = jest.fn((table: string) => {
+      if (table === "cierre_mes_backups") return backupChain;
       callCount++;
       if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
       if (callCount === 2) return createChain({
@@ -167,10 +161,6 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         data: fakeEntries,
         error: null,
       }); // backup entries + detail
-      if (callCount === 6) {
-        const chain = createChain({ data: [{ id: "backup-uuid" }], error: null });
-        return chain;
-      }
       return createChain({ data: [], error: null });
     });
 
@@ -182,8 +172,47 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
 
     expect(res.status).toBe(201);
 
-    // Verify backup was created for the correct table
-    const backupInsertCall = fromMock.mock.calls[5];
-    expect(backupInsertCall[0]).toBe("cierre_mes_backups");
+    // El snapshot debe contener los asientos reales del período (objeto
+    // plano, no stringificado — ver comentario en tomarRespaldoCierre) y
+    // los totales/cogs deben coincidir con lo calculado por el preview.
+    expect(backupChain.insert).toHaveBeenCalledTimes(1);
+    const insertArg = backupChain.insert.mock.calls[0][0];
+    expect(insertArg.snapshot).toEqual(fakeEntries);
+    expect(insertArg.total_debitos).toBe(10000);
+    expect(insertArg.total_creditos).toBe(10000);
+    expect(insertArg.cogs_estimado).toBe(8000);
+  });
+
+  // I-356: si el respaldo falla, la mutación irreversible NO debe ejecutarse.
+  it("I-356: REGRESIÓN — si el insert del respaldo falla, se aborta ANTES de crear el asiento de cierre", async () => {
+    let callCount = 0;
+    const backupChain = createChain({ data: [], error: null });
+    backupChain.insert = jest.fn().mockReturnValue({
+      then: (resolve: Function) => resolve({ data: null, error: { message: "insert failed" } }),
+    });
+
+    const fromMock = jest.fn((table: string) => {
+      if (table === "cierre_mes_backups") return backupChain;
+      callCount++;
+      if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+      if (callCount === 2) return createChain({
+        data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
+        error: null,
+      }); // entries
+      if (callCount === 3) return createChain({ data: [{ id: "compra-1" }], error: null }); // compras
+      if (callCount === 4) return createChain({ data: [{ debito: 5000 }], error: null }); // inventory
+      if (callCount === 5) return createChain({ data: [], error: null }); // backup entries query
+      return createChain({ data: [], error: null });
+    });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: fromMock,
+    });
+
+    const res = await POST(makeRequest({ mes: 4, año: 2026, calcular_costo_venta: true }));
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toMatch(/respaldo/i);
   });
 });

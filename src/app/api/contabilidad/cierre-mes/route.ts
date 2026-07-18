@@ -2,6 +2,8 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { crearAsiento, lineasCierreCOGS } from "@/lib/contabilidad/generador-asientos";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { computeCierrePreview, checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
@@ -16,6 +18,14 @@ export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  try {
+    requireStoreAdmin(admin, store_id);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = CierreMesSchema.safeParse(body);
@@ -48,8 +58,20 @@ export async function POST(req: NextRequest) {
   const asientosCierre: Array<{ tipo: string; id: string }> = [];
 
   if (calcular_costo_venta && preview.cogs_estimado > 0) {
-    // Respaldo automático antes de la mutación irreversible
-    await tomarRespaldoCierre(supabase, store_id, periodo, preview);
+    // Respaldo automático antes de la mutación irreversible. Si el
+    // respaldo no puede confirmarse, se aborta ANTES de crear el asiento
+    // irreversible — el objetivo de "respaldar antes de mutar" se pierde
+    // por completo si se continúa sin backup ante un fallo silencioso.
+    const respaldoOk = await tomarRespaldoCierre(supabase, store_id, periodo, preview);
+    if (!respaldoOk) {
+      console.error(
+        `[cierre-mes] No se pudo crear el respaldo para ${periodo} (store=${store_id}) — se aborta antes de generar el asiento irreversible`
+      );
+      return NextResponse.json(
+        { error: `No se pudo crear el respaldo del período ${periodo}. El cierre no se ejecutó.` },
+        { status: 500 }
+      );
+    }
 
     const cogsId = await crearAsiento({
       storeId: store_id,
@@ -65,12 +87,19 @@ export async function POST(req: NextRequest) {
     if (cogsId) {
       asientosCierre.push({ tipo: "COSTO_VENTA", id: cogsId });
 
-      // Vincular respaldo con el asiento de cierre creado
-      await supabase
+      // Vincular respaldo con el asiento de cierre creado. El asiento ya
+      // fue creado en este punto — un fallo aquí no debe abortar la
+      // respuesta exitosa (el respaldo sigue existiendo, solo queda sin
+      // vincular), pero sí debe quedar registrado para diagnóstico.
+      const { error: linkError } = await supabase
         .from("cierre_mes_backups")
         .update({ cierre_asiento_id: cogsId })
         .eq("store_id", store_id)
         .eq("periodo", periodo);
+
+      if (linkError) {
+        console.error(`[cierre-mes] No se pudo vincular el respaldo de ${periodo} con el asiento ${cogsId}:`, linkError.message);
+      }
     } else {
       const concurrentes = await checkExistingCierre(supabase, store_id, periodo);
 
@@ -117,26 +146,45 @@ export async function POST(req: NextRequest) {
   }, { status: 201 });
 }
 
+// Retorna true solo si el respaldo se persistió correctamente. El llamador
+// debe abortar la mutación irreversible si retorna false — un respaldo que
+// falla en silencio (error de BD ignorado) invalida por completo la
+// garantía de "backup antes de cerrar".
 async function tomarRespaldoCierre(
   supabase: ReturnType<typeof createServiceClient>,
   storeId: string,
   periodo: string,
   preview: { desde: string; hasta: string; numero_asientos: number; total_debitos: number; total_creditos: number; cogs_estimado: number }
-): Promise<void> {
-  const { data: entries } = await supabase
+): Promise<boolean> {
+  const { data: entries, error: entriesError } = await supabase
     .from("journal_entries")
     .select("*, journal_detail(*)")
     .eq("store_id", storeId)
     .gte("fecha", preview.desde)
     .lte("fecha", preview.hasta);
 
-  await supabase.from("cierre_mes_backups").insert({
+  if (entriesError) {
+    console.error(`[cierre-mes] Error al leer asientos para el respaldo de ${periodo}:`, entriesError.message);
+    return false;
+  }
+
+  const { error: insertError } = await supabase.from("cierre_mes_backups").insert({
     store_id: storeId,
     periodo,
     asientos_count: preview.numero_asientos,
     total_debitos: preview.total_debitos,
     total_creditos: preview.total_creditos,
     cogs_estimado: preview.cogs_estimado,
-    snapshot: JSON.stringify(entries ?? []),
+    // Objeto plano, no stringificado — el cliente serializa hacia la
+    // columna JSONB; stringificar aquí lo guardaría como un string escapado
+    // dentro del jsonb en vez de un array real.
+    snapshot: entries ?? [],
   });
+
+  if (insertError) {
+    console.error(`[cierre-mes] Error al insertar el respaldo de ${periodo}:`, insertError.message);
+    return false;
+  }
+
+  return true;
 }

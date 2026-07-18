@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import type { CierreMesPreview } from "@/lib/contabilidad/cierre-mes";
 
 type Asiento = {
   id: string;
@@ -26,19 +27,6 @@ type CierreResultado = {
   total_creditos: number;
   balanceado: boolean;
   asientos_cierre: Array<{ tipo: string; id: string }>;
-};
-
-type CierreMesPreview = {
-  periodo: string;
-  desde: string;
-  hasta: string;
-  numero_asientos: number;
-  total_debitos: number;
-  total_creditos: number;
-  balanceado: boolean;
-  cogs_estimado: number;
-  ya_tiene_cierre: boolean;
-  asientos_cierre_count: number;
 };
 
 type LibroDiarioResumen = {
@@ -693,6 +681,17 @@ export default function ContabilidadPage() {
                 </div>
               )}
 
+              {preview?.ya_tiene_cierre && !loadingPreview && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700 space-y-1">
+                  <p className="font-medium">⚠ Este período ya está cerrado</p>
+                  <p className="text-xs">
+                    El período <strong>{periodoLabel(año, mes)}</strong> ya tiene un asiento de
+                    cierre registrado (verificado en la vista previa). Si continúas, podrías
+                    duplicar asientos contables.
+                  </p>
+                </div>
+              )}
+
               {preview && !loadingPreview && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm space-y-2">
                   <p className="font-medium text-blue-800">Vista previa del período:</p>
@@ -739,7 +738,7 @@ export default function ContabilidadPage() {
                 <Button
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                   onClick={() => cierreMes()}
-                  disabled={cerrandoMes || periodoCerrado}
+                  disabled={cerrandoMes || periodoCerrado || !!preview?.ya_tiene_cierre}
                 >
                   {cerrandoMes ? "Cerrando..." : "Confirmar cierre"}
                 </Button>

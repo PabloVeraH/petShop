@@ -104,17 +104,24 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-315 | REGRESIÓN: verificación de duplicados de cierre usa select+array en vez de .single() para evitar que PGRST116 permita un segundo cierre | POST /api/contabilidad/cierre-mes | integration |
 | I-323 | crearAsiento retorna null durante COGS y existe cierre concurrente → 409 | POST /api/contabilidad/cierre-mes | integration |
 | I-324 | crearAsiento retorna null durante COGS sin cierre concurrente → 500 | POST /api/contabilidad/cierre-mes | integration |
-| I-328 a I-336 | **RETIRADOS** (migración 053) — probaban la lógica de reversión NC-aware (stock/fidelización/saldo) vía mocks de `.from()`; esa lógica se movió a la función transaccional `anular_venta_tx` y dejaron de ejercitar código de la ruta. Verificados directamente contra la función real en Supabase (transacción con ROLLBACK) — ver AGENTS.md §22.5 y el commit de la revisión. | PATCH /api/ventas/[id] | — |
-| I-330 | POST cierre-mes crea respaldo en cierre_mes_backups antes de ejecutar | POST /api/contabilidad/cierre-mes | integration |
-| I-331 | POST cierre-mes NO crea respaldo cuando calcular_costo_venta=false | POST /api/contabilidad/cierre-mes | integration |
-| I-332 | POST cierre-mes NO crea respaldo cuando cogs_estimado=0 | POST /api/contabilidad/cierre-mes | integration |
-| I-333 | Respaldo incluye snapshot del período antes del cierre | POST /api/contabilidad/cierre-mes | integration |
+| I-328 a I-336 | **RETIRADOS** (migración 053) — probaban la lógica de reversión NC-aware (stock/fidelización/saldo) vía mocks de `.from()`; esa lógica se movió a la función transaccional `anular_venta_tx` y dejaron de ejercitar código de la ruta. Verificados directamente contra la función real en Supabase (transacción con ROLLBACK) — ver AGENTS.md §22.5 y el commit de la revisión. **Nota:** I-330 a I-333 NO se reutilizan como IDs nuevos para evitar colisión con este rango retirado — ver I-346 a I-349. | PATCH /api/ventas/[id] | — |
 | I-340 | Preview retorna 401 sin autenticación | GET /api/contabilidad/cierre-mes/preview | integration |
-| I-341 | Preview retorna 400 con parámetros inválidos | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-341 | Preview retorna 400 con parámetros inválidos (falta mes, falta año, mes fuera de rango) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-342 | Preview retorna datos del período sin crear asientos | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-343 | Preview calcula cogs_estimado desde compras del período | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-344 | Preview detecta período ya cerrado (ya_tiene_cierre=true) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-345 | Preview no produce efectos secundarios (no INSERT/UPDATE/DELETE) | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-346 | POST cierre-mes crea respaldo en cierre_mes_backups antes de ejecutar (renumerado desde I-330 — ver nota en I-328 a I-336) | POST /api/contabilidad/cierre-mes | integration |
+| I-347 | POST cierre-mes NO crea respaldo cuando calcular_costo_venta=false (renumerado desde I-331) | POST /api/contabilidad/cierre-mes | integration |
+| I-348 | POST cierre-mes NO crea respaldo cuando cogs_estimado=0 (renumerado desde I-332) | POST /api/contabilidad/cierre-mes | integration |
+| I-349 | Respaldo incluye snapshot del período y totales antes del cierre (renumerado desde I-333) | POST /api/contabilidad/cierre-mes | integration |
+| I-350 | REGRESIÓN: POST cierre-mes retorna 403 cuando el usuario no es storeAdmin ni systemAdmin (Cierre de Mes es irreversible — faltaba requireStoreAdmin) | POST /api/contabilidad/cierre-mes | integration |
+| I-351 | REGRESIÓN: preview retorna 403 cuando el usuario no es storeAdmin ni systemAdmin | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-352 | Preview detecta período desbalanceado | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-353 | Preview reporta cogs_estimado=0 cuando no hay compras en el período | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-354 | Preview calcula correctamente febrero bisiesto (2024) | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-355 | Preview calcula correctamente febrero no bisiesto (2026) | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-356 | REGRESIÓN: si el insert del respaldo falla, POST cierre-mes aborta con 500 ANTES de crear el asiento irreversible (fail-closed, no fail-open) | POST /api/contabilidad/cierre-mes | integration |
 | BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |
@@ -366,6 +373,7 @@ I-406/I-407/I-408.
 | CP-21 | Modal muestra datos de la vista previa (asientos, COGS, balance) | ContabilidadPage | component |
 | CP-22 | Vista previa en loading no bloquea apertura del modal | ContabilidadPage | component |
 | CP-23 | Confirmar cierre funciona aunque preview haya fallado | ContabilidadPage | component |
+| CP-24 | REGRESIÓN: muestra advertencia "ya está cerrado" y deshabilita Confirmar cuando preview.ya_tiene_cierre=true, aunque periodoCerrado (derivado de libro-diario, potencialmente stale) sea false | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
