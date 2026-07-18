@@ -139,6 +139,7 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
                         value={editEmail}
                         onChange={(e) => setEditEmail(e.target.value)}
                         placeholder="Email"
+                        autoComplete="off"
                         className="px-2 py-1 border border-[rgba(45,52,54,0.2)] rounded-lg text-xs focus:border-[#d4a574] focus:outline-none bg-white w-44"
                         autoFocus
                       />
@@ -147,6 +148,7 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
                         value={editNombre}
                         onChange={(e) => setEditNombre(e.target.value)}
                         placeholder="Nombre completo"
+                        autoComplete="off"
                         className="px-2 py-1 border border-[rgba(45,52,54,0.2)] rounded-lg text-xs focus:border-[#d4a574] focus:outline-none bg-white w-36"
                       />
                       <select

@@ -76,6 +76,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-96 | GET retorna licencia con fecha vencida | GET /api/settings | integration |
 | C-42 | REGRESIÓN: sección WhatsApp — Access Token tiene autoComplete="new-password"; Phone Number ID y Verify Token tienen autoComplete="off" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | SettingsPage | component |
 | C-43 | Tab Sesiones muestra IP y User-Agent cuando están presentes en datos | AuditoriaCard | component |
+| C-44 | REGRESIÓN: inline edit (✏) en UsuariosCard — inputs email y nombre tienen autoComplete="off" — mismo defecto que C-41: el navegador ofrecía autocompletar con credenciales guardadas del admin logueado al editar datos de OTRA persona | UsuariosCard | component |
 | S-01 | Sección Licencia visible con fechas y estado Activa | SettingsPage | component |
 | S-02 | Sin fechas configuradas muestra "Sin configurar" | SettingsPage | component |
 | S-03 | Licencia vencida muestra "VENCIDA" | SettingsPage | component |
@@ -198,6 +199,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
 | CC-07 | REGRESIÓN: campos type="password" (API Key, API Secret, Webhook Secret) tienen autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | CanalConfigPage | component |
 | CC-08 | Campo type="text" (Store ID) tiene autoComplete="off" | CanalConfigPage | component |
+| CC-09 | REGRESIÓN: datetime-local input (Programar Publicación) tiene autoComplete="off" — evita autocompletado del navegador en campo de fecha/hora | InstagramEditor | component |
 
 Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
 credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`
