@@ -7,7 +7,7 @@
  * interferir confundiendo el campo con uno de login.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 
 const mockPush = jest.fn();
 const mockSearchParamsGet = jest.fn(() => null);
@@ -34,7 +34,7 @@ describe("InstagramEditor — autoComplete (CC-09)", () => {
 
   it("CC-09: REGRESIÓN — datetime-local input tiene autoComplete=\"off\"", async () => {
     const InstagramEditor = (await import("@/app/(app)/canales/instagram/posts/editor/page")).default;
-    render(InstagramEditor());
+    render(<InstagramEditor />);
 
     // Verificar que el datetime-local input tiene autoComplete="off"
     const datetimeInput = document.querySelector('input[type="datetime-local"]');
