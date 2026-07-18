@@ -18,6 +18,7 @@ const mockAuthFn = jest.fn();
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/audit", () => ({
+  ...jest.requireActual("@/lib/audit"),
   logAudit: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuthFn }));
@@ -35,8 +36,8 @@ import { POST } from "@/app/api/contabilidad/backfill/route";
 
 const STORE_ID = "store-1111-2222-3333";
 
-function backfillReq(): NextRequest {
-  return new NextRequest("http://localhost/api/contabilidad/backfill", { method: "POST" });
+function backfillReq(headers?: Record<string, string>): NextRequest {
+  return new NextRequest("http://localhost/api/contabilidad/backfill", { method: "POST", headers });
 }
 
 function chain(thenData: unknown = { data: null, error: null }) {
@@ -82,6 +83,27 @@ describe("POST /api/contabilidad/backfill", () => {
       });
       const res = await POST(backfillReq());
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe("auditoría", () => {
+    it("I-421: registra en logAudit action BACKFILL con ipAddress/userAgent extraídos del request", async () => {
+      setupMock({ ventas: [], incomeEntries: [], cogsByVenta: {}, ventaItems: [] });
+
+      const res = await POST(backfillReq({
+        "user-agent": "Mozilla/5.0 TestAgent",
+        "x-forwarded-for": "10.0.0.5",
+      }));
+
+      expect(res.status).toBe(200);
+      expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+        storeId: STORE_ID,
+        userId: "u1",
+        action: "BACKFILL",
+        entityType: "journal_entries",
+        ipAddress: "10.0.0.5",
+        userAgent: "Mozilla/5.0 TestAgent",
+      }));
     });
   });
 

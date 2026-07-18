@@ -304,6 +304,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
             <option value="SETTINGS">SETTINGS</option>
             <option value="BAN_USER">BAN_USER</option>
             <option value="UNBAN_USER">UNBAN_USER</option>
+            <option value="BACKFILL">BACKFILL</option>
           </select>
           <select
             value={auditFilters.entity_type}

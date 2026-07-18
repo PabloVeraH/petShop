@@ -139,6 +139,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-413 | REGRESIÓN: backfill de ventas excluye estado='anulada' (`.neq("estado","anulada")`) — una venta anulada sin asiento de ingreso original no debe recibir uno nuevo (ingreso fantasma) | POST /api/contabilidad/backfill | integration |
 | I-419 | REGRESIÓN: backfill retorna 401 si no hay sesión | POST /api/contabilidad/backfill | integration |
 | I-420 | REGRESIÓN: backfill retorna 403 si el usuario no es storeAdmin ni systemAdmin — sin requireStoreAdmin cualquier storeWorker autenticado puede generar asientos | POST /api/contabilidad/backfill | integration |
+| I-421 | REGRESIÓN: backfill registra en logAudit action BACKFILL con ipAddress/userAgent extraídos del request (faltaba en el commit que agregó el logAudit) | POST /api/contabilidad/backfill | integration |
 
 ## Balance HTML (BP-01 a BP-12)
 

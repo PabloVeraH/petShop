@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
-import { logAudit } from "@/lib/audit";
+import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -192,12 +192,15 @@ export async function POST(req: NextRequest) {
     else errores.push(`COMPRA:${orden.numero}`);
   }
 
+  const { ipAddress, userAgent } = getRequestMetadata(req);
   logAudit({
     storeId: store_id,
     userId: ctx.userId,
     action: "BACKFILL",
     entityType: "journal_entries",
     changeDescription: `${creados.length} creados, ${errores.length} errores`,
+    ipAddress,
+    userAgent,
   }).catch(() => {});
 
   return NextResponse.json({
