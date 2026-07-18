@@ -13,6 +13,13 @@ type ClerkWebhookEvent = {
     public_metadata: Record<string, unknown>;
     banned?: boolean;
   };
+  // Svix request metadata — ip_address/user_agent live here, never inside `data`.
+  event_attributes?: {
+    http_request?: {
+      client_ip?: string;
+      user_agent?: string;
+    };
+  };
 };
 
 export async function POST(req: NextRequest) {
@@ -78,9 +85,10 @@ export async function POST(req: NextRequest) {
     const sessionData = event.data as unknown as {
       user_id: string;
       id: string;
-      ip_address?: string;
-      user_agent?: string;
     };
+    const httpRequest = event.event_attributes?.http_request;
+    const ipAddress = httpRequest?.client_ip ?? null;
+    const userAgent = httpRequest?.user_agent ?? null;
 
     let { data: clerkUser } = await supabase
       .from("clerk_users")
@@ -126,8 +134,8 @@ export async function POST(req: NextRequest) {
       user_id: sessionData.user_id,
       clerk_session_id: sessionData.id,
       event_type: event.type,
-      ip_address: sessionData.ip_address ?? null,
-      user_agent: sessionData.user_agent ?? null,
+      ip_address: ipAddress,
+      user_agent: userAgent,
     });
   }
 

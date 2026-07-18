@@ -1,6 +1,6 @@
 /**
  * Tests adicionales: Clerk webhook session.created
- * I-251, I-252, I-281
+ * I-251, I-252, I-417
  */
 import { NextRequest } from "next/server";
 
@@ -34,13 +34,20 @@ describe("POST /api/webhooks/clerk — session.created", () => {
 
   // I-251
   it("I-251: session.created inserta ip_address y user_agent del evento", async () => {
+    // Clerk/Svix entregan ip_address y user_agent en event_attributes.http_request,
+    // NUNCA dentro de `data` (SessionWebhookEventJSON no tiene esos campos) — ver
+    // node_modules/@clerk/backend/dist/api/resources/{Webhooks,JSON}.d.ts.
     const event = {
       type: "session.created",
       data: {
         user_id: "user_abc",
         id: "sess_xyz123",
-        ip_address: "192.168.1.1",
-        user_agent: "Mozilla/5.0 TestBrowser",
+      },
+      event_attributes: {
+        http_request: {
+          client_ip: "192.168.1.1",
+          user_agent: "Mozilla/5.0 TestBrowser",
+        },
       },
     };
     mockVerify.mockReturnValue(event);
@@ -111,8 +118,8 @@ describe("POST /api/webhooks/clerk — session.created", () => {
     }));
   });
 
-  // I-281
-  it("I-281: session.ended inserta ip_address null cuando el evento no los trae", async () => {
+  // I-417
+  it("I-417: session.ended inserta ip_address null cuando el evento no los trae", async () => {
     const event = {
       type: "session.ended",
       data: { user_id: "user_abc", id: "sess_xyz123" },
@@ -140,6 +147,46 @@ describe("POST /api/webhooks/clerk — session.created", () => {
     expect(res.status).toBe(200);
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
       event_type: "session.ended",
+      ip_address: null,
+      user_agent: null,
+    }));
+  });
+
+  // I-418
+  it("I-418: REGRESIÓN — ip_address/user_agent puestos en `data` (payload real de Clerk no los tiene ahí) se ignoran; solo event_attributes.http_request es la fuente válida", async () => {
+    const event = {
+      type: "session.created",
+      data: {
+        user_id: "user_abc",
+        id: "sess_xyz123",
+        // Estos campos NO existen en SessionWebhookEventJSON; si el handler los
+        // leyera de aquí (el bug original) filtrarían a la sesión insertada.
+        ip_address: "10.0.0.1",
+        user_agent: "Bogus/1.0",
+      },
+    };
+    mockVerify.mockReturnValue(event);
+
+    const singleMock = jest.fn().mockResolvedValue({ data: { store_id: "store_xyz" }, error: null });
+    const eqMock = jest.fn().mockReturnValue({ single: singleMock });
+    const selectChain = { eq: eqMock };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") return { select: mockSelect.mockReturnValue(selectChain) };
+      return { insert: mockInsert.mockResolvedValue({ error: null }) };
+    });
+    mockSelect.mockReturnValue(selectChain);
+
+    const { POST } = await import("@/app/api/webhooks/clerk/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/webhooks/clerk", {
+        method: "POST",
+        headers: svixHeaders(),
+        body: JSON.stringify(event),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
       ip_address: null,
       user_agent: null,
     }));

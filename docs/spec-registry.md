@@ -249,7 +249,7 @@ I-406/I-407/I-408.
 | I-409 | REGRESIÓN: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente (no $0) | GET /api/workers | integration |
 | I-410 | Venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás | GET /api/workers | integration |
 
-## Infraestructura (I-251 a I-282)
+## Infraestructura (I-251 a I-282, I-417, I-418)
 
 | ID | Requisito | Route | Tipo |
 |----|-----------|-------|------|
@@ -271,7 +271,8 @@ I-406/I-407/I-408.
 | I-278 | GET analytics/recompras-avanzadas delega a getReorderSuggestions | GET /api/analytics/recompras-avanzadas | integration |
 | I-279 | Venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × producto.costo | POST /api/ventas | integration |
 | I-280 | Descripcion del asiento contable incluye metodo de pago y nombre del cliente (sin UUID) | POST /api/ventas | integration |
-| I-281 | session.ended inserta ip_address null cuando el evento no trae el campo | POST /api/webhooks/clerk | integration |
+| I-417 | session.ended inserta ip_address null cuando el evento no trae el campo | POST /api/webhooks/clerk | integration |
+| I-418 | REGRESIÓN: ip_address/user_agent puestos en `data` (no en event_attributes.http_request) se ignoran | POST /api/webhooks/clerk | integration |
 | I-290 | GET stores como storeAdmin retorna solo su propia tienda | GET /api/admin/stores | integration |
 | I-291 | GET users como storeAdmin retorna usuarios de su tienda | GET /api/admin/users | integration |
 | I-292 | GET stores como storeAdmin sin storeId retorna 403 | GET /api/admin/stores | integration |
