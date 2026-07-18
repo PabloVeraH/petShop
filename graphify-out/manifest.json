@@ -965,8 +965,8 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784382177.2415733,
-    "ast_hash": "17daadcb16f89778a3ce0146af42caa6",
+    "mtime": 1784388560.5669348,
+    "ast_hash": "e33079ad4b8123d8ad0c34e8d585f50c",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/excel/route.ts": {
@@ -1360,9 +1360,9 @@
     "semantic_hash": "7380e47eb0a1b60a5053f2cf17c3cc28"
   },
   "src/components/admin/AuditoriaCard.tsx": {
-    "mtime": 1783625512.6730142,
-    "ast_hash": "c3f0f38b124c5c41e03934fd73b2ff48",
-    "semantic_hash": "c3f0f38b124c5c41e03934fd73b2ff48"
+    "mtime": 1784388610.8285458,
+    "ast_hash": "500e3b61d61cddd3240a653ed626da4a",
+    "semantic_hash": ""
   },
   "src/components/admin/IAConfigSection.tsx": {
     "mtime": 1779811940.0804012,
@@ -1795,7 +1795,7 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784383656.8111908,
+    "mtime": 1784388239.7977688,
     "ast_hash": "de194dbb28e2b82e0c7b44cf2b3e18cc",
     "semantic_hash": ""
   },
@@ -2045,8 +2045,8 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784383714.3576787,
-    "ast_hash": "5c96af9fcb625a91e3262213d1af53cd",
+    "mtime": 1784388509.1255243,
+    "ast_hash": "c9fd1842279f1df242f3b675abf7c9c9",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-pdf.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784383720.1337278,
-    "ast_hash": "75e5c44bc68efbe5eea735da32da455b",
+    "mtime": 1784388460.5915139,
+    "ast_hash": "d1adcbf65378eabd130a8f49546de098",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
