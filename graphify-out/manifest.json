@@ -550,7 +550,7 @@
     "semantic_hash": "8d79ec456ce96be709ed6ca4ec6f56b6"
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1784314966.2674258,
+    "mtime": 1784321210.622372,
     "ast_hash": "e2933cb45c77f75f9a8f62d555abe190",
     "semantic_hash": ""
   },
@@ -615,9 +615,9 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1784168917.665562,
-    "ast_hash": "0b7a65e1d5bbb95b4ba0c82afe9d6818",
-    "semantic_hash": "0b7a65e1d5bbb95b4ba0c82afe9d6818"
+    "mtime": 1784337273.213413,
+    "ast_hash": "c36efa95de8195ba1602f30f8e101b41",
+    "semantic_hash": ""
   },
   "src/app/(app)/customers/components/ClienteDetalle.tsx": {
     "mtime": 1783656750.0911903,
@@ -710,7 +710,7 @@
     "semantic_hash": "6c8e9b08c19fd92f4e58075675f19d14"
   },
   "src/app/(app)/inventory/components/OptimizadorVencimientosTab.tsx": {
-    "mtime": 1784317820.272536,
+    "mtime": 1784321210.622372,
     "ast_hash": "81de18fe40475a269e41c2c240ebb8c5",
     "semantic_hash": ""
   },
@@ -780,9 +780,9 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784320750.4920056,
-    "ast_hash": "44e4b2dd0cad7b57c88de0fefd25cef6",
-    "semantic_hash": "44e4b2dd0cad7b57c88de0fefd25cef6"
+    "mtime": 1784326127.02834,
+    "ast_hash": "0b1351a05863389e3a2eaa99f7413d3f",
+    "semantic_hash": ""
   },
   "src/app/(app)/purchases/page.tsx": {
     "mtime": 1777072256.6828766,
@@ -810,8 +810,8 @@
     "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1784314966.2674258,
-    "ast_hash": "9b805e64711ea76e3116e615076d814a",
+    "mtime": 1784324479.7007449,
+    "ast_hash": "fed96ab1c7f8a9464374fa9cdb194e5b",
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
@@ -865,7 +865,7 @@
     "semantic_hash": "7249e595292058cfcb7638b9ecd0a7ed"
   },
   "src/app/api/ai/vencimientos/optimizar/route.ts": {
-    "mtime": 1784318088.9650702,
+    "mtime": 1784321210.622372,
     "ast_hash": "5f31b00a235f6666d9a6193b1dfc946a",
     "semantic_hash": ""
   },
@@ -985,9 +985,9 @@
     "semantic_hash": "1e4afbe25dcd377a7e354fcd3a7acd11"
   },
   "src/app/api/contabilidad/cierre-mes/route.ts": {
-    "mtime": 1783739374.1142807,
-    "ast_hash": "00c4ee463d8321f8ead2f4727793cb9c",
-    "semantic_hash": "00c4ee463d8321f8ead2f4727793cb9c"
+    "mtime": 1784337273.213413,
+    "ast_hash": "239785895df1710247427251a2b17a59",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/estado-resultado/excel/route.ts": {
     "mtime": 1783625512.6730142,
@@ -1230,9 +1230,9 @@
     "semantic_hash": "312ad84a575c9999d7a8ecc6cc395bde"
   },
   "src/app/api/settings/route.ts": {
-    "mtime": 1781841183.5767014,
-    "ast_hash": "5a6f1a6dcaf727c8e79c722eb9baf510",
-    "semantic_hash": "5a6f1a6dcaf727c8e79c722eb9baf510"
+    "mtime": 1784324445.347733,
+    "ast_hash": "600fe8ba51bfd1c7a129c376bde388eb",
+    "semantic_hash": ""
   },
   "src/app/api/stock-movements/route.ts": {
     "mtime": 1782415679.6895125,
@@ -1255,9 +1255,9 @@
     "semantic_hash": "00cd63a2dca2aeb5648fbc68ed648985"
   },
   "src/app/api/webhooks/clerk/route.ts": {
-    "mtime": 1782355600.3309543,
-    "ast_hash": "f8ec939bd2080bbfad1ec3c491d4ac98",
-    "semantic_hash": "f8ec939bd2080bbfad1ec3c491d4ac98"
+    "mtime": 1784325079.2534606,
+    "ast_hash": "14840f3bd108b7c906ed8d224151376c",
+    "semantic_hash": ""
   },
   "src/app/api/whatsapp/send-alerts/route.ts": {
     "mtime": 1779811940.0764012,
@@ -1375,7 +1375,7 @@
     "semantic_hash": "2ed3ef4d33bbef982573ecab16fd5d71"
   },
   "src/components/admin/UsuariosCard.tsx": {
-    "mtime": 1784314966.2674258,
+    "mtime": 1784321210.622372,
     "ast_hash": "c6da2d5049aa2c6b79427c249c2009d1",
     "semantic_hash": ""
   },
@@ -1770,9 +1770,9 @@
     "semantic_hash": "e8ae280da442e8d2e1428978063e8209"
   },
   "tests/components/AuditoriaCard.test.tsx": {
-    "mtime": 1779811940.085401,
-    "ast_hash": "02a57806d85cc76c3e47e368d6f65efb",
-    "semantic_hash": "02a57806d85cc76c3e47e368d6f65efb"
+    "mtime": 1784325203.5515683,
+    "ast_hash": "a253efc5bb51dcae0de6b7597eba2fbb",
+    "semantic_hash": ""
   },
   "tests/components/BarcodeScanner.test.tsx": {
     "mtime": 1782355600.3319542,
@@ -1780,7 +1780,7 @@
     "semantic_hash": "9a5c2f15c3ec07622c90ec9fc71e7b0c"
   },
   "tests/components/CanalConfigPage.test.tsx": {
-    "mtime": 1784314966.2674258,
+    "mtime": 1784321210.6233718,
     "ast_hash": "3cb38d71786387e66d177af86ed21e8c",
     "semantic_hash": ""
   },
@@ -1795,9 +1795,9 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784094885.1286416,
-    "ast_hash": "f893f2129c1b0bd6dc7b2196b60d0aa5",
-    "semantic_hash": "f893f2129c1b0bd6dc7b2196b60d0aa5"
+    "mtime": 1784337273.213413,
+    "ast_hash": "0fa2d6116da704fd9fd6307790d36b33",
+    "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
     "mtime": 1782362967.7241862,
@@ -1845,7 +1845,7 @@
     "semantic_hash": "9c2fda2d40dffe4609566af7abafa28e"
   },
   "tests/components/OptimizadorVencimientosTab.test.tsx": {
-    "mtime": 1784317782.3746018,
+    "mtime": 1784321210.6233718,
     "ast_hash": "b190fa27e91fcdbfa0997146ebc2dfe4",
     "semantic_hash": ""
   },
@@ -1860,9 +1860,9 @@
     "semantic_hash": "aafb4d10aff38d6222cfb23bcf8bbce3"
   },
   "tests/components/POSPageCache.test.tsx": {
-    "mtime": 1783739374.1162806,
-    "ast_hash": "3211e69d3f0d972988f60c98396a2224",
-    "semantic_hash": "3211e69d3f0d972988f60c98396a2224"
+    "mtime": 1784326146.454401,
+    "ast_hash": "0f947f777aaa7fbcf944396b3cec7f87",
+    "semantic_hash": ""
   },
   "tests/components/RecomendacionesIA.test.tsx": {
     "mtime": 1783785316.8558774,
@@ -1950,7 +1950,7 @@
     "semantic_hash": "56262e594c574ef95a4668b1816a0f0d"
   },
   "tests/integration/api/ai-vencimientos.test.ts": {
-    "mtime": 1784317730.240541,
+    "mtime": 1784321210.6233718,
     "ast_hash": "4b63d74b4b8f96ee41c860896e6909d2",
     "semantic_hash": ""
   },
@@ -1970,9 +1970,9 @@
     "semantic_hash": "89b99f4c21a1757c38a9c47e5a5ed219"
   },
   "tests/integration/api/audit-extended.test.ts": {
-    "mtime": 1780938907.2352185,
-    "ast_hash": "15c2594518b7160908b4c378ebf98baf",
-    "semantic_hash": "15c2594518b7160908b4c378ebf98baf"
+    "mtime": 1784325182.4835632,
+    "ast_hash": "b0bbd839ee36014311b541128444cfbd",
+    "semantic_hash": ""
   },
   "tests/integration/api/audit-logs.test.ts": {
     "mtime": 1779811940.0874012,
@@ -2055,9 +2055,9 @@
     "semantic_hash": "0cd4a572d866c84910ea77c6a0a759f6"
   },
   "tests/integration/api/contabilidad-cierre-mes.test.ts": {
-    "mtime": 1783739374.1162806,
-    "ast_hash": "f8d85ffd49ac5eedd28e44931fd262d4",
-    "semantic_hash": "f8d85ffd49ac5eedd28e44931fd262d4"
+    "mtime": 1784337273.2144132,
+    "ast_hash": "a3fb507a2926e1ec89def274b21f47d1",
+    "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-estado-resultado-pdf.test.ts": {
     "mtime": 1783785316.8568773,
@@ -2230,9 +2230,9 @@
     "semantic_hash": "9f331331e4a393d19e35c744e8385d15"
   },
   "tests/integration/api/settings.test.ts": {
-    "mtime": 1781841183.5767014,
-    "ast_hash": "ed154b1274f22dfd523200cf0dcf9d31",
-    "semantic_hash": "ed154b1274f22dfd523200cf0dcf9d31"
+    "mtime": 1784324519.2699292,
+    "ast_hash": "b86210d5015fa86c6a70367e18b8097e",
+    "semantic_hash": ""
   },
   "tests/integration/api/stock-alertas.test.ts": {
     "mtime": 1783656750.0961905,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784320764.3645551,
-    "ast_hash": "cddda7fb67a9822792f1b23c4f39a6c1",
+    "mtime": 1784337273.212413,
+    "ast_hash": "03833230c75ca2fb5059b22bf3dbf0bc",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3860,12 +3860,12 @@
     "semantic_hash": ""
   },
   "tests/components/SettingsPageAutoComplete.test.tsx": {
-    "mtime": 1784313957.1523101,
-    "ast_hash": "403c863492f6ca471485a0748b2b0de5",
+    "mtime": 1784324573.0426166,
+    "ast_hash": "b78be6b3aa012c4588a09f841fe6dbf4",
     "semantic_hash": ""
   },
   "tests/components/UsuariosCard.test.tsx": {
-    "mtime": 1784313928.8714242,
+    "mtime": 1784321210.6233718,
     "ast_hash": "650caff609e012d57ed03e90f1a1c38e",
     "semantic_hash": ""
   },
@@ -3875,8 +3875,43 @@
     "semantic_hash": ""
   },
   "tests/components/POSStockRefresh.test.tsx": {
-    "mtime": 1784320728.7747293,
+    "mtime": 1784321210.6233718,
     "ast_hash": "856e67696706de0385a19ea9ad4da0f5",
+    "semantic_hash": ""
+  },
+  "migrations/054_cierre_mes_backup.sql": {
+    "mtime": 1784337432.5530226,
+    "ast_hash": "c6192c8a27bdcb02738b3c1b98ed61d8",
+    "semantic_hash": ""
+  },
+  "src/app/api/contabilidad/cierre-mes/preview/route.ts": {
+    "mtime": 1784337273.213413,
+    "ast_hash": "d85cf07eb704d6d6c30332b5378fafa9",
+    "semantic_hash": ""
+  },
+  "src/lib/contabilidad/cierre-mes.ts": {
+    "mtime": 1784321570.7068706,
+    "ast_hash": "6455b45d0883cda667773e01480e6ec9",
+    "semantic_hash": ""
+  },
+  "tests/components/POSCartClear.test.tsx": {
+    "mtime": 1784326300.5971212,
+    "ast_hash": "3bab76c8d496c3db928ee25d6406f59d",
+    "semantic_hash": ""
+  },
+  "tests/components/SettingsPage.test.tsx": {
+    "mtime": 1784324606.3349009,
+    "ast_hash": "f3664321c1e7815e3635d94c0a0c4490",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/contabilidad-cierre-mes-backup.test.ts": {
+    "mtime": 1784337273.213413,
+    "ast_hash": "494acea24e749ac91a1981dfb39358fc",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/contabilidad-cierre-mes-preview.test.ts": {
+    "mtime": 1784337273.213413,
+    "ast_hash": "6146d3c90bb4db16adb9c91347887c29",
     "semantic_hash": ""
   }
 }
