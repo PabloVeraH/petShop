@@ -7,7 +7,7 @@
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -128,10 +128,12 @@ describe("POSPage — invalidación de caché post-venta", () => {
       expect.objectContaining({ metodoPago: "efectivo" })
     );
 
-    // DEBE invalidar ["productos"] con refetchType "all" — fuerza refetch incluso
-    // sin observer activo (regresión: usaba refetchType por defecto "active", que
-    // no refetch si SearchProductos no tiene observer activo, ej. React concurrent
-    // o re-render que remonta brevemente el componente)
+    // DEBE invalidar ["productos"] con refetchType "all" (alineado con ["ventas"]).
+    // Nota: un repro con SearchProductos real y refetchType "active" (el default)
+    // no reprodujo el stale-grid en jsdom — ver PP-12 en POSStockRefresh.test.tsx,
+    // que documenta lo mismo. La causa exacta en navegador real no está confirmada;
+    // "all" se mantiene como alineación defensiva con el patrón ya usado en ventas,
+    // no como corrección de una causa raíz verificada.
     expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
 
