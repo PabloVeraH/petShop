@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-24: ContabilidadPage — modal de confirmación y feedback de Cierre de Mes
+ * Tests CP-01 a CP-28: ContabilidadPage
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -18,6 +18,10 @@
  * CP-22  Vista previa en loading no bloquea apertura del modal
  * CP-23  Confirmar cierre funciona aunque preview haya fallado
  * CP-24  REGRESIÓN — preview.ya_tiene_cierre muestra advertencia y deshabilita confirmar
+ * CP-25  subtítulo descriptivo cambia al navegar entre tabs (período vs acumulado)
+ * CP-26  label de período muestra "Acumulado hasta" solo en Balance de Comprobación
+ * CP-27  label de período muestra "Período" en Libro Diario y Estado de Resultado
+ * CP-28  nota azul de saldos acumulados visible solo en tab Balance
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -746,4 +750,122 @@ describe("ContabilidadPage — Eliminar asiento $0/$0", () => {
       );
     }
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Suite: aclaración visual — diferencia de semántica de período entre tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MOCK_BALANCE_RESPONSE = {
+  fecha: "2026-06-30",
+  periodo: "Hasta 2026-06-30",
+  cuentas: [
+    { codigo: "1.1.1", nombre: "Caja", tipo: "activo", debitos: 100000, creditos: 20000, saldo: 80000 },
+  ],
+  total_debitos: 100000,
+  total_creditos: 20000,
+  balanceado: false,
+};
+
+const MOCK_RESULTADO_RESPONSE = {
+  empresa: { nombre: "PetShop Test" },
+  periodo: "junio de 2026",
+  desde: "2026-06-01",
+  hasta: "2026-06-30",
+  ingresos: { venta_productos: 500000, devoluciones: -10000, total_ingresos_operacionales: 490000 },
+  gastos: { costo_venta: 300000, total_gastos: 300000 },
+  utilidad_bruta: 190000,
+  utilidad_neta: 190000,
+};
+
+function setupWithAllMocks() {
+  (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    if (String(url).includes("libro-diario")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => mockLibroDiarioResponse });
+    }
+    if (String(url).includes("balance-prueba")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => MOCK_BALANCE_RESPONSE });
+    }
+    if (String(url).includes("estado-resultado")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => MOCK_RESULTADO_RESPONSE });
+    }
+    if (String(url).includes("cierre-mes")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+  });
+  render(<ContabilidadPage />, { wrapper: makeWrapper() });
+}
+
+describe("ContabilidadPage — aclaración visual de período (CP-25 a CP-28)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockReset();
+    mockLibroDiarioResponse = {
+      periodo: "junio 2026",
+      desde: "2026-06-01",
+      hasta: "2026-06-30",
+      empresa: { nombre: "PetShop Test", rut: "76.000.000-0" },
+      asientos: [],
+      resumen: { total_asientos: 5, total_debitos: 50000, total_creditos: 50000, balanceado: true },
+    };
+  });
+
+  it("CP-25: subtítulo descriptivo cambia al navegar entre tabs (período vs acumulado)", async () => {
+    setupWithAllMocks();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Asientos contables del período seleccionado/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Saldos acumulados desde el inicio de operaciones/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Estado de Resultado/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Ingresos, costos y utilidad del período seleccionado/i)).toBeInTheDocument();
+    });
+  });
+
+  it("CP-26: label muestra 'Acumulado hasta' en Balance de Comprobación", async () => {
+    setupWithAllMocks();
+
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Acumulado hasta:/i)).toBeInTheDocument();
+    });
+  });
+
+  it("CP-27: label muestra 'Período' en Libro Diario y Estado de Resultado", async () => {
+    setupWithAllMocks();
+
+    await waitFor(() => {
+      expect(screen.getByText("Período:")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Estado de Resultado/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Período:")).toBeInTheDocument();
+    });
+  });
+
+  it("CP-28: nota azul de saldos acumulados visible solo en tab Balance", async () => {
+    setupWithAllMocks();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Saldos acumulados desde el inicio/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Balance de Comprobación/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Saldos acumulados desde el inicio de operaciones hasta la fecha de corte/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Libro Diario/i }));
+    await waitFor(() => {
+      expect(screen.queryByText(/Saldos acumulados desde el inicio/i)).not.toBeInTheDocument();
+    });
+  });
 });

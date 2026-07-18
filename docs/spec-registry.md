@@ -376,6 +376,10 @@ I-406/I-407/I-408.
 | CP-22 | Vista previa en loading no bloquea apertura del modal | ContabilidadPage | component |
 | CP-23 | Confirmar cierre funciona aunque preview haya fallado | ContabilidadPage | component |
 | CP-24 | REGRESIÓN: muestra advertencia "ya está cerrado" y deshabilita Confirmar cuando preview.ya_tiene_cierre=true, aunque periodoCerrado (derivado de libro-diario, potencialmente stale) sea false | ContabilidadPage | component |
+| CP-25 | REGRESIÓN: subtítulo descriptivo del header difiere por tab — "Asientos contables del período" (Libro Diario) / "Saldos acumulados desde el inicio" (Balance) / "Ingresos, costos y utilidad del período" (Estado de Resultado) — evita que el usuario asuma que Balance muestra solo el período igual que los otros | ContabilidadPage | component |
+| CP-26 | REGRESIÓN: label de período muestra "Acumulado hasta: <fecha>" en lugar de "Período: <mes>" cuando el tab activo es Balance de Comprobación | ContabilidadPage | component |
+| CP-27 | Label de período muestra "Período: <mes>" en Libro Diario y Estado de Resultado (no en Balance) | ContabilidadPage | component |
+| CP-28 | REGRESIÓN: nota azul informativa "Saldos acumulados desde el inicio de operaciones hasta la fecha de corte. No representa únicamente los movimientos del período seleccionado." visible solo en tab Balance | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |

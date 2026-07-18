@@ -187,7 +187,11 @@ export default function ContabilidadPage() {
             {tab === "libro" ? "Libro Diario" : tab === "balance" ? "Balance de Comprobación" : "Estado de Resultado"}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Registro contable conforme normativa SII Chile
+            {tab === "libro"
+              ? "Asientos contables del período seleccionado"
+              : tab === "balance"
+              ? "Saldos acumulados desde el inicio de operaciones hasta la fecha de corte"
+              : "Ingresos, costos y utilidad del período seleccionado"}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -298,7 +302,15 @@ export default function ContabilidadPage() {
             </select>
           </div>
           <div className="text-sm text-gray-500">
-            Período: <strong>{periodoLabel(año, mes)}</strong>
+            {tab === "balance" ? (
+              <>Acumulado hasta: <strong>{
+                mes
+                  ? new Date(Number(año), Number(mes), 0).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })
+                  : `31 de diciembre de ${año}`
+              }</strong></>
+            ) : (
+              <>Período: <strong>{periodoLabel(año, mes)}</strong></>
+            )}
           </div>
         </div>
 
@@ -463,6 +475,9 @@ export default function ContabilidadPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
+              <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700">
+                Saldos acumulados desde el inicio de operaciones hasta la fecha de corte. No representa únicamente los movimientos del período seleccionado.
+              </div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
