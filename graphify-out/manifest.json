@@ -555,9 +555,9 @@
     "semantic_hash": ""
   },
   "src/app/(app)/canales/instagram/posts/editor/page.tsx": {
-    "mtime": 1780687681.0613668,
-    "ast_hash": "e99bf90931be90d9c92dd12dab5c7595",
-    "semantic_hash": "e99bf90931be90d9c92dd12dab5c7595"
+    "mtime": 1784338653.9021292,
+    "ast_hash": "6e4866119efe288df76dfa71b1bea68a",
+    "semantic_hash": ""
   },
   "src/app/(app)/canales/instagram/posts/page.tsx": {
     "mtime": 1780687681.0616946,
@@ -615,8 +615,8 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1784337273.213413,
-    "ast_hash": "c36efa95de8195ba1602f30f8e101b41",
+    "mtime": 1784340709.2586849,
+    "ast_hash": "a2a2d4e8e8d3110f3e7c34d6d63a1ad1",
     "semantic_hash": ""
   },
   "src/app/(app)/customers/components/ClienteDetalle.tsx": {
@@ -810,8 +810,8 @@
     "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1784324479.7007449,
-    "ast_hash": "fed96ab1c7f8a9464374fa9cdb194e5b",
+    "mtime": 1784354218.4819467,
+    "ast_hash": "0b05abc51c40845ac9446cec2269cc32",
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
@@ -1255,8 +1255,8 @@
     "semantic_hash": "00cd63a2dca2aeb5648fbc68ed648985"
   },
   "src/app/api/webhooks/clerk/route.ts": {
-    "mtime": 1784325079.2534606,
-    "ast_hash": "14840f3bd108b7c906ed8d224151376c",
+    "mtime": 1784355505.3016443,
+    "ast_hash": "134f6f5c68d89190667f9c65b86c0d4e",
     "semantic_hash": ""
   },
   "src/app/api/whatsapp/send-alerts/route.ts": {
@@ -1375,8 +1375,8 @@
     "semantic_hash": "2ed3ef4d33bbef982573ecab16fd5d71"
   },
   "src/components/admin/UsuariosCard.tsx": {
-    "mtime": 1784321210.622372,
-    "ast_hash": "c6da2d5049aa2c6b79427c249c2009d1",
+    "mtime": 1784339444.159044,
+    "ast_hash": "e89a1d56100450880bf5034d077553fc",
     "semantic_hash": ""
   },
   "src/components/orders/create-order-dialog.tsx": {
@@ -1795,8 +1795,8 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784337273.213413,
-    "ast_hash": "0fa2d6116da704fd9fd6307790d36b33",
+    "mtime": 1784340864.3377748,
+    "ast_hash": "68dab7800e1f408dd93d981be64f1f38",
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
@@ -1970,8 +1970,8 @@
     "semantic_hash": "89b99f4c21a1757c38a9c47e5a5ed219"
   },
   "tests/integration/api/audit-extended.test.ts": {
-    "mtime": 1784325182.4835632,
-    "ast_hash": "b0bbd839ee36014311b541128444cfbd",
+    "mtime": 1784355442.0241058,
+    "ast_hash": "23e72580b5689ec14989161c7c561225",
     "semantic_hash": ""
   },
   "tests/integration/api/audit-logs.test.ts": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": "9f331331e4a393d19e35c744e8385d15"
   },
   "tests/integration/api/settings.test.ts": {
-    "mtime": 1784324519.2699292,
-    "ast_hash": "b86210d5015fa86c6a70367e18b8097e",
+    "mtime": 1784354132.8888464,
+    "ast_hash": "c46daf8ed824c2d7a03adef5b183e12c",
     "semantic_hash": ""
   },
   "tests/integration/api/stock-alertas.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784337273.212413,
-    "ast_hash": "03833230c75ca2fb5059b22bf3dbf0bc",
+    "mtime": 1784355453.9080193,
+    "ast_hash": "fab7fa4a6f48279e13caef50fe008d08",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3865,8 +3865,8 @@
     "semantic_hash": ""
   },
   "tests/components/UsuariosCard.test.tsx": {
-    "mtime": 1784321210.6233718,
-    "ast_hash": "650caff609e012d57ed03e90f1a1c38e",
+    "mtime": 1784339504.5138938,
+    "ast_hash": "ebd4c8e2fce6cb30c25b8605fa714410",
     "semantic_hash": ""
   },
   "tests/unit/lib/pdf-generator-boleta.test.ts": {
@@ -3900,8 +3900,8 @@
     "semantic_hash": ""
   },
   "tests/components/SettingsPage.test.tsx": {
-    "mtime": 1784324606.3349009,
-    "ast_hash": "f3664321c1e7815e3635d94c0a0c4490",
+    "mtime": 1784354132.8888464,
+    "ast_hash": "887b36e88cdabebd4b3402528df9cab5",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-cierre-mes-backup.test.ts": {
@@ -3912,6 +3912,11 @@
   "tests/integration/api/contabilidad-cierre-mes-preview.test.ts": {
     "mtime": 1784337273.213413,
     "ast_hash": "6146d3c90bb4db16adb9c91347887c29",
+    "semantic_hash": ""
+  },
+  "tests/components/InstagramEditor.test.tsx": {
+    "mtime": 1784338710.5951242,
+    "ast_hash": "58db3fb79afe5fe6d5af6bc6174f853c",
     "semantic_hash": ""
   }
 }
