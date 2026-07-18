@@ -1,14 +1,25 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
+
+  const { sessionClaims } = await auth();
+  const admin = getAdminStatus(sessionClaims);
+  try {
+    requireStoreAdmin(admin, store_id);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const creados: string[] = [];
   const errores: string[] = [];
@@ -180,6 +191,14 @@ export async function POST(req: NextRequest) {
     if (id) creados.push(`COMPRA:${orden.numero}`);
     else errores.push(`COMPRA:${orden.numero}`);
   }
+
+  logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "BACKFILL",
+    entityType: "journal_entries",
+    changeDescription: `${creados.length} creados, ${errores.length} errores`,
+  }).catch(() => {});
 
   return NextResponse.json({
     ok: true,

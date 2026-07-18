@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import type { CierreMesPreview } from "@/lib/contabilidad/cierre-mes";
 
 type Asiento = {
@@ -72,6 +73,14 @@ const CANALES = [
   { label: "Uber Eats", value: "ubereats" },
 ];
 
+type BackfillResult = {
+  ok: boolean;
+  creados: number;
+  errores: number;
+  detalle_creados: string[];
+  detalle_errores: string[];
+};
+
 export default function ContabilidadPage() {
   const hoy = new Date();
   const [año, setAño] = useState(String(hoy.getFullYear()));
@@ -83,6 +92,13 @@ export default function ContabilidadPage() {
   const [cierreError, setCierreError] = useState<string | null>(null);
   const [asientoToDelete, setAsientoToDelete] = useState<{ id: string; numero: number } | null>(null);
   const queryClient = useQueryClient();
+
+  const { role } = useAdminAuth();
+  const isAdmin = role === "storeAdmin" || role === "systemAdmin";
+
+  const [showBackfillConfirm, setShowBackfillConfirm] = useState(false);
+  const [showBackfillResult, setShowBackfillResult] = useState<BackfillResult | null>(null);
+  const [backfillError, setBackfillError] = useState<string | null>(null);
 
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
 
@@ -169,6 +185,26 @@ export default function ContabilidadPage() {
     },
   });
 
+  const { mutate: backfill, isPending: backfilling } = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/contabilidad/backfill", { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Error en backfill");
+      return data as BackfillResult;
+    },
+    onSuccess: (data) => {
+      setShowBackfillResult(data);
+      setBackfillError(null);
+      setShowBackfillConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
+    },
+    onError: (err: Error) => {
+      setBackfillError(err.message);
+      setShowBackfillResult(null);
+      setShowBackfillConfirm(false);
+    },
+  });
+
   const periodoCerrado = useMemo(() => {
     return (libro?.asientos ?? []).some(a => a.tipo_movimiento === "CIERRE_MES");
   }, [libro]);
@@ -212,6 +248,20 @@ export default function ContabilidadPage() {
               <span className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
                 ✓ Cerrado
               </span>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowBackfillResult(null);
+                  setBackfillError(null);
+                  setShowBackfillConfirm(true);
+                }}
+                disabled={backfilling}
+              >
+                {backfilling ? "Procesando..." : "Backfill"}
+              </Button>
             )}
           </div>
           {tab === "libro" && (
@@ -582,6 +632,66 @@ export default function ContabilidadPage() {
           )}
         </div>
       )}
+      {/* Banners de resultado backfill */}
+      {showBackfillResult && (
+        <div className="fixed bottom-6 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-green-700 font-bold text-sm">✓ Backfill completado</span>
+            <button
+              onClick={() => setShowBackfillResult(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="text-xs text-gray-500 space-y-0.5">
+            <div>Asientos creados: <strong>{showBackfillResult.creados}</strong></div>
+            <div>Errores: <strong className={showBackfillResult.errores > 0 ? "text-red-600" : ""}>{showBackfillResult.errores}</strong></div>
+            {showBackfillResult.detalle_creados.length > 0 && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                  Ver detalle ({showBackfillResult.detalle_creados.length})
+                </summary>
+                <ul className="mt-1 space-y-0.5 list-disc list-inside">
+                  {showBackfillResult.detalle_creados.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {showBackfillResult.detalle_errores.length > 0 && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-red-600 hover:text-red-800">
+                  Ver errores ({showBackfillResult.detalle_errores.length})
+                </summary>
+                <ul className="mt-1 space-y-0.5 list-disc list-inside text-red-600">
+                  {showBackfillResult.detalle_errores.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        </div>
+      )}
+
+      {backfillError && (
+        <div className="fixed bottom-6 right-6 z-50 bg-white border border-red-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-red-700 font-bold text-sm">✗ Error en backfill</span>
+            <button
+              onClick={() => setBackfillError(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-gray-700">{backfillError}</p>
+        </div>
+      )}
+
       {/* Banners de resultado cierre */}
       {cierreResult && (
         <div className="fixed bottom-6 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
@@ -756,6 +866,56 @@ export default function ContabilidadPage() {
                   disabled={cerrandoMes || periodoCerrado || !!preview?.ya_tiene_cierre}
                 >
                   {cerrandoMes ? "Cerrando..." : "Confirmar cierre"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* Modal confirmación backfill */}
+      {showBackfillConfirm && (
+        <ModalOverlay open onClose={() => setShowBackfillConfirm(false)}>
+          <div className="bg-white rounded-lg max-w-md w-full shadow-xl m-4">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="text-amber-500 text-2xl leading-none">⚠</div>
+                <div>
+                  <h2 className="font-bold text-gray-900">Confirmar Backfill Contable</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Se generarán asientos contables faltantes para ventas, notas de crédito y
+                    órdenes de compra que no tengan su registro contable asociado.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 space-y-1">
+                <p className="font-medium">Esta operación:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-xs">
+                  <li>Busca ventas sin asiento de ingreso y las genera</li>
+                  <li>Busca ventas sin asiento de COGS y los genera</li>
+                  <li>Busca notas de crédito sin asiento y las genera</li>
+                  <li>Busca órdenes de compra sin asiento y las genera</li>
+                  <li>Es segura para ejecutar múltiples veces (solo crea los faltantes)</li>
+                  <li>Quedará registrada en el log de auditoría</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowBackfillConfirm(false)}
+                  disabled={backfilling}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => backfill()}
+                  disabled={backfilling}
+                >
+                  {backfilling ? "Procesando..." : "Ejecutar Backfill"}
                 </Button>
               </div>
             </div>

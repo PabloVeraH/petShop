@@ -72,7 +72,7 @@ export const LicenseConfigSchema = z.object({
 export const AuditLogsQuerySchema = z.object({
   store_id: UUIDSchema.optional(),
   user_id: z.string().optional(),
-  action: z.enum(["CREATE", "UPDATE", "DELETE", "LOGIN_FAILED", "EXPORT", "SETTINGS", "BAN_USER", "UNBAN_USER"]).optional(),
+  action: z.enum(["CREATE", "UPDATE", "DELETE", "LOGIN_FAILED", "EXPORT", "SETTINGS", "BAN_USER", "UNBAN_USER", "BACKFILL", "CIERRE_MES"]).optional(),
   entity_type: z.string().max(50).optional(),
   result: z.enum(["success", "failure", "partial"]).optional(),
   desde: z.string().datetime().optional(),

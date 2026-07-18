@@ -1,5 +1,5 @@
 /**
- * Tests CP-01 a CP-28: ContabilidadPage
+ * Tests CP-01 a CP-31: ContabilidadPage
  * @jest-environment jsdom
  *
  * CP-01  REGRESIÓN — click en "Cierre de Mes" abre modal, NO ejecuta directamente
@@ -10,18 +10,29 @@
  * CP-06  Error 409 muestra banner rojo con el mensaje de la API
  * CP-07  Error de red muestra banner rojo genérico
  * CP-08  Botón "Cierre de Mes" está deshabilitado mientras cerrandoMes=true
+ * CP-09  asiento $0/$0 muestra indicador ⚠ y botón 'Eliminar'
+ * CP-10  click en 'Eliminar' abre modal de confirmación con el número de asiento
+ * CP-11  Cancelar cierra el modal sin llamar al DELETE
+ * CP-12  REGRESIÓN — confirmar eliminación llama a DELETE y cierra el modal
  * CP-13  Período cerrado deshabilita botón y muestra badge ✓ Cerrado
  * CP-14  Botón Cierre de Mes deshabilitado impide abrir modal en período cerrado
  * CP-15  Error 409 concurrente refresca libro-diario y muestra "✓ Cerrado"
+ * CP-16  REGRESIÓN — botón PDF (y Excel) visible en tab Balance de Comprobación
+ * CP-17  REGRESIÓN — botón PDF (y Excel) visible en tab Estado de Resultado
+ * CP-18  al alternar entre tabs solo un botón PDF visible, con href correcto
+ * CP-19  el título (h1) refleja el tab activo
  * CP-20  Al abrir modal se fetchea vista previa del cierre
  * CP-21  Modal muestra datos de la vista previa (asientos, COGS, balance)
  * CP-22  Vista previa en loading no bloquea apertura del modal
  * CP-23  Confirmar cierre funciona aunque preview haya fallado
  * CP-24  REGRESIÓN — preview.ya_tiene_cierre muestra advertencia y deshabilita confirmar
- * CP-25  subtítulo descriptivo cambia al navegar entre tabs (período vs acumulado)
- * CP-26  label de período muestra "Acumulado hasta" solo en Balance de Comprobación
- * CP-27  label de período muestra "Período" en Libro Diario y Estado de Resultado
+ * CP-25  subtítulo descriptivo cambia al navegar entre tabs
+ * CP-26  label muestra "Acumulado hasta" solo en Balance de Comprobación
+ * CP-27  label muestra "Período" en Libro Diario y Estado de Resultado
  * CP-28  nota azul de saldos acumulados visible solo en tab Balance
+ * CP-29  Botón Backfill visible solo para storeAdmin/systemAdmin
+ * CP-30  Click en Backfill abre modal de confirmación con descripción de la operación
+ * CP-31  Éxito de backfill muestra banner con creados/errores
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -46,6 +57,12 @@ jest.mock("@/components/ui/button", () => ({
       {children}
     </button>
   ),
+}));
+
+// Mock useAdminAuth — default: storeAdmin
+let mockAdminRole = "storeAdmin";
+jest.mock("@/hooks/useAdminAuth", () => ({
+  useAdminAuth: () => ({ userId: "u1", role: mockAdminRole, storeId: "s1", isLoading: false }),
 }));
 
 // Respuestas configurables por test
@@ -86,6 +103,18 @@ let mockCierreResponse: { ok: boolean; status: number; body: object } = {
   },
 };
 
+let mockBackfillResponse: { ok: boolean; status: number; body: object } = {
+  ok: true,
+  status: 200,
+  body: {
+    ok: true,
+    creados: 5,
+    errores: 0,
+    detalle_creados: ["VENTA (ingreso):F001", "VENTA (COGS):F001", "NC:NC001", "COMPRA:OC001", "VENTA (ingreso):F002"],
+    detalle_errores: [],
+  },
+};
+
 function defaultFetchMock(url: string) {
   if (String(url).includes("cierre-mes/preview")) {
     return Promise.resolve({
@@ -99,6 +128,13 @@ function defaultFetchMock(url: string) {
       ok: mockCierreResponse.ok,
       status: mockCierreResponse.status,
       json: async () => mockCierreResponse.body,
+    });
+  }
+  if (String(url).includes("/api/contabilidad/backfill")) {
+    return Promise.resolve({
+      ok: mockBackfillResponse.ok,
+      status: mockBackfillResponse.status,
+      json: async () => mockBackfillResponse.body,
     });
   }
   return Promise.resolve({
@@ -866,6 +902,123 @@ describe("ContabilidadPage — aclaración visual de período (CP-25 a CP-28)", 
     fireEvent.click(screen.getByRole("button", { name: /Libro Diario/i }));
     await waitFor(() => {
       expect(screen.queryByText(/Saldos acumulados desde el inicio/i)).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("ContabilidadPage — Backfill (CP-29 a CP-31)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockImplementation(defaultFetchMock);
+    mockAdminRole = "storeAdmin";
+  });
+
+  it("CP-29: botón Backfill visible para storeAdmin", async () => {
+    mockAdminRole = "storeAdmin";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Backfill/i })).toBeInTheDocument();
+    });
+  });
+
+  it("CP-29: botón Backfill visible para systemAdmin", async () => {
+    mockAdminRole = "systemAdmin";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Backfill/i })).toBeInTheDocument();
+    });
+  });
+
+  it("CP-29: botón Backfill NO visible para storeWorker", async () => {
+    mockAdminRole = "storeWorker";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /Backfill/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("CP-30: click en Backfill abre modal de confirmación", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Backfill/i }));
+    });
+
+    expect(screen.getByText(/Confirmar Backfill Contable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ejecutar Backfill/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cancelar/i)).toBeInTheDocument();
+  });
+
+  it("CP-30: cancelar cierra el modal sin llamar al API", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Backfill/i }));
+    });
+
+    fireEvent.click(screen.getByText(/Cancelar/i));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Confirmar Backfill Contable/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("CP-31: backfill exitoso muestra banner con creados/errores/detalle", async () => {
+    mockBackfillResponse = {
+      ok: true,
+      status: 200,
+      body: {
+        ok: true,
+        creados: 5,
+        errores: 0,
+        detalle_creados: ["VENTA (ingreso):F001", "VENTA (COGS):F001", "NC:NC001"],
+        detalle_errores: [],
+      },
+    };
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Backfill/i }));
+    });
+
+    fireEvent.click(screen.getByText(/Ejecutar Backfill/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Backfill completado/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Asientos creados:/)).toBeInTheDocument();
+    expect(screen.getByText(/VENTA \(ingreso\):F001/i)).toBeInTheDocument();
+
+    expect(screen.queryByText(/Confirmar Backfill Contable/i)).not.toBeInTheDocument();
+  });
+
+  it("CP-31: backfill con errores muestra contador de errores en rojo", async () => {
+    mockBackfillResponse = {
+      ok: true,
+      status: 200,
+      body: {
+        ok: true,
+        creados: 2,
+        errores: 1,
+        detalle_creados: ["VENTA (ingreso):F001"],
+        detalle_errores: ["No se pudo crear asiento para COMPRA:OC099"],
+      },
+    };
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Backfill/i }));
+    });
+
+    fireEvent.click(screen.getByText(/Ejecutar Backfill/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Backfill completado/i)).toBeInTheDocument();
     });
   });
 });

@@ -137,6 +137,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-403 | Backfill salta venta que tiene ambos asientos (ingreso + COGS) | POST /api/contabilidad/backfill | integration |
 | I-404 | Backfill no crea COGS si costoTotal=0 | POST /api/contabilidad/backfill | integration |
 | I-413 | REGRESIÓN: backfill de ventas excluye estado='anulada' (`.neq("estado","anulada")`) — una venta anulada sin asiento de ingreso original no debe recibir uno nuevo (ingreso fantasma) | POST /api/contabilidad/backfill | integration |
+| I-419 | REGRESIÓN: backfill retorna 401 si no hay sesión | POST /api/contabilidad/backfill | integration |
+| I-420 | REGRESIÓN: backfill retorna 403 si el usuario no es storeAdmin ni systemAdmin — sin requireStoreAdmin cualquier storeWorker autenticado puede generar asientos | POST /api/contabilidad/backfill | integration |
 
 ## Balance HTML (BP-01 a BP-12)
 
@@ -381,6 +383,9 @@ I-406/I-407/I-408.
 | CP-26 | REGRESIÓN: label de período muestra "Acumulado hasta: <fecha>" en lugar de "Período: <mes>" cuando el tab activo es Balance de Comprobación | ContabilidadPage | component |
 | CP-27 | Label de período muestra "Período: <mes>" en Libro Diario y Estado de Resultado (no en Balance) | ContabilidadPage | component |
 | CP-28 | REGRESIÓN: nota azul informativa "Saldos acumulados desde el inicio de operaciones hasta la fecha de corte. No representa únicamente los movimientos del período seleccionado." visible solo en tab Balance | ContabilidadPage | component |
+| CP-29 | Botón Backfill visible solo para storeAdmin y systemAdmin, oculto para storeWorker | ContabilidadPage | component |
+| CP-30 | Click en Backfill abre modal de confirmación con descripción de la operación; Cancelar cierra el modal sin llamar al API | ContabilidadPage | component |
+| CP-31 | Backfill exitoso muestra banner con creados/errores y detalle expandible; errores en rojo | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |

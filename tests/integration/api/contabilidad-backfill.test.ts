@@ -7,13 +7,20 @@
  * I-402 — Backfill crea COGS faltante cuando venta solo tiene asiento de ingreso
  * I-403 — Backfill salta venta que tiene ambos asientos (ingreso + COGS)
  * I-404 — Backfill no crea COGS si costoTotal=0
+ * I-419 — 401 cuando no hay sesión
+ * I-420 — 403 cuando el usuario no es storeAdmin ni systemAdmin
  */
 
-import { POST } from "@/app/api/contabilidad/backfill/route";
 import { NextRequest } from "next/server";
+
+const mockAuthFn = jest.fn();
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+jest.mock("@/lib/audit", () => ({
+  logAudit: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuthFn }));
 
 jest.mock("@/lib/contabilidad/generador-asientos", () => {
   const actual = jest.requireActual("@/lib/contabilidad/generador-asientos");
@@ -23,6 +30,8 @@ jest.mock("@/lib/contabilidad/generador-asientos", () => {
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
+import { logAudit } from "@/lib/audit";
+import { POST } from "@/app/api/contabilidad/backfill/route";
 
 const STORE_ID = "store-1111-2222-3333";
 
@@ -55,7 +64,28 @@ describe("POST /api/contabilidad/backfill", () => {
     jest.clearAllMocks();
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
     (crearAsiento as jest.Mock).mockResolvedValue("asiento-uuid");
+    mockAuthFn.mockResolvedValue({
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
   });
+
+  describe("autorización", () => {
+    it("I-419: retorna 401 cuando no hay sesión", async () => {
+      (authModule.getStoreId as jest.Mock).mockResolvedValue(null);
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(401);
+    });
+
+    it("I-420: retorna 403 cuando el usuario no es storeAdmin ni systemAdmin", async () => {
+      mockAuthFn.mockResolvedValue({
+        sessionClaims: { publicMetadata: { storeWorker: true, storeId: STORE_ID } },
+      });
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe("lógica de backfill", () => {
 
   // I-400
   it("I-400: Backfill crea ingreso + COGS para venta sin ningún asiento", async () => {
@@ -194,6 +224,7 @@ describe("POST /api/contabilidad/backfill", () => {
     expect(ventasChain.neq).toHaveBeenCalledWith("estado", "anulada");
     expect(crearAsiento).not.toHaveBeenCalled();
   });
+  }); // describe lógica de backfill
 });
 
 // ---------------------------------------------------------------------------
