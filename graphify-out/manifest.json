@@ -965,8 +965,8 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784388782.3425815,
-    "ast_hash": "e33079ad4b8123d8ad0c34e8d585f50c",
+    "mtime": 1784483252.7096987,
+    "ast_hash": "a1031720ccf1af95615c12340821881f",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/excel/route.ts": {
@@ -1140,9 +1140,9 @@
     "semantic_hash": "5ebd60fcf7a104d995334bcda9f19b5b"
   },
   "src/app/api/notas-credito/route.ts": {
-    "mtime": 1783785316.8548775,
-    "ast_hash": "f589b5ba82cc45828f5eccb8815086c5",
-    "semantic_hash": "f589b5ba82cc45828f5eccb8815086c5"
+    "mtime": 1784483252.7106986,
+    "ast_hash": "e2c30b6901954e802d263798070a2c35",
+    "semantic_hash": ""
   },
   "src/app/api/onboarding/complete/route.ts": {
     "mtime": 1776358074.919349,
@@ -1580,8 +1580,8 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1784297212.9409716,
-    "ast_hash": "764fc1669f2d8c0792c5d8bd5a07d650",
+    "mtime": 1784483252.7106986,
+    "ast_hash": "ec2d10d852acdb190e8153b93f58c286",
     "semantic_hash": ""
   },
   "src/lib/contabilidad/html-balance-prueba.ts": {
@@ -2045,8 +2045,8 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784388782.3435814,
-    "ast_hash": "c9fd1842279f1df242f3b675abf7c9c9",
+    "mtime": 1784483184.1120536,
+    "ast_hash": "798ee22c2eb488b27c946d9a251cc177",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-pdf.test.ts": {
@@ -2155,9 +2155,9 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1783785316.8568773,
-    "ast_hash": "2c40f777dd8a247076f805f834ee744b",
-    "semantic_hash": "2c40f777dd8a247076f805f834ee744b"
+    "mtime": 1784474473.3103983,
+    "ast_hash": "cad50b080979f1afa13fec0c37f6a12f",
+    "semantic_hash": ""
   },
   "tests/integration/api/onboarding.test.ts": {
     "mtime": 1776358074.9222896,
@@ -2375,9 +2375,9 @@
     "semantic_hash": "70793c320b6d3f66238871224c9aa544"
   },
   "tests/unit/lib/contabilidad-generador.test.ts": {
-    "mtime": 1782671438.8174593,
-    "ast_hash": "f6b02c2bc405b79ac1334cd2893e14a9",
-    "semantic_hash": "f6b02c2bc405b79ac1334cd2893e14a9"
+    "mtime": 1784483280.7705536,
+    "ast_hash": "69f159cae4bfb9375f080066d9f19b8d",
+    "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-html-balance.test.ts": {
     "mtime": 1783785316.8568773,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784473135.5485501,
-    "ast_hash": "8d9badc5a486ce542e29bd2ad82b74e5",
+    "mtime": 1784483322.3403385,
+    "ast_hash": "151da13f8c77ed8346153afe92c1b8a7",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
