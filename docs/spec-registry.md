@@ -140,6 +140,18 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-419 | REGRESIÓN: backfill retorna 401 si no hay sesión | POST /api/contabilidad/backfill | integration |
 | I-420 | REGRESIÓN: backfill retorna 403 si el usuario no es storeAdmin ni systemAdmin — sin requireStoreAdmin cualquier storeWorker autenticado puede generar asientos | POST /api/contabilidad/backfill | integration |
 | I-421 | REGRESIÓN: backfill registra en logAudit action BACKFILL con ipAddress/userAgent extraídos del request (faltaba en el commit que agregó el logAudit) | POST /api/contabilidad/backfill | integration |
+| I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
+| I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
+| I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
+| I-NCC-04 | lineasNotaCreditoCOGS es el inverso exacto de lineasVentaCOGS | lib/contabilidad/generador-asientos | unit |
+| I-NCC-05 | lineasNotaCreditoCOGS con costo cero genera líneas en 0 | lib/contabilidad/generador-asientos | unit |
+| I-NCC-INT-01 | REGRESIÓN: devolución con restituirStock=true y costo definido crea también el reverso de COGS (Dr Inventario / Cr COGS por cantidad × costo) | POST /api/notas-credito | integration |
+| I-NCC-INT-02 | Devolución con restituirStock=false NO crea reverso de COGS (solo ingreso) — mismo criterio que anular_venta_tx | POST /api/notas-credito | integration |
+| I-NCC-INT-03 | Devolución de producto sin costo definido NO crea reverso de COGS | POST /api/notas-credito | integration |
+| I-NCC-BF-01 | Backfill NC: sin ningún asiento → crea ingreso + reverso de COGS | POST /api/contabilidad/backfill | integration |
+| I-NCC-BF-02 | Backfill NC: con ingreso pero sin COGS → crea solo el reverso de COGS (detecta por descripción "Reverso COGS%") | POST /api/contabilidad/backfill | integration |
+| I-NCC-BF-03 | Backfill NC: con ambos asientos → no crea nada (idempotente) | POST /api/contabilidad/backfill | integration |
+| I-NCC-BF-04 | Backfill NC: sin ítems con restituir_stock=true → no crea reverso de COGS | POST /api/contabilidad/backfill | integration |
 
 ## Balance HTML (BP-01 a BP-12)
 
@@ -782,5 +794,8 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 - `S-NN` — test de store (Zustand)
 - `I-REC-NN` — test de integración de GET /api/recibos/[ventaId]
 - `LP-NN` — test de componente de LotesPanel
+- `I-NCC-NN` — test unitario de lineasNotaCreditoCOGS (lib/contabilidad/generador-asientos)
+- `I-NCC-INT-NN` — test de integración del reverso de COGS en POST /api/notas-credito
+- `I-NCC-BF-NN` — test de integración del reverso de COGS en el backfill de NC
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.

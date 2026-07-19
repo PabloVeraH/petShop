@@ -7,6 +7,7 @@ const {
   lineasCierreCOGS,
   lineasAnulacionVentaCanal,
   lineasAnulacionCOGS,
+  lineasNotaCreditoCOGS,
 } = require("@/lib/contabilidad/generador-asientos");
 
 const { CUENTAS } = require("@/lib/contabilidad/types");
@@ -486,5 +487,50 @@ describe("lineasAnulacionCOGS — reverso de costo de venta", () => {
       expect(lineaAnul.debito).toBe(lineaCOGS.credito);
       expect(lineaAnul.credito).toBe(lineaCOGS.debito);
     }
+  });
+});
+
+describe("lineasNotaCreditoCOGS — reverso de costo por devolución", () => {
+  it("I-NCC-01: asiento balanceado", () => {
+    const lineas = lineasNotaCreditoCOGS(5000);
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(totalCre);
+    expect(totalDeb).toBe(5000);
+  });
+
+  it("I-NCC-02: Dr Inventario (reincorporación al stock)", () => {
+    const lineas = lineasNotaCreditoCOGS(5000);
+    const lineaInv = lineas.find((l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo);
+    expect(lineaInv).toBeDefined();
+    expect(lineaInv.debito).toBe(5000);
+    expect(lineaInv.credito).toBe(0);
+  });
+
+  it("I-NCC-03: Cr COGS (reverso del gasto)", () => {
+    const lineas = lineasNotaCreditoCOGS(5000);
+    const lineaCogs = lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo);
+    expect(lineaCogs).toBeDefined();
+    expect(lineaCogs.debito).toBe(0);
+    expect(lineaCogs.credito).toBe(5000);
+  });
+
+  it("I-NCC-04: es el inverso exacto de lineasVentaCOGS", () => {
+    const cogsLineas = lineasVentaCOGS(5000);
+    const ncLineas = lineasNotaCreditoCOGS(5000);
+    for (const lineaCOGS of cogsLineas) {
+      const lineaNc = ncLineas.find((l) => l.cuentaCodigo === lineaCOGS.cuentaCodigo);
+      expect(lineaNc).toBeDefined();
+      expect(lineaNc.debito).toBe(lineaCOGS.credito);
+      expect(lineaNc.credito).toBe(lineaCOGS.debito);
+    }
+  });
+
+  it("I-NCC-05: funciona con costo cero", () => {
+    const lineas = lineasNotaCreditoCOGS(0);
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(0);
+    expect(totalCre).toBe(0);
   });
 });

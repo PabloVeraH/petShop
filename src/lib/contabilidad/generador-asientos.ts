@@ -329,6 +329,31 @@ export function lineasNotaCredito(params: {
   ];
 }
 
+// Reverso de COGS por devolución (nota de crédito con restitución de stock).
+// Misma forma que lineasAnulacionCOGS (Dr Inventario / Cr COGS) — se separa
+// por descripcionLinea para distinguir el origen en el Libro Diario, igual
+// que lineasVentaCOGS/lineasAnulacionCOGS/lineasCierreCOGS ya lo hacen entre sí.
+export function lineasNotaCreditoCOGS(costoTotal: number): LineaAsiento[] {
+  return [
+    {
+      cuentaCodigo: CUENTAS.INVENTARIO.codigo,
+      cuentaNombre: CUENTAS.INVENTARIO.nombre,
+      cuentaTipo: CUENTAS.INVENTARIO.tipo,
+      debito: costoTotal,
+      credito: 0,
+      descripcionLinea: "Reincorporación inventario por devolución",
+    },
+    {
+      cuentaCodigo: CUENTAS.COGS.codigo,
+      cuentaNombre: CUENTAS.COGS.nombre,
+      cuentaTipo: CUENTAS.COGS.tipo,
+      debito: 0,
+      credito: costoTotal,
+      descripcionLinea: "Reverso COGS por devolución",
+    },
+  ];
+}
+
 export function lineasCompra(params: {
   montoNeto: number;
   iva: number;

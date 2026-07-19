@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
-import { crearAsiento, lineasNotaCredito } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasNotaCredito, lineasNotaCreditoCOGS } from "@/lib/contabilidad/generador-asientos";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
   const numero_nc = `NC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
   let montoTotal = 0;
+  let costoTotalNc = 0;
   const itemsConDetalles = [];
 
   for (const item of items) {
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     }
     const { data: ventaItem } = await supabase
       .from("venta_items")
-      .select("id, producto_id, cantidad, precio_unitario")
+      .select("id, producto_id, cantidad, precio_unitario, productos(costo)")
       .eq("id", item.ventaItemId)
       .eq("venta_id", ventaId)
       .single();
@@ -131,13 +132,23 @@ export async function POST(req: NextRequest) {
     const precioConDescuento = Math.round(unitPrice * descuentoFactor);
     const subtotal = Math.round(item.cantidadDevuelta * unitPrice * descuentoFactor);
     montoTotal += subtotal;
+    const restituirStock = item.restituirStock ?? true;
+    // COGS solo se revierte para la porción efectivamente restituida al stock
+    // (mismo criterio que anular_venta_tx, migración 053: si el producto no
+    // vuelve a inventario, el costo de venta ya incurrido no se revierte).
+    if (restituirStock) {
+      const costoUnitario = Number(
+        (ventaItem.productos as unknown as { costo: number } | null)?.costo ?? 0
+      );
+      costoTotalNc += item.cantidadDevuelta * costoUnitario;
+    }
     itemsConDetalles.push({
       ventaItemId: item.ventaItemId,
       productoId: ventaItem.producto_id,
       cantidadDevuelta: item.cantidadDevuelta,
       precioUnitario: precioConDescuento,
       subtotal,
-      restituirStock: item.restituirStock ?? true,
+      restituirStock,
     });
   }
 
@@ -310,9 +321,11 @@ export async function POST(req: NextRequest) {
       clienteNombre = cli?.nombre ?? undefined;
     }
 
+    const fechaNc = new Date().toISOString().split("T")[0];
+
     const asiento = await crearAsiento({
       storeId: venta_store_id,
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: fechaNc,
       tipoMovimiento: "NOTA_CREDITO",
       canal: "pos",
       referenciaId: nc.id,
@@ -322,6 +335,23 @@ export async function POST(req: NextRequest) {
       usuarioId: ctx.userId ?? undefined,
     });
     if (!asiento) console.error(`[contabilidad] Asiento NC NO CREADO para ${numero_nc}`);
+
+    // Reverso de COGS — solo si hubo costo de mercancía efectivamente
+    // restituida a inventario (ver acumulación de costoTotalNc arriba).
+    if (costoTotalNc > 0) {
+      const reversoCogs = await crearAsiento({
+        storeId: venta_store_id,
+        fecha: fechaNc,
+        tipoMovimiento: "NOTA_CREDITO",
+        canal: "pos",
+        referenciaId: nc.id,
+        referenciaNomero: numero_nc,
+        descripcion: `Reverso COGS devolución${clienteNombre ? ` a ${clienteNombre}` : ""}`,
+        lineas: lineasNotaCreditoCOGS(Math.round(costoTotalNc)),
+        usuarioId: ctx.userId ?? undefined,
+      });
+      if (!reversoCogs) console.error(`[contabilidad] Reverso COGS NO CREADO para NC ${numero_nc}`);
+    }
   })().catch((e) => console.error("[contabilidad] Error en asiento NC:", e));
 
   return NextResponse.json({

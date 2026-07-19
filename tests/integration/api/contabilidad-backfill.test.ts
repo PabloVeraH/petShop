@@ -247,6 +247,88 @@ describe("POST /api/contabilidad/backfill", () => {
     expect(crearAsiento).not.toHaveBeenCalled();
   });
   }); // describe lógica de backfill
+
+  // I-NCC-BF-01 a I-NCC-BF-04: el backfill de NC también debía revertir el
+  // COGS (mismo bug que I-400/I-402 pero del lado de las notas de crédito).
+  // Usa un mock dedicado (no setupMock, que fija notas_credito a [] para
+  // los escenarios de VENTA) para aislar el flujo de NC/nota_credito_items.
+  describe("backfill de notas de crédito — reverso de COGS (I-NCC-BF)", () => {
+    it("I-NCC-BF-01: NC sin ningún asiento → crea ingreso + reverso de COGS", async () => {
+      setupNcBackfillMock({
+        notas: [{ id: "nc1", created_at: "2026-06-01T10:00:00Z", monto_total: 3000, tipo_reembolso: "reembolso_directo", numero_nc: "NC-20260601-AAAA1111" }],
+        ncIngresoEntries: [],
+        ncCogsEntries: [],
+        ncItemsByNc: { nc1: [{ cantidad_devuelta: 3, productos: { costo: 500 } }] },
+      });
+
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.creados).toBe(2);
+      expect(crearAsiento).toHaveBeenCalledTimes(2);
+
+      const ingresoCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+      expect(ingresoCall.descripcion).toMatch(/^Devolución/);
+      expect(body.detalle_creados).toContain("NC (ingreso):NC-20260601-AAAA1111");
+
+      const cogsCall = (crearAsiento as jest.Mock).mock.calls[1][0];
+      expect(cogsCall.descripcion).toMatch(/^Reverso COGS/);
+      const lineaCogs = cogsCall.lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === "510101");
+      expect(lineaCogs.credito).toBe(1500); // 3 x $500
+      expect(body.detalle_creados).toContain("NC (COGS):NC-20260601-AAAA1111");
+    });
+
+    it("I-NCC-BF-02: NC con ingreso ya registrado pero sin COGS → crea solo el reverso de COGS", async () => {
+      setupNcBackfillMock({
+        notas: [{ id: "nc1", created_at: "2026-06-01T10:00:00Z", monto_total: 3000, tipo_reembolso: "reembolso_directo", numero_nc: "NC-20260601-AAAA1111" }],
+        ncIngresoEntries: [{ referencia_id: "nc1" }],
+        ncCogsEntries: [],
+        ncItemsByNc: { nc1: [{ cantidad_devuelta: 3, productos: { costo: 500 } }] },
+      });
+
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.creados).toBe(1);
+      expect(crearAsiento).toHaveBeenCalledTimes(1);
+
+      const cogsCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+      expect(cogsCall.descripcion).toMatch(/^Reverso COGS/);
+    });
+
+    it("I-NCC-BF-03: NC con ambos asientos ya registrados → no crea nada", async () => {
+      setupNcBackfillMock({
+        notas: [{ id: "nc1", created_at: "2026-06-01T10:00:00Z", monto_total: 3000, tipo_reembolso: "reembolso_directo", numero_nc: "NC-20260601-AAAA1111" }],
+        ncIngresoEntries: [{ referencia_id: "nc1" }],
+        ncCogsEntries: [{ referencia_id: "nc1" }],
+        ncItemsByNc: { nc1: [{ cantidad_devuelta: 3, productos: { costo: 500 } }] },
+      });
+
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.creados).toBe(0);
+      expect(crearAsiento).not.toHaveBeenCalled();
+    });
+
+    it("I-NCC-BF-04: NC sin ítems con restituir_stock=true → no crea reverso de COGS (solo ingreso)", async () => {
+      setupNcBackfillMock({
+        notas: [{ id: "nc1", created_at: "2026-06-01T10:00:00Z", monto_total: 3000, tipo_reembolso: "reembolso_directo", numero_nc: "NC-20260601-AAAA1111" }],
+        ncIngresoEntries: [],
+        ncCogsEntries: [],
+        ncItemsByNc: { nc1: [] }, // sin ítems restituir_stock=true — el query real ya los filtra
+      });
+
+      const res = await POST(backfillReq());
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.creados).toBe(1);
+      expect(crearAsiento).toHaveBeenCalledTimes(1);
+
+      const ingresoCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+      expect(ingresoCall.descripcion).toMatch(/^Devolución/);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -317,6 +399,81 @@ function setupMock(params: {
       }
 
       return chain(Promise.resolve({ data: null, error: null }));
+    }),
+    rpc: jest.fn(),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Helper: mock dedicado para el backfill de notas de crédito (I-NCC-BF).
+// setupMock fija notas_credito a [] porque sus escenarios son de VENTA; este
+// helper hace lo contrario: ventas vacías y control total sobre notas_credito,
+// journal_entries (distinguiendo las 5 queries por tipo_movimiento + .not) y
+// nota_credito_items.
+// ---------------------------------------------------------------------------
+function setupNcBackfillMock(params: {
+  notas: Array<Record<string, unknown>>;
+  ncIngresoEntries: Array<{ referencia_id: string }>;
+  ncCogsEntries: Array<{ referencia_id: string }>;
+  ncItemsByNc: Record<string, Array<Record<string, unknown>>>;
+}) {
+  (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+    from: jest.fn((table: string) => {
+      if (table === "ventas") {
+        // Sin ventas en estos tests — el flujo VENTA no hace nada
+        return chain(Promise.resolve({ data: [], error: null }));
+      }
+
+      if (table === "notas_credito") {
+        // Query lista (select + eq store + order → await) resuelve las NCs;
+        // query detalle (select ventas!inner + eq id + maybeSingle) resuelve
+        // sin cliente — el nombre es opcional en la descripción del asiento.
+        const c = chain(Promise.resolve({ data: params.notas, error: null }));
+        c.maybeSingle = jest.fn(() => Promise.resolve({ data: null, error: null }));
+        return c;
+      }
+
+      if (table === "journal_entries") {
+        // La ruta hace 5 queries sobre journal_entries; se distinguen por el
+        // tipo_movimiento capturado en .eq() y si se llamó .not():
+        //   VENTA + not            → ingreso ventas (vacío aquí)
+        //   VENTA + ilike + ref    → COGS por venta (no se alcanza sin ventas)
+        //   NOTA_CREDITO + not     → ncIngresoEntries
+        //   NOTA_CREDITO + ilike   → ncCogsEntries
+        //   COMPRA                 → vacío
+        const c = chain();
+        let tipo = "";
+        let calledNot = false;
+        c.eq = jest.fn((field: string, value: unknown) => {
+          if (field === "tipo_movimiento") tipo = String(value);
+          return c;
+        });
+        c.not = jest.fn(() => { calledNot = true; return c; });
+        c.ilike = jest.fn(() => c);
+        c.then = (resolve: (v: unknown) => void) => {
+          if (tipo === "NOTA_CREDITO") {
+            return resolve({ data: calledNot ? params.ncIngresoEntries : params.ncCogsEntries, error: null });
+          }
+          return resolve({ data: [], error: null });
+        };
+        return c;
+      }
+
+      if (table === "nota_credito_items") {
+        // calcularCostoTotalNc: select + eq(nota_credito_id) + eq(restituir_stock)
+        const c = chain();
+        let ncId = "";
+        c.eq = jest.fn((field: string, value: unknown) => {
+          if (field === "nota_credito_id") ncId = String(value);
+          return c;
+        });
+        c.then = (resolve: (v: unknown) => void) =>
+          resolve({ data: params.ncItemsByNc[ncId] ?? [], error: null });
+        return c;
+      }
+
+      // ordenes_compra y cualquier otra tabla — vacío
+      return chain(Promise.resolve({ data: [], error: null }));
     }),
     rpc: jest.fn(),
   });

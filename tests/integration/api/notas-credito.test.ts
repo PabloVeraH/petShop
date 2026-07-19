@@ -3,10 +3,19 @@
  * Cobertura: creación de notas, restitución stock, rollback fidelización, saldo_a_favor
  */
 import { NextRequest } from "next/server";
+import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
+import { CUENTAS } from "@/lib/contabilidad/types";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const CLIENTE_ID = "223e4567-e89b-12d3-a456-426614174001";
 const VENTA_ID = "323e4567-e89b-12d3-a456-426614174002";
+
+// Drena la cola de microtareas para dejar que el bloque fire-and-forget
+// (asiento contable) avance más allá de POST()'s propio return — POST no
+// espera ese bloque, así que inspeccionar crearAsiento inmediatamente
+// después de `await POST(...)` es una condición de carrera con sus propios
+// awaits internos (fetch de nombre de cliente, luego crearAsiento x2).
+const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
@@ -16,6 +25,13 @@ jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
+jest.mock("@/lib/contabilidad/generador-asientos", () => {
+  const actual = jest.requireActual("@/lib/contabilidad/generador-asientos");
+  return {
+    ...actual,
+    crearAsiento: jest.fn().mockResolvedValue("asiento-uuid"),
+  };
+});
 
 function makeFromWithPrevios(
   venta: any,
@@ -462,6 +478,110 @@ describe("POST /api/notas-credito", () => {
     );
 
     expect(res.status).toBe(200);
+  });
+
+  // I-NCC-INT-01 a I-NCC-INT-03: REGRESIÓN — la devolución con NC debía
+  // revertir solo el ingreso (lineasNotaCredito) y nunca el COGS, a
+  // diferencia de la anulación de venta que sí revierte ambos. Ver AGENTS.md
+  // (ticket Trello 6a5c650d...) y crearAsiento mockeado arriba para poder
+  // inspeccionar los asientos disparados por el bloque fire-and-forget.
+  it("I-NCC-INT-01: devolución con restituirStock=true y costo definido → crea también el reverso de COGS", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
+    const ventaItem = {
+      id: "423e4567-e89b-12d3-a456-426614174003",
+      producto_id: "523e4567-e89b-12d3-a456-426614174004",
+      cantidad: 10,
+      precio_unitario: 1000,
+      productos: { costo: 500 },
+    };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ventaItem.id, cantidadDevuelta: 3, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await flushPromises();
+
+    // Dos asientos: reverso de ingreso (lineasNotaCredito) + reverso de COGS
+    expect(crearAsiento).toHaveBeenCalledTimes(2);
+
+    const cogsCall = (crearAsiento as jest.Mock).mock.calls[1][0];
+    const lineaCogs = cogsCall.lineas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo
+    );
+    const lineaInv = cogsCall.lineas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
+    );
+    expect(lineaCogs).toBeDefined();
+    expect(lineaCogs.debito).toBe(0);
+    expect(lineaCogs.credito).toBe(1500); // 3 unidades x $500 costo
+    expect(lineaInv.debito).toBe(1500);
+    expect(lineaInv.credito).toBe(0);
+  });
+
+  it("I-NCC-INT-02: devolución con restituirStock=false → NO crea reverso de COGS", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
+    const ventaItem = {
+      id: "423e4567-e89b-12d3-a456-426614174003",
+      producto_id: "523e4567-e89b-12d3-a456-426614174004",
+      cantidad: 10,
+      precio_unitario: 1000,
+      productos: { costo: 500 },
+    };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ventaItem.id, cantidadDevuelta: 3, restituirStock: false }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await flushPromises();
+
+    // Solo el asiento de reverso de ingreso — sin COGS porque el producto
+    // no vuelve a inventario (mismo criterio que anular_venta_tx).
+    expect(crearAsiento).toHaveBeenCalledTimes(1);
+  });
+
+  it("I-NCC-INT-03: devolución de producto sin costo definido → NO crea reverso de COGS", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
+    const ventaItem = {
+      id: "423e4567-e89b-12d3-a456-426614174003",
+      producto_id: "523e4567-e89b-12d3-a456-426614174004",
+      cantidad: 10,
+      precio_unitario: 1000,
+      productos: { costo: 0 },
+    };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ventaItem.id, cantidadDevuelta: 3, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await flushPromises();
+    expect(crearAsiento).toHaveBeenCalledTimes(1);
   });
 
   it("sin auth → 401", async () => {

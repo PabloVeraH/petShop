@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasCompra } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
@@ -110,22 +110,35 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Notas de crédito sin asiento ─────────────────────────────────────────
+  // Igual que VENTA arriba: cada NC puede generar DOS asientos NOTA_CREDITO
+  // (reverso de ingreso + reverso de COGS), así que se detectan por separado
+  // filtrando la descripción — si no, una NC con solo el asiento de ingreso
+  // (el caso que este backfill existe para arreglar) nunca recibiría el de COGS.
   const { data: notas } = await supabase
     .from("notas_credito")
     .select("id, created_at, monto_total, tipo_reembolso, numero_nc")
     .eq("store_id", store_id)
     .order("created_at", { ascending: true });
 
-  const { data: asientosNc } = await supabase
+  const { data: asientosNcIngreso } = await supabase
     .from("journal_entries")
     .select("referencia_id")
     .eq("store_id", store_id)
-    .eq("tipo_movimiento", "NOTA_CREDITO");
+    .eq("tipo_movimiento", "NOTA_CREDITO")
+    .not("descripcion", "ilike", "Reverso COGS%");
 
-  const ncConAsiento = new Set((asientosNc ?? []).map((a) => a.referencia_id));
+  const { data: asientosNcCogs } = await supabase
+    .from("journal_entries")
+    .select("referencia_id")
+    .eq("store_id", store_id)
+    .eq("tipo_movimiento", "NOTA_CREDITO")
+    .ilike("descripcion", "Reverso COGS%");
+
+  const ncConIngreso = new Set((asientosNcIngreso ?? []).map((a) => a.referencia_id));
+  const ncConCogs = new Set((asientosNcCogs ?? []).map((a) => a.referencia_id));
 
   for (const nc of notas ?? []) {
-    if (ncConAsiento.has(nc.id)) continue;
+    if (ncConIngreso.has(nc.id) && ncConCogs.has(nc.id)) continue;
 
     // Fetch client name for description
     const { data: ncDetalle } = await supabase
@@ -136,19 +149,40 @@ export async function POST(req: NextRequest) {
     const ncVenta = ncDetalle?.ventas as unknown as { clientes: { nombre: string } } | null;
     const ncCliente = ncVenta?.clientes?.nombre;
 
-    const id = await crearAsiento({
-      storeId: store_id,
-      fecha: nc.created_at.split("T")[0],
-      tipoMovimiento: "NOTA_CREDITO",
-      referenciaId: nc.id,
-      referenciaNomero: nc.numero_nc,
-      descripcion: `Devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
-      lineas: lineasNotaCredito({ monto: Number(nc.monto_total), tipoReembolso: nc.tipo_reembolso }),
-      creadoPor: "backfill",
-    });
+    if (!ncConIngreso.has(nc.id)) {
+      const id = await crearAsiento({
+        storeId: store_id,
+        fecha: nc.created_at.split("T")[0],
+        tipoMovimiento: "NOTA_CREDITO",
+        referenciaId: nc.id,
+        referenciaNomero: nc.numero_nc,
+        descripcion: `Devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
+        lineas: lineasNotaCredito({ monto: Number(nc.monto_total), tipoReembolso: nc.tipo_reembolso }),
+        creadoPor: "backfill",
+      });
 
-    if (id) creados.push(`NC:${nc.numero_nc}`);
-    else errores.push(`NC:${nc.numero_nc}`);
+      if (id) creados.push(`NC (ingreso):${nc.numero_nc}`);
+      else errores.push(`NC (ingreso):${nc.numero_nc}`);
+    }
+
+    if (!ncConCogs.has(nc.id)) {
+      const costoTotalNc = await calcularCostoTotalNc(nc.id);
+      if (costoTotalNc > 0) {
+        const id = await crearAsiento({
+          storeId: store_id,
+          fecha: nc.created_at.split("T")[0],
+          tipoMovimiento: "NOTA_CREDITO",
+          referenciaId: nc.id,
+          referenciaNomero: nc.numero_nc,
+          descripcion: `Reverso COGS devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
+          lineas: lineasNotaCreditoCOGS(costoTotalNc),
+          creadoPor: "backfill",
+        });
+
+        if (id) creados.push(`NC (COGS):${nc.numero_nc}`);
+        else errores.push(`NC (COGS):${nc.numero_nc}`);
+      }
+    }
   }
 
   // ── Órdenes de compra sin asiento ────────────────────────────────────────
@@ -225,4 +259,25 @@ async function calcularCostoTotalVenta(ventaId: string): Promise<number> {
     const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
     return sum + (item.cantidad * Number(costo));
   }, 0);
+}
+
+// Costo a revertir por una nota de crédito: solo los ítems con
+// restituir_stock=true (mismo criterio que anular_venta_tx, migración 053,
+// y la ruta POST /api/notas-credito).
+async function calcularCostoTotalNc(ncId: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { data: items } = await supabase
+    .from("nota_credito_items")
+    .select("cantidad_devuelta, restituir_stock, productos!inner(costo)")
+    .eq("nota_credito_id", ncId)
+    .eq("restituir_stock", true);
+
+  if (!items) return 0;
+
+  return Math.round(
+    items.reduce((sum, item) => {
+      const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
+      return sum + (item.cantidad_devuelta * Number(costo));
+    }, 0)
+  );
 }
