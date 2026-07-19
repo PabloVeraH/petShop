@@ -107,7 +107,9 @@ export const OrdenCompraEditItemsSchema = z.object({
   items: z.array(OrdenCompraItemCreateSchema).min(1),
 });
 
+// "recibida" NO está aquí: debe pasar por el flujo "recibir" (action:"recibir")
+// que valida precio_unitario y cantidad_recibida en cada item.
 export const OrdenCompraEstadoSchema = z.object({
-  estado: z.enum(["pendiente", "enviada", "recibida", "cancelada"]),
+  estado: z.enum(["pendiente", "enviada", "cancelada"]),
   notificar_proveedor: z.boolean().optional(),
 });

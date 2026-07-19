@@ -336,7 +336,13 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
-  // Simple estado update — only allow estado field, always scope to store
+  // Simple estado update — "recibida" solo se permite vía action:"recibir" arriba
+  if (body.estado === "recibida") {
+    return NextResponse.json(
+      { error: "Para recibir una orden de compra debe usar el flujo 'recibir' con items y precios" },
+      { status: 400 }
+    );
+  }
   const parsed = OrdenCompraEstadoSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

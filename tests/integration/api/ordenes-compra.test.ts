@@ -459,6 +459,18 @@ describe("Órdenes de Compra API", () => {
       expect(res.status).toBe(400);
     });
 
+    it("estado: 'recibida' vía PATCH simple → 400 (debe usar action:'recibir')", async () => {
+      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "recibida" }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toMatch(/recibir/i);
+    });
+
     it("cancelar OC sin notificar_proveedor → 200, no envía email de cancelación", async () => {
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue(makeOrdenUpdateChain("cancelada")),
