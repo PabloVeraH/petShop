@@ -305,6 +305,9 @@ I-406/I-407/I-408.
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
 | IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
+| IV-04 | REGRESIÓN: Ajuste de stock invalida ["productos"] con refetchType "all" (POS muestra stock actualizado sin recargar) | InventoryPage | component |
+| IV-05 | REGRESIÓN: Editar producto invalida ["productos"] con refetchType "all" | InventoryPage | component |
+| IV-06 | REGRESIÓN: Desactivar producto invalida ["productos"] con refetchType "all" | InventoryPage | component |
 | FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
@@ -313,7 +316,7 @@ I-406/I-407/I-408.
 | FP-12 | Inputs opcionales NO tienen required | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
-| VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] | SalesTicketPage | component |
+| VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] con refetchType "all" | SalesTicketPage | component |
 | VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
 | REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
 | C-39 | REGRESIÓN: Subtotal muestra el neto (total − impuesto), no el bruto que igualaba a Total | SalesTicketPage | component |
@@ -360,6 +363,7 @@ I-406/I-407/I-408.
 | CT-01 | Click Eliminar en categoría abre modal de confirmación | CategoriasTab | component |
 | CT-02 | Click Cancelar en modal cierra sin eliminar | CategoriasTab | component |
 | CT-03 | Click Eliminar en modal llama DELETE /api/categorias/[id] | CategoriasTab | component |
+| CT-04 | REGRESIÓN: Editar categoría invalida ["categorias"] con refetchType "all" (lista se actualiza sin recargar) | CategoriasTab | component |
 | M-17 | DELETE mascota retorna 401 sin auth | DELETE /api/mascotas/[id] | integration |
 | M-18 | DELETE mascota retorna 404 si no existe | DELETE /api/mascotas/[id] | integration |
 | M-19 | DELETE mascota retorna 403 si no pertenece al store | DELETE /api/mascotas/[id] | integration |
@@ -587,7 +591,7 @@ fijado al estado pre-hidratación de `persist`.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
-| DV-14 | Confirmar devolución invalida ["ventas"] con refetchType "all" | DevolucionModal | component |
+| DV-14 | Confirmar devolución invalida ["venta", id], ["ventas"], ["notas-credito", id] y ["saldo", clienteId] con refetchType "all" | DevolucionModal | component |
 
 ## Devolución Modal Motivo (DV-15 a DV-17)
 
@@ -622,6 +626,7 @@ campo Notas del formulario de Agregar/Editar Lote.
 | LP-01 | REGRESIÓN: escribir en Notas no vuelve a robar el foco del ModalOverlay real | LotesPanel | component |
 | LP-02 | REGRESIÓN: el texto completo de Notas se envía en el body del POST /api/lotes, no truncado | LotesPanel | component |
 | LP-03 | Notas vacío se envía como null en el body del POST | LotesPanel | component |
+| LP-04 | REGRESIÓN: crear lote invalida ["productos"] con refetchType "all" (POS refleja stock recalculado desde lotes sin recargar) | LotesPanel | component |
 
 ## ModalOverlay — foco y cierre (MO-01 a MO-06)
 

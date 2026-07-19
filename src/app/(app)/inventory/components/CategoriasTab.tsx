@@ -62,7 +62,7 @@ export function CategoriasTab() {
         return d;
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      queryClient.invalidateQueries({ queryKey: ["categorias"], refetchType: "all" });
       setEditando(null); setNombre(""); setDescripcion(""); setEsAlimento(false); setError("");
     },
     onError: (e: Error) => setError(e.message),

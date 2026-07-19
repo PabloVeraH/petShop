@@ -168,4 +168,34 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     const body = JSON.parse(postCall[1].body as string);
     expect(body.notas).toBeNull();
   });
+
+  // LP-04: REGRESIÓN — crear un lote invalida ["productos"] con refetchType
+  // "all" (el stock del producto se recalcula desde los lotes; el POS,
+  // desmontado, debe reflejarlo sin recargar). Mismo patrón que IV-04/CT-04.
+  it("LP-04: REGRESIÓN — crear lote invalida ['productos'] con refetchType 'all'", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(
+      <QueryClientProvider client={qc}>
+        <LotesPanel productoId="prod-1" storeId="store-1" diasAlerta={30} puedeAgregarLote />
+      </QueryClientProvider>
+    );
+
+    abrirFormularioNuevoLote();
+    await waitFor(() => expect(screen.getByText("Agregar Lote")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText("10"), { target: { value: "5" } });
+    fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: "2026-12-31" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Crear Lote/i }));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    });
+    // No debe llamarse SIN refetchType: "all" — esa sería la versión bugueada
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
 });

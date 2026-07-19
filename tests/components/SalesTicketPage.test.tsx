@@ -358,13 +358,14 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-04)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sí, anular/i }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["venta", VENTA_ID] });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["venta", VENTA_ID], refetchType: "all" });
     });
     // La invalidación del listado DEBE incluir refetchType: "all" para refrescar
     // aunque la lista esté desmontada (sin observer activo).
     expect(spy).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
     // No debe llamarse SIN refetchType: "all" — eso sería la versión bugueada
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["venta", VENTA_ID] });
 
     spy.mockRestore();
   });

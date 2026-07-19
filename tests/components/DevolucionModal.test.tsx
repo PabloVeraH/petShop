@@ -345,14 +345,19 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
       expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
     });
 
-    // Debe invalidar el detalle de la venta
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["venta", "venta-test-123"] });
+    // Debe invalidar el detalle de la venta, con refetchType "all" (el
+    // detalle puede estar desmontado si la devolución se disparó desde otra
+    // vista — mismo patrón que VT-03/IV-04/CT-04/LP-04).
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["venta", "venta-test-123"], refetchType: "all" });
     // Debe invalidar el listado con refetchType "all"
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
-    // También debe invalidar queries relacionadas
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"] });
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"] });
-    // NO debe llamar ["ventas"] sin refetchType (versión bugueada)
+    // También debe invalidar queries relacionadas, también con refetchType "all"
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"], refetchType: "all" });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"], refetchType: "all" });
+    // NO debe llamar ninguna de las cuatro sin refetchType (versión bugueada)
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["venta", "venta-test-123"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"] });
   });
 });

@@ -100,4 +100,69 @@ describe("CategoriasTab — confirmación eliminar (CT-XX)", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/categorias/cat-1", { method: "DELETE" });
     });
   });
+
+  // CT-04: REGRESIÓN — editar categoría invalida ["categorias"] con refetchType "all"
+  // para que la lista se actualice inmediatamente sin recargar la página.
+  it("CT-04: REGRESIÓN — editar categoría invalida ['categorias'] con refetchType 'all'", async () => {
+    const categoriasAntes = [...CATEGORIAS_MOCK];
+    const categoriasDespues = [
+      { ...CATEGORIAS_MOCK[0], nombre: "Alimentos Premium" },
+      CATEGORIAS_MOCK[1],
+    ];
+
+    mockFetch.mockImplementation((url: string, opts?: RequestInit) => {
+      if (url === "/api/categorias" && !opts?.method) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(categoriasAntes) });
+      }
+      if (url.includes("/api/categorias/") && opts?.method === "PATCH") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      }
+      if (url === "/api/categorias" && opts?.method === "PATCH") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      }
+      // Refetch después de invalidar
+      if (url === "/api/categorias") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(categoriasDespues) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    (useUser as jest.Mock).mockReturnValue({
+      user: { publicMetadata: { storeAdmin: true } },
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(
+      <QueryClientProvider client={qc}>
+        <CategoriasTab />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText("Alimentos")).toBeInTheDocument());
+
+    // Click "Editar" en la primera categoría
+    fireEvent.click(screen.getAllByText("Editar")[0]);
+
+    // El formulario debe estar en modo edición
+    expect(screen.getByDisplayValue("Alimentos")).toBeInTheDocument();
+
+    // Cambiar el nombre
+    fireEvent.change(screen.getByDisplayValue("Alimentos"), {
+      target: { value: "Alimentos Premium" },
+    });
+
+    // Guardar
+    fireEvent.click(screen.getByText("Guardar cambios"));
+
+    // Verificar que se invalidó con refetchType "all"
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["categorias"], refetchType: "all" });
+    });
+    // No debe llamarse SIN refetchType: "all"
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["categorias"] });
+
+    spy.mockRestore();
+  });
 });

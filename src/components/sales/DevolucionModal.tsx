@@ -78,10 +78,10 @@ export function DevolucionModal({
     onSuccess: (data) => {
       setNumeroNc(data.numeroNc);
       setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["venta", ventaId] });
+      queryClient.invalidateQueries({ queryKey: ["venta", ventaId], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId] });
-      queryClient.invalidateQueries({ queryKey: ["saldo", clienteId] });
+      queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["saldo", clienteId], refetchType: "all" });
       if (tipoReembolso === "saldo_a_favor" && data.notaCreditoId) {
         window.open(`/nota-credito/${data.notaCreditoId}?autoPrint=1`, "_blank", "width=500,height=700");
       }

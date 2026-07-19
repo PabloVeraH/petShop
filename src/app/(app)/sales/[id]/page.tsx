@@ -108,7 +108,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     },
     onSuccess: () => {
       setErrorMsg(null);
-      queryClient.invalidateQueries({ queryKey: ["venta", id] });
+      queryClient.invalidateQueries({ queryKey: ["venta", id], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       setConfirmAnular(false);
     },

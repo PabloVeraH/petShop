@@ -519,4 +519,100 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
 
     focusSpy.mockRestore();
   });
+
+  // IV-04: REGRESIÓN — ajuste de stock invalida ["productos"] con refetchType "all"
+  // para que el POS (desmontado) muestre el stock actualizado al navegar.
+  it("IV-04: REGRESIÓN — ajuste de stock invalida ['productos'] con refetchType 'all'", async () => {
+    mockAsAdmin();
+    setupFetch([PRODUCTO]);
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(<InventoryPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    // Abrir modal de ajuste de entrada
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+
+    // Confirmar el ajuste
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ ...PRODUCTO, stock: 16 }) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
+
+    // Debe invalidar ["inventario"] (para la vista actual) Y ["productos"] con refetchType "all" (para el POS)
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    // No debe ser solo ["inventario"] sin ["productos"]
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
+
+  // IV-05: REGRESIÓN — editar un producto invalida ["productos"] con
+  // refetchType "all" (mismo hueco que IV-04, en el mutation handler de
+  // guardar producto en vez del de ajuste de stock).
+  it("IV-05: REGRESIÓN — editar producto invalida ['productos'] con refetchType 'all'", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(<InventoryPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Editar"));
+    await waitFor(() => expect(screen.getByText("Editar: Alimento Premium")).toBeInTheDocument());
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(PRODUCTO) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
+
+  // IV-06: REGRESIÓN — desactivar un producto invalida ["productos"] con
+  // refetchType "all" (mismo hueco que IV-04/IV-05, en el mutation handler
+  // de desactivar producto).
+  it("IV-06: REGRESIÓN — desactivar producto invalida ['productos'] con refetchType 'all'", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    render(<InventoryPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Desact."));
+    await waitFor(() => expect(screen.getByText("¿Desactivar producto?")).toBeInTheDocument());
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Desactivar" }));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
 });

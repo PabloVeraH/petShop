@@ -163,6 +163,7 @@ export default function InventoryPage() {
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setAjuste(null); setAjusteCantidad("1"); setAjusteNotas("");
     },
   });
@@ -199,7 +200,7 @@ export default function InventoryPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"] });
-      queryClient.invalidateQueries({ queryKey: ["productos"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({});
     },
     onError: (e: Error) => {
@@ -212,7 +213,7 @@ export default function InventoryPage() {
     mutationFn: (id: string) => fetch(`/api/productos/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"] });
-      queryClient.invalidateQueries({ queryKey: ["productos"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setConfirmDelete(null);
     },
   });
