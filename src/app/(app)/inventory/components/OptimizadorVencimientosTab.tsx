@@ -105,6 +105,13 @@ export function OptimizadorVencimientosTab() {
   };
 
   const handleAplicarDescuento = async (rec: RecomendacionVencimiento) => {
+    if (rec.datos_desactualizados) {
+      setErrorAplicar(prev => ({
+        ...prev,
+        [rec.producto_id]: "La recomendación está desactualizada. Genera un nuevo análisis antes de aplicar.",
+      }));
+      return;
+    }
     setAplicando(prev => new Set(prev).add(rec.producto_id));
     setErrorAplicar(prev => ({ ...prev, [rec.producto_id]: "" }));
 
@@ -310,7 +317,8 @@ export function OptimizadorVencimientosTab() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleAplicarDescuento(rec)}
-                            disabled={aplicados.has(rec.producto_id) || aplicando.has(rec.producto_id)}
+                            disabled={aplicados.has(rec.producto_id) || aplicando.has(rec.producto_id) || rec.datos_desactualizados}
+                            title={rec.datos_desactualizados ? "Genera un nuevo análisis antes de aplicar" : undefined}
                             className="text-xs"
                           >
                             {aplicados.has(rec.producto_id) ? (
@@ -395,7 +403,8 @@ export function OptimizadorVencimientosTab() {
                     variant="outline"
                     size="sm"
                     onClick={() => { handleAplicarDescuento(detalle); setDetalle(null); }}
-                    disabled={aplicados.has(detalle.producto_id) || aplicando.has(detalle.producto_id)}
+                    disabled={aplicados.has(detalle.producto_id) || aplicando.has(detalle.producto_id) || detalle.datos_desactualizados}
+                    title={detalle.datos_desactualizados ? "Genera un nuevo análisis antes de aplicar" : undefined}
                   >
                     {aplicados.has(detalle.producto_id) ? "✓ Aplicado" : `Aplicar descuento (${detalle.descuento_sugerido_pct}%)`}
                   </Button>

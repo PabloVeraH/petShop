@@ -227,4 +227,49 @@ describe("OptimizadorVencimientosTab", () => {
     });
     expect(screen.queryByText(/texto desactualizado/i)).not.toBeInTheDocument();
   });
+
+  // C-OPT-13: REGRESIÓN — botón "Aplicar descuento" deshabilitado cuando
+  // datos_desactualizados=true. El fix anterior (C-OPT-11) agregó el badge
+  // "Texto desactualizado" pero el botón seguía habilitado, permitiendo
+  // aplicar un precio obsoleto generado por el LLM en el análisis original.
+  it("C-OPT-13: REGRESIÓN — botón 'Aplicar descuento' deshabilitado cuando datos_desactualizados=true", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [{
+        ...MOCK_RECOMENDACION,
+        datos_desactualizados: true,
+      }],
+      modelo_usado: "test",
+      productos_analizados: 1,
+    }));
+    renderTab();
+    await waitFor(() => {
+      const btn = screen.getByRole("button", { name: /aplicar descuento/i });
+      expect(btn).toBeDisabled();
+    });
+  });
+
+  // C-OPT-14: REGRESIÓN — handleAplicarDescuento no debe ejecutar PATCH
+  // cuando datos_desactualizados=true. El fix anterior (C-OPT-11) agregó el
+  // badge de advertencia pero el botón seguía habilitado y la función
+  // ejecutaba el PATCH con precio_oferta_sugerido obsoleto. Ahora debe
+  // mostrar error sin mutar el producto.
+  it("C-OPT-14: REGRESIÓN — handleAplicarDescuento no ejecuta PATCH cuando datos_desactualizados=true", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [{
+        ...MOCK_RECOMENDACION,
+        datos_desactualizados: true,
+      }],
+      modelo_usado: "test",
+      productos_analizados: 1,
+    }));
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /aplicar descuento/i })).toBeDisabled();
+    });
+    // fetch no debe haber sido llamado con PATCH a productos
+    const patchCalls = mockFetch.mock.calls.filter(
+      ([url, opts]: [string, RequestInit]) => url.includes("/api/productos/") && opts?.method === "PATCH"
+    );
+    expect(patchCalls).toHaveLength(0);
+  });
 });
