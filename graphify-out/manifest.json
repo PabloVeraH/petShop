@@ -710,8 +710,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/OptimizadorVencimientosTab.tsx": {
-    "mtime": 1784321210.622372,
-    "ast_hash": "81de18fe40475a269e41c2c240ebb8c5",
+    "mtime": 1784491270.7942133,
+    "ast_hash": "96afd74809ac34b647f36fcb0e97e00d",
     "semantic_hash": ""
   },
   "src/app/(app)/inventory/import/page.tsx": {
@@ -965,8 +965,8 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784483252.7096987,
-    "ast_hash": "a1031720ccf1af95615c12340821881f",
+    "mtime": 1784495235.9949,
+    "ast_hash": "01d08917041d12ff93e0fd3f68efacbf",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/excel/route.ts": {
@@ -1795,8 +1795,8 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784388782.3435814,
-    "ast_hash": "de194dbb28e2b82e0c7b44cf2b3e18cc",
+    "mtime": 1784494296.9440014,
+    "ast_hash": "98e0fd9317ebc0e6622a5ccf1891df4f",
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
@@ -1845,8 +1845,8 @@
     "semantic_hash": "9c2fda2d40dffe4609566af7abafa28e"
   },
   "tests/components/OptimizadorVencimientosTab.test.tsx": {
-    "mtime": 1784321210.6233718,
-    "ast_hash": "b190fa27e91fcdbfa0997146ebc2dfe4",
+    "mtime": 1784492111.5714154,
+    "ast_hash": "9224eb7519e8469ebebbb3679e27fb35",
     "semantic_hash": ""
   },
   "tests/components/POSCleanup.test.tsx": {
@@ -2045,8 +2045,8 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784483184.1120536,
-    "ast_hash": "798ee22c2eb488b27c946d9a251cc177",
+    "mtime": 1784495192.0970848,
+    "ast_hash": "83510293a3e6ece60ffda55cc3c919dc",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-pdf.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784483322.3403385,
-    "ast_hash": "151da13f8c77ed8346153afe92c1b8a7",
+    "mtime": 1784495208.1910655,
+    "ast_hash": "d25232dd019f575344e25a469b48f9ce",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
