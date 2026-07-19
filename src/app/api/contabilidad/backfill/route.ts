@@ -195,10 +195,17 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Órdenes de compra sin asiento ────────────────────────────────────────
+  // Excluye estado='cancelada': una OC cancelada nunca fue recibida (el botón
+  // de cancelar solo está disponible para OCs no recibidas — ver
+  // src/app/(app)/suppliers/page.tsx), por lo que subtotal/total quedan NULL
+  // para siempre y no tuvo efecto económico real. Sin este filtro, el
+  // backfill la reportaba como error "precio no definido" en vez de omitirla
+  // — mismo principio que excluir ventas 'anulada' (ver comentario arriba).
   const { data: ordenes } = await supabase
     .from("ordenes_compra")
     .select("id, created_at, subtotal, impuesto, total, numero")
     .eq("store_id", store_id)
+    .neq("estado", "cancelada")
     .order("created_at", { ascending: true });
 
   const { data: asientosCompra } = await supabase

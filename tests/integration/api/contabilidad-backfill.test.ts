@@ -246,6 +246,32 @@ describe("POST /api/contabilidad/backfill", () => {
     expect(ventasChain.neq).toHaveBeenCalledWith("estado", "anulada");
     expect(crearAsiento).not.toHaveBeenCalled();
   });
+
+  // I-424 — REGRESIÓN: una OC cancelada nunca fue recibida (el botón de
+  // cancelar solo está disponible para OCs no recibidas — ver
+  // src/app/(app)/suppliers/page.tsx), por lo que subtotal/total quedan NULL
+  // para siempre. Sin excluirla, el backfill la reportaba como error
+  // "precio no definido" en vez de omitirla — mismo principio que I-413
+  // para ventas anuladas (ticket Trello 6a5c650fab..., "OC-20260507-F71C49
+  // no aparece en ningún proveedor": esa OC estaba cancelada, por eso la
+  // UI de Proveedores la oculta — pendingOrders filtra estado!=='cancelada').
+  it("I-424: REGRESIÓN — la consulta de órdenes de compra para backfill excluye estado='cancelada'", async () => {
+    const ordenesChain = chain(Promise.resolve({ data: [], error: null }));
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenesChain;
+        return chain(Promise.resolve({ data: [], error: null }));
+      }),
+      rpc: jest.fn(),
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+
+    expect(ordenesChain.neq).toHaveBeenCalledWith("estado", "cancelada");
+    expect(crearAsiento).not.toHaveBeenCalled();
+  });
   }); // describe lógica de backfill
 
   // I-422: REGRESIÓN — OC sin precio (subtotal=0 o total=0) reporta

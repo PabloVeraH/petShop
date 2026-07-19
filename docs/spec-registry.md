@@ -142,6 +142,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-421 | REGRESIÓN: backfill registra en logAudit action BACKFILL con ipAddress/userAgent extraídos del request (faltaba en el commit que agregó el logAudit) | POST /api/contabilidad/backfill | integration |
 | I-422 | REGRESIÓN: OC con subtotal=0 reporta "precio no definido" en detalle_errores (antes solo mostraba el código de OC sin motivo) | POST /api/contabilidad/backfill | integration |
 | I-423 | REGRESIÓN: OC con subtotal válido pero crearAsiento falla reporta "error al crear asiento contable" (antes solo mostraba el código de OC) | POST /api/contabilidad/backfill | integration |
+| I-424 | REGRESIÓN: la consulta de órdenes de compra para backfill excluye estado='cancelada' (una OC cancelada nunca fue recibida, subtotal/total quedan NULL para siempre — sin este filtro se reportaba como error "precio no definido" en vez de omitirse) | POST /api/contabilidad/backfill | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
