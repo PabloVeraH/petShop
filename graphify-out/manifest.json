@@ -615,7 +615,7 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1784356978.0493066,
+    "mtime": 1784388782.3425815,
     "ast_hash": "78539fb97f681273345d186882c7bac7",
     "semantic_hash": ""
   },
@@ -700,14 +700,14 @@
     "semantic_hash": "4bade031e16efe5d8a955c419aeb988f"
   },
   "src/app/(app)/inventory/components/CategoriasTab.tsx": {
-    "mtime": 1783625512.6720142,
-    "ast_hash": "383a768f5c282738ce77bf70cec08630",
-    "semantic_hash": "383a768f5c282738ce77bf70cec08630"
+    "mtime": 1784473135.5485501,
+    "ast_hash": "8847d7bf291901489aaa88d4afc04a75",
+    "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/LotesPanel.tsx": {
-    "mtime": 1783625512.6720142,
-    "ast_hash": "6c8e9b08c19fd92f4e58075675f19d14",
-    "semantic_hash": "6c8e9b08c19fd92f4e58075675f19d14"
+    "mtime": 1784473135.5485501,
+    "ast_hash": "2a37e4e9d08e9cc72c3f048cbe4ab8a4",
+    "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/OptimizadorVencimientosTab.tsx": {
     "mtime": 1784321210.622372,
@@ -720,9 +720,9 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1783625512.6720142,
-    "ast_hash": "985ff9d0e7a15619a4b6ec89409e73b1",
-    "semantic_hash": "985ff9d0e7a15619a4b6ec89409e73b1"
+    "mtime": 1784473135.5495503,
+    "ast_hash": "abe3f66c93b0b89e429777948f4c0704",
+    "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
     "mtime": 1782355600.3289542,
@@ -800,8 +800,8 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1784264740.2519581,
-    "ast_hash": "201ee38bb8a2d077dbf8ccf7f9eed5e4",
+    "mtime": 1784473135.5505502,
+    "ast_hash": "1949d6741272200d5d0db6906fe2f418",
     "semantic_hash": ""
   },
   "src/app/(app)/sales/page.tsx": {
@@ -965,7 +965,7 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784388560.5669348,
+    "mtime": 1784388782.3425815,
     "ast_hash": "e33079ad4b8123d8ad0c34e8d585f50c",
     "semantic_hash": ""
   },
@@ -1360,7 +1360,7 @@
     "semantic_hash": "7380e47eb0a1b60a5053f2cf17c3cc28"
   },
   "src/components/admin/AuditoriaCard.tsx": {
-    "mtime": 1784388610.8285458,
+    "mtime": 1784388782.3425815,
     "ast_hash": "500e3b61d61cddd3240a653ed626da4a",
     "semantic_hash": ""
   },
@@ -1390,9 +1390,9 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1783656750.0941904,
-    "ast_hash": "10fe9e3a47f23b84c43e5bfbec9543fc",
-    "semantic_hash": "10fe9e3a47f23b84c43e5bfbec9543fc"
+    "mtime": 1784473135.5505502,
+    "ast_hash": "66155e216f39f3587c5935797589ac01",
+    "semantic_hash": ""
   },
   "src/components/ui/badge.tsx": {
     "mtime": 1774727851.5528438,
@@ -1460,7 +1460,7 @@
     "semantic_hash": "358746c790a29bb24ac8922d8797166c"
   },
   "src/lib/audit.ts": {
-    "mtime": 1784382071.9290833,
+    "mtime": 1784388782.3425815,
     "ast_hash": "9e4616fbc82acbbef8178e929870bbca",
     "semantic_hash": ""
   },
@@ -1680,7 +1680,7 @@
     "semantic_hash": "12c42eb4bb6e8047570fae6956fddd93"
   },
   "src/lib/validation/admin.ts": {
-    "mtime": 1784382071.9290833,
+    "mtime": 1784388782.3425815,
     "ast_hash": "dd219b8ded271cfe81c04d2aecfa61b3",
     "semantic_hash": ""
   },
@@ -1785,9 +1785,9 @@
     "semantic_hash": ""
   },
   "tests/components/CategoriasTab.test.tsx": {
-    "mtime": 1782538637.9447312,
-    "ast_hash": "4fd59cbd89c4b5ede6458f7587213a1b",
-    "semantic_hash": "4fd59cbd89c4b5ede6458f7587213a1b"
+    "mtime": 1784473135.5505502,
+    "ast_hash": "05e08d2bc54908753632ae5d3b3677ae",
+    "semantic_hash": ""
   },
   "tests/components/ClienteDetalle.test.tsx": {
     "mtime": 1782492235.7008939,
@@ -1795,7 +1795,7 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784388239.7977688,
+    "mtime": 1784388782.3435814,
     "ast_hash": "de194dbb28e2b82e0c7b44cf2b3e18cc",
     "semantic_hash": ""
   },
@@ -1805,9 +1805,9 @@
     "semantic_hash": "d62cd2741bce327ab173ae85866df6a9"
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "a1ba3fc0feb7694a9714b392dfdab166",
-    "semantic_hash": "a1ba3fc0feb7694a9714b392dfdab166"
+    "mtime": 1784473135.5515501,
+    "ast_hash": "e6898dbea173cd72fbdef8599a0342d8",
+    "semantic_hash": ""
   },
   "tests/components/EditOrderItemsDialog.test.tsx": {
     "mtime": 1782492235.7008939,
@@ -1815,14 +1815,14 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1784094885.1286416,
-    "ast_hash": "3538e63124818d18e9639f288f4af73b",
-    "semantic_hash": "3538e63124818d18e9639f288f4af73b"
+    "mtime": 1784473135.5515501,
+    "ast_hash": "5de43876463dad57f32b8cafa7d529b0",
+    "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "dca0c74130d55256a78cd3ad47e2e62a",
-    "semantic_hash": "dca0c74130d55256a78cd3ad47e2e62a"
+    "mtime": 1784473135.55255,
+    "ast_hash": "c0cfa18564214fa4b0376639ec1ded09",
+    "semantic_hash": ""
   },
   "tests/components/ModalCliente.test.tsx": {
     "mtime": 1783785316.8558774,
@@ -1860,7 +1860,7 @@
     "semantic_hash": "aafb4d10aff38d6222cfb23bcf8bbce3"
   },
   "tests/components/POSPageCache.test.tsx": {
-    "mtime": 1784385681.8259685,
+    "mtime": 1784388782.3435814,
     "ast_hash": "b942d81dee9fdde0f96f48b9d6f2cf52",
     "semantic_hash": ""
   },
@@ -1885,8 +1885,8 @@
     "semantic_hash": "55d0dbeb61e4446be82d401334851344"
   },
   "tests/components/SalesTicketPage.test.tsx": {
-    "mtime": 1784264740.2519581,
-    "ast_hash": "dc541ba6244a53c90bc2019e47384f53",
+    "mtime": 1784473135.55255,
+    "ast_hash": "dac0e9bf6691da2c864f16551b9b131e",
     "semantic_hash": ""
   },
   "tests/components/SearchProductos.test.tsx": {
@@ -2045,7 +2045,7 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784388509.1255243,
+    "mtime": 1784388782.3435814,
     "ast_hash": "c9fd1842279f1df242f3b675abf7c9c9",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784388460.5915139,
-    "ast_hash": "d1adcbf65378eabd130a8f49546de098",
+    "mtime": 1784473135.5485501,
+    "ast_hash": "8d9badc5a486ce542e29bd2ad82b74e5",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3915,7 +3915,7 @@
     "semantic_hash": ""
   },
   "tests/components/InstagramEditor.test.tsx": {
-    "mtime": 1784386400.8011584,
+    "mtime": 1784388782.3435814,
     "ast_hash": "16aa16a938c5111c04e0ba38d3df4213",
     "semantic_hash": ""
   }

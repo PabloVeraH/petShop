@@ -4558,8 +4558,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_app_app_customers_components_modalclientecreate_modalclientecreate",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "modalclientecreate()"
     },
     {
@@ -5196,8 +5196,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_app_inventory_components_categoriastab",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "categoriastab.tsx"
     },
     {
@@ -5207,8 +5207,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_app_app_inventory_components_categoriastab_categoria",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "categoria"
     },
     {
@@ -5218,8 +5218,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_app_app_inventory_components_categoriastab_categoriastab",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "categoriastab()"
     },
     {
@@ -6197,8 +6197,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_app_sales_id_page",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "page.tsx"
     },
     {
@@ -6208,8 +6208,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_app_app_sales_id_page_ventadetalle",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "ventadetalle"
     },
     {
@@ -6219,8 +6219,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_app_app_sales_id_page_getventa",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "getventa()"
     },
     {
@@ -6230,8 +6230,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_app_app_sales_id_page_ticketpage",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "ticketpage()"
     },
     {
@@ -6516,8 +6516,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "page.tsx"
     },
     {
@@ -6527,8 +6527,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_autoformatrut",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "autoformatrut()"
     },
     {
@@ -6538,8 +6538,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_worker",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "worker"
     },
     {
@@ -6549,8 +6549,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_ventaworker",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "ventaworker"
     },
     {
@@ -6560,8 +6560,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_getworkers",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "getworkers()"
     },
     {
@@ -6571,8 +6571,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_getworkerventas",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "getworkerventas()"
     },
     {
@@ -6582,8 +6582,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_updateworker",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "updateworker()"
     },
     {
@@ -6593,8 +6593,8 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "src_app_app_vendedores_page_vendedorespage",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "vendedorespage()"
     },
     {
@@ -7495,8 +7495,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_clientes_id_route",
-      "community": 0,
-      "community_name": "Post Management API",
+      "community": 72,
+      "community_name": "Receipt and Tax Logic",
       "norm_label": "route.ts"
     },
     {
@@ -7506,8 +7506,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_app_api_clientes_id_route_get",
-      "community": 0,
-      "community_name": "Post Management API",
+      "community": 72,
+      "community_name": "Receipt and Tax Logic",
       "norm_label": "get()"
     },
     {
@@ -7517,8 +7517,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "src_app_api_clientes_id_route_patch",
-      "community": 0,
-      "community_name": "Post Management API",
+      "community": 72,
+      "community_name": "Receipt and Tax Logic",
       "norm_label": "patch()"
     },
     {
@@ -7528,8 +7528,8 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "src_app_api_clientes_id_route_delete",
-      "community": 0,
-      "community_name": "Post Management API",
+      "community": 72,
+      "community_name": "Receipt and Tax Logic",
       "norm_label": "delete()"
     },
     {
@@ -8056,8 +8056,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 27,
+      "community_name": "Supply Chain Accounting",
       "norm_label": "route.ts"
     },
     {
@@ -8067,8 +8067,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route_get",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 27,
+      "community_name": "Supply Chain Accounting",
       "norm_label": "get()"
     },
     {
@@ -8078,8 +8078,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route_patch",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 27,
+      "community_name": "Supply Chain Accounting",
       "norm_label": "patch()"
     },
     {
@@ -8331,8 +8331,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_inventario_import_route",
-      "community": 1,
-      "community_name": "User Authentication Management",
+      "community": 189,
+      "community_name": "react-leaflet",
       "norm_label": "route.ts"
     },
     {
@@ -8364,8 +8364,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_app_api_inventario_import_route_get",
-      "community": 1,
-      "community_name": "User Authentication Management",
+      "community": 189,
+      "community_name": "react-leaflet",
       "norm_label": "get()"
     },
     {
@@ -8375,8 +8375,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "src_app_api_inventario_import_route_post",
-      "community": 1,
-      "community_name": "User Authentication Management",
+      "community": 189,
+      "community_name": "react-leaflet",
       "norm_label": "post()"
     },
     {
@@ -8628,8 +8628,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_notas_credito_route",
-      "community": 27,
-      "community_name": "Supply Chain Accounting",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "route.ts"
     },
     {
@@ -8639,8 +8639,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_app_api_notas_credito_route_get",
-      "community": 27,
-      "community_name": "Supply Chain Accounting",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "get()"
     },
     {
@@ -8650,8 +8650,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "src_app_api_notas_credito_route_post",
-      "community": 27,
-      "community_name": "Supply Chain Accounting",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "post()"
     },
     {
@@ -10069,8 +10069,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_components_admin_adminlayout_adminlayoutprops",
-      "community": 189,
-      "community_name": "react-leaflet",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "adminlayoutprops"
     },
     {
@@ -10234,8 +10234,8 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "src_components_admin_auditoriacard_auditoriacardprops",
-      "community": 189,
-      "community_name": "react-leaflet",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "auditoriacardprops"
     },
     {
@@ -10399,8 +10399,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_components_admin_usuarioscard_usuarioscardprops",
-      "community": 189,
-      "community_name": "react-leaflet",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "usuarioscardprops"
     },
     {
@@ -10597,8 +10597,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "src_components_sales_devolucionmodal_devolucionmodal",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "devolucionmodal()"
     },
     {
@@ -11180,8 +11180,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_hooks_useadminauth_adminrole",
-      "community": 189,
-      "community_name": "react-leaflet",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "adminrole"
     },
     {
@@ -15305,8 +15305,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_lib_validation_clientes_clienteupdateschema",
-      "community": 0,
-      "community_name": "Post Management API",
+      "community": 72,
+      "community_name": "Receipt and Tax Logic",
       "norm_label": "clienteupdateschema"
     },
     {
@@ -15437,8 +15437,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "src_lib_validation_inventario_productoimportrowschema",
-      "community": 1,
-      "community_name": "User Authentication Management",
+      "community": 189,
+      "community_name": "react-leaflet",
       "norm_label": "productoimportrowschema"
     },
     {
@@ -15503,8 +15503,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_lib_validation_primitives_validaterut",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "validaterut()"
     },
     {
@@ -15635,8 +15635,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_lib_validation_supply_chain_cuentaspagarupdateschema",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 27,
+      "community_name": "Supply Chain Accounting",
       "norm_label": "cuentaspagarupdateschema"
     },
     {
@@ -15657,8 +15657,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "src_lib_validation_supply_chain_notacreditopostschema",
-      "community": 27,
-      "community_name": "Supply Chain Accounting",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "notacreditopostschema"
     },
     {
@@ -16812,8 +16812,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_components_categoriastab_test",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "categoriastab.test.tsx"
     },
     {
@@ -16823,8 +16823,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "tests_components_categoriastab_test_mockfetch",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "mockfetch"
     },
     {
@@ -16834,8 +16834,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "tests_components_categoriastab_test_categorias_mock",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "categorias_mock"
     },
     {
@@ -16845,8 +16845,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "tests_components_categoriastab_test_makewrapper",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "makewrapper()"
     },
     {
@@ -16856,8 +16856,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "tests_components_categoriastab_test_setup",
-      "community": 9,
-      "community_name": "Demand Forecasting Reports",
+      "community": 28,
+      "community_name": "Accounting Ledger UI",
       "norm_label": "setup()"
     },
     {
@@ -18319,8 +18319,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "salesticketpage.test.tsx"
     },
     {
@@ -18330,8 +18330,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_mockrouterback",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "mockrouterback"
     },
     {
@@ -18341,8 +18341,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_makewrapper",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "makewrapper()"
     },
     {
@@ -18352,8 +18352,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_venta_base",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "venta_base"
     },
     {
@@ -18363,8 +18363,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_makeitem",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "makeitem()"
     },
     {
@@ -18374,8 +18374,8 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_makenc",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "makenc()"
     },
     {
@@ -18385,8 +18385,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "tests_components_salesticketpage_test_mockfetch",
-      "community": 183,
-      "community_name": "package.json",
+      "community": 9,
+      "community_name": "Demand Forecasting Reports",
       "norm_label": "mockfetch()"
     },
     {
@@ -18748,8 +18748,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 183,
+      "community_name": "package.json",
       "norm_label": "usuarioscard.test.tsx"
     },
     {
@@ -18759,8 +18759,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_mockfetch",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 183,
+      "community_name": "package.json",
       "norm_label": "mockfetch"
     },
     {
@@ -18770,8 +18770,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_default_users",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 183,
+      "community_name": "package.json",
       "norm_label": "default_users"
     },
     {
@@ -18781,8 +18781,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_makewrapper",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 183,
+      "community_name": "package.json",
       "norm_label": "makewrapper()"
     },
     {
@@ -18792,8 +18792,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_mockusersresponse",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 183,
+      "community_name": "package.json",
       "norm_label": "mockusersresponse()"
     },
     {
@@ -20398,8 +20398,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_integration_api_contabilidad_cierre_mes_preview_test",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 0,
+      "community_name": "Post Management API",
       "norm_label": "contabilidad-cierre-mes-preview.test.ts"
     },
     {
@@ -20409,8 +20409,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "tests_integration_api_contabilidad_cierre_mes_preview_test_mockauth",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 0,
+      "community_name": "Post Management API",
       "norm_label": "mockauth"
     },
     {
@@ -20420,8 +20420,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "tests_integration_api_contabilidad_cierre_mes_preview_test_createchain",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 0,
+      "community_name": "Post Management API",
       "norm_label": "createchain()"
     },
     {
@@ -20431,8 +20431,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "tests_integration_api_contabilidad_cierre_mes_preview_test_makerequest",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 0,
+      "community_name": "Post Management API",
       "norm_label": "makerequest()"
     },
     {
@@ -24479,8 +24479,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_unit_lib_property_invariants_test",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "property-invariants.test.ts"
     },
     {
@@ -24490,8 +24490,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "tests_unit_lib_property_invariants_test_validrutbody",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "validrutbody"
     },
     {
@@ -24501,8 +24501,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "tests_unit_lib_property_invariants_test_computedv",
-      "community": 10,
-      "community_name": "Customer and Pet Management",
+      "community": 182,
+      "community_name": "VendedoresPage.test.tsx",
       "norm_label": "computedv()"
     },
     {
@@ -29833,7 +29833,7 @@
       "label": "Middleware / Routing (MW-XX)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L322",
+      "source_location": "L325",
       "_origin": "ast",
       "id": "docs_spec_registry_middleware_routing_mw_xx",
       "community": 115,
@@ -29844,7 +29844,7 @@
       "label": "Button \u2014 Base UI + Tailwind (BTN-XX)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L328",
+      "source_location": "L331",
       "_origin": "ast",
       "id": "docs_spec_registry_button_base_ui_tailwind_btn_xx",
       "community": 115,
@@ -29855,7 +29855,7 @@
       "label": "404 (NF-XX)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L337",
+      "source_location": "L340",
       "_origin": "ast",
       "id": "docs_spec_registry_404_nf_xx",
       "community": 115,
@@ -29866,7 +29866,7 @@
       "label": "Tests unitarios (U-XX)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L431",
+      "source_location": "L435",
       "_origin": "ast",
       "id": "docs_spec_registry_tests_unitarios_u_xx",
       "community": 115,
@@ -29877,7 +29877,7 @@
       "label": "IVA \u2014 extracci\u00f3n can\u00f3nica (IVA-01 a IVA-10)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L457",
+      "source_location": "L461",
       "_origin": "ast",
       "id": "docs_spec_registry_iva_extracci\u00f3n_can\u00f3nica_iva_01_a_iva_10",
       "community": 115,
@@ -29888,7 +29888,7 @@
       "label": "IVA \u2014 cobertura en otras capas (S-20 a S-27, I-405, I-REC-10 a I-REC-12)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L477",
+      "source_location": "L481",
       "_origin": "ast",
       "id": "docs_spec_registry_iva_cobertura_en_otras_capas_s_20_a_s_27_i_405_i_rec_10_a_i_rec_12",
       "community": 115,
@@ -29899,7 +29899,7 @@
       "label": "Redirects (RD-01 a RD-16)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L497",
+      "source_location": "L501",
       "_origin": "ast",
       "id": "docs_spec_registry_redirects_rd_01_a_rd_16",
       "community": 115,
@@ -29910,7 +29910,7 @@
       "label": "Dashboard / Stock Alertas (I-90 a I-93)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L518",
+      "source_location": "L522",
       "_origin": "ast",
       "id": "docs_spec_registry_dashboard_stock_alertas_i_90_a_i_93",
       "community": 115,
@@ -29921,7 +29921,7 @@
       "label": "Dashboard Alerts Component (DA-01 a DA-06)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L526",
+      "source_location": "L530",
       "_origin": "ast",
       "id": "docs_spec_registry_dashboard_alerts_component_da_01_a_da_06",
       "community": 115,
@@ -29932,7 +29932,7 @@
       "label": "POS Page Cache y auto-asignaci\u00f3n de vendedor (PP-05 a PP-11)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L537",
+      "source_location": "L541",
       "_origin": "ast",
       "id": "docs_spec_registry_pos_page_cache_y_auto_asignaci\u00f3n_de_vendedor_pp_05_a_pp_11",
       "community": 115,
@@ -29943,7 +29943,7 @@
       "label": "POS Carrito \u2014 footer tras rehidrataci\u00f3n (PC-05 a PC-15)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L557",
+      "source_location": "L561",
       "_origin": "ast",
       "id": "docs_spec_registry_pos_carrito_footer_tras_rehidrataci\u00f3n_pc_05_a_pc_15",
       "community": 115,
@@ -29954,7 +29954,7 @@
       "label": "Devoluci\u00f3n Modal Cache (DV-14)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L586",
+      "source_location": "L590",
       "_origin": "ast",
       "id": "docs_spec_registry_devoluci\u00f3n_modal_cache_dv_14",
       "community": 115,
@@ -29965,7 +29965,7 @@
       "label": "Devoluci\u00f3n Modal Motivo (DV-15 a DV-17)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L592",
+      "source_location": "L596",
       "_origin": "ast",
       "id": "docs_spec_registry_devoluci\u00f3n_modal_motivo_dv_15_a_dv_17",
       "community": 115,
@@ -29976,7 +29976,7 @@
       "label": "LotesPanel \u2014 formulario de Lote, Notas (LP-01 a LP-03)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L609",
+      "source_location": "L613",
       "_origin": "ast",
       "id": "docs_spec_registry_lotespanel_formulario_de_lote_notas_lp_01_a_lp_03",
       "community": 115,
@@ -29987,7 +29987,7 @@
       "label": "ModalOverlay \u2014 foco y cierre (MO-01 a MO-06)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L626",
+      "source_location": "L631",
       "_origin": "ast",
       "id": "docs_spec_registry_modaloverlay_foco_y_cierre_mo_01_a_mo_06",
       "community": 115,
@@ -29998,7 +29998,7 @@
       "label": "ModalCliente \u2014 fidelizaci\u00f3n descuento autom\u00e1tico (MC-27 a MC-31)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L637",
+      "source_location": "L642",
       "_origin": "ast",
       "id": "docs_spec_registry_modalcliente_fidelizaci\u00f3n_descuento_autom\u00e1tico_mc_27_a_mc_31",
       "community": 115,
@@ -30009,7 +30009,7 @@
       "label": "Optimizador IA de Vencimientos \u2014 integraci\u00f3n (I-AI-01 a I-AI-18)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L659",
+      "source_location": "L664",
       "_origin": "ast",
       "id": "docs_spec_registry_optimizador_ia_de_vencimientos_integraci\u00f3n_i_ai_01_a_i_ai_18",
       "community": 115,
@@ -30020,7 +30020,7 @@
       "label": "OpenRouter \u2014 analizarVencimientosConIA (U-OR-01 a U-OR-07)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L706",
+      "source_location": "L711",
       "_origin": "ast",
       "id": "docs_spec_registry_openrouter_analizarvencimientosconia_u_or_01_a_u_or_07",
       "community": 115,
@@ -30031,7 +30031,7 @@
       "label": "OpenRouter \u2014 recomendarProductosEnPOS (U-REC-01 a U-REC-07)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L718",
+      "source_location": "L723",
       "_origin": "ast",
       "id": "docs_spec_registry_openrouter_recomendarproductosenpos_u_rec_01_a_u_rec_07",
       "community": 115,
@@ -30042,7 +30042,7 @@
       "label": "OptimizadorVencimientosTab (C-OPT-01 a C-OPT-12)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L730",
+      "source_location": "L735",
       "_origin": "ast",
       "id": "docs_spec_registry_optimizadorvencimientostab_c_opt_01_a_c_opt_12",
       "community": 115,
@@ -30053,7 +30053,7 @@
       "label": "RecomendacionesIA (C-REC-01 a C-REC-09)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L747",
+      "source_location": "L752",
       "_origin": "ast",
       "id": "docs_spec_registry_recomendacionesia_c_rec_01_a_c_rec_09",
       "community": 115,
@@ -30064,7 +30064,7 @@
       "label": "Convenci\u00f3n de IDs",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L761",
+      "source_location": "L766",
       "_origin": "ast",
       "id": "docs_spec_registry_convenci\u00f3n_de_ids",
       "community": 115,
@@ -38365,7 +38365,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/app/(app)/inventory/components/LotesPanel.tsx",
-      "source_location": "L113",
+      "source_location": "L114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app_inventory_components_lotespanel_lotespanel",
@@ -38377,7 +38377,7 @@
       "context": "collection",
       "confidence": "INFERRED",
       "source_file": "src/app/(app)/inventory/components/LotesPanel.tsx",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app_inventory_components_lotespanel_lotespanel",
@@ -38390,7 +38390,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/app/(app)/inventory/components/LotesPanel.tsx",
-      "source_location": "L177",
+      "source_location": "L180",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app_inventory_components_lotespanel_lotespanel",
@@ -39278,7 +39278,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/app/(app)/inventory/page.tsx",
-      "source_location": "L381",
+      "source_location": "L382",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app_inventory_page_inventorypage",
@@ -39290,7 +39290,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/app/(app)/inventory/page.tsx",
-      "source_location": "L398",
+      "source_location": "L399",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app_inventory_page_inventorypage",
@@ -86866,7 +86866,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L337",
+      "source_location": "L340",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86888,7 +86888,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L328",
+      "source_location": "L331",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86932,7 +86932,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L761",
+      "source_location": "L766",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86943,7 +86943,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L526",
+      "source_location": "L530",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86954,7 +86954,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L518",
+      "source_location": "L522",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86965,7 +86965,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L586",
+      "source_location": "L590",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -86976,7 +86976,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L592",
+      "source_location": "L596",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87031,7 +87031,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L477",
+      "source_location": "L481",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87042,7 +87042,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L457",
+      "source_location": "L461",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87053,7 +87053,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L609",
+      "source_location": "L613",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87075,7 +87075,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L322",
+      "source_location": "L325",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87086,7 +87086,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L637",
+      "source_location": "L642",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87097,7 +87097,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L626",
+      "source_location": "L631",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87119,7 +87119,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L706",
+      "source_location": "L711",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87130,7 +87130,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L718",
+      "source_location": "L723",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87141,7 +87141,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L659",
+      "source_location": "L664",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87152,7 +87152,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L730",
+      "source_location": "L735",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87174,7 +87174,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L557",
+      "source_location": "L561",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87185,7 +87185,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L537",
+      "source_location": "L541",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87196,7 +87196,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L747",
+      "source_location": "L752",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87207,7 +87207,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L497",
+      "source_location": "L501",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87251,7 +87251,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L431",
+      "source_location": "L435",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -88871,5 +88871,5 @@
       "confidence_score": 1.0
     }
   ],
-  "built_at_commit": "7cb75ab92165135cf0255a279ff57035e1d8387d"
+  "built_at_commit": "eddd364e673db4cc8ea86768258bd42371ec9060"
 }
