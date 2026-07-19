@@ -744,7 +744,7 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 | U-REC-06 | Limita a 3 recomendaciones aunque LLM devuelva más | lib/openrouter | unit |
 | U-REC-07 | Timeout 20s en fetch a OpenRouter → error "no respondió a tiempo" | lib/openrouter | unit |
 
-## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-14)
+## OptimizadorVencimientosTab (C-OPT-01 a C-OPT-15)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -762,6 +762,7 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 | C-OPT-12 | Fila NO muestra aviso cuando datos_desactualizados es false/ausente | OptimizadorVencimientosTab | component |
 | C-OPT-13 | REGRESIÓN: botón "Aplicar descuento" deshabilitado cuando datos_desactualizados=true (no debe permitir aplicar precio obsoleto) | OptimizadorVencimientosTab | component |
 | C-OPT-14 | REGRESIÓN: handleAplicarDescuento no ejecuta PATCH cuando datos_desactualizados=true (muestra error en vez de mutar producto) | OptimizadorVencimientosTab | component |
+| C-OPT-15 | REGRESIÓN: botón "Aplicar descuento" en diálogo de detalle deshabilitado cuando datos_desactualizados=true | OptimizadorVencimientosTab | component |
 
 ## RecomendacionesIA (C-REC-01 a C-REC-09)
 

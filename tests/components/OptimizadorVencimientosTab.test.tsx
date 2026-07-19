@@ -1,9 +1,9 @@
 /**
- * Tests C-OPT-01 a C-OPT-07: OptimizadorVencimientosTab
+ * Tests C-OPT-01 a C-OPT-15: OptimizadorVencimientosTab
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OptimizadorVencimientosTab } from "@/app/(app)/inventory/components/OptimizadorVencimientosTab";
 
@@ -271,5 +271,33 @@ describe("OptimizadorVencimientosTab", () => {
       ([url, opts]: [string, RequestInit]) => url.includes("/api/productos/") && opts?.method === "PATCH"
     );
     expect(patchCalls).toHaveLength(0);
+  });
+
+  // C-OPT-15: REGRESIÓN — el botón "Aplicar descuento" dentro del diálogo de
+  // detalle también debe estar deshabilitado cuando datos_desactualizados=true.
+  // El diálogo tiene su propio botón independiente del de la tabla (ver línea
+  // 402-410 del componente). C-OPT-13 solo cubre el botón de la tabla.
+  it("C-OPT-15: REGRESIÓN — botón 'Aplicar descuento' en diálogo deshabilitado cuando datos_desactualizados=true", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      recomendaciones: [{
+        ...MOCK_RECOMENDACION,
+        datos_desactualizados: true,
+      }],
+      modelo_usado: "test",
+      productos_analizados: 1,
+    }));
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Vence en 7 días.")).toBeInTheDocument();
+    });
+    // Abrir el diálogo haciendo clic en la fila
+    fireEvent.click(screen.getByText("Vence en 7 días."));
+    // Verificar que el botón dentro del diálogo esté deshabilitado
+    await waitFor(() => {
+      const dialog = screen.getByRole("dialog");
+      const btn = within(dialog).getByRole("button", { name: /aplicar descuento/i });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute("title", "Genera un nuevo análisis antes de aplicar");
+    });
   });
 });
