@@ -248,6 +248,62 @@ describe("POST /api/contabilidad/backfill", () => {
   });
   }); // describe lógica de backfill
 
+  // I-422: REGRESIÓN — OC sin precio (subtotal=0 o total=0) reporta
+  // "precio no definido" en vez de solo el código de OC. Antes del fix,
+  // el error era genérico "COMPRA:OC-XXX" sin el motivo; ahora debe
+  // especificar que el precio no está definido.
+  // (ticket Trello 6a5c650fab...)
+  it("I-422: REGRESIÓN — OC con subtotal=0 reporta 'precio no definido' en detalle_errores", async () => {
+    setupOcBackfillMock({
+      ordenesCompra: [
+        { id: "oc1", created_at: "2026-07-01T10:00:00Z", subtotal: 0, impuesto: 0, total: 0, numero: "OC-20260701-NOPRICE" },
+        { id: "oc2", created_at: "2026-07-02T10:00:00Z", subtotal: 10000, impuesto: 1900, total: 11900, numero: "OC-20260702-VALID" },
+      ],
+      compraEntries: [],
+      proveedorPorOc: {
+        oc1: "Proveedor Uno",
+        oc2: "Proveedor Dos",
+      },
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // OC sin precio debe reportar error específico
+    expect(body.errores).toBe(1);
+    expect(body.detalle_errores).toContain("COMPRA:OC-20260701-NOPRICE — precio no definido");
+    // OC con precio válido debe crearse
+    expect(body.creados).toBe(1);
+    expect(body.detalle_creados).toContain("COMPRA:OC-20260702-VALID");
+  });
+
+  // I-423: REGRESIÓN — OC con precio válido pero crearAsiento falla
+  // reporta "error al crear asiento contable" en vez de solo el código.
+  it("I-423: REGRESIÓN — OC con subtotal válido pero crearAsiento falla reporta error específico", async () => {
+    (crearAsiento as jest.Mock).mockResolvedValue(null);
+    setupOcBackfillMock({
+      ordenesCompra: [
+        { id: "oc1", created_at: "2026-07-01T10:00:00Z", subtotal: 50000, impuesto: 9500, total: 59500, numero: "OC-20260701-FAIL" },
+        { id: "oc2", created_at: "2026-07-02T10:00:00Z", subtotal: 30000, impuesto: 5700, total: 35700, numero: "OC-20260702-FAIL2" },
+      ],
+      compraEntries: [],
+      proveedorPorOc: {
+        oc1: "Proveedor Uno",
+        oc2: "Proveedor Dos",
+      },
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.errores).toBe(2);
+    expect(body.detalle_errores).toContain("COMPRA:OC-20260701-FAIL — error al crear asiento contable");
+    expect(body.detalle_errores).toContain("COMPRA:OC-20260702-FAIL2 — error al crear asiento contable");
+    expect(body.creados).toBe(0);
+  });
+
   // I-NCC-BF-01 a I-NCC-BF-04: el backfill de NC también debía revertir el
   // COGS (mismo bug que I-400/I-402 pero del lado de las notas de crédito).
   // Usa un mock dedicado (no setupMock, que fija notas_credito a [] para
@@ -474,6 +530,71 @@ function setupNcBackfillMock(params: {
 
       // ordenes_compra y cualquier otra tabla — vacío
       return chain(Promise.resolve({ data: [], error: null }));
+    }),
+    rpc: jest.fn(),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Helper: mock dedicado para el backfill de órdenes de compra (I-422, I-423).
+// setupMock fija ordenes_compra a [] porque sus escenarios son de VENTA; este
+// helper hace lo contrario: ventas y NC vacías, control total de OCs.
+// ---------------------------------------------------------------------------
+function setupOcBackfillMock(params: {
+  ordenesCompra: Array<Record<string, unknown>>;
+  compraEntries: Array<{ referencia_id: string }>;
+  proveedorPorOc: Record<string, string>;
+}) {
+  let callCount = 0;
+  (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+    from: jest.fn((table: string) => {
+      if (table === "ventas") {
+        return chain(Promise.resolve({ data: [], error: null }));
+      }
+
+      if (table === "notas_credito") {
+        return chain(Promise.resolve({ data: [], error: null }));
+      }
+
+      if (table === "ordenes_compra") {
+        callCount++;
+        // First call: list all OCs (select + eq store + order)
+        if (callCount === 1) {
+          return chain(Promise.resolve({ data: params.ordenesCompra, error: null }));
+        }
+        // Subsequent calls: proveedor detail per OC
+        const c = chain();
+        let capturedId = "";
+        c.eq = jest.fn((field: string, value: unknown) => {
+          if (field === "id") capturedId = String(value);
+          return c;
+        });
+        c.maybeSingle = jest.fn(() => {
+          const nombre = params.proveedorPorOc[capturedId] ?? "Proveedor Genérico";
+          return Promise.resolve({ data: { proveedores: { nombre } }, error: null });
+        });
+        return c;
+      }
+
+      if (table === "journal_entries") {
+        const c = chain();
+        let tipo = "";
+        c.eq = jest.fn((field: string, value: unknown) => {
+          if (field === "tipo_movimiento") tipo = String(value);
+          return c;
+        });
+        c.not = jest.fn(() => c);
+        c.ilike = jest.fn(() => c);
+        c.then = (resolve: (v: unknown) => void) => {
+          if (tipo === "COMPRA") {
+            return resolve({ data: params.compraEntries, error: null });
+          }
+          return resolve({ data: [], error: null });
+        };
+        return c;
+      }
+
+      return chain(Promise.resolve({ data: null, error: null }));
     }),
     rpc: jest.fn(),
   });

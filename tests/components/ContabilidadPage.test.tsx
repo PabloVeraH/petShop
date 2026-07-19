@@ -1006,7 +1006,7 @@ describe("ContabilidadPage — Backfill (CP-29 a CP-31)", () => {
         creados: 2,
         errores: 1,
         detalle_creados: ["VENTA (ingreso):F001"],
-        detalle_errores: ["No se pudo crear asiento para COMPRA:OC099"],
+        detalle_errores: ["COMPRA:OC099 — precio no definido"],
       },
     };
     render(<ContabilidadPage />, { wrapper: makeWrapper() });

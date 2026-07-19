@@ -65,19 +65,23 @@ export async function POST(req: NextRequest) {
     const ventaCliente = ventaDetalle?.clientes as unknown as { nombre: string } | null;
 
     if (!ventasConIngreso.has(venta.id)) {
-      const id = await crearAsiento({
-        storeId: store_id,
-        fecha: venta.created_at.split("T")[0],
-        tipoMovimiento: "VENTA",
-        referenciaId: venta.id,
-        referenciaNomero: venta.numero_comprobante,
-        descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
-        lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
-        creadoPor: "backfill",
-      });
+      if (total === 0) {
+        errores.push(`VENTA (ingreso):${venta.numero_comprobante} — monto cero`);
+      } else {
+        const id = await crearAsiento({
+          storeId: store_id,
+          fecha: venta.created_at.split("T")[0],
+          tipoMovimiento: "VENTA",
+          referenciaId: venta.id,
+          referenciaNomero: venta.numero_comprobante,
+          descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
+          lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
+          creadoPor: "backfill",
+        });
 
-      if (id) creados.push(`VENTA (ingreso):${venta.numero_comprobante}`);
-      else errores.push(`VENTA (ingreso):${venta.numero_comprobante}`);
+        if (id) creados.push(`VENTA (ingreso):${venta.numero_comprobante}`);
+        else errores.push(`VENTA (ingreso):${venta.numero_comprobante} — error al crear asiento contable`);
+      }
     }
 
     // También backfill asiento COGS faltante
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (id) creados.push(`VENTA (COGS):${venta.numero_comprobante}`);
-        else errores.push(`VENTA (COGS):${venta.numero_comprobante}`);
+        else errores.push(`VENTA (COGS):${venta.numero_comprobante} — error al crear asiento contable`);
       }
     }
   }
@@ -150,19 +154,24 @@ export async function POST(req: NextRequest) {
     const ncCliente = ncVenta?.clientes?.nombre;
 
     if (!ncConIngreso.has(nc.id)) {
-      const id = await crearAsiento({
-        storeId: store_id,
-        fecha: nc.created_at.split("T")[0],
-        tipoMovimiento: "NOTA_CREDITO",
-        referenciaId: nc.id,
-        referenciaNomero: nc.numero_nc,
-        descripcion: `Devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
-        lineas: lineasNotaCredito({ monto: Number(nc.monto_total), tipoReembolso: nc.tipo_reembolso }),
-        creadoPor: "backfill",
-      });
+      const montoNc = Number(nc.monto_total);
+      if (montoNc === 0) {
+        errores.push(`NC (ingreso):${nc.numero_nc} — monto cero`);
+      } else {
+        const id = await crearAsiento({
+          storeId: store_id,
+          fecha: nc.created_at.split("T")[0],
+          tipoMovimiento: "NOTA_CREDITO",
+          referenciaId: nc.id,
+          referenciaNomero: nc.numero_nc,
+          descripcion: `Devolución${ncCliente ? ` a ${ncCliente}` : ""}`,
+          lineas: lineasNotaCredito({ monto: montoNc, tipoReembolso: nc.tipo_reembolso }),
+          creadoPor: "backfill",
+        });
 
-      if (id) creados.push(`NC (ingreso):${nc.numero_nc}`);
-      else errores.push(`NC (ingreso):${nc.numero_nc}`);
+        if (id) creados.push(`NC (ingreso):${nc.numero_nc}`);
+        else errores.push(`NC (ingreso):${nc.numero_nc} — error al crear asiento contable`);
+      }
     }
 
     if (!ncConCogs.has(nc.id)) {
@@ -180,7 +189,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (id) creados.push(`NC (COGS):${nc.numero_nc}`);
-        else errores.push(`NC (COGS):${nc.numero_nc}`);
+        else errores.push(`NC (COGS):${nc.numero_nc} — error al crear asiento contable`);
       }
     }
   }
@@ -211,19 +220,26 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     const ocProveedor = ocDetalle?.proveedores as unknown as { nombre: string } | null;
 
-    const id = await crearAsiento({
-      storeId: store_id,
-      fecha: orden.created_at.split("T")[0],
-      tipoMovimiento: "COMPRA",
-      referenciaId: orden.id,
-      referenciaNomero: orden.numero,
-      descripcion: `Compra a ${ocProveedor?.nombre ?? "proveedor"}`,
-      lineas: lineasCompra({ montoNeto: Number(orden.subtotal), iva: Number(orden.impuesto), total: Number(orden.total) }),
-      creadoPor: "backfill",
-    });
+    const subtotal = Number(orden.subtotal);
+    const total = Number(orden.total);
 
-    if (id) creados.push(`COMPRA:${orden.numero}`);
-    else errores.push(`COMPRA:${orden.numero}`);
+    if (subtotal <= 0 || total <= 0) {
+      errores.push(`COMPRA:${orden.numero} — precio no definido`);
+    } else {
+      const id = await crearAsiento({
+        storeId: store_id,
+        fecha: orden.created_at.split("T")[0],
+        tipoMovimiento: "COMPRA",
+        referenciaId: orden.id,
+        referenciaNomero: orden.numero,
+        descripcion: `Compra a ${ocProveedor?.nombre ?? "proveedor"}`,
+        lineas: lineasCompra({ montoNeto: subtotal, iva: Number(orden.impuesto), total }),
+        creadoPor: "backfill",
+      });
+
+      if (id) creados.push(`COMPRA:${orden.numero}`);
+      else errores.push(`COMPRA:${orden.numero} — error al crear asiento contable`);
+    }
   }
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
