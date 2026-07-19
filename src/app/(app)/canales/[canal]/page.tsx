@@ -211,7 +211,7 @@ export default function CanalConfigPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <span className="text-sm text-gray-600">{activo ? "Activo" : "Inactivo"}</span>
               <div
-                onClick={() => setActivo(!activo)}
+                onClick={() => { setActivo(!activo); setError(""); }}
                 className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${activo ? "bg-green-500" : "bg-gray-300"}`}
               >
                 <span

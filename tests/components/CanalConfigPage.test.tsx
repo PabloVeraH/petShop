@@ -265,6 +265,42 @@ describe("CanalConfigPage — activo handling", () => {
     });
   });
 
+  // CC-10 — REGRESIÓN: error de credenciales debe limpiarse al desactivar el toggle
+  it("CC-10: toggle a inactivo después de error → error se limpia sin necesidad de guardar", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    // Activar toggle sin credenciales → error
+    const toggleSwitch = document.querySelector(".bg-gray-300");
+    expect(toggleSwitch).not.toBeNull();
+    fireEvent.click(toggleSwitch!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Activo")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Guardar configuración"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Debe completar todas las credenciales/i)).toBeInTheDocument();
+    });
+
+    // Desactivar toggle → error debe desaparecer sin guardar
+    const toggleActive = document.querySelector(".bg-green-500");
+    expect(toggleActive).not.toBeNull();
+    fireEvent.click(toggleActive!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Inactivo")).toBeInTheDocument();
+    });
+
+    // El mensaje de error ya no debe estar presente
+    expect(screen.queryByText(/Debe completar todas las credenciales/i)).toBeNull();
+  });
+
   // CC-08 — mismo defecto en campos type="text" (Store ID, Client ID, etc.):
   // sin autoComplete="off", el navegador aplica heurísticas propias sobre
   // identificadores que no son datos de perfil del usuario.
