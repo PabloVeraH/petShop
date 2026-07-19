@@ -465,6 +465,7 @@ I-406/I-407/I-408.
 | U-124 | REGRESIÓN: crearAsiento reintenta el ciclo completo (nuevo numero_asiento + insert) cuando journal_detail falla en el 1er intento y tiene éxito en el 2do — causa raíz real confirmada contra producción: venta 20260707-9CE8F125 con asiento COGS pero sin asiento de ingreso, sin colisión de numero_asiento ni venta concurrente | lib/contabilidad | unit |
 | U-125 | crearAsiento retorna null y hace rollback (delete) tras agotar los reintentos si journal_detail falla en todos los intentos | lib/contabilidad | unit |
 | U-126 | crearAsiento loguea el número de intentos agotados cuando journal_detail falla persistentemente | lib/contabilidad | unit |
+| U-127 | isClerkDevKey / checkClerkEnv — detecta claves dev de Clerk (pk_test_/sk_test_) y advierte en producción | lib/clerk-env | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "./supabase";
+import "./clerk-env";
 
 /**
  * Returns the store_id for the current authenticated user.
