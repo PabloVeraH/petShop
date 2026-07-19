@@ -5,7 +5,7 @@
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -221,6 +221,29 @@ describe("ModalPago — dropdown Asignar a vendedor (MP-06/MP-07/MP-08/MP-09)", 
     const select = (await screen.findByDisplayValue("Carlos Pérez")) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "" } });
     expect(mockSetWorker).toHaveBeenCalledWith(undefined);
+  });
+
+  // MP-16
+  it("MP-16: muestra skeleton mientras carga workers y luego el select", async () => {
+    let resolveWorkerFetch: (v: unknown) => void;
+    const deferred = new Promise((resolve) => { resolveWorkerFetch = resolve; });
+    (global.fetch as jest.Mock).mockImplementationOnce(
+      () => deferred.then(() => ({ ok: true, json: async () => [WORKER_ACTUAL] })),
+    );
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+
+    // During loading — skeleton reserva espacio
+    expect(screen.getByTestId("worker-skeleton")).toBeInTheDocument();
+
+    // Resolve fetch
+    resolveWorkerFetch!(undefined);
+
+    // After loading — select replaces skeleton
+    await waitFor(() => {
+      expect(screen.queryByTestId("worker-skeleton")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Asignar a vendedor")).toBeInTheDocument();
   });
 });
 

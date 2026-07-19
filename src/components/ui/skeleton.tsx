@@ -1,5 +1,7 @@
-export function Skeleton({ className }: { className?: string }) {
+import * as React from "react";
+
+export function Skeleton({ className, ...props }: { className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`animate-pulse rounded-md bg-gray-200 ${className ?? ""}`} />
+    <div className={`animate-pulse rounded-md bg-gray-200 ${className ?? ""}`} {...props} />
   );
 }

@@ -419,6 +419,7 @@ I-406/I-407/I-408.
 | MP-13 | debito/credito muestra label N° transacción con * rojo | ModalPago | component |
 | MP-14 | efectivo no muestra el campo N° transacción | ModalPago | component |
 | MP-15 | credito con TRX vacío en blur muestra error obligatorio | ModalPago | component |
+| MP-16 | skeleton placeholder mientras carga workers, evita layout shift | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |

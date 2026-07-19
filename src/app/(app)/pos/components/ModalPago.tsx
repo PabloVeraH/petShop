@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { extraerIva } from "@/lib/tax";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const METODOS_PAGO = [
   { value: "efectivo", label: "Efectivo" },
@@ -69,7 +70,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     if (!metodoPago) setMetodoPago("efectivo");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: workers } = useQuery<Worker[]>({
+  const { data: workers, isLoading: workersLoading } = useQuery<Worker[]>({
     queryKey: ["workers"],
     queryFn: () => fetch("/api/workers").then((r) => r.json()),
   });
@@ -325,23 +326,29 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
           )}
 
           {/* Worker */}
-          {sortedWorkers.length > 0 && (
+          {(workersLoading || sortedWorkers.length > 0) && (
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">
                 Asignar a vendedor
               </label>
-              <select
-                value={workerClerkId ?? ""}
-                onChange={(e) => setWorker(e.target.value || undefined)}
-                className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Sin asignar</option>
-                {sortedWorkers.map((w) => (
-                  <option key={w.clerk_id} value={w.clerk_id}>
-                    {w.nombre ?? w.email}
-                  </option>
-                ))}
-              </select>
+              <div data-testid="worker-field-container">
+                {workersLoading ? (
+                  <Skeleton className="h-9 w-full" data-testid="worker-skeleton" />
+                ) : (
+                  <select
+                    value={workerClerkId ?? ""}
+                    onChange={(e) => setWorker(e.target.value || undefined)}
+                    className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Sin asignar</option>
+                    {sortedWorkers.map((w) => (
+                      <option key={w.clerk_id} value={w.clerk_id}>
+                        {w.nombre ?? w.email}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
           )}
 
