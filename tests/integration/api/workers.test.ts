@@ -32,7 +32,8 @@ function makeWorkerChain() {
   };
 }
 
-function makeVentasChain(data: Array<{ worker_clerk_id: string | null; total: number }> = []) {
+type VentaRow = { id: string; worker_clerk_id: string | null; total: number };
+function makeVentasChain(data: VentaRow[] = []) {
   return {
     data,
     error: null,
@@ -40,6 +41,17 @@ function makeVentasChain(data: Array<{ worker_clerk_id: string | null; total: nu
     eq: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+  };
+}
+
+type NCRow = { monto_total: number; venta_id: string };
+function makeNCChain(data: NCRow[] = []) {
+  return {
+    data,
+    error: null,
+    select: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
   };
 }
 
@@ -76,11 +88,10 @@ describe("GET /api/workers", () => {
   });
 
   it("I-257: retorna lista de workers con totales de ventas del mes y del día", async () => {
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call++;
-      if (call === 1) return makeWorkerChain();
-      return makeVentasChain();
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") return makeWorkerChain();
+      if (table === "notas_credito") return makeNCChain([]);
+      return makeVentasChain([]);
     });
     const { GET } = await import("@/app/api/workers/route");
     const req = new NextRequest("http://localhost/api/workers");
@@ -92,12 +103,6 @@ describe("GET /api/workers", () => {
     expect(body[0]).toHaveProperty("ventas_hoy");
   });
 
-  // I-409/I-410: REGRESIÓN — "Ventas hoy" mostraba $0 para todos los
-  // vendedores porque las ventas creadas sin asignar workerClerkId
-  // explícitamente en el modal del POS quedaban con worker_clerk_id=null
-  // (corregido en /api/ventas: workerClerkId ?? ctx.userId). I-257 solo
-  // verificaba la forma de la respuesta contra data:[] — nunca probaba que
-  // la suma por vendedor funcione con ventas reales.
   const WORKERS_MULTI = [
     { clerk_id: "w1", nombre: "Worker Uno", email: "w1@test.com", rut: null, meta_ventas: null, store_admin: false, store_worker: true },
     { clerk_id: "w2", nombre: "Worker Dos", email: "w2@test.com", rut: null, meta_ventas: null, store_admin: false, store_worker: true },
@@ -114,19 +119,21 @@ describe("GET /api/workers", () => {
     };
   }
 
-  it("I-409: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente", async () => {
-    const VENTAS_HOY = [
-      { worker_clerk_id: "w1", total: 15000 },
-      { worker_clerk_id: "w1", total: 5000 },
-      { worker_clerk_id: "w2", total: 20000 },
-    ];
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call++;
-      if (call === 1) return makeWorkersMultiChain();
-      // ventasMes y ventasHoy: misma data alcanza para probar la suma por worker
-      return makeVentasChain(VENTAS_HOY);
+  function makeSUT(ventas: VentaRow[], ncs: NCRow[] = []) {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") return makeWorkersMultiChain();
+      if (table === "notas_credito") return makeNCChain(ncs);
+      return makeVentasChain(ventas);
     });
+  }
+
+  it("I-409: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente", async () => {
+    const VENTAS: VentaRow[] = [
+      { id: "v1", worker_clerk_id: "w1", total: 15000 },
+      { id: "v2", worker_clerk_id: "w1", total: 5000 },
+      { id: "v3", worker_clerk_id: "w2", total: 20000 },
+    ];
+    makeSUT(VENTAS);
     const { GET } = await import("@/app/api/workers/route");
     const req = new NextRequest("http://localhost/api/workers");
     const res = await GET(req);
@@ -139,16 +146,11 @@ describe("GET /api/workers", () => {
   });
 
   it("I-410: venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás", async () => {
-    const VENTAS_HOY = [
-      { worker_clerk_id: "w1", total: 10000 },
-      { worker_clerk_id: null, total: 99999 }, // venta sin vendedor asignado (no debe romper ni sumarse a nadie)
+    const VENTAS: VentaRow[] = [
+      { id: "v1", worker_clerk_id: "w1", total: 10000 },
+      { id: "v2", worker_clerk_id: null, total: 99999 },
     ];
-    let call = 0;
-    mockFrom.mockImplementation(() => {
-      call++;
-      if (call === 1) return makeWorkersMultiChain();
-      return makeVentasChain(VENTAS_HOY);
-    });
+    makeSUT(VENTAS);
     const { GET } = await import("@/app/api/workers/route");
     const req = new NextRequest("http://localhost/api/workers");
     const res = await GET(req);
@@ -159,6 +161,44 @@ describe("GET /api/workers", () => {
     const w2 = body.find((w: { clerk_id: string }) => w.clerk_id === "w2");
     expect(w1.ventas_hoy).toBe(10000);
     expect(w2.ventas_hoy).toBe(0);
+  });
+
+  // I-425: REGRESIÓN — venta devuelta vía NC descuenta el monto devuelto del total del vendedor
+  it("I-425: NC reduce ventas_mes y ventas_hoy del vendedor", async () => {
+    const VENTAS: VentaRow[] = [
+      { id: "v1", worker_clerk_id: "w1", total: 30000 },
+      { id: "v2", worker_clerk_id: "w1", total: 20000 },
+    ];
+    const NCS: NCRow[] = [
+      { monto_total: 15000, venta_id: "v1" }, // v1 devuelta parcialmente
+    ];
+    makeSUT(VENTAS, NCS);
+    const { GET } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    const w1 = body.find((w: { clerk_id: string }) => w.clerk_id === "w1");
+    // Bruto: 30000 + 20000 = 50000. NC: -15000. Neto: 35000
+    expect(w1.ventas_mes).toBe(35000);
+    expect(w1.ventas_hoy).toBe(35000);
+  });
+
+  it("I-425b: NC no reduce por debajo de 0", async () => {
+    const VENTAS: VentaRow[] = [
+      { id: "v1", worker_clerk_id: "w1", total: 10000 },
+    ];
+    const NCS: NCRow[] = [
+      { monto_total: 20000, venta_id: "v1" }, // NC mayor que la venta
+    ];
+    makeSUT(VENTAS, NCS);
+    const { GET } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers");
+    const res = await GET(req);
+    const body = await res.json();
+    const w1 = body.find((w: { clerk_id: string }) => w.clerk_id === "w1");
+    expect(w1.ventas_mes).toBe(0); // clamped a 0
   });
 });
 

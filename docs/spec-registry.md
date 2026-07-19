@@ -266,6 +266,9 @@ I-406/I-407/I-408.
 | I-408 | GET ventas retorna 401 si no autenticado (renombrado desde I-293, colisión — ver también sección Ventas) | GET /api/ventas | integration |
 | I-409 | REGRESIÓN: ventas con worker_clerk_id asignado se suman correctamente al total del vendedor correspondiente (no $0) | GET /api/workers | integration |
 | I-410 | Venta con worker_clerk_id null no se atribuye a ningún vendedor y no rompe el cálculo de los demás | GET /api/workers | integration |
+| I-425 | REGRESIÓN: NC descontada del total del vendedor en ventas_mes/ventas_hoy (venta devuelta no infla meta mensual) | GET /api/workers | integration |
+| I-425b | NC no reduce ventas_mes por debajo de 0 (clamped) | GET /api/workers | integration |
+| I-425c | GET workers/ventas incluye monto_devuelto por venta (0 si sin NC, >0 si tiene NC) | GET /api/workers/[id]/ventas | integration |
 
 ## Infraestructura (I-251 a I-282, I-417, I-418)
 

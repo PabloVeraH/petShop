@@ -31,20 +31,22 @@ export async function GET(req: NextRequest) {
 
   const { data: ventasMes } = await supabase
     .from("ventas")
-    .select("worker_clerk_id, total")
+    .select("id, worker_clerk_id, total")
     .eq("store_id", storeId)
     .neq("estado", "anulada")
     .gte("created_at", startOfMonth.toISOString());
 
   const { data: ventasHoy } = await supabase
     .from("ventas")
-    .select("worker_clerk_id, total")
+    .select("id, worker_clerk_id, total")
     .eq("store_id", storeId)
     .neq("estado", "anulada")
     .gte("created_at", startOfDay.toISOString());
 
   const totalesMes: Record<string, number> = {};
+  const ventaMap = new Map<string, string | null>();
   for (const v of ventasMes ?? []) {
+    ventaMap.set(v.id, v.worker_clerk_id);
     if (v.worker_clerk_id) {
       totalesMes[v.worker_clerk_id] = (totalesMes[v.worker_clerk_id] ?? 0) + Number(v.total);
     }
@@ -56,6 +58,33 @@ export async function GET(req: NextRequest) {
       totalesHoy[v.worker_clerk_id] = (totalesHoy[v.worker_clerk_id] ?? 0) + Number(v.total);
     }
   }
+
+  // Descontar montos de Notas de Crédito (NC) vinculadas a estas ventas
+  async function descontarNC(
+    ventasArr: Array<{ id: string; worker_clerk_id: string | null }>,
+    totales: Record<string, number>
+  ): Promise<void> {
+    const ids = ventasArr.map((v) => v.id).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const { data: ncs } = await supabase
+      .from("notas_credito")
+      .select("monto_total, venta_id")
+      .in("venta_id", ids);
+
+    for (const nc of ncs ?? []) {
+      const venta = ventasArr.find((v) => v.id === nc.venta_id);
+      if (venta?.worker_clerk_id) {
+        totales[venta.worker_clerk_id] = Math.max(
+          0,
+          (totales[venta.worker_clerk_id] ?? 0) - Number(nc.monto_total)
+        );
+      }
+    }
+  }
+
+  await descontarNC(ventasMes ?? [], totalesMes);
+  await descontarNC(ventasHoy ?? [], totalesHoy);
 
   const result = (users ?? []).map((u) => ({
     ...u,

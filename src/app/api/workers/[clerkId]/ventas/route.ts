@@ -32,5 +32,24 @@ export async function GET(
 
   const { data, error } = await query.limit(200);
   if (error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Agregar monto_devuelto por NC por cada venta
+  const ids = (data ?? []).map((v) => v.id).filter(Boolean);
+  const devueltoPorVenta: Record<string, number> = {};
+  if (ids.length > 0) {
+    const { data: ncs } = await supabase
+      .from("notas_credito")
+      .select("monto_total, venta_id")
+      .in("venta_id", ids);
+    for (const nc of ncs ?? []) {
+      devueltoPorVenta[nc.venta_id] = (devueltoPorVenta[nc.venta_id] ?? 0) + Number(nc.monto_total);
+    }
+  }
+
+  const result = (data ?? []).map((v) => ({
+    ...v,
+    monto_devuelto: devueltoPorVenta[v.id] ?? 0,
+  }));
+
+  return NextResponse.json(result);
 }

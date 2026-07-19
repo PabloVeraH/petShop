@@ -42,6 +42,7 @@ type VentaWorker = {
   id: string;
   numero_comprobante: string | null;
   total: number;
+  monto_devuelto: number;
   metodo_pago: string | null;
   estado: string;
   created_at: string;
@@ -288,6 +289,7 @@ export default function VendedoresPage() {
                         <TableHead>Comprobante</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Devuelto</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -298,6 +300,11 @@ export default function VendedoresPage() {
                           <TableCell className="text-xs">{v.clientes?.nombre ?? "—"}</TableCell>
                           <TableCell className="text-right text-xs font-medium text-green-700">
                             ${Math.round(v.total).toLocaleString("es-CL")}
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-medium text-red-500">
+                            {v.monto_devuelto > 0
+                              ? `-$${Math.round(v.monto_devuelto).toLocaleString("es-CL")}`
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       ))}
