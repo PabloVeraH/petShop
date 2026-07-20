@@ -1040,9 +1040,9 @@
     "semantic_hash": "fe87ed358a956e68eba077ae7cbd012f"
   },
   "src/app/api/dashboard/route.ts": {
-    "mtime": 1782355600.3299544,
-    "ast_hash": "7faec9b18e67345661880b87f0c5992d",
-    "semantic_hash": "7faec9b18e67345661880b87f0c5992d"
+    "mtime": 1784512184.3324103,
+    "ast_hash": "98be1d9d8dce4d05cc0bfcee46d6b32a",
+    "semantic_hash": ""
   },
   "src/app/api/dashboard/stock-alertas/route.ts": {
     "mtime": 1783656750.092985,
@@ -2095,9 +2095,9 @@
     "semantic_hash": "8f4cbc826ece99896fb124f3a3453943"
   },
   "tests/integration/api/dashboard.test.ts": {
-    "mtime": 1783656750.0951903,
-    "ast_hash": "1981f924e90ff0a1ab10941a3f8de7d0",
-    "semantic_hash": "1981f924e90ff0a1ab10941a3f8de7d0"
+    "mtime": 1784512133.6137795,
+    "ast_hash": "9f9ea00b93e40d4b7385dd808bd49d30",
+    "semantic_hash": ""
   },
   "tests/integration/api/email-send-alerts.test.ts": {
     "mtime": 1779811940.088401,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784511721.0825207,
-    "ast_hash": "96d531d2305539468442fbaf8e766001",
+    "mtime": 1784512171.887501,
+    "ast_hash": "1a3a15c2c081e1830b923e7c5718cbcb",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3925,12 +3925,12 @@
     "semantic_hash": ""
   },
   "src/lib/clerk-env.ts": {
-    "mtime": 1784511704.8770096,
+    "mtime": 1784511842.7368758,
     "ast_hash": "566f7f9d541519a208411565d53e5bd8",
     "semantic_hash": ""
   },
   "tests/unit/lib/clerk-env.test.ts": {
-    "mtime": 1784511684.4948676,
+    "mtime": 1784511842.7368758,
     "ast_hash": "46337d0cece09124f0d9f1b3cb4921ff",
     "semantic_hash": ""
   },
