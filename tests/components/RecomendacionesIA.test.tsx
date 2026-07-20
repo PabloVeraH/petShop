@@ -147,14 +147,44 @@ describe("RecomendacionesIA", () => {
   it("C-REC-08: no recarga cuando items cambian pero clienteId/mascotaId son los mismos", async () => {
     mockClienteId = "cliente-1";
     render(<RecomendacionesIA />);
-    
+
     // Agregar item al carrito
     mockItems.push({ producto_id: "new-item", nombre: "New Product", precio: 1000 });
-    
+
     // Esperar debounce pero no debería haber llamado a fetch
     act(() => jest.advanceTimersByTime(900));
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(1); // solo el llamado inicial
     });
+  });
+
+  // C-REC-10: REGRESIÓN — el panel debe reservar su espacio (mostrar
+  // "Buscando sugerencias...") de inmediato al seleccionar cliente, sin
+  // esperar los 800ms de debounce. Antes del fix, el componente retornaba
+  // null durante el debounce y recién montaba el bloque completo al
+  // activarse `loading`, empujando el botón "Cobrar" que está debajo en
+  // pos/page.tsx (ticket: "El panel de Sugerencias IA reordena el
+  // formulario de cobro y dificulta pulsar Cobrar").
+  it("C-REC-10: REGRESIÓN — muestra 'Buscando sugerencias' inmediatamente al seleccionar cliente, antes del debounce", () => {
+    mockClienteId = "cliente-1";
+    mockFetch.mockImplementation(() => new Promise(() => {})); // nunca resuelve
+    render(<RecomendacionesIA />);
+    // Sin avanzar timers — el debounce de 800ms todavía no corrió
+    expect(screen.getByText(/buscando sugerencias/i)).toBeInTheDocument();
+  });
+
+  // C-REC-11: REGRESIÓN — cuando termina de cargar y no hay recomendaciones,
+  // el panel debe mostrar un mensaje neutral en vez de desmontarse (null),
+  // para no volver a desplazar el botón "Cobrar" en el sentido contrario.
+  it("C-REC-11: REGRESIÓN — sin recomendaciones tras cargar → muestra mensaje neutral en vez de desaparecer", async () => {
+    mockClienteId = "cliente-1";
+    mockFetch.mockResolvedValue(jsonResponse({ recomendaciones: [] }));
+    const { container } = render(<RecomendacionesIA />);
+    act(() => jest.advanceTimersByTime(900));
+    await waitFor(() => {
+      expect(screen.getByText(/sin sugerencias para este cliente/i)).toBeInTheDocument();
+    });
+    // El contenedor del panel sigue montado (no colapsa a vacío)
+    expect(container).not.toBeEmptyDOMElement();
   });
 });

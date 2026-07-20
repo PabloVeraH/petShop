@@ -778,7 +778,7 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 | C-OPT-14 | REGRESIÓN: handleAplicarDescuento no ejecuta PATCH cuando datos_desactualizados=true (muestra error en vez de mutar producto) | OptimizadorVencimientosTab | component |
 | C-OPT-15 | REGRESIÓN: botón "Aplicar descuento" en diálogo de detalle deshabilitado cuando datos_desactualizados=true | OptimizadorVencimientosTab | component |
 
-## RecomendacionesIA (C-REC-01 a C-REC-09)
+## RecomendacionesIA (C-REC-01 a C-REC-11)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
@@ -791,6 +791,8 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 | C-REC-07 | Botón cambia a ✓ después de agregar producto | RecomendacionesIA | component |
 | C-REC-08 | No recarga cuando items cambian (solo clienteId/mascotaId) | RecomendacionesIA | component |
 | C-REC-09 | Servidor retorna HTML en vez de JSON → 'Sin sugerencias disponibles' (previene Unexpected token '<') | RecomendacionesIA | component |
+| C-REC-10 | REGRESIÓN: muestra 'Buscando sugerencias' inmediatamente al seleccionar cliente, antes del debounce de 800ms — evita layout shift que empuja el botón "Cobrar" en pos/page.tsx | RecomendacionesIA | component |
+| C-REC-11 | REGRESIÓN: sin recomendaciones tras cargar → muestra mensaje neutral en vez de desmontarse (evita el salto inverso del layout) | RecomendacionesIA | component |
 
 ## Convención de IDs
 

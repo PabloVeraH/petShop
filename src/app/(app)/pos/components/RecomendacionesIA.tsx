@@ -26,14 +26,20 @@ export default function RecomendacionesIA() {
       setRecs([]);
       setAgregados(new Set());
       setError(null);
+      setLoading(false);
       return;
     }
+
+    // Mostrar el estado "cargando" de inmediato (no recién tras el debounce)
+    // para reservar el espacio del panel desde el momento en que se
+    // selecciona el cliente — evita el layout shift que empujaba el botón
+    // "Cobrar" cuando el panel aparecía recién al terminar el debounce.
+    setLoading(true);
+    setError(null);
 
     // Debounce 800ms para no disparar en selecciones rápidas
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      setError(null);
       fetchControllerRef.current = new AbortController();
       const timeoutId = setTimeout(() => fetchControllerRef.current?.abort(), 8000);
       try {
@@ -87,9 +93,11 @@ export default function RecomendacionesIA() {
     setAgregados((prev) => new Set(prev).add(rec.producto_id));
   }
 
-  // No renderizar si no hay cliente o si no hay nada que mostrar, no está cargando y no hay error
+  // No renderizar si no hay cliente. Mientras haya cliente, el panel se
+  // mantiene siempre montado (con el mismo alto mínimo) — nunca colapsa a
+  // null entre estados de carga/resultado/vacío, para no desplazar el botón
+  // "Cobrar" que está justo debajo (ver src/app/(app)/pos/page.tsx).
   if (!clienteId) return null;
-  if (!loading && recs.length === 0 && !error) return null;
 
   return (
     <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
@@ -99,8 +107,12 @@ export default function RecomendacionesIA() {
         <p className="text-xs text-blue-500 animate-pulse">Buscando sugerencias...</p>
       )}
 
-      {error && (
+      {!loading && error && (
         <p className="text-xs text-blue-400">{error}</p>
+      )}
+
+      {!loading && !error && recs.length === 0 && (
+        <p className="text-xs text-gray-400">Sin sugerencias para este cliente por ahora.</p>
       )}
 
       {!loading && !error && recs.map((rec) => {
