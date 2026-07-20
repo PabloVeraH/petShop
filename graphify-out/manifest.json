@@ -550,7 +550,7 @@
     "semantic_hash": "8d79ec456ce96be709ed6ca4ec6f56b6"
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1784499549.1074188,
+    "mtime": 1784511368.9546814,
     "ast_hash": "9c3deb39bb668086ac11a414d45cc7ad",
     "semantic_hash": ""
   },
@@ -765,7 +765,7 @@
     "semantic_hash": "5b662568ee07790465fdbfb9bb7733c1"
   },
   "src/app/(app)/pos/components/ModalPago.tsx": {
-    "mtime": 1784499871.649383,
+    "mtime": 1784511368.9556813,
     "ast_hash": "5c6ec1b6a09c3b93aee7725b3e3bf604",
     "semantic_hash": ""
   },
@@ -815,12 +815,12 @@
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
-    "mtime": 1784510565.2695932,
+    "mtime": 1784511368.9556813,
     "ast_hash": "448b5d7ed994a20e8b1e005af5b58c37",
     "semantic_hash": ""
   },
   "src/app/(app)/vendedores/page.tsx": {
-    "mtime": 1784498318.6435552,
+    "mtime": 1784511368.9556813,
     "ast_hash": "854d6db4bd5151131bb457403e6b1c34",
     "semantic_hash": ""
   },
@@ -1270,12 +1270,12 @@
     "semantic_hash": "8dbb4a88170cb76763c550545b3ef8d6"
   },
   "src/app/api/workers/[clerkId]/ventas/route.ts": {
-    "mtime": 1784498302.648557,
+    "mtime": 1784511368.9556813,
     "ast_hash": "1de79dc44671ef5620c721c7ca606c33",
     "semantic_hash": ""
   },
   "src/app/api/workers/route.ts": {
-    "mtime": 1784498292.4245582,
+    "mtime": 1784511368.9556813,
     "ast_hash": "dde2d49ba42f673fa4141cf6669b8e17",
     "semantic_hash": ""
   },
@@ -1430,7 +1430,7 @@
     "semantic_hash": "ab95f478cb74d1906b07425c15b124cc"
   },
   "src/components/ui/skeleton.tsx": {
-    "mtime": 1784499913.8223784,
+    "mtime": 1784511368.9556813,
     "ast_hash": "1eeaa6563973d4e588df0ed103375978",
     "semantic_hash": ""
   },
@@ -1465,7 +1465,7 @@
     "semantic_hash": ""
   },
   "src/lib/auth.ts": {
-    "mtime": 1784497727.158621,
+    "mtime": 1784511368.9556813,
     "ast_hash": "d4d74a4eee8a89262a0899e97831ff03",
     "semantic_hash": ""
   },
@@ -1700,7 +1700,7 @@
     "semantic_hash": "e6f13cb8d8b913f120d2d3dc0171603e"
   },
   "src/lib/validation/supply-chain.ts": {
-    "mtime": 1784510666.1597064,
+    "mtime": 1784511368.9556813,
     "ast_hash": "b841482dd665933ec24d1c05b8582dcd",
     "semantic_hash": ""
   },
@@ -1780,7 +1780,7 @@
     "semantic_hash": "9a5c2f15c3ec07622c90ec9fc71e7b0c"
   },
   "tests/components/CanalConfigPage.test.tsx": {
-    "mtime": 1784499623.2704105,
+    "mtime": 1784511368.9566813,
     "ast_hash": "2dd4ba1116a2e9687c392133ffad46ad",
     "semantic_hash": ""
   },
@@ -1840,7 +1840,7 @@
     "semantic_hash": "73b8352ff31b48c2a843e6385aa8c2db"
   },
   "tests/components/ModalPago.test.tsx": {
-    "mtime": 1784499959.3403733,
+    "mtime": 1784511368.9566813,
     "ast_hash": "f9986da64530d7505c79d61e4d3c2fff",
     "semantic_hash": ""
   },
@@ -2165,7 +2165,7 @@
     "semantic_hash": "69fa071ebdf1c18720c9d69968baa638"
   },
   "tests/integration/api/ordenes-compra.test.ts": {
-    "mtime": 1784510629.845255,
+    "mtime": 1784511368.9566813,
     "ast_hash": "48af3599dc12c0073f19c16f842c4efa",
     "semantic_hash": ""
   },
@@ -2290,12 +2290,12 @@
     "semantic_hash": "89630fed43e0d1db435487692ea35e74"
   },
   "tests/integration/api/workers-ventas.test.ts": {
-    "mtime": 1784498378.0285487,
+    "mtime": 1784511368.9566813,
     "ast_hash": "a638a75fb0cf730c7646c44b209f5806",
     "semantic_hash": ""
   },
   "tests/integration/api/workers.test.ts": {
-    "mtime": 1784498363.4495502,
+    "mtime": 1784511368.9566813,
     "ast_hash": "dec7cea73a1019c846b7e1bd59a1deb5",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784510648.487238,
-    "ast_hash": "3e8a52b53cba935174ac476afaa0170f",
+    "mtime": 1784511721.0825207,
+    "ast_hash": "96d531d2305539468442fbaf8e766001",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3925,13 +3925,18 @@
     "semantic_hash": ""
   },
   "src/lib/clerk-env.ts": {
-    "mtime": 1784497711.7966228,
-    "ast_hash": "023226a7cee42fb325c94356aacd8d4f",
+    "mtime": 1784511704.8770096,
+    "ast_hash": "566f7f9d541519a208411565d53e5bd8",
     "semantic_hash": ""
   },
   "tests/unit/lib/clerk-env.test.ts": {
-    "mtime": 1784497752.331618,
-    "ast_hash": "870d82b9cfa75ebfe3fbea5283c42827",
+    "mtime": 1784511684.4948676,
+    "ast_hash": "46337d0cece09124f0d9f1b3cb4921ff",
+    "semantic_hash": ""
+  },
+  "migrations/056_fix_oc_recibida_precio_cero.sql": {
+    "mtime": 1784511368.9546814,
+    "ast_hash": "1adb5fa675d21b513932b151312fdb8f",
     "semantic_hash": ""
   }
 }
