@@ -25,13 +25,14 @@ function chain() {
     gte:    jest.fn(),
     lte:    jest.fn(),
     gt:     jest.fn(),
+    in:     jest.fn(),
     order:  jest.fn(),
     limit:  jest.fn().mockReturnValue(resolved),
     single: jest.fn().mockResolvedValue({ data: null, error: null }),
     then:   undefined as unknown as jest.Mock,
   };
   // Todos los chainables devuelven el mismo objeto (thenable)
-  ["select","eq","neq","gte","lte","gt","order"].forEach(k => c[k].mockReturnValue(c));
+  ["select","eq","neq","gte","lte","gt","in","order"].forEach(k => c[k].mockReturnValue(c));
   // Hacer el chain thenable para que Promise.all funcione
   c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
     resolve({ data: [], error: null, count: 0 })
@@ -107,6 +108,51 @@ describe("GET /api/dashboard", () => {
 
     // No debe filtrar por worker_clerk_id para admins
     expect(ventasChain.eq).not.toHaveBeenCalledWith("worker_clerk_id", expect.anything());
+  });
+
+  // I-428: REGRESIÓN — una venta devuelta al 100% vía Nota de Crédito
+  // inflaba "Ventas hoy" (y ventasPorCanal/ventasPorProcedencia, que
+  // derivan del mismo total) — mismo bug ya corregido en GET /api/workers
+  // (I-425), presente también acá porque es una query independiente.
+  it("I-428: REGRESIÓN — NC descuenta el monto devuelto de ventasHoy/ventasPorCanal/ventasPorProcedencia", async () => {
+    const VENTAS = [
+      { id: "v1", total: 30000, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+      { id: "v2", total: 20000, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+    ];
+    const NCS = [
+      { monto_total: 30000, venta_id: "v1" }, // v1 devuelta al 100%
+    ];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ventas") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: VENTAS, error: null })
+        );
+        return c;
+      }
+      if (table === "notas_credito") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: NCS, error: null })
+        );
+        return c;
+      }
+      return chain();
+    });
+    mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
+
+    const { GET } = await import("@/app/api/dashboard/route");
+    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Bruto: 30000 + 20000 = 50000. NC: -30000 (clamped a 0 para v1). Neto: 0 + 20000 = 20000
+    expect(body.ventasHoy).toBe(20000);
+    const canalPos = body.ventasPorCanal.find((c: { canal: string }) => c.canal === "pos");
+    expect(canalPos.total).toBe(20000);
+    const procPresencial = body.ventasPorProcedencia.find((p: { procedencia: string }) => p.procedencia === "presencial");
+    expect(procPresencial.total).toBe(20000);
   });
 });
 

@@ -44,6 +44,26 @@ export async function GET() {
   const ventasHoy = ventasHoyResult.data ?? [];
   const ultimasVentas = ultimasVentasResult.data ?? [];
 
+  // Descontar Notas de Crédito del total de cada venta — sin esto, una
+  // venta devuelta al 100% infla "Ventas hoy", "Ventas por canal/procedencia"
+  // y el ticket promedio, igual que el bug ya corregido en
+  // GET /api/workers (I-425). Se calcula el neto por venta UNA vez y se
+  // reutiliza en las tres agregaciones de abajo (total, canal, procedencia).
+  const ventaIdsParaNC = ventasHoy.map((v) => v.id);
+  const devueltoPorVenta: Record<string, number> = {};
+  if (ventaIdsParaNC.length > 0) {
+    const { data: ncs } = await supabase
+      .from("notas_credito")
+      .select("monto_total, venta_id")
+      .in("venta_id", ventaIdsParaNC);
+    for (const nc of ncs ?? []) {
+      devueltoPorVenta[nc.venta_id] = (devueltoPorVenta[nc.venta_id] ?? 0) + Number(nc.monto_total);
+    }
+  }
+  function totalNeto(v: { id: string; total: number }): number {
+    return Math.max(0, Number(v.total) - (devueltoPorVenta[v.id] ?? 0));
+  }
+
   // Top productos del día
   const ventaIds = ventasHoy.map((v) => v.id);
   let topProductos: { producto_id: string; nombre: string; cantidad: number }[] = [];
@@ -83,7 +103,7 @@ export async function GET() {
   const alertas = alertasData ?? [];
 
   // KPIs
-  const totalVentasHoy = ventasHoy.reduce((sum, v) => sum + Number(v.total), 0);
+  const totalVentasHoy = ventasHoy.reduce((sum, v) => sum + totalNeto(v), 0);
   const transacciones = ventasHoy.length;
   const ticketPromedio = transacciones > 0 ? Math.round(totalVentasHoy / transacciones) : 0;
 
@@ -101,7 +121,7 @@ export async function GET() {
     if (!canalCounts[canal]) {
       canalCounts[canal] = { total: 0, transacciones: 0 };
     }
-    canalCounts[canal].total += Number(v.total);
+    canalCounts[canal].total += totalNeto(v);
     canalCounts[canal].transacciones += 1;
   }
   const ventasPorCanal = Object.entries(canalCounts).map(([canal, data]) => ({
@@ -115,7 +135,7 @@ export async function GET() {
   for (const v of ventasHoy) {
     const proc = (v as { procedencia?: string }).procedencia ?? "presencial";
     if (!procedenciaCounts[proc]) procedenciaCounts[proc] = { total: 0, transacciones: 0 };
-    procedenciaCounts[proc].total += Number(v.total);
+    procedenciaCounts[proc].total += totalNeto(v);
     procedenciaCounts[proc].transacciones += 1;
   }
   const ventasPorProcedencia = Object.entries(procedenciaCounts).map(([procedencia, data]) => ({

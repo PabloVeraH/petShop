@@ -235,6 +235,7 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-182 | Recibir OC incrementa stock del producto | POST /api/ordenes-compra/[id] | integration |
 | I-426 | REGRESIÓN: recibir con cantidad_recibida>0 y precio_unitario=0 → 400 (evita OC "recibida" con subtotal/total en $0) | PATCH /api/ordenes-compra/[id] | integration |
 | I-427 | Recibir con cantidad_recibida=0 y precio_unitario=0 → 200 (item no recibido en entrega parcial no requiere precio) | PATCH /api/ordenes-compra/[id] | integration |
+| I-428 | REGRESIÓN: NC descuenta el monto devuelto de ventasHoy/ventasPorCanal/ventasPorProcedencia en el Dashboard (mismo bug que I-425, en un endpoint distinto) | GET /api/dashboard | integration |
 | I-183 | Cuenta a pagar no puede tener monto ≤ 0 | POST /api/cuentas-pagar | integration |
 
 ## Workers (I-253 a I-262, I-406 a I-410)
