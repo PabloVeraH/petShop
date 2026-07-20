@@ -771,6 +771,15 @@ export default function SupplierHubPage() {
                                       <div className="flex gap-2">
                                         <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => { setShowReceiving(null); setReceivingError(""); }}>Cancelar</Button>
                                         <Button size="sm" className="h-7 text-xs flex-1" disabled={recibiendo} onClick={() => {
+                                          const faltanPrecio = (ordenDetalle?.items ?? []).filter(it => {
+                                            const cantidad = receivingForm[it.id]?.cantidad ?? it.cantidad_solicitada;
+                                            const precio = parseFloat(receivingForm[it.id]?.precio ?? "0") || 0;
+                                            return cantidad > 0 && precio <= 0;
+                                          });
+                                          if (faltanPrecio.length > 0) {
+                                            setReceivingError(`Precio unitario requerido: ${faltanPrecio.map(it => it.productos?.nombre ?? it.nombre_nuevo ?? "Producto").join(", ")}`);
+                                            return;
+                                          }
                                           const faltanFecha = (ordenDetalle?.items ?? []).filter(
                                             it => it.productos?.tiene_vencimiento && !receivingForm[it.id]?.fecha_vencimiento
                                           );

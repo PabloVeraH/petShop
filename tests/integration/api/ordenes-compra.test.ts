@@ -471,6 +471,73 @@ describe("Órdenes de Compra API", () => {
       expect(data.error).toMatch(/recibir/i);
     });
 
+    // I-426: REGRESIÓN — el flujo "recibir" legítimo aceptaba precio_unitario=0
+    // silenciosamente (z.number().nonnegative() en vez de exigir >0 cuando
+    // cantidad_recibida>0), dejando la OC "recibida" con subtotal/total en $0.
+    // Bug real confirmado en producción: OC-20260518-EFC839 y OC-20260505-D0EAE0
+    // (precio_unitario=0.00, no NULL — por eso la migración 055, que solo
+    // busca precio_unitario IS NULL, no las corrigió).
+    it("I-426: REGRESIÓN — recibir con cantidad_recibida>0 y precio_unitario=0 → 400", async () => {
+      const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 10, precio_unitario: 0, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toMatch(/precio_unitario/i);
+    });
+
+    // I-427: cantidad_recibida=0 (item no llegó en esta entrega parcial) no
+    // requiere precio — no debe bloquear la recepción de los demás items.
+    it("I-427: recibir con cantidad_recibida=0 y precio_unitario=0 → 200 (item no recibido, no requiere precio)", async () => {
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+          };
+        }
+      });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 0, precio_unitario: 0, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      expect(res.status).toBe(200);
+    });
+
     it("cancelar OC sin notificar_proveedor → 200, no envía email de cancelación", async () => {
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue(makeOrdenUpdateChain("cancelada")),

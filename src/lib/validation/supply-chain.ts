@@ -95,7 +95,16 @@ export const OrdenCompraReceiveItemSchema = z.object({
   nombre_nuevo: z.string().min(1).max(200).optional(),
   fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   numero_lote: z.string().max(100).optional(),
-});
+}).refine(
+  // Un item efectivamente recibido (cantidad > 0) debe tener precio > 0 — sin
+  // esto, "Recibir OC" acepta silenciosamente precio 0 (fallback `|| 0` del
+  // frontend cuando el campo queda vacío), dejando la OC "recibida" con
+  // subtotal/total en $0 (bug real confirmado en producción: OC-20260518-EFC839,
+  // OC-20260505-D0EAE0). Items con cantidad_recibida=0 (no llegaron en esta
+  // entrega parcial) no requieren precio.
+  (item) => item.cantidad_recibida === 0 || item.precio_unitario > 0,
+  { message: "precio_unitario debe ser mayor a 0 cuando cantidad_recibida > 0", path: ["precio_unitario"] }
+);
 
 export const OrdenCompraReceiveSchema = z.object({
   action: z.literal("recibir"),
