@@ -6901,8 +6901,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_ai_pos_recomendar_route",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "route.ts"
     },
     {
@@ -6912,8 +6912,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_app_api_ai_pos_recomendar_route_post",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "post()"
     },
     {
@@ -6923,8 +6923,8 @@
       "source_location": "L231",
       "_origin": "ast",
       "id": "src_app_api_ai_pos_recomendar_route_contextopos",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "contextopos"
     },
     {
@@ -6934,8 +6934,8 @@
       "source_location": "L240",
       "_origin": "ast",
       "id": "src_app_api_ai_pos_recomendar_route_recomendacionpos",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "recomendacionpos"
     },
     {
@@ -6945,8 +6945,8 @@
       "source_location": "L248",
       "_origin": "ast",
       "id": "src_app_api_ai_pos_recomendar_route_buildresult",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "buildresult()"
     },
     {
@@ -7275,8 +7275,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_canales_liquidacion_route",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "route.ts"
     },
     {
@@ -7286,8 +7286,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_app_api_canales_liquidacion_route_liquidacionschema",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "liquidacionschema"
     },
     {
@@ -7297,8 +7297,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "src_app_api_canales_liquidacion_route_get",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "get()"
     },
     {
@@ -7308,8 +7308,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "src_app_api_canales_liquidacion_route_post",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "post()"
     },
     {
@@ -8089,8 +8089,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "route.ts"
     },
     {
@@ -8100,8 +8100,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route_get",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "get()"
     },
     {
@@ -8111,8 +8111,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "src_app_api_cuentas_pagar_route_patch",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "patch()"
     },
     {
@@ -8507,8 +8507,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_lotes_route",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "route.ts"
     },
     {
@@ -8518,8 +8518,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_app_api_lotes_route_get",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "get()"
     },
     {
@@ -8529,8 +8529,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "src_app_api_lotes_route_post",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "post()"
     },
     {
@@ -8694,8 +8694,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_onboarding_complete_route",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "route.ts"
     },
     {
@@ -8705,8 +8705,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_app_api_onboarding_complete_route_bodyschema",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "bodyschema"
     },
     {
@@ -8716,8 +8716,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_app_api_onboarding_complete_route_post",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "post()"
     },
     {
@@ -8760,8 +8760,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_ordenes_compra_route",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "route.ts"
     },
     {
@@ -8771,8 +8771,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_app_api_ordenes_compra_route_get",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "get()"
     },
     {
@@ -8782,8 +8782,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_app_api_ordenes_compra_route_post",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "post()"
     },
     {
@@ -8969,8 +8969,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_proveedores_route",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "route.ts"
     },
     {
@@ -8980,8 +8980,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_app_api_proveedores_route_get",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "get()"
     },
     {
@@ -8991,8 +8991,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_app_api_proveedores_route_post",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "post()"
     },
     {
@@ -9002,8 +9002,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "src_app_api_proveedores_route_delete",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "delete()"
     },
     {
@@ -9519,8 +9519,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_app_api_workers_route",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "route.ts"
     },
     {
@@ -9530,8 +9530,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_app_api_workers_route_get",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "get()"
     },
     {
@@ -9541,8 +9541,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "src_app_api_workers_route_patch",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "patch()"
     },
     {
@@ -10102,8 +10102,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_components_admin_adminlayout_adminlayoutprops",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 195,
+      "community_name": "route.ts",
       "norm_label": "adminlayoutprops"
     },
     {
@@ -10267,8 +10267,8 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "src_components_admin_auditoriacard_auditoriacardprops",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 195,
+      "community_name": "route.ts",
       "norm_label": "auditoriacardprops"
     },
     {
@@ -10432,8 +10432,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_components_admin_usuarioscard_usuarioscardprops",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 195,
+      "community_name": "route.ts",
       "norm_label": "usuarioscardprops"
     },
     {
@@ -11213,8 +11213,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_hooks_useadminauth_adminrole",
-      "community": 3,
-      "community_name": "Admin Dashboard Layout",
+      "community": 195,
+      "community_name": "route.ts",
       "norm_label": "adminrole"
     },
     {
@@ -15349,8 +15349,8 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "src_lib_validation_admin_posrecomendadorrequestschema",
-      "community": 205,
-      "community_name": "route.ts",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "posrecomendadorrequestschema"
     },
     {
@@ -15371,8 +15371,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "src_lib_validation_admin_workerupdateschema",
-      "community": 195,
-      "community_name": "route.ts",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "workerupdateschema"
     },
     {
@@ -15558,8 +15558,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "src_lib_validation_inventario_lotecreateschema",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "lotecreateschema"
     },
     {
@@ -15690,8 +15690,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_lib_validation_supply_chain_proveedorcreateschema",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "proveedorcreateschema"
     },
     {
@@ -15745,8 +15745,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_lib_validation_supply_chain_cuentaspagarupdateschema",
-      "community": 2,
-      "community_name": "POS Metadata and Audit",
+      "community": 83,
+      "community_name": "Worker Process Manager",
       "norm_label": "cuentaspagarupdateschema"
     },
     {
@@ -15800,8 +15800,8 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "src_lib_validation_supply_chain_ordencompracreateschema",
-      "community": 83,
-      "community_name": "Worker Process Manager",
+      "community": 2,
+      "community_name": "POS Metadata and Audit",
       "norm_label": "ordencompracreateschema"
     },
     {
@@ -18858,8 +18858,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test",
-      "community": 211,
-      "community_name": "UsuariosCard.test.tsx",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "usuarioscard.test.tsx"
     },
     {
@@ -18869,8 +18869,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_mockfetch",
-      "community": 211,
-      "community_name": "UsuariosCard.test.tsx",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "mockfetch"
     },
     {
@@ -18880,8 +18880,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_default_users",
-      "community": 211,
-      "community_name": "UsuariosCard.test.tsx",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "default_users"
     },
     {
@@ -18891,8 +18891,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_makewrapper",
-      "community": 211,
-      "community_name": "UsuariosCard.test.tsx",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "makewrapper()"
     },
     {
@@ -18902,8 +18902,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "tests_components_usuarioscard_test_mockusersresponse",
-      "community": 211,
-      "community_name": "UsuariosCard.test.tsx",
+      "community": 3,
+      "community_name": "Admin Dashboard Layout",
       "norm_label": "mockusersresponse()"
     },
     {
@@ -30270,21 +30270,21 @@
       "norm_label": "optimizadorvencimientostab (c-opt-01 a c-opt-15)"
     },
     {
-      "label": "RecomendacionesIA (C-REC-01 a C-REC-09)",
+      "label": "RecomendacionesIA (C-REC-01 a C-REC-11)",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
       "source_location": "L781",
       "_origin": "ast",
-      "id": "docs_spec_registry_recomendacionesia_c_rec_01_a_c_rec_09",
+      "id": "docs_spec_registry_recomendacionesia_c_rec_01_a_c_rec_11",
       "community": 115,
       "community_name": "Order Item Dialog",
-      "norm_label": "recomendacionesia (c-rec-01 a c-rec-09)"
+      "norm_label": "recomendacionesia (c-rec-01 a c-rec-11)"
     },
     {
       "label": "Convenci\u00f3n de IDs",
       "file_type": "document",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L795",
+      "source_location": "L797",
       "_origin": "ast",
       "id": "docs_spec_registry_convenci\u00f3n_de_ids",
       "community": 115,
@@ -87640,7 +87640,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/spec-registry.md",
-      "source_location": "L795",
+      "source_location": "L797",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
@@ -87908,7 +87908,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_spec_registry_spec_registry_petshop",
-      "target": "docs_spec_registry_recomendacionesia_c_rec_01_a_c_rec_09",
+      "target": "docs_spec_registry_recomendacionesia_c_rec_01_a_c_rec_11",
       "confidence_score": 1.0
     },
     {
@@ -89579,5 +89579,5 @@
       "confidence_score": 1.0
     }
   ],
-  "built_at_commit": "fa58e5abefa3e30deb091738cb16ea584591ac1d"
+  "built_at_commit": "58aac4fe9e6c199d7fee7e3113f566f8b9305e95"
 }

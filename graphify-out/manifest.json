@@ -550,7 +550,7 @@
     "semantic_hash": "8d79ec456ce96be709ed6ca4ec6f56b6"
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1784511368.9546814,
+    "mtime": 1784562707.152973,
     "ast_hash": "9c3deb39bb668086ac11a414d45cc7ad",
     "semantic_hash": ""
   },
@@ -770,9 +770,9 @@
     "semantic_hash": ""
   },
   "src/app/(app)/pos/components/RecomendacionesIA.tsx": {
-    "mtime": 1783785316.8538773,
-    "ast_hash": "75334287d6176752afeeb2d4fb7460b0",
-    "semantic_hash": "75334287d6176752afeeb2d4fb7460b0"
+    "mtime": 1784563144.014269,
+    "ast_hash": "b9260873bf3330277857c1c1dc6d1688",
+    "semantic_hash": ""
   },
   "src/app/(app)/pos/components/SearchProductos.tsx": {
     "mtime": 1782538637.94101,
@@ -1040,7 +1040,7 @@
     "semantic_hash": "fe87ed358a956e68eba077ae7cbd012f"
   },
   "src/app/api/dashboard/route.ts": {
-    "mtime": 1784512184.3324103,
+    "mtime": 1784512316.350263,
     "ast_hash": "98be1d9d8dce4d05cc0bfcee46d6b32a",
     "semantic_hash": ""
   },
@@ -1865,9 +1865,9 @@
     "semantic_hash": ""
   },
   "tests/components/RecomendacionesIA.test.tsx": {
-    "mtime": 1783785316.8558774,
-    "ast_hash": "6061d3456c005523002d64764025cf0c",
-    "semantic_hash": "6061d3456c005523002d64764025cf0c"
+    "mtime": 1784563115.9332767,
+    "ast_hash": "f75796dd6dea76d529b54b9cb1c3e0e2",
+    "semantic_hash": ""
   },
   "tests/components/ReportesTab.test.tsx": {
     "mtime": 1779811940.0864012,
@@ -2095,7 +2095,7 @@
     "semantic_hash": "8f4cbc826ece99896fb124f3a3453943"
   },
   "tests/integration/api/dashboard.test.ts": {
-    "mtime": 1784512133.6137795,
+    "mtime": 1784512316.350263,
     "ast_hash": "9f9ea00b93e40d4b7385dd808bd49d30",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784512171.887501,
-    "ast_hash": "1a3a15c2c081e1830b923e7c5718cbcb",
+    "mtime": 1784563161.157106,
+    "ast_hash": "cd859895a5f59e83cb15ccefec6551f5",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {

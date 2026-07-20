@@ -1,16 +1,16 @@
-# Graph Report - app  (2026-07-19)
+# Graph Report - app  (2026-07-20)
 
 ## Corpus Check
-- 484 files · ~320,293 words
+- 484 files · ~320,652 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2895 nodes · 4998 edges · 334 communities (220 shown, 114 thin omitted)
+- 2895 nodes · 4998 edges · 332 communities (219 shown, 113 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fa58e5ab`
+- Built from commit: `58aac4fe`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -217,13 +217,11 @@
 - clerk-env.ts
 - InventoryPage.test.tsx
 - InstagramEditor.test.tsx
-- route.ts
 - @zxing/browser
 - TanStack Data Fetching
 - Tailwind CSS Animations
 - UI/UX Components
 - pos-fidelizacion-descuento-e2e.test.tsx
-- UsuariosCard.test.tsx
 - PostCSS Configuration
 - Store ID Mocking
 - Vercel Cron Jobs
@@ -351,7 +349,7 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (334 total, 114 thin omitted)
+## Communities (332 total, 113 thin omitted)
 
 ### Community 0 - "Post Management API"
 Cohesion: 0.07
@@ -362,12 +360,12 @@ Cohesion: 0.07
 Nodes (51): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+43 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.11
-Nodes (35): POST(), POST(), POST(), rejectSchema, DELETE(), PATCH(), requireAdmin(), DELETE() (+27 more)
+Cohesion: 0.09
+Nodes (42): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POST(), GET(), liquidacionSchema, POST() (+34 more)
 
 ### Community 3 - "Admin Dashboard Layout"
-Cohesion: 0.16
-Nodes (11): AdminLayoutProps, AuditoriaCardProps, CreateUserFormProps, Store, StoreUser, UsuariosCard(), UsuariosCardProps, AdminAuthData (+3 more)
+Cohesion: 0.14
+Nodes (9): CreateUserFormProps, Store, StoreUser, UsuariosCard(), AdminAuthData, canCreateUser(), canDeleteUser(), DEFAULT_USERS (+1 more)
 
 ### Community 4 - "AI Embedding Service"
 Cohesion: 0.08
@@ -674,8 +672,8 @@ Cohesion: 0.15
 Nodes (10): AdminRole, Store, AdminLayout(), NavItemProps, IAConfigSection(), LicenciaCard(), LicenseConfig, LicenseData (+2 more)
 
 ### Community 83 - "Worker Process Manager"
-Cohesion: 0.07
-Nodes (43): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+35 more)
+Cohesion: 0.06
+Nodes (46): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+38 more)
 
 ### Community 84 - "Analytics Tab Tests"
 Cohesion: 0.29
@@ -898,16 +896,12 @@ Cohesion: 0.20
 Nodes (14): POST(), postVenta(), POST(), lineasVentaCanal(), lineasVentaConNc(), syncPurchaseToHub(), VentaCreateSchema, buildConsumoAlertMessage() (+6 more)
 
 ### Community 195 - "route.ts"
-Cohesion: 0.33
-Nodes (5): BodySchema, POST(), GET(), PATCH(), WorkerUpdateSchema
+Cohesion: 0.50
+Nodes (4): AdminLayoutProps, AuditoriaCardProps, UsuariosCardProps, AdminRole
 
 ### Community 202 - "clerk-env.ts"
 Cohesion: 0.48
 Nodes (4): checkClerkEnv(), CLERK_DEV_PREFIXES, clerkEnvState, isClerkDevKey()
-
-### Community 205 - "route.ts"
-Cohesion: 0.47
-Nodes (5): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POSRecomendadorRequestSchema
 
 ### Community 207 - "TanStack Data Fetching"
 Cohesion: 0.06
@@ -1084,12 +1078,12 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Knowledge Gaps
 - **1228 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1223 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **114 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **113 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Worker Process Manager` to `Post Management API`, `User Authentication Management`, `POS Metadata and Audit`, `Rappi Integration`, `Security and Licensing`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `Supply Chain Accounting`, `Customer Loyalty POS`, `Accounting Data Types`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Email Notification Templates`, `Swarm Communication Bus`, `Customer Detail UI`, `Supplier Hub Page`, `Profit and Loss API`, `AdminLayout.tsx`, `Daily Ledger HTML`, `route.ts`, `Receipt and Tax Logic`, `route.ts`, `Security Vulnerability Scanner`, `Monthly Closing Tests`, `route.ts`, `Vendedores API Security`, `reports-vencimientos.test.ts`, `Financial Results HTML`, `Credit Note Testing`?**
+- **Why does `createServiceClient()` connect `Worker Process Manager` to `Post Management API`, `User Authentication Management`, `POS Metadata and Audit`, `Rappi Integration`, `Security and Licensing`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `Supply Chain Accounting`, `Customer Loyalty POS`, `Accounting Data Types`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Email Notification Templates`, `Swarm Communication Bus`, `Customer Detail UI`, `Supplier Hub Page`, `Profit and Loss API`, `AdminLayout.tsx`, `Daily Ledger HTML`, `Receipt and Tax Logic`, `Security Vulnerability Scanner`, `Monthly Closing Tests`, `route.ts`, `Vendedores API Security`, `reports-vencimientos.test.ts`, `Financial Results HTML`, `Credit Note Testing`?**
   _High betweenness centrality (0.140) - this node is a cross-community bridge._
 - **Why does `dependencies` connect `Frontend Dependencies` to `svix`, `@types/leaflet`, `Development Dependencies`, `zustand`, `@clerk/nextjs`, `Client and Pet API`, `Excel Report Generation`, `shadcn`, `tailwind-merge`, `Auto-Commit Scripts`, `leaflet`, `⚠️ Consideraciones Importantes`, `@zxing/browser`, `Barcode Scanner Tests`, `Returns Modal Tests`, `Session File Management`, `@clerk/localizations`, `react-dom`, `react-leaflet`?**
   _High betweenness centrality (0.045) - this node is a cross-community bridge._
@@ -1102,4 +1096,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
   _Cohesion score 0.06915113871635611 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.10638297872340426 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08583959899749373 - nodes in this community are weakly interconnected._
