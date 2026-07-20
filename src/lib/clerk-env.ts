@@ -1,4 +1,9 @@
-const CLERK_DEV_PREFIXES = ["pk_test_", "sk_test_"] as const;
+// "test_" es el prefijo legacy (sin pk_/sk_) que @clerk/shared todavía
+// reconoce junto al formato nuevo — ver node_modules/@clerk/shared/dist/keys.js
+// (isTestModeSecretKey/isTestModePublishableKey: `startsWith("test_") ||
+// startsWith("pk_test_"/"sk_test_")`). Sin "test_" acá, una clave en formato
+// legacy pasaría como no-dev silenciosamente.
+const CLERK_DEV_PREFIXES = ["pk_test_", "sk_test_", "test_"] as const;
 
 export function isClerkDevKey(key: string): boolean {
   return CLERK_DEV_PREFIXES.some((prefix) => key.startsWith(prefix));

@@ -26,6 +26,18 @@ describe("isClerkDevKey", () => {
     expect(isClerkDevKey("sk_live_YWJjZGVmZzEyMzQ1Njc4OTA")).toBe(false);
   });
 
+  // U-127l: REGRESIÓN — @clerk/shared todavía reconoce el formato legacy
+  // "test_"/"live_" (sin prefijo pk_/sk_) junto al formato nuevo (ver
+  // node_modules/@clerk/shared/dist/keys.js). Sin este caso, una clave en
+  // formato legacy pasaría como no-dev silenciosamente.
+  it("U-127l: REGRESIÓN — test_ (formato legacy sin pk_/sk_) detecta como desarrollo", () => {
+    expect(isClerkDevKey("test_YWJjZGVmZzEyMzQ1Njc4OTA")).toBe(true);
+  });
+
+  it("U-127m: live_ (formato legacy sin pk_/sk_) NO detecta como desarrollo", () => {
+    expect(isClerkDevKey("live_YWJjZGVmZzEyMzQ1Njc4OTA")).toBe(false);
+  });
+
   it("U-127e: cadena vacía retorna false", () => {
     expect(isClerkDevKey("")).toBe(false);
   });
