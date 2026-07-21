@@ -1035,9 +1035,9 @@
     "semantic_hash": "aa1439e92c401606a77c124afcab4b85"
   },
   "src/app/api/cuentas-pagar/route.ts": {
-    "mtime": 1783656750.092985,
-    "ast_hash": "fe87ed358a956e68eba077ae7cbd012f",
-    "semantic_hash": "fe87ed358a956e68eba077ae7cbd012f"
+    "mtime": 1784676203.1331856,
+    "ast_hash": "6ac1650ae0139c349cd5d645a4e72c47",
+    "semantic_hash": ""
   },
   "src/app/api/dashboard/route.ts": {
     "mtime": 1784512316.350263,
@@ -1245,9 +1245,9 @@
     "semantic_hash": "c8e40b3c6ddd703396e25b8976ae9305"
   },
   "src/app/api/ventas/[id]/route.ts": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "6dffd14f68c12898d3abbec42c11e541",
-    "semantic_hash": "6dffd14f68c12898d3abbec42c11e541"
+    "mtime": 1784676203.133266,
+    "ast_hash": "d16e76560efa2f196d200771ce4f910e",
+    "semantic_hash": ""
   },
   "src/app/api/ventas/route.ts": {
     "mtime": 1783739374.1142807,
@@ -1580,8 +1580,8 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "ec2d10d852acdb190e8153b93f58c286",
+    "mtime": 1784676203.1333594,
+    "ast_hash": "e8c8b25de2358a106db915c0ff2dd106",
     "semantic_hash": ""
   },
   "src/lib/contabilidad/html-balance-prueba.ts": {
@@ -1965,9 +1965,9 @@
     "semantic_hash": "7c30ed51937d8dcac5eae5b97c49d691"
   },
   "tests/integration/api/audit-coverage.test.ts": {
-    "mtime": 1779811940.0874012,
-    "ast_hash": "89b99f4c21a1757c38a9c47e5a5ed219",
-    "semantic_hash": "89b99f4c21a1757c38a9c47e5a5ed219"
+    "mtime": 1784676203.133452,
+    "ast_hash": "919be322715493960520f292c11cfeb2",
+    "semantic_hash": ""
   },
   "tests/integration/api/audit-extended.test.ts": {
     "mtime": 1784355766.5277429,
@@ -2090,9 +2090,9 @@
     "semantic_hash": "7dc25849a13f5022bfece2f49590a128"
   },
   "tests/integration/api/cuentas-pagar.test.ts": {
-    "mtime": 1783656750.0951903,
-    "ast_hash": "8f4cbc826ece99896fb124f3a3453943",
-    "semantic_hash": "8f4cbc826ece99896fb124f3a3453943"
+    "mtime": 1784676203.1335328,
+    "ast_hash": "6b3be2cde2afe6bcb4a0b8ffba96d459",
+    "semantic_hash": ""
   },
   "tests/integration/api/dashboard.test.ts": {
     "mtime": 1784512316.350263,
@@ -2255,9 +2255,9 @@
     "semantic_hash": "0590a624f9513a762b6435b91e69079b"
   },
   "tests/integration/api/ventas-detalle.test.ts": {
-    "mtime": 1784167966.3521981,
-    "ast_hash": "8759b845d0b8d6057e4a9f20a98c9995",
-    "semantic_hash": "8759b845d0b8d6057e4a9f20a98c9995"
+    "mtime": 1784676225.5134132,
+    "ast_hash": "32d80c657ca81f42d680dafc9e92d565",
+    "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
     "mtime": 1780938907.2352185,
@@ -2375,8 +2375,8 @@
     "semantic_hash": "70793c320b6d3f66238871224c9aa544"
   },
   "tests/unit/lib/contabilidad-generador.test.ts": {
-    "mtime": 1784607911.9717424,
-    "ast_hash": "cc00da93cc0a6f82d663bb1071aab3ce",
+    "mtime": 1784676203.13373,
+    "ast_hash": "9234ecdaa1cedd7f3df44b62d3b15857",
     "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-html-balance.test.ts": {
@@ -3650,8 +3650,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1784180732.2354755,
-    "ast_hash": "4c24f681348bc9176e6287532614bacc",
+    "mtime": 1784676203.1327348,
+    "ast_hash": "39d745e67aba449921a9ad04c5d8cb9c",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784674155.4201534,
-    "ast_hash": "3b9412606dfbe425b20a7b1c8fcaf44d",
+    "mtime": 1784676203.133091,
+    "ast_hash": "be243437cd9d356c96bfa7ba1ccfb7d5",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3962,6 +3962,11 @@
   "tests/components/dialog.test.tsx": {
     "mtime": 1784650805.0423052,
     "ast_hash": "dbbefd6d671467824ea286f6374f24e7",
+    "semantic_hash": ""
+  },
+  "migrations/057_anular_venta_restaurar_saldo_consumido.sql": {
+    "mtime": 1784675419.2720063,
+    "ast_hash": "bc7994a218e0c809992505b5f7825b9d",
     "semantic_hash": ""
   }
 }
