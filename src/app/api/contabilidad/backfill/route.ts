@@ -195,17 +195,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Órdenes de compra sin asiento ────────────────────────────────────────
-  // Excluye estado='cancelada': una OC cancelada nunca fue recibida (el botón
-  // de cancelar solo está disponible para OCs no recibidas — ver
-  // src/app/(app)/suppliers/page.tsx), por lo que subtotal/total quedan NULL
-  // para siempre y no tuvo efecto económico real. Sin este filtro, el
-  // backfill la reportaba como error "precio no definido" en vez de omitirla
-  // — mismo principio que excluir ventas 'anulada' (ver comentario arriba).
+  // Solo procesa OC recibidas: el precio se define al recibir la mercadería
+  // del proveedor. Las OC 'pendiente'/'enviada' aún no tienen precio definido
+  // (subtotal=null), y 'cancelada' nunca se recibió. Sin este filtro, todas
+  // aparecían como error "precio no definido" — ruido/falsa alarma para el
+  // usuario (ticket Trello 6a5e9533c7978fcb117449d7).
   const { data: ordenes } = await supabase
     .from("ordenes_compra")
     .select("id, created_at, subtotal, impuesto, total, numero")
     .eq("store_id", store_id)
-    .neq("estado", "cancelada")
+    .eq("estado", "recibida")
     .order("created_at", { ascending: true });
 
   const { data: asientosCompra } = await supabase

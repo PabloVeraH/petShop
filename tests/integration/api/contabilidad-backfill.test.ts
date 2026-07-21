@@ -247,15 +247,13 @@ describe("POST /api/contabilidad/backfill", () => {
     expect(crearAsiento).not.toHaveBeenCalled();
   });
 
-  // I-424 — REGRESIÓN: una OC cancelada nunca fue recibida (el botón de
-  // cancelar solo está disponible para OCs no recibidas — ver
-  // src/app/(app)/suppliers/page.tsx), por lo que subtotal/total quedan NULL
-  // para siempre. Sin excluirla, el backfill la reportaba como error
-  // "precio no definido" en vez de omitirla — mismo principio que I-413
-  // para ventas anuladas (ticket Trello 6a5c650fab..., "OC-20260507-F71C49
-  // no aparece en ningún proveedor": esa OC estaba cancelada, por eso la
-  // UI de Proveedores la oculta — pendingOrders filtra estado!=='cancelada').
-  it("I-424: REGRESIÓN — la consulta de órdenes de compra para backfill excluye estado='cancelada'", async () => {
+  // I-424 — REGRESIÓN: solo procesa OC 'recibida' (ticket Trello
+  // 6a5e9533c7978fcb117449d7). Una OC 'pendiente' o 'enviada' aún no tiene
+  // precio definido (subtotal=null), y 'cancelada' nunca se recibió. Sin este
+  // filtro, todas aparecían como error "precio no definido" — ruido/falsa
+  // alarma para el usuario. Antes del fix I-424 original (commit d1db895)
+  // solo excluía 'cancelada', lo que dejaba pasar 'pendiente'/'enviada'.
+  it("I-424: REGRESIÓN — la consulta de órdenes de compra para backfill filtra solo estado='recibida'", async () => {
     const ordenesChain = chain(Promise.resolve({ data: [], error: null }));
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -269,8 +267,67 @@ describe("POST /api/contabilidad/backfill", () => {
     const res = await POST(backfillReq());
     expect(res.status).toBe(200);
 
-    expect(ordenesChain.neq).toHaveBeenCalledWith("estado", "cancelada");
+    expect(ordenesChain.eq).toHaveBeenCalledWith("estado", "recibida");
     expect(crearAsiento).not.toHaveBeenCalled();
+  });
+
+  // I-432 — REGRESIÓN (ticket Trello 6a5e9533c7978fcb117449d7):
+  // OC en estado 'pendiente' o 'enviada' no deben procesarse en el backfill
+  // (aún no tienen precio definido). Solo las 'recibida' tienen efecto
+  // económico real. Antes del fix, todas las OC no-canceladas se incluían,
+  // generando errores 'precio no definido' para OCs en flujo normal.
+  it("I-432: REGRESIÓN — OC pendiente/enviada no se procesan ni generan error 'precio no definido'", async () => {
+    // Construimos un mock que simula el filtro .eq("estado", "recibida")
+    // en la DB: solo devuelve las OCs recibidas (oc3).
+    const ordenesMock = [
+      { id: "oc-pendiente", created_at: "2026-07-01T10:00:00Z", subtotal: null, impuesto: null, total: null, numero: "OC-20260701-PEND" },
+      { id: "oc-enviada",   created_at: "2026-07-02T10:00:00Z", subtotal: null, impuesto: null, total: null, numero: "OC-20260702-ENV" },
+      { id: "oc-recibida",  created_at: "2026-07-03T10:00:00Z", subtotal: 50000, impuesto: 9500, total: 59500, numero: "OC-20260703-REC" },
+    ];
+    // Simulamos el filtro de BD: solo devolvemos la OC recibida
+    const dataFiltrada = { data: [ordenesMock[2]], error: null };
+
+    let callCount = 0;
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === "ordenes_compra") {
+          callCount++;
+          if (callCount === 1) return chain(Promise.resolve(dataFiltrada));
+          const c = chain();
+          c.eq = jest.fn(() => c);
+          c.maybeSingle = jest.fn(() => Promise.resolve({ data: { proveedores: { nombre: "Proveedor" } }, error: null }));
+          return c;
+        }
+        if (table === "ventas") return chain(Promise.resolve({ data: [], error: null }));
+        if (table === "notas_credito") return chain(Promise.resolve({ data: [], error: null }));
+        if (table === "journal_entries") {
+          const c = chain();
+          c.eq = jest.fn(() => c);
+          c.not = jest.fn(() => c);
+          c.ilike = jest.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) => resolve({ data: [], error: null });
+          return c;
+        }
+        return chain(Promise.resolve({ data: null, error: null }));
+      }),
+      rpc: jest.fn(),
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Debe crear exactamente 1 asiento (solo la recibida)
+    expect(body.creados).toBe(1);
+    // No debe haber errores
+    expect(body.errores).toBe(0);
+    // La OC recibida debe aparecer en creados
+    expect(body.detalle_creados).toContain("COMPRA:OC-20260703-REC");
+    // Las OC pendiente/enviada NO deben aparecer ni en creados ni en errores
+    expect(body.detalle_creados).not.toContain("OC-20260701-PEND");
+    expect(body.detalle_creados).not.toContain("OC-20260702-ENV");
+    expect(body.detalle_errores).not.toContain("OC-20260701-PEND");
+    expect(body.detalle_errores).not.toContain("OC-20260702-ENV");
   });
   }); // describe lógica de backfill
 
