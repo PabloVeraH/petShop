@@ -1220,9 +1220,9 @@
     "semantic_hash": "502a69dc1d21c2267305082c769c0b96"
   },
   "src/app/api/reports/route.ts": {
-    "mtime": 1781837974.4624636,
-    "ast_hash": "3669d314a2678201f3b23f837973941a",
-    "semantic_hash": "3669d314a2678201f3b23f837973941a"
+    "mtime": 1784608711.872554,
+    "ast_hash": "450d70c1d613e7f49a173c746fde297b",
+    "semantic_hash": ""
   },
   "src/app/api/saldos-a-favor/route.ts": {
     "mtime": 1783785316.8548775,
@@ -2215,9 +2215,9 @@
     "semantic_hash": "f4c65cce0fd5c373f2b645a7fcb79128"
   },
   "tests/integration/api/reports.test.ts": {
-    "mtime": 1779811940.0904012,
-    "ast_hash": "31efccfee0752016336cb0f66aa4ef75",
-    "semantic_hash": "31efccfee0752016336cb0f66aa4ef75"
+    "mtime": 1784608838.6641083,
+    "ast_hash": "f99ba1c64a53ceacd5ea2e081c5d44f5",
+    "semantic_hash": ""
   },
   "tests/integration/api/route-redirects.test.ts": {
     "mtime": 1783625512.6740143,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784608291.5323,
-    "ast_hash": "4099b4e85acb9714f7ac4148f7ccce22",
+    "mtime": 1784608820.1541479,
+    "ast_hash": "df3a0e67e1471f1a5b932c206bb0933b",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
