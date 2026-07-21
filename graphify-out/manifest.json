@@ -720,7 +720,7 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1784600140.9795654,
+    "mtime": 1784606190.4461715,
     "ast_hash": "de80bbadd581ec3b726dbf374723983c",
     "semantic_hash": ""
   },
@@ -2135,8 +2135,8 @@
     "semantic_hash": "019e3457d428955f462829540b83f445"
   },
   "tests/integration/api/inventario.patch.test.ts": {
-    "mtime": 1784600202.6254737,
-    "ast_hash": "e8d22e210332e4de95c0cb59a72f5d37",
+    "mtime": 1784606837.945541,
+    "ast_hash": "b49019194c5b8028eebefc9532021353",
     "semantic_hash": ""
   },
   "tests/integration/api/license-control.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784604487.970076,
-    "ast_hash": "6b51ca2bd9273c0c2415e764a95967ce",
+    "mtime": 1784606829.5295906,
+    "ast_hash": "cee7fa8e9adf739cbd5750af437c2c1d",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
