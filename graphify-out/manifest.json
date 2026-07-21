@@ -545,9 +545,9 @@
     "semantic_hash": "b177779eee010cdbbab8b3853b9a2b64"
   },
   "src/app/(app)/admin/page.tsx": {
-    "mtime": 1782492235.6978936,
-    "ast_hash": "8d79ec456ce96be709ed6ca4ec6f56b6",
-    "semantic_hash": "8d79ec456ce96be709ed6ca4ec6f56b6"
+    "mtime": 1784609294.7441328,
+    "ast_hash": "fe5839cb2c683280c4877b3a3dfa7ac7",
+    "semantic_hash": ""
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
     "mtime": 1784562707.152973,
@@ -810,8 +810,8 @@
     "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1784355766.5257428,
-    "ast_hash": "0b05abc51c40845ac9446cec2269cc32",
+    "mtime": 1784609302.558116,
+    "ast_hash": "476f263739f3db561405de3a1224c870",
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784608820.1541479,
-    "ast_hash": "df3a0e67e1471f1a5b932c206bb0933b",
+    "mtime": 1784609341.5730326,
+    "ast_hash": "f93541d863fdbaf7213b84402357cf91",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3947,6 +3947,16 @@
   "tests/unit/lib/contabilidad-tipos.test.ts": {
     "mtime": 1784607911.9717824,
     "ast_hash": "6aaf33f24277dcf6082c2e264658c9f1",
+    "semantic_hash": ""
+  },
+  "src/components/admin/ClerkDevWarning.tsx": {
+    "mtime": 1784609276.1621726,
+    "ast_hash": "f63516c438e2015501a3e8f4953ed46d",
+    "semantic_hash": ""
+  },
+  "tests/components/ClerkDevWarning.test.tsx": {
+    "mtime": 1784609308.247104,
+    "ast_hash": "8fe9fa85327c8da081cd2da233266d97",
     "semantic_hash": ""
   }
 }
