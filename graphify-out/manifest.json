@@ -720,8 +720,8 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1784607911.9702644,
-    "ast_hash": "de80bbadd581ec3b726dbf374723983c",
+    "mtime": 1784674155.4203985,
+    "ast_hash": "7cd1e36ba4f57b2d919ea81b6e3296dc",
     "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
@@ -1085,9 +1085,9 @@
     "semantic_hash": "b91e5384e8071d439280ba32c270b9be"
   },
   "src/app/api/inventario/[id]/route.ts": {
-    "mtime": 1782415679.6885126,
-    "ast_hash": "efb6ced68b4cd8f76c64036df8444bd6",
-    "semantic_hash": "efb6ced68b4cd8f76c64036df8444bd6"
+    "mtime": 1784674155.4205143,
+    "ast_hash": "a54ae1009d22e3e71b0e953e077db987",
+    "semantic_hash": ""
   },
   "src/app/api/inventario/alimento-check/route.ts": {
     "mtime": 1779811940.0714011,
@@ -1815,8 +1815,8 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1784607911.9712412,
-    "ast_hash": "5b0f8774a4503fac006bf34e321e65f0",
+    "mtime": 1784674155.4207397,
+    "ast_hash": "5150aa2a781f5a04bce8ca3cd2e8ff7b",
     "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
@@ -2135,8 +2135,8 @@
     "semantic_hash": "019e3457d428955f462829540b83f445"
   },
   "tests/integration/api/inventario.patch.test.ts": {
-    "mtime": 1784607911.9716625,
-    "ast_hash": "b49019194c5b8028eebefc9532021353",
+    "mtime": 1784674155.4208593,
+    "ast_hash": "443a4f1fafda102e8eb1268cb27f932a",
     "semantic_hash": ""
   },
   "tests/integration/api/license-control.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784650731.4064054,
-    "ast_hash": "9ac60c364909b9eaa56578a8adea0d31",
+    "mtime": 1784674155.4201534,
+    "ast_hash": "3b9412606dfbe425b20a7b1c8fcaf44d",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {

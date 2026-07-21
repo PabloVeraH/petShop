@@ -1,7 +1,7 @@
 # Graph Report - app  (2026-07-21)
 
 ## Corpus Check
-- 489 files · ~324,857 words
+- 489 files · ~325,924 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bf1fb9d7`
+- Built from commit: `dd15797a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -333,11 +333,11 @@ Nodes (20): OptimizadorVencimientosTab(), AjusteModal, Categoria, EMPTY_FORM, fo
 
 ### Community 1 - "User Authentication Management"
 Cohesion: 0.07
-Nodes (45): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+37 more)
+Nodes (46): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+38 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.10
-Nodes (36): GET(), liquidacionSchema, POST(), DELETE(), PATCH(), requireAdmin(), GET(), POST() (+28 more)
+Cohesion: 0.09
+Nodes (39): GET(), liquidacionSchema, POST(), DELETE(), PATCH(), requireAdmin(), GET(), POST() (+31 more)
 
 ### Community 3 - "Admin Dashboard Layout"
 Cohesion: 0.14
@@ -459,8 +459,8 @@ Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
 ### Community 31 - "Customer Loyalty POS"
-Cohesion: 0.17
-Nodes (18): PATCH(), lineasCompra(), buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), FoodReminderEmailParams, getResend() (+10 more)
+Cohesion: 0.21
+Nodes (11): buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), FoodReminderEmailParams, OrdenCompraCancelacionEmailParams, OrdenCompraEmailParams, sendBoletaEmail() (+3 more)
 
 ### Community 32 - "Sales Integration Tests"
 Cohesion: 0.10
@@ -660,7 +660,7 @@ Nodes (9): AdminRole, Store, AdminLayout(), AdminLayoutProps, NavItemProps, Audi
 
 ### Community 83 - "Worker Process Manager"
 Cohesion: 0.05
-Nodes (59): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+51 more)
+Nodes (55): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+47 more)
 
 ### Community 84 - "Analytics Tab Tests"
 Cohesion: 0.29
@@ -786,13 +786,13 @@ Nodes (4): config, moduleNameMapper, testPathIgnorePatterns, transform
 Cohesion: 0.60
 Nodes (5): AmmaPet Presentation (Teal), PedidosYa Logo, Rappi Logo, UberEats Logo, AmmaPet Presentation (Modern)
 
-### Community 130 - "Order Creation Dialog"
-Cohesion: 0.17
-Nodes (3): BoletaData, FakeJsPDF, TextCall
-
 ### Community 131 - "SettingsPage.test.tsx"
 Cohesion: 0.39
 Nodes (6): GET(), calculateEOQ(), calculateROP(), getDemandaDiariaFallback(), getReorderSuggestions(), ReorderSuggestion
+
+### Community 132 - "UI/UX Components"
+Cohesion: 0.20
+Nodes (9): GET(), PATCH(), lineasCompra(), getResend(), sendOrdenCompraCancelacionEmail(), sendOrdenCompraEmail(), OrdenCompraEditItemsSchema, OrdenCompraEstadoSchema (+1 more)
 
 ### Community 133 - "pos-store.test.ts"
 Cohesion: 0.29
@@ -1026,7 +1026,7 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Worker Process Manager` to `User Authentication Management`, `POS Metadata and Audit`, `SettingsPage.test.tsx`, `UI/UX Components`, `Order Channel Hub`, `Rappi Integration`, `Demand Forecasting Reports`, `Security and Licensing`, `Excel Report Generation`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `Supply Chain Accounting`, `Customer Loyalty POS`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `AI Expiry Analysis API`, `Customer Detail UI`, `AI Recommendation UI`, `Supplier Hub Page`, `Profit and Loss API`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `Weather Context Service`, `rateLimit.ts`, `Customer Modal Tests`, `Batch Management Tests`, `Monthly Closing Tests`, `Learning Optimization Script`, `Financial Results HTML`?**
+- **Why does `createServiceClient()` connect `Worker Process Manager` to `User Authentication Management`, `POS Metadata and Audit`, `SettingsPage.test.tsx`, `UI/UX Components`, `Order Channel Hub`, `Rappi Integration`, `Demand Forecasting Reports`, `Security and Licensing`, `Excel Report Generation`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `Supply Chain Accounting`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `AI Expiry Analysis API`, `Customer Detail UI`, `AI Recommendation UI`, `Supplier Hub Page`, `Profit and Loss API`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `Weather Context Service`, `rateLimit.ts`, `Customer Modal Tests`, `Batch Management Tests`, `Monthly Closing Tests`, `Learning Optimization Script`, `Financial Results HTML`?**
   _High betweenness centrality (0.139) - this node is a cross-community bridge._
 - **Why does `dependencies` connect `Frontend Dependencies` to `zustand`, `⚠️ Consideraciones Importantes`, `Session File Management`, `react-barcode`, `@supabase/supabase-js`, `tw-animate-css`, `react-dom`, `Excel Report Generation`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `Auto-Commit Scripts`?**
   _High betweenness centrality (0.046) - this node is a cross-community bridge._
@@ -1037,6 +1037,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Post Management API` be split into smaller, more focused modules?**
   _Cohesion score 0.07881773399014778 - nodes in this community are weakly interconnected._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.07390873015873016 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07132867132867132 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.0975177304964539 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08853410740203194 - nodes in this community are weakly interconnected._
