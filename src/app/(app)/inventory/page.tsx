@@ -154,7 +154,7 @@ export default function InventoryPage() {
     enabled: !!historial,
   });
 
-  const { mutate: aplicarAjuste, isPending: guardandoAjuste } = useMutation({
+  const { mutate: aplicarAjuste, isPending: guardandoAjuste, error: ajusteError, reset: resetAjusteError } = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/inventario/${ajuste!.producto.id}`, {
         method: "PATCH",
@@ -171,6 +171,10 @@ export default function InventoryPage() {
       setAjuste(null); setAjusteCantidad("1"); setAjusteNotas("");
     },
   });
+
+  // Salida de stock no puede exceder el disponible (ticket 6a5f9a8c29a2a067617111f7):
+  // el backend rechaza con 422; aquí se previene y se advierte antes de enviar.
+  const ajusteExcedeStock = !!ajuste && ajuste.tipo === "salida" && Number(ajusteCantidad) > ajuste.producto.stock;
 
   const { mutate: guardarProducto, isPending: guardandoProducto } = useMutation({
     mutationFn: async () => {
@@ -435,11 +439,11 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         <button
-                          onClick={() => { setAjuste({ producto: p, tipo: "entrada" }); setAjusteCantidad("1"); setAjusteNotas(""); }}
+                          onClick={() => { setAjuste({ producto: p, tipo: "entrada" }); setAjusteCantidad("1"); setAjusteNotas(""); resetAjusteError(); }}
                           className="px-1.5 py-0.5 text-[11px] rounded bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                         >+</button>
                         <button
-                          onClick={() => { setAjuste({ producto: p, tipo: "salida" }); setAjusteCantidad("1"); setAjusteNotas(""); }}
+                          onClick={() => { setAjuste({ producto: p, tipo: "salida" }); setAjusteCantidad("1"); setAjusteNotas(""); resetAjusteError(); }}
                           className="px-1.5 py-0.5 text-[11px] rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                         >−</button>
                       </div>
@@ -578,7 +582,8 @@ export default function InventoryPage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                <input type="number" min={1} value={ajusteCantidad} onChange={(e) => setAjusteCantidad(e.target.value)}
+                <input type="number" min={1} max={ajuste!.tipo === "salida" ? ajuste!.producto.stock : undefined}
+                  value={ajusteCantidad} onChange={(e) => setAjusteCantidad(e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
               <div>
@@ -588,9 +593,15 @@ export default function InventoryPage() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
             </div>
+            {ajusteExcedeStock && (
+              <p className="text-xs text-red-500 mt-3">Stock insuficiente: disponible {ajuste!.producto.stock}</p>
+            )}
+            {ajusteError && !ajusteExcedeStock && (
+              <p className="text-xs text-red-500 mt-3">{ajusteError.message}</p>
+            )}
             <div className="flex gap-2 mt-5">
               <Button variant="outline" onClick={() => setAjuste(null)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => aplicarAjuste()} disabled={guardandoAjuste || !ajusteCantidad || Number(ajusteCantidad) <= 0}
+              <Button onClick={() => aplicarAjuste()} disabled={guardandoAjuste || !ajusteCantidad || Number(ajusteCantidad) <= 0 || ajusteExcedeStock}
                 className={`flex-1 ${ajuste!.tipo === "salida" ? "bg-red-600 hover:bg-red-700" : ""}`}>
                 {guardandoAjuste ? "Guardando..." : ajuste!.tipo === "entrada" ? "Agregar" : "Descontar"}
               </Button>

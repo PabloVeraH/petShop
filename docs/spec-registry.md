@@ -346,6 +346,9 @@ I-406/I-407/I-408.
 | IV-07 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras entrada de stock sin recarga manual (F5) — test end-to-end de refetch | InventoryPage | component |
 | IV-08 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras editar producto sin recarga manual | InventoryPage | component |
 | IV-09 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras desactivar producto sin recarga manual | InventoryPage | component |
+| IV-10 | REGRESIÓN (ticket Trello 6a5f9a8c29a2a067617111f7): salida con cantidad mayor al stock muestra error inline 'Stock insuficiente: disponible N', input con max=stock y botón Descontar deshabilitado — no se envía PATCH | InventoryPage | component |
+| IV-11 | Frontera: salida con cantidad igual al stock habilita Descontar y envía el PATCH con esa cantidad (no sobre-bloquear) | InventoryPage | component |
+| IV-12 | Rechazo 422 del backend (stock stale) se muestra como error en el modal de ajuste — la operación no falla en silencio | InventoryPage | component |
 | FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |

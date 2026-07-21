@@ -743,3 +743,102 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     expect(screen.queryByText("Alimento Premium")).not.toBeInTheDocument();
   });
 });
+
+// ── Salida de stock no puede exceder el disponible ────────────────────────────
+//
+// Bug reportado (ticket Trello 6a5f9a8c29a2a067617111f7): el modal de "Salida
+// de stock" permitía descontar más unidades que el stock real (ej. 50 con
+// stock 4); el backend clampeaba el stock a 0 pero registraba el movimiento
+// completo (-50), dejando historial y stock inconsistentes. El backend ahora
+// rechaza con 422 (I-54/I-436) y este modal previene/advierte antes de enviar.
+describe("InventoryPage — salida de stock limitada al disponible", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+    setupFetch([PRODUCTO_BAJO_STOCK]); // stock 3
+  });
+
+  // IV-10: cantidad mayor al stock muestra error inline, limita el input y
+  // deshabilita "Descontar" — no se envía ningún PATCH.
+  it("IV-10: salida con cantidad mayor al stock muestra error, max en input y deshabilita Descontar", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Snack Perro")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "−" }));
+    expect(screen.getByText("Salida de stock")).toBeInTheDocument();
+
+    const cantidadInput = screen.getByRole("spinbutton");
+    expect(cantidadInput).toHaveAttribute("max", "3");
+
+    fireEvent.change(cantidadInput, { target: { value: "50" } });
+
+    expect(screen.getByText("Stock insuficiente: disponible 3")).toBeInTheDocument();
+    const descontar = screen.getByRole("button", { name: "Descontar" });
+    expect(descontar).toBeDisabled();
+
+    fireEvent.click(descontar);
+    const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([, opts]: [string, RequestInit]) => opts?.method === "PATCH"
+    );
+    expect(patchCall).toBeUndefined();
+  });
+
+  // IV-11: frontera — cantidad igual al stock se permite (no sobre-bloquear)
+  // y envía el PATCH con esa cantidad.
+  it("IV-11: salida con cantidad igual al stock habilita Descontar y envía el PATCH", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Snack Perro")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "−" }));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "3" } });
+
+    expect(screen.queryByText(/Stock insuficiente/)).not.toBeInTheDocument();
+    const descontar = screen.getByRole("button", { name: "Descontar" });
+    expect(descontar).not.toBeDisabled();
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ ...PRODUCTO_BAJO_STOCK, stock: 0 }) } as Response)
+    );
+
+    fireEvent.click(descontar);
+
+    await waitFor(() => {
+      const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+        ([, opts]: [string, RequestInit]) => opts?.method === "PATCH"
+      );
+      expect(patchCall).toBeDefined();
+    });
+    const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([, opts]: [string, RequestInit]) => opts?.method === "PATCH"
+    )!;
+    const body = JSON.parse(patchCall[1].body as string);
+    expect(body).toMatchObject({ tipo: "salida", cantidad: 3 });
+  });
+
+  // IV-12: si el backend rechaza con 422 (stock cambió desde que se cargó la
+  // tabla), el mensaje de error del backend se muestra en el modal — la
+  // operación no falla en silencio.
+  it("IV-12: rechazo 422 del backend se muestra como error en el modal", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Snack Perro")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "−" }));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "3" } });
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        status: 422,
+        json: () => Promise.resolve({ error: "Stock insuficiente: disponible 1, solicitado 3" }),
+      } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Descontar" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Stock insuficiente: disponible 1, solicitado 3")).toBeInTheDocument()
+    );
+    // El modal sigue abierto para que el usuario corrija
+    expect(screen.getByText("Salida de stock")).toBeInTheDocument();
+  });
+});
