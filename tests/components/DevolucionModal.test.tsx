@@ -354,10 +354,17 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     // También debe invalidar queries relacionadas, también con refetchType "all"
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"], refetchType: "all" });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"], refetchType: "all" });
+    // La devolución puede restituir stock → inventario/productos/lotes deben invalidarse
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["lotes"], refetchType: "all" });
     // NO debe llamar ninguna de las cuatro sin refetchType (versión bugueada)
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["venta", "venta-test-123"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["notas-credito", "venta-test-123"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["saldo", "cliente-1"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
   });
 });

@@ -81,6 +81,8 @@ export default function POSPage() {
       setVentaExito(true);
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {
         const popup = window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");

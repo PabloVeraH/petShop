@@ -155,12 +155,16 @@ export default function InventoryPage() {
   });
 
   const { mutate: aplicarAjuste, isPending: guardandoAjuste } = useMutation({
-    mutationFn: () =>
-      fetch(`/api/inventario/${ajuste!.producto.id}`, {
+    mutationFn: async () => {
+      const res = await fetch(`/api/inventario/${ajuste!.producto.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tipo: ajuste!.tipo, cantidad: Number(ajusteCantidad), notas: ajusteNotas || undefined }),
-      }).then((r) => r.json()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al ajustar stock");
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
@@ -210,7 +214,11 @@ export default function InventoryPage() {
   });
 
   const { mutate: desactivarProducto } = useMutation({
-    mutationFn: (id: string) => fetch(`/api/productos/${id}`, { method: "DELETE" }),
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/productos/${id}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al desactivar"); }
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });

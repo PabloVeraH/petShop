@@ -1,14 +1,16 @@
 /**
- * Tests PP-01 a PP-04, PP-06: POSPage — botón "Cobrar" reactivo al total del carrito
+ * Tests PP-01 a PP-14: POSPage — botón "Cobrar" reactivo al total del carrito
+ *                      y cache invalidation tras venta
  *
  * PP-01  REGRESIÓN — botón muestra total real ($15.458), no $0, con items en carrito
  * PP-02  REGRESIÓN — botón nunca dice $0 cuando items.length > 0
  * PP-03  Carrito vacío → botón dice "Carrito vacío" y está deshabilitado
  * PP-04  REGRESIÓN — setWorker se llama con userId al montar
  * PP-06  Total se computa de items+descuento localmente (no vía selector separado)
+ * PP-14  REGRESIÓN — procesar venta invalida inventario/lotes con refetchType "all"
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -16,6 +18,10 @@ import type { ReactNode } from "react";
 
 const mockClearCart = jest.fn();
 const mockSetWorker = jest.fn();
+const mockInvalidateQueries = jest.fn();
+let mutationOnSuccess: ((data: unknown) => void) | null = null;
+let mutationOnError: ((e: Error) => void) | null = null;
+let mutationMutate: (() => Promise<void>) | null = null;
 
 // Simula un carrito con un producto cargado (estado post-rehidratación de persist)
 function makeMockStore(overrides: { items?: unknown[]; descuento?: number } = {}) {
@@ -58,7 +64,20 @@ jest.mock("@tanstack/react-query", () => {
   const actual = jest.requireActual("@tanstack/react-query");
   return {
     ...actual,
-    useMutation: () => ({ mutate: jest.fn(), isPending: false }),
+    useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+    useMutation: (opts: { mutationFn?: () => Promise<unknown>; onSuccess?: (data: unknown) => void; onError?: (e: Error) => void }) => {
+      mutationOnSuccess = opts.onSuccess ?? null;
+      mutationOnError = opts.onError ?? null;
+      mutationMutate = async () => {
+        try {
+          const data = await opts.mutationFn?.();
+          mutationOnSuccess?.(data);
+        } catch (e) {
+          mutationOnError?.(e as Error);
+        }
+      };
+      return { mutate: mutationMutate, isPending: false };
+    },
   };
 });
 
@@ -67,7 +86,7 @@ jest.mock("@/app/(app)/pos/components/Carrito",           () => ({ __esModule: t
 jest.mock("@/app/(app)/pos/components/ModalCliente",      () => ({ __esModule: true, default: () => null }));
 jest.mock("@/app/(app)/pos/components/ModalPago",         () => ({ __esModule: true, default: () => null }));
 jest.mock("@/app/(app)/pos/components/RecomendacionesIA", () => ({ __esModule: true, default: () => null }));
-jest.mock("@/app/(app)/pos/api",                          () => ({ createVenta: jest.fn() }));
+jest.mock("@/app/(app)/pos/api", () => ({ createVenta: jest.fn().mockResolvedValue({ id: "venta-123" }) }));
 
 import POSPage from "@/app/(app)/pos/page";
 
@@ -156,5 +175,30 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     // total = 15000 - 1500 = 13500
     const button = screen.getByRole("button", { name: /Cobrar/i });
     expect(button).toHaveTextContent("Cobrar $13.500");
+  });
+
+  // PP-14: REGRESIÓN — procesar venta invalida inventario/lotes con refetchType "all"
+  // (mismo patrón que IV-04/CT-04: el stock se descuenta en backend pero el cache
+  // de inventario/lotes debe invalidarse para que otras vistas reflejen el cambio).
+  it("PP-14: REGRESIÓN — procesar venta invalida ['inventario'] y ['lotes'] con refetchType 'all'", async () => {
+    const store = { ...makeMockStore(), clienteEmail: "test@test.com" };
+    mockUsePOSStore.mockReturnValue(store);
+    mockInvalidateQueries.mockClear();
+
+    render(<POSPage />, { wrapper: makeWrapper() });
+
+    // La mutación se crea al montar el componente. El mock captura el mutate
+    // en mutationMutate. ModalPago está mockeado a null en la UI, por lo que
+    // llamamos mutationMutate() directamente para ejecutar onSuccess.
+    await mutationMutate!();
+
+    await waitFor(() => {
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["lotes"], refetchType: "all" });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    // Sin refetchType (versión bugueada) no debe llamarse
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
   });
 });

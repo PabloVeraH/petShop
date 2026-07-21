@@ -284,6 +284,24 @@ describe("SuppliersPage - Payment Modal", () => {
       ([arg]: [{ queryKey?: unknown[] }]) => arg?.queryKey?.[0] === "proveedores-stats"
     );
     expect(statsInvalidations).toHaveLength(4);
+
+    // Las mutaciones que agregan/quitan stock (recibirOrden, cambiarEstadoOrden)
+    // también deben invalidar inventario/productos/lotes
+    const inventarioInvalidations = mockInvalidateQueries.mock.calls.filter(
+      ([arg]: [{ queryKey?: unknown[] }]) =>
+        arg?.queryKey?.[0] === "inventario" && arg?.refetchType === "all"
+    );
+    expect(inventarioInvalidations.length).toBeGreaterThanOrEqual(2);
+    const productosInvalidations = mockInvalidateQueries.mock.calls.filter(
+      ([arg]: [{ queryKey?: unknown[] }]) =>
+        arg?.queryKey?.[0] === "productos" && arg?.refetchType === "all"
+    );
+    expect(productosInvalidations.length).toBeGreaterThanOrEqual(2);
+    const lotesInvalidations = mockInvalidateQueries.mock.calls.filter(
+      ([arg]: [{ queryKey?: unknown[] }]) =>
+        arg?.queryKey?.[0] === "lotes" && arg?.refetchType === "all"
+    );
+    expect(lotesInvalidations.length).toBeGreaterThanOrEqual(2);
   });
 });
 

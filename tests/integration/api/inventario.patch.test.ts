@@ -1,5 +1,5 @@
 /**
- * Tests I-50 a I-56: PATCH /api/inventario/[id]
+ * Tests I-50 a I-57: PATCH /api/inventario/[id]
  */
 import { NextRequest } from "next/server";
 
@@ -136,5 +136,17 @@ describe("PATCH /api/inventario/[id]", () => {
     expect(syncProductsToHub).toHaveBeenCalledWith([
       expect.objectContaining({ producto_id: PRODUCTO_ID, stock: 10 }),
     ]);
+  });
+
+  // I-57
+  it("I-57: error en update del producto retorna 500", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 5 }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: "error de DB simulado", code: "PGRST000" } });
+
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Error interno del servidor" });
   });
 });

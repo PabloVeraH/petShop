@@ -82,6 +82,9 @@ export function DevolucionModal({
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["saldo", clienteId], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       if (tipoReembolso === "saldo_a_favor" && data.notaCreditoId) {
         window.open(`/nota-credito/${data.notaCreditoId}?autoPrint=1`, "_blank", "width=500,height=700");
       }

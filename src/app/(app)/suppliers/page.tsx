@@ -259,6 +259,9 @@ export default function SupplierHubPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       setSelectedOrden(null);
       setCancelConfirm(null);
     },
@@ -286,6 +289,9 @@ export default function SupplierHubPage() {
       queryClient.invalidateQueries({ queryKey: ["ordenes-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["cuentas-proveedor", selected?.id ?? "all"] });
       queryClient.invalidateQueries({ queryKey: ["proveedores-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       setSelectedOrden(null);
       setShowReceiving(null);
       setReceivingForm({});

@@ -61,6 +61,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-73 | PATCH producto lot-tracked permite PATCH sin cambio de stock | PATCH /api/productos/[id] | integration |
 | I-74 | DELETE producto no elimina si tiene ventas | DELETE /api/productos/[id] | integration |
 | I-75 | Import masivo limita a 500 filas | POST /api/inventario/import | integration |
+| I-57 | Error en update del producto retorna 500 (ej: error de DB simulado) | PATCH /api/inventario/[id] | integration |
 
 ## Settings (I-87 a I-99, I-414 a I-416)
 
@@ -341,7 +342,7 @@ I-406/I-407/I-408.
 | FP-12 | Inputs opcionales NO tienen required | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
-| VT-03 | Anular venta invalida queries ["venta", id] y ["ventas"] con refetchType "all" | SalesTicketPage | component |
+| VT-03 | Anular venta invalida queries ["venta", id], ["ventas"], ["inventario"], ["productos"], ["lotes"] y ["notas-credito", id] con refetchType "all" | SalesTicketPage | component |
 | VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
 | REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
 | C-39 | REGRESIÓN: Subtotal muestra el neto (total − impuesto), no el bruto que igualaba a Total | SalesTicketPage | component |
@@ -586,6 +587,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-11 | REGRESIÓN: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno) | POSPage | component |
 | PP-12 | El stock en la grilla de productos (SearchProductos real, no mockeado) se actualiza automáticamente tras una venta exitosa, sin recargar la página — investigado como reporte de bug, no reprodujo contra el código actual; test agregado como regresión permanente | POSPage | component |
 | PP-13 | clearCart se llama tras venta exitosa y botón Cobrar cambia a Carrito vacío (regresión: carrito no se limpiaba tras venta) | POSPage | component |
+| PP-14 | REGRESIÓN: Procesar venta invalida ["inventario"], ["productos"] y ["lotes"] con refetchType "all" (stock descontado debe reflejarse en inventario/lotes sin recargar) | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 
@@ -620,7 +622,7 @@ fijado al estado pre-hidratación de `persist`.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
-| DV-14 | Confirmar devolución invalida ["venta", id], ["ventas"], ["notas-credito", id] y ["saldo", clienteId] con refetchType "all" | DevolucionModal | component |
+| DV-14 | Confirmar devolución invalida ["venta", id], ["ventas"], ["notas-credito", id], ["saldo", clienteId], ["inventario"], ["productos"] y ["lotes"] con refetchType "all" | DevolucionModal | component |
 
 ## Devolución Modal Motivo (DV-15 a DV-17)
 
