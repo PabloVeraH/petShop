@@ -705,8 +705,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/LotesPanel.tsx": {
-    "mtime": 1784497064.435037,
-    "ast_hash": "2a37e4e9d08e9cc72c3f048cbe4ab8a4",
+    "mtime": 1784597811.0588727,
+    "ast_hash": "d7397cea2df527e239177421f1eba254",
     "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/OptimizadorVencimientosTab.tsx": {
@@ -720,8 +720,8 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1784497064.435037,
-    "ast_hash": "abe3f66c93b0b89e429777948f4c0704",
+    "mtime": 1784597797.9573417,
+    "ast_hash": "4be79dfb2a2bc89e77cbf712c7cde08e",
     "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
@@ -770,7 +770,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/pos/components/RecomendacionesIA.tsx": {
-    "mtime": 1784563144.014269,
+    "mtime": 1784563357.6213577,
     "ast_hash": "b9260873bf3330277857c1c1dc6d1688",
     "semantic_hash": ""
   },
@@ -780,8 +780,8 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784355766.5257428,
-    "ast_hash": "0b1351a05863389e3a2eaa99f7413d3f",
+    "mtime": 1784585000.8032136,
+    "ast_hash": "8113c7c3044dfc25fe8570eeea7da7d0",
     "semantic_hash": ""
   },
   "src/app/(app)/purchases/page.tsx": {
@@ -800,8 +800,8 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "1949d6741272200d5d0db6906fe2f418",
+    "mtime": 1784584996.5832164,
+    "ast_hash": "c7a8aa3bd9724eb8dae92acb9bb614b5",
     "semantic_hash": ""
   },
   "src/app/(app)/sales/page.tsx": {
@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
-    "mtime": 1784511368.9556813,
-    "ast_hash": "448b5d7ed994a20e8b1e005af5b58c37",
+    "mtime": 1784585264.1440349,
+    "ast_hash": "df7c43dc33b230cb392e8eaf09e5eb79",
     "semantic_hash": ""
   },
   "src/app/(app)/vendedores/page.tsx": {
@@ -1390,8 +1390,8 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "66155e216f39f3587c5935797589ac01",
+    "mtime": 1784584983.0942254,
+    "ast_hash": "8c15122b950a0b521ed341b1965c72a2",
     "semantic_hash": ""
   },
   "src/components/ui/badge.tsx": {
@@ -1805,8 +1805,8 @@
     "semantic_hash": "d62cd2741bce327ab173ae85866df6a9"
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "e6898dbea173cd72fbdef8599a0342d8",
+    "mtime": 1784585036.730189,
+    "ast_hash": "b9ceb2e37a619976316d4ccb3280a1fe",
     "semantic_hash": ""
   },
   "tests/components/EditOrderItemsDialog.test.tsx": {
@@ -1815,13 +1815,13 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "5de43876463dad57f32b8cafa7d529b0",
+    "mtime": 1784597904.2456272,
+    "ast_hash": "5b0f8774a4503fac006bf34e321e65f0",
     "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "c0cfa18564214fa4b0376639ec1ded09",
+    "mtime": 1784597856.4317117,
+    "ast_hash": "a59f2ee22776fd719a88acf296ba05cd",
     "semantic_hash": ""
   },
   "tests/components/ModalCliente.test.tsx": {
@@ -1855,9 +1855,9 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1783739374.1162806,
-    "ast_hash": "aafb4d10aff38d6222cfb23bcf8bbce3",
-    "semantic_hash": "aafb4d10aff38d6222cfb23bcf8bbce3"
+    "mtime": 1784585210.4900713,
+    "ast_hash": "e424bceb0bb0fb57cba6b2384384e239",
+    "semantic_hash": ""
   },
   "tests/components/POSPageCache.test.tsx": {
     "mtime": 1784388782.3435814,
@@ -1865,7 +1865,7 @@
     "semantic_hash": ""
   },
   "tests/components/RecomendacionesIA.test.tsx": {
-    "mtime": 1784563115.9332767,
+    "mtime": 1784563357.6213577,
     "ast_hash": "f75796dd6dea76d529b54b9cb1c3e0e2",
     "semantic_hash": ""
   },
@@ -1885,8 +1885,8 @@
     "semantic_hash": "55d0dbeb61e4446be82d401334851344"
   },
   "tests/components/SalesTicketPage.test.tsx": {
-    "mtime": 1784497064.437037,
-    "ast_hash": "dac0e9bf6691da2c864f16551b9b131e",
+    "mtime": 1784585043.064185,
+    "ast_hash": "4f3e63c38697a5355771e71e1c3869a1",
     "semantic_hash": ""
   },
   "tests/components/SearchProductos.test.tsx": {
@@ -1895,9 +1895,9 @@
     "semantic_hash": "d1440c82327969038be79575897025bb"
   },
   "tests/components/SuppliersPage.test.tsx": {
-    "mtime": 1784094885.1296418,
-    "ast_hash": "7f7b5001b35b1d2d247f8a6078b0db37",
-    "semantic_hash": "7f7b5001b35b1d2d247f8a6078b0db37"
+    "mtime": 1784585053.105178,
+    "ast_hash": "7c6f1191e898cfca2d4e14d68d243806",
+    "semantic_hash": ""
   },
   "tests/components/VendedoresPage.test.tsx": {
     "mtime": 1782492235.7008939,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784563161.157106,
-    "ast_hash": "cd859895a5f59e83cb15ccefec6551f5",
+    "mtime": 1784597878.4386034,
+    "ast_hash": "ef7455ddac2b842e9b3d90890a743304",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
