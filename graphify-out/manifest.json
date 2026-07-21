@@ -3940,8 +3940,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-tipo.test.ts": {
-    "mtime": 1784604457.7064626,
-    "ast_hash": "edc229316af92717ebf9dfa98f7d9e1d",
+    "mtime": 1784607427.9714408,
+    "ast_hash": "7596d4ddcdcc41cff8c12b8e0d384909",
     "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-tipos.test.ts": {
