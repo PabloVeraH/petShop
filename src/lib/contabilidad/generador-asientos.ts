@@ -490,6 +490,66 @@ export function lineasAnulacionVentaCanal(params: {
   ];
 }
 
+// Reverso de asiento de venta pagada total o parcialmente con nota de
+// crédito / saldo a favor (anulación completa). Espejo exacto de
+// lineasVentaConNc: el crédito consumido se reacredita a Saldos a Favor
+// (pasivo) — NUNCA a Caja/Banco, que no recibieron ese dinero — y solo el
+// resto pagado en dinero revierte a Caja|Banco. Usar
+// lineasAnulacionVentaCanal para estas ventas acredita el TOTAL a
+// Caja|Banco: infla esas cuentas (puede llevarlas a saldo negativo, ticket
+// Trello 6a5f9ad3fbf979e68251d40e) y deja el pasivo Saldos a Favor sin
+// reacreditar.
+export function lineasAnulacionVentaConNc(params: {
+  montoNeto: number;
+  iva: number;
+  montoNc: number;
+  montoResto: number;
+  metodoPagoResto?: string;
+}): LineaAsiento[] {
+  const lineas: LineaAsiento[] = [];
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.VENTAS.codigo,
+    cuentaNombre: CUENTAS.VENTAS.nombre,
+    cuentaTipo: CUENTAS.VENTAS.tipo,
+    debito: params.montoNeto,
+    credito: 0,
+    descripcionLinea: "Reverso ingreso por venta anulada",
+  });
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+    debito: params.iva,
+    credito: 0,
+    descripcionLinea: "Reverso IVA débito fiscal",
+  });
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
+    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
+    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
+    debito: 0,
+    credito: params.montoNc,
+    descripcionLinea: "Reacreditación de saldo a favor por anulación",
+  });
+
+  if (params.montoResto > 0) {
+    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+    lineas.push({
+      cuentaCodigo: cuentaCaja.codigo,
+      cuentaNombre: cuentaCaja.nombre,
+      cuentaTipo: cuentaCaja.tipo,
+      debito: 0,
+      credito: params.montoResto,
+      descripcionLinea: "Reverso cobro diferencia venta anulada",
+    });
+  }
+
+  return lineas;
+}
+
 // Reverso de COGS (inventario reincorporado al stock por anulación de venta)
 export function lineasAnulacionCOGS(costoTotal: number): LineaAsiento[] {
   return [

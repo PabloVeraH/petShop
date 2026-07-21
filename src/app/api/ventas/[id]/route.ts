@@ -1,7 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { crearAsiento, lineasAnulacionVentaCanal, lineasAnulacionCOGS } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasAnulacionVentaCanal, lineasAnulacionVentaConNc, lineasAnulacionCOGS } from "@/lib/contabilidad/generador-asientos";
 
 export async function GET(
   _req: NextRequest,
@@ -114,6 +114,26 @@ export async function PATCH(
 
   // Asiento contable (post-response fire-and-forget)
   (async () => {
+    // Espejo del pago original: si la venta se pagó total o parcialmente con
+    // nota de crédito / saldo a favor, el reverso de esa porción va a Saldos
+    // a Favor (pasivo) — NUNCA a Caja|Banco, que no recibieron ese dinero
+    // (ticket Trello 6a5f9ad3fbf979e68251d40e). venta.metodo_pago guarda
+    // 'nota_credito'/'mixto' para esas ventas, pero el monto exacto del
+    // crédito solo está en pagos.
+    const { data: pagosVenta } = await supabase
+      .from("pagos")
+      .select("metodo, monto")
+      .eq("venta_id", id)
+      .eq("store_id", store_id);
+
+    const METODOS_CREDITO = new Set(["nota_credito", "saldo_a_favor"]);
+    const montoCredito = Math.round(
+      (pagosVenta ?? [])
+        .filter((p) => METODOS_CREDITO.has(p.metodo as string))
+        .reduce((s, p) => s + Number(p.monto), 0)
+    );
+    const pagoResto = (pagosVenta ?? []).find((p) => !METODOS_CREDITO.has(p.metodo as string));
+
     const asiento = await crearAsiento({
       storeId: store_id,
       fecha: fechaAnulacion,
@@ -122,13 +142,21 @@ export async function PATCH(
       referenciaId: id,
       referenciaNomero: numeroRef,
       descripcion: `Anulación venta ${numeroRef}`,
-      lineas: lineasAnulacionVentaCanal({
-        canal: venta.canal ?? "pos",
-        metodoPago: venta.metodo_pago ?? "efectivo",
-        montoNeto,
-        iva: ivaVenta,
-        total: totalVenta,
-      }),
+      lineas: montoCredito > 0
+        ? lineasAnulacionVentaConNc({
+            montoNeto,
+            iva: ivaVenta,
+            montoNc: montoCredito,
+            montoResto: Math.round(totalVenta - montoCredito),
+            metodoPagoResto: (pagoResto?.metodo as string | undefined) ?? undefined,
+          })
+        : lineasAnulacionVentaCanal({
+            canal: venta.canal ?? "pos",
+            metodoPago: venta.metodo_pago ?? "efectivo",
+            montoNeto,
+            iva: ivaVenta,
+            total: totalVenta,
+          }),
       usuarioId: ctx.userId ?? undefined,
     });
     if (!asiento) console.error(`[contabilidad] Asiento de anulación NO CREADO para venta ${numeroRef}`);

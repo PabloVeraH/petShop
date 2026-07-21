@@ -6,6 +6,7 @@ jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   crearAsiento: jest.fn().mockResolvedValue("asiento-id"),
   lineasAnulacionVentaCanal: jest.fn().mockReturnValue([]),
+  lineasAnulacionVentaConNc: jest.fn().mockReturnValue([]),
   lineasAnulacionCOGS: jest.fn().mockReturnValue([]),
 }));
 
@@ -199,17 +200,20 @@ describe("GET /api/ventas/[id]", () => {
 // NCs activas y reversión de saldo_a_favor) vive en la función SQL
 // anular_venta_tx, llamada en una única transacción vía RPC — ver
 // migrations/053_anular_venta_tx.sql. La ruta ya NO contiene esa lógica de
-// negocio: solo llama al RPC, mapea el error a un status HTTP, y usa
-// venta/costo_total del resultado para los asientos contables
-// (fire-and-forget). Estos tests verifican el CONTRATO de la ruta con el RPC
-// (parámetros, mapeo de errores, uso de la respuesta) — la corrección de la
-// lógica de negocio NC-aware (stock parcial, fidelización neta, reversión de
-// saldo, reclamo atómico ante concurrencia) se verificó directamente contra
-// la función real en Supabase (infraestructura real, no mock — ver
-// migrations/053_anular_venta_tx.sql y AGENTS.md §22.5/§22.6 para el detalle
-// de los escenarios verificados). Los IDs I-328 a I-336, que antes probaban
-// esa lógica vía mocks de .from(), se retiran de este archivo por la misma
-// razón: dejaron de ejercitar código de la ruta.
+// negocio: solo llama al RPC, mapea el error a un status HTTP, consulta los
+// pagos de la venta (única fuente del monto pagado con NC/saldo — necesario
+// para el espejo contable de lineasAnulacionVentaConNc, ticket
+// 6a5f9ad3fbf979e68251d40e) y usa venta/costo_total del resultado para los
+// asientos contables (fire-and-forget). Estos tests verifican el CONTRATO
+// de la ruta con el RPC (parámetros, mapeo de errores, uso de la respuesta)
+// — la corrección de la lógica de negocio NC-aware (stock parcial,
+// fidelización neta, reversión de saldo, reclamo atómico ante concurrencia)
+// se verificó directamente contra la función real en Supabase
+// (infraestructura real, no mock — ver migrations/053_anular_venta_tx.sql y
+// AGENTS.md §22.5/§22.6 para el detalle de los escenarios verificados). Los
+// IDs I-328 a I-336, que antes probaban esa lógica vía mocks de .from(), se
+// retiran de este archivo por la misma razón: dejaron de ejercitar código
+// de la ruta.
 
 function mockAnularVentaTxSuccess(overrides: Record<string, unknown> = {}, costoTotal = 0) {
   return {
@@ -241,14 +245,35 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
   const mockUserId = "user-1";
 
   let mockRpc: jest.Mock;
+  let mockPagosChain: Record<string, unknown>;
+
+  // La ruta consulta pagos de la venta (select → eq → eq → await directo,
+  // sin .single()) para decidir el builder del contra-asiento.
+  function makePagosChain(pagos: Array<{ metodo: string; monto: number }>) {
+    const c = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      then: (resolve: (v: unknown) => void) => resolve({ data: pagos, error: null }),
+    };
+    c.select.mockReturnValue(c);
+    c.eq.mockReturnValue(c);
+    return c;
+  }
+
+  // El asiento se construye dentro de una IIFE fire-and-forget que primero
+  // hace await del lookup de pagos — hay que drenar la microtask queue antes
+  // de verificar los mocks de contabilidad.
+  const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
   beforeEach(() => {
     jest.clearAllMocks();
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: mockUserId });
     mockRpc = jest.fn().mockResolvedValue(mockAnularVentaTxSuccess());
+    mockPagosChain = makePagosChain([]);
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
-      from: jest.fn(() => {
-        throw new Error("[test] la ruta no debería llamar a .from() directamente — toda la lógica vive en el RPC");
+      from: jest.fn((table: string) => {
+        if (table === "pagos") return mockPagosChain;
+        throw new Error(`[test] la ruta no debería llamar a .from("${table}") — toda la lógica vive en el RPC (excepto el lookup de pagos para el espejo NC)`);
       }),
       rpc: mockRpc,
     });
@@ -276,6 +301,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
 
     const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
     const data = await res.json();
+    await flushMicrotasks();
 
     expect(res.status).toBe(200);
     expect(data.estado).toBe("anulada");
@@ -309,9 +335,75 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     mockRpc.mockResolvedValue(mockAnularVentaTxSuccess({}, 0));
 
     const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
     expect(res.status).toBe(200);
     expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(1);
     expect(contabilidad.lineasAnulacionCOGS).not.toHaveBeenCalled();
+  });
+
+  // I-437 — REGRESIÓN (ticket Trello 6a5f9ad3fbf979e68251d40e): anular una
+  // venta pagada 100% con nota de crédito acreditaba el TOTAL a Banco (porque
+  // venta.metodo_pago='nota_credito' ≠ 'efectivo' → lineasAnulacionVentaCanal
+  // elige BANCO) aunque ese dinero nunca entró al banco — inflando la cuenta
+  // (posible saldo negativo) y dejando Saldos a Favor sin reacreditar.
+  it("I-437: venta pagada 100% con NC → reverso acredita Saldos a Favor, no Caja/Banco", async () => {
+    mockPagosChain = makePagosChain([{ metodo: "nota_credito", monto: 20000 }]);
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+
+    expect(contabilidad.lineasAnulacionVentaConNc).toHaveBeenCalledWith({
+      montoNeto: 17480,
+      iva: 2520,
+      montoNc: 20000,
+      montoResto: 0,
+      metodoPagoResto: undefined,
+    });
+    expect(contabilidad.lineasAnulacionVentaCanal).not.toHaveBeenCalled();
+  });
+
+  // I-438 — misma regresión, variante pago mixto: el crédito va a Saldos a
+  // Favor y solo el resto pagado en dinero revierte a la cuenta del método
+  // del pago resto (tarjeta → Banco).
+  it("I-438: venta mixta (NC + tarjeta) → reverso espejo: Saldos a Favor por NC y Banco solo por el resto", async () => {
+    mockPagosChain = makePagosChain([
+      { metodo: "nota_credito", monto: 12000 },
+      { metodo: "tarjeta", monto: 8000 },
+    ]);
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+
+    expect(contabilidad.lineasAnulacionVentaConNc).toHaveBeenCalledWith({
+      montoNeto: 17480,
+      iva: 2520,
+      montoNc: 12000,
+      montoResto: 8000,
+      metodoPagoResto: "tarjeta",
+    });
+    expect(contabilidad.lineasAnulacionVentaCanal).not.toHaveBeenCalled();
+  });
+
+  // Contracara de I-437/I-438: una venta pagada solo en dinero (sin pagos de
+  // crédito) sigue usando el builder de canal — el lookup de pagos no cambia
+  // el comportamiento para el flujo normal.
+  it("I-438b: venta sin pagos de crédito → sigue usando lineasAnulacionVentaCanal", async () => {
+    mockPagosChain = makePagosChain([{ metodo: "efectivo", monto: 20000 }]);
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+
+    expect(contabilidad.lineasAnulacionVentaCanal).toHaveBeenCalledWith({
+      canal: "pos",
+      metodoPago: "efectivo",
+      montoNeto: 17480,
+      iva: 2520,
+      total: 20000,
+    });
+    expect(contabilidad.lineasAnulacionVentaConNc).not.toHaveBeenCalled();
   });
 
   // REGRESIÓN: Estado de Resultado incluía venta anulada como ingreso cuando
@@ -326,6 +418,7 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     }));
 
     const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
     expect(res.status).toBe(200);
 
     expect(contabilidad.crearAsiento).toHaveBeenCalledWith(

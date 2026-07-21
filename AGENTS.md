@@ -903,6 +903,22 @@ sin datos persistidos): reclamo atómico ante doble llamada, stock/
 fidelización/saldo/NC calculados correctamente para el caso NC parcial con
 `restituir_stock=true` — ver commit de la revisión para el detalle exacto.
 
+**Extensión (migración 057 — saldo CONSUMIDO como pago):** la 053 cubría las
+NCs creadas DESDE la venta, pero no el crédito consumido COMO PAGO de ella
+(pagos con `metodo IN ('nota_credito','saldo_a_favor')`). Sin el paso 6, al
+anular una venta pagada con NC el cliente perdía ese crédito. La 057 agrega
+el paso 6 a `anular_venta_tx`: por cada pago de crédito de la venta,
+`incrementar_saldo_a_favor` al cliente espejo del decremento original (para
+`nota_credito`, el cliente de la venta ORIGEN de la NC — mismo destinatario
+que `crear_venta_tx`; para `saldo_a_favor`, el cliente de la venta). La NC
+usada NO vuelve a `activa` (pudo consumirse parcialmente en varias ventas;
+el registro operativo es `saldos_a_favor`). El contra-asiento contable
+espejo (`lineasAnulacionVentaConNc` en `PATCH /api/ventas/[id]`) reacredita
+la cuenta de pasivo Saldos a Favor por el mismo monto — usar
+`lineasAnulacionVentaCanal` para estas ventas acredita el TOTAL a
+Caja/Banco, que nunca recibieron ese dinero (ticket Trello
+6a5f9ad3fbf979e68251d40e).
+
 ### 23.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
 
 Las 3 mutaciones de `saldos_a_favor.saldo_disponible` usan funciones SQL

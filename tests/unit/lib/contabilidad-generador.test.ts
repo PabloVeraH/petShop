@@ -6,8 +6,10 @@ const {
   lineasPagoProveedor,
   lineasCierreCOGS,
   lineasAnulacionVentaCanal,
+  lineasAnulacionVentaConNc,
   lineasAnulacionCOGS,
   lineasNotaCreditoCOGS,
+  lineasVentaConNc,
 } = require("@/lib/contabilidad/generador-asientos");
 
 const { CUENTAS } = require("@/lib/contabilidad/types");
@@ -542,5 +544,83 @@ describe("lineasNotaCreditoCOGS — reverso de costo por devolución", () => {
     const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
     expect(totalDeb).toBe(0);
     expect(totalCre).toBe(0);
+  });
+});
+
+// U-131 a U-133: lineasAnulacionVentaConNc — reverso de venta pagada con
+// nota de crédito / saldo a favor. REGRESIÓN (ticket Trello
+// 6a5f9ad3fbf979e68251d40e): antes la anulación usaba
+// lineasAnulacionVentaCanal, que acredita el TOTAL a Caja|Banco aunque ese
+// dinero nunca entró — inflaba esas cuentas (posible saldo negativo) y
+// dejaba el pasivo Saldos a Favor sin reacreditar.
+describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
+  const NC_TOTAL = { montoNeto: 8403, iva: 1597, montoNc: 10000, montoResto: 0 };
+
+  it("U-131: venta pagada 100% con NC — acredita Saldos a Favor y NO toca Caja ni Banco", () => {
+    const lineas = lineasAnulacionVentaConNc(NC_TOTAL);
+
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(totalCre);
+    expect(totalDeb).toBe(10000);
+
+    // Crédito completo vuelve a Saldos a Favor (pasivo reacreditado)
+    const sf = lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo);
+    expect(sf).toBeDefined();
+    expect(sf.debito).toBe(0);
+    expect(sf.credito).toBe(10000);
+
+    // Ninguna línea toca Caja Operacional ni Banco Operacional
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)).toBeUndefined();
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)).toBeUndefined();
+  });
+
+  it("U-132: venta mixta (NC + tarjeta) — Saldos a Favor por el crédito y Banco solo por el resto", () => {
+    const lineas = lineasAnulacionVentaConNc({
+      montoNeto: 8403,
+      iva: 1597,
+      montoNc: 6000,
+      montoResto: 4000,
+      metodoPagoResto: "tarjeta",
+    });
+
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(totalCre);
+    expect(totalDeb).toBe(10000);
+
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo).credito).toBe(6000);
+    const banco = lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+    expect(banco).toBeDefined();
+    expect(banco.debito).toBe(0);
+    expect(banco.credito).toBe(4000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)).toBeUndefined();
+  });
+
+  it("U-133: venta mixta con resto en efectivo — el resto revierte a Caja, no a Banco", () => {
+    const lineas = lineasAnulacionVentaConNc({
+      montoNeto: 8403,
+      iva: 1597,
+      montoNc: 6000,
+      montoResto: 4000,
+      metodoPagoResto: "efectivo",
+    });
+
+    const caja = lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+    expect(caja).toBeDefined();
+    expect(caja.credito).toBe(4000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)).toBeUndefined();
+  });
+
+  it("U-133b: es el inverso exacto de lineasVentaConNc", () => {
+    const params = { montoNeto: 8403, iva: 1597, total: 10000, montoNc: 6000, montoResto: 4000, metodoPagoResto: "tarjeta" };
+    const originales = lineasVentaConNc(params);
+    const reverso = lineasAnulacionVentaConNc(params);
+    for (const lineaOriginal of originales) {
+      const lineaReverso = reverso.find((l) => l.cuentaCodigo === lineaOriginal.cuentaCodigo);
+      expect(lineaReverso).toBeDefined();
+      expect(lineaReverso.debito).toBe(lineaOriginal.credito);
+      expect(lineaReverso.credito).toBe(lineaOriginal.debito);
+    }
   });
 });

@@ -39,6 +39,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-320 | GET saldo a favor con error real de DB retorna 500 en vez de 0 silencioso | GET /api/saldos-a-favor | integration |
 | I-411 | REGRESIÓN: anular venta ya anulada retorna 409 — cubre tanto doble clic secuencial como anulación concurrente (reclamo atómico de `anular_venta_tx`, verificado contra la función real: la segunda llamada para la misma venta falla con "La venta ya está anulada") | PATCH /api/ventas/[id] | integration |
 | I-412 | Anular venta ante error inesperado del RPC retorna 500 (rollback automático de la transacción, sin estado parcial) | PATCH /api/ventas/[id] | integration |
+| I-437 | REGRESIÓN (ticket Trello 6a5f9ad3fbf979e68251d40e): anular venta pagada 100% con NC usa lineasAnulacionVentaConNc — reverso acredita Saldos a Favor, NO Caja/Banco (antes acreditaba el total a Banco: activo inflado, posible saldo negativo) | PATCH /api/ventas/[id] | integration |
+| I-438 | Misma regresión, variante mixta: reverso acredita Saldos a Favor por el monto NC y Banco solo por el resto pagado con tarjeta | PATCH /api/ventas/[id] | integration |
+| I-438b | Contracara: venta sin pagos de crédito sigue usando lineasAnulacionVentaCanal (el lookup de pagos no altera el flujo normal) | PATCH /api/ventas/[id] | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 
@@ -498,6 +501,10 @@ I-406/I-407/I-408.
 | U-128 | REGRESIÓN (ticket Trello 6a5e9486a242880262f9556f): SALDOS_FAVOR es PASIVO, no ACTIVO — el saldo es una obligación con clientes (notas de crédito pendientes), no un recurso | lib/contabilidad | unit |
 | U-129 | getCuentaTipo resuelve tipo desde CUENTAS por código (110502→PASIVO, 110101→ACTIVO, etc.) | lib/contabilidad | unit |
 | U-130 | getCuentaTipo usa fallback cuando el código no está en CUENTAS | lib/contabilidad | unit |
+| U-131 | lineasAnulacionVentaConNc con NC total: balanceado, acredita Saldos a Favor y NO toca Caja ni Banco (ticket Trello 6a5f9ad3fbf979e68251d40e) | lib/contabilidad | unit |
+| U-132 | lineasAnulacionVentaConNc mixta: Saldos a Favor por el crédito y Banco solo por el resto con tarjeta | lib/contabilidad | unit |
+| U-133 | lineasAnulacionVentaConNc mixta con resto en efectivo: el resto revierte a Caja, no a Banco | lib/contabilidad | unit |
+| U-133b | lineasAnulacionVentaConNc es el inverso exacto de lineasVentaConNc (Dr/Cr espejo por cuenta) | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |
