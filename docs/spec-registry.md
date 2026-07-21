@@ -61,7 +61,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-73 | PATCH producto lot-tracked permite PATCH sin cambio de stock | PATCH /api/productos/[id] | integration |
 | I-74 | DELETE producto no elimina si tiene ventas | DELETE /api/productos/[id] | integration |
 | I-75 | Import masivo limita a 500 filas | POST /api/inventario/import | integration |
-| I-57 | Error en update del producto retorna 500 (ej: error de DB simulado) | PATCH /api/inventario/[id] | integration |
+| I-431 | Error en update del producto retorna 500 (ej: error de DB simulado) | PATCH /api/inventario/[id] | integration |
 
 ## Settings (I-87 a I-99, I-414 a I-416)
 
