@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ClerkDevWarning } from "@/components/admin/ClerkDevWarning";
 import { UsuariosCard } from "@/components/admin/UsuariosCard";
 import { LicenciaCard } from "@/components/admin/LicenciaCard";
 import { AuditoriaCard } from "@/components/admin/AuditoriaCard";
@@ -91,6 +92,7 @@ export default function AdminPage() {
       activeSection={activeSection}
       onSectionChange={setActiveSection}
     >
+      <ClerkDevWarning />
       {activeSection === "usuarios" && (
         <div>
           <h1 className="text-3xl font-bold text-[#1a5f3f] mb-6">Gestión de Usuarios</h1>

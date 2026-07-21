@@ -83,6 +83,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | C-47 | Licencia vencida muestra "VENCIDA" | SettingsPage | component |
 | C-48 | systemAdmin ve enlace a /admin para gestionar licencia | SettingsPage | component |
 | C-49 | storeAdmin NO ve enlace a /admin | SettingsPage | component |
+| C-50 | ClerkDevWarning con clave pk_test_ muestra advertencia de modo desarrollo | ClerkDevWarning | component |
+| C-51 | ClerkDevWarning con clave pk_live_ NO muestra advertencia | ClerkDevWarning | component |
+| C-52 | ClerkDevWarning con publishableKey vacío NO muestra advertencia | ClerkDevWarning | component |
+| C-53 | ClerkDevWarning con clave test_ (legacy) muestra advertencia de modo desarrollo | ClerkDevWarning | component |
 
 ## Notas de Crédito (I-100 a I-115)
 

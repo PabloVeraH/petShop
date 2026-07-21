@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import StoreLocationPicker from "@/components/StoreLocationPicker";
+import { ClerkDevWarning } from "@/components/admin/ClerkDevWarning";
 import { computeLicenseStatus } from "@/lib/license";
 
 interface FidelizacionNivel {
@@ -107,6 +108,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Configuración</h1>
+
+      <ClerkDevWarning />
 
       <form onSubmit={handleSave} className="space-y-8">
         {/* Store Info */}
