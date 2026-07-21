@@ -34,6 +34,13 @@ export async function PATCH(
 
   if (!prod) return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
 
+  if (tipo === "salida" && cantidad > prod.stock) {
+    return NextResponse.json(
+      { error: `Stock insuficiente: disponible ${prod.stock}, solicitado ${cantidad}` },
+      { status: 422 }
+    );
+  }
+
   const { ipAddress, userAgent } = await getRequestMetadata(req);
   const auditOldValues = { stock: prod.stock };
 

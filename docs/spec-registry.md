@@ -62,6 +62,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-74 | DELETE producto no elimina si tiene ventas | DELETE /api/productos/[id] | integration |
 | I-75 | Import masivo limita a 500 filas | POST /api/inventario/import | integration |
 | I-431 | Error en update del producto retorna 500 (ej: error de DB simulado) | PATCH /api/inventario/[id] | integration |
+| I-54 | REGRESIÓN (ticket Trello 6a5f9a8c29a2a067617111f7): salida con cantidad mayor al stock → 422, sin UPDATE ni movimiento en stock_movements (antes: stock clampeado a 0 pero movimiento registrado completo → inconsistencia historial/stock) | PATCH /api/inventario/[id] | integration |
+| I-436 | Frontera: salida con cantidad igual al stock → 200, stock queda en 0 y movimiento registra la salida completa (no sobre-bloquear) | PATCH /api/inventario/[id] | integration |
 
 ## Settings (I-87 a I-99, I-414 a I-416)
 
