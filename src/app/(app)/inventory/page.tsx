@@ -162,7 +162,7 @@ export default function InventoryPage() {
         body: JSON.stringify({ tipo: ajuste!.tipo, cantidad: Number(ajusteCantidad), notas: ajusteNotas || undefined }),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setAjuste(null); setAjusteCantidad("1"); setAjusteNotas("");
     },
@@ -199,7 +199,7 @@ export default function InventoryPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({});
     },
@@ -212,7 +212,7 @@ export default function InventoryPage() {
   const { mutate: desactivarProducto } = useMutation({
     mutationFn: (id: string) => fetch(`/api/productos/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setConfirmDelete(null);
     },

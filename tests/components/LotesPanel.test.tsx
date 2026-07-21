@@ -169,10 +169,10 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     expect(body.notas).toBeNull();
   });
 
-  // LP-04: REGRESIÓN — crear un lote invalida ["productos"] con refetchType
-  // "all" (el stock del producto se recalcula desde los lotes; el POS,
-  // desmontado, debe reflejarlo sin recargar). Mismo patrón que IV-04/CT-04.
-  it("LP-04: REGRESIÓN — crear lote invalida ['productos'] con refetchType 'all'", async () => {
+  // LP-04: REGRESIÓN — crear un lote invalida ["inventario"] y ["productos"] con refetchType
+  // "all" (el stock del producto se recalcula desde los lotes; el inventario y el POS,
+  // desmontado, deben reflejarlo sin recargar). Mismo patrón que IV-04/CT-04.
+  it("LP-04: REGRESIÓN — crear lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -191,9 +191,112 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Crear Lote/i }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
     });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
     // No debe llamarse SIN refetchType: "all" — esa sería la versión bugueada
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
+
+  // LP-05: REGRESIÓN — editar un lote invalida ["inventario"] y ["productos"]
+  // con refetchType "all" (mismo patrón que LP-04, en el mutation handler de
+  // actualizarMutation en vez del de crearMutation).
+  it("LP-05: REGRESIÓN — editar lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    // Setup con un lote existente para poder editar
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (!options?.method || options.method === "GET") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            lotes: [{
+              id: "lote-1",
+              producto_id: "prod-1",
+              numero_lote: "LOTE-001",
+              cantidad_inicial: 10,
+              cantidad_actual: 8,
+              fecha_vencimiento: "2026-12-31T00:00:00.000Z",
+              notas: null,
+              activo: true,
+            }],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ id: "lote-1" }) });
+    });
+
+    render(
+      <QueryClientProvider client={qc}>
+        <LotesPanel productoId="prod-1" storeId="store-1" diasAlerta={30} puedeAgregarLote />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText("LOTE-001")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Editar"));
+    await waitFor(() => expect(screen.getByText("Editar Lote")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+
+    spy.mockRestore();
+  });
+
+  // LP-06: REGRESIÓN — desactivar un lote invalida ["inventario"] y ["productos"]
+  // con refetchType "all" (mismo patrón que LP-04, en el mutation handler de
+  // desactivarMutation).
+  it("LP-06: REGRESIÓN — desactivar lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+
+    // Setup con un lote existente para poder desactivar
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (!options?.method || options.method === "GET") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            lotes: [{
+              id: "lote-1",
+              producto_id: "prod-1",
+              numero_lote: "LOTE-001",
+              cantidad_inicial: 10,
+              cantidad_actual: 8,
+              fecha_vencimiento: "2026-12-31T00:00:00.000Z",
+              notas: null,
+              activo: true,
+            }],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(
+      <QueryClientProvider client={qc}>
+        <LotesPanel productoId="prod-1" storeId="store-1" diasAlerta={30} puedeAgregarLote />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText("LOTE-001")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Desactivar"));
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
 
     spy.mockRestore();

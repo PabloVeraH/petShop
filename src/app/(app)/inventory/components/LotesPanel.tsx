@@ -100,7 +100,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
     mutationFn: crearLote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setShowForm(false);
       setForm(EMPTY_LOTE_FORM);
@@ -114,7 +114,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
       actualizarLote(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       setEditando(null);
       setForm(EMPTY_LOTE_FORM);
@@ -127,7 +127,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
     mutationFn: desactivarLote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
     },
   });

@@ -545,21 +545,22 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
 
-    // Debe invalidar ["inventario"] (para la vista actual) Y ["productos"] con refetchType "all" (para el POS)
+    // Debe invalidar ["inventario"] Y ["productos"] ambos con refetchType "all"
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
     });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    // No debe ser solo ["inventario"] sin ["productos"]
+    // No debe llamarse SIN refetchType: "all" (esa sería la versión bugueada)
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
 
     spy.mockRestore();
   });
 
-  // IV-05: REGRESIÓN — editar un producto invalida ["productos"] con
+  // IV-05: REGRESIÓN — editar un producto invalida ["inventario"] y ["productos"] con
   // refetchType "all" (mismo hueco que IV-04, en el mutation handler de
   // guardar producto en vez del de ajuste de stock).
-  it("IV-05: REGRESIÓN — editar producto invalida ['productos'] con refetchType 'all'", async () => {
+  it("IV-05: REGRESIÓN — editar producto invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -579,17 +580,19 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
     });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
 
     spy.mockRestore();
   });
 
-  // IV-06: REGRESIÓN — desactivar un producto invalida ["productos"] con
+  // IV-06: REGRESIÓN — desactivar un producto invalida ["inventario"] y ["productos"] con
   // refetchType "all" (mismo hueco que IV-04/IV-05, en el mutation handler
   // de desactivar producto).
-  it("IV-06: REGRESIÓN — desactivar producto invalida ['productos'] con refetchType 'all'", async () => {
+  it("IV-06: REGRESIÓN — desactivar producto invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -609,10 +612,134 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Desactivar" }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
     });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
 
     spy.mockRestore();
+  });
+
+  // IV-07: REGRESIÓN — test end-to-end de que la tabla refleja el nuevo stock
+  // tras una entrada de stock, sin recargar la página. Verifica que el refetch
+  // disparado por la invalidación trae el valor actualizado del backend.
+  it("IV-07: REGRESIÓN — la tabla muestra el stock actualizado tras entrada de stock sin recarga", async () => {
+    mockAsAdmin();
+    setupFetch([PRODUCTO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText("Alimento Premium")).toBeInTheDocument();
+    });
+
+    // Verificar stock inicial: 15
+    const stockCells = screen.getAllByRole("cell");
+    const stockCell = stockCells.find((c) => c.textContent === "15");
+    expect(stockCell).toBeInTheDocument();
+
+    // Abrir modal de entrada de stock
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+
+    // Ingresar cantidad 5
+    const cantidadInput = screen.getByRole("spinbutton");
+    fireEvent.change(cantidadInput, { target: { value: "5" } });
+
+    // Mock para la mutación PATCH
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ ...PRODUCTO, stock: 20 }) } as Response)
+    );
+
+    // Mock para el refetch del GET tras invalidación (devuelve stock actualizado)
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([{ ...PRODUCTO, stock: 20 }]),
+      } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
+
+    // Esperar a que el stock en la tabla se actualice a 20
+    await waitFor(() => {
+      const cells = screen.getAllByRole("cell");
+      const updatedStock = cells.find((c) => c.textContent === "20");
+      expect(updatedStock).toBeInTheDocument();
+    });
+
+    // Verificar que el stock viejo 15 ya no aparece
+    const cellsAfter = screen.getAllByRole("cell");
+    expect(cellsAfter.find((c) => c.textContent === "15")).toBeUndefined();
+  });
+
+  // IV-08: REGRESIÓN — test end-to-end de que la tabla refleja el nuevo stock
+  // tras editar un producto, sin recargar la página.
+  it("IV-08: REGRESIÓN — la tabla muestra el stock actualizado tras editar producto sin recarga", async () => {
+    mockAsAdmin();
+    setupFetch([PRODUCTO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    // Verificar stock inicial: 15
+    const stockInitial = screen.getAllByRole("cell").find((c) => c.textContent === "15");
+    expect(stockInitial).toBeInTheDocument();
+
+    // Editar producto
+    fireEvent.click(screen.getByText("Editar"));
+    await waitFor(() => expect(screen.getByText("Editar: Alimento Premium")).toBeInTheDocument());
+
+    // Cambiar el stock en el formulario (el campo Stock inicial)
+    const stockInputs = screen.getAllByPlaceholderText("0");
+    const stockInput = stockInputs.find((i) => i.tagName === "INPUT");
+    expect(stockInput).toBeInTheDocument();
+    fireEvent.change(stockInput!, { target: { value: "30" } });
+
+    // Mocks para PATCH (mutación) y GET (refetch)
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ ...PRODUCTO, stock: 30 }) } as Response)
+    );
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve([{ ...PRODUCTO, stock: 30 }]) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
+
+    await waitFor(() => {
+      const cells = screen.getAllByRole("cell");
+      expect(cells.find((c) => c.textContent === "30")).toBeInTheDocument();
+    });
+
+    // Stock viejo 15 ya no aparece
+    expect(screen.getAllByRole("cell").find((c) => c.textContent === "15")).toBeUndefined();
+  });
+
+  // IV-09: REGRESIÓN — test end-to-end de que la tabla se actualiza tras
+  // desactivar un producto, sin recargar la página.
+  it("IV-09: REGRESIÓN — la tabla ya no muestra el producto tras desactivarlo sin recarga", async () => {
+    mockAsAdmin();
+    setupFetch([PRODUCTO]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Desact."));
+    await waitFor(() => expect(screen.getByText("¿Desactivar producto?")).toBeInTheDocument());
+
+    // Mock para DELETE
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)
+    );
+    // Mock para refetch GET (devuelve array vacío — producto desactivado)
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Desactivar" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Sin productos")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Alimento Premium")).not.toBeInTheDocument();
   });
 });

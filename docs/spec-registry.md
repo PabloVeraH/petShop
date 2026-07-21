@@ -327,9 +327,12 @@ I-406/I-407/I-408.
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
 | IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
-| IV-04 | REGRESIÓN: Ajuste de stock invalida ["productos"] con refetchType "all" (POS muestra stock actualizado sin recargar) | InventoryPage | component |
-| IV-05 | REGRESIÓN: Editar producto invalida ["productos"] con refetchType "all" | InventoryPage | component |
-| IV-06 | REGRESIÓN: Desactivar producto invalida ["productos"] con refetchType "all" | InventoryPage | component |
+| IV-04 | REGRESIÓN: Ajuste de stock invalida ["inventario"] y ["productos"] con refetchType "all" (inventario y POS reflejan stock actualizado sin recargar) | InventoryPage | component |
+| IV-05 | REGRESIÓN: Editar producto invalida ["inventario"] y ["productos"] con refetchType "all" | InventoryPage | component |
+| IV-06 | REGRESIÓN: Desactivar producto invalida ["inventario"] y ["productos"] con refetchType "all" | InventoryPage | component |
+| IV-07 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras entrada de stock sin recarga manual (F5) — test end-to-end de refetch | InventoryPage | component |
+| IV-08 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras editar producto sin recarga manual | InventoryPage | component |
+| IV-09 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras desactivar producto sin recarga manual | InventoryPage | component |
 | FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
@@ -652,7 +655,9 @@ campo Notas del formulario de Agregar/Editar Lote.
 | LP-01 | REGRESIÓN: escribir en Notas no vuelve a robar el foco del ModalOverlay real | LotesPanel | component |
 | LP-02 | REGRESIÓN: el texto completo de Notas se envía en el body del POST /api/lotes, no truncado | LotesPanel | component |
 | LP-03 | Notas vacío se envía como null en el body del POST | LotesPanel | component |
-| LP-04 | REGRESIÓN: crear lote invalida ["productos"] con refetchType "all" (POS refleja stock recalculado desde lotes sin recargar) | LotesPanel | component |
+| LP-04 | REGRESIÓN: crear lote invalida ["inventario"] y ["productos"] con refetchType "all" (inventario y POS reflejan stock recalculado desde lotes sin recargar) | LotesPanel | component |
+| LP-05 | REGRESIÓN: editar lote invalida ["inventario"] y ["productos"] con refetchType "all" | LotesPanel | component |
+| LP-06 | REGRESIÓN: desactivar lote invalida ["inventario"] y ["productos"] con refetchType "all" | LotesPanel | component |
 
 ## ModalOverlay — foco y cierre (MO-01 a MO-06)
 
