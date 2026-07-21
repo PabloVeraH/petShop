@@ -545,7 +545,7 @@
     "semantic_hash": "b177779eee010cdbbab8b3853b9a2b64"
   },
   "src/app/(app)/admin/page.tsx": {
-    "mtime": 1784609294.7441328,
+    "mtime": 1784610606.1992083,
     "ast_hash": "fe5839cb2c683280c4877b3a3dfa7ac7",
     "semantic_hash": ""
   },
@@ -810,7 +810,7 @@
     "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1784609302.558116,
+    "mtime": 1784610606.199399,
     "ast_hash": "476f263739f3db561405de3a1224c870",
     "semantic_hash": ""
   },
@@ -965,7 +965,7 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784608082.9176853,
+    "mtime": 1784610606.1995604,
     "ast_hash": "80494754e593eea9219f0140fce94d1d",
     "semantic_hash": ""
   },
@@ -1220,7 +1220,7 @@
     "semantic_hash": "502a69dc1d21c2267305082c769c0b96"
   },
   "src/app/api/reports/route.ts": {
-    "mtime": 1784608711.872554,
+    "mtime": 1784610606.1996837,
     "ast_hash": "450d70c1d613e7f49a173c746fde297b",
     "semantic_hash": ""
   },
@@ -1410,9 +1410,9 @@
     "semantic_hash": "77a10bd948ca424972a28e704a3df604"
   },
   "src/components/ui/dialog.tsx": {
-    "mtime": 1774727851.6658435,
-    "ast_hash": "d9618a63d34473ec512321cc12d43692",
-    "semantic_hash": "d9618a63d34473ec512321cc12d43692"
+    "mtime": 1784650711.3414328,
+    "ast_hash": "83541c87d923075dc52990f9273be789",
+    "semantic_hash": ""
   },
   "src/components/ui/input.tsx": {
     "mtime": 1774727851.438844,
@@ -2045,7 +2045,7 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784608287.2182667,
+    "mtime": 1784610606.2000465,
     "ast_hash": "1fd51e841e2d4db8c2bf3c52476cfb3b",
     "semantic_hash": ""
   },
@@ -2215,7 +2215,7 @@
     "semantic_hash": "f4c65cce0fd5c373f2b645a7fcb79128"
   },
   "tests/integration/api/reports.test.ts": {
-    "mtime": 1784608838.6641083,
+    "mtime": 1784610606.2001467,
     "ast_hash": "f99ba1c64a53ceacd5ea2e081c5d44f5",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784609341.5730326,
-    "ast_hash": "f93541d863fdbaf7213b84402357cf91",
+    "mtime": 1784650731.4064054,
+    "ast_hash": "9ac60c364909b9eaa56578a8adea0d31",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3950,13 +3950,18 @@
     "semantic_hash": ""
   },
   "src/components/admin/ClerkDevWarning.tsx": {
-    "mtime": 1784609276.1621726,
+    "mtime": 1784610606.1997588,
     "ast_hash": "f63516c438e2015501a3e8f4953ed46d",
     "semantic_hash": ""
   },
   "tests/components/ClerkDevWarning.test.tsx": {
-    "mtime": 1784609308.247104,
+    "mtime": 1784610606.1998243,
     "ast_hash": "8fe9fa85327c8da081cd2da233266d97",
+    "semantic_hash": ""
+  },
+  "tests/components/dialog.test.tsx": {
+    "mtime": 1784650805.0423052,
+    "ast_hash": "dbbefd6d671467824ea286f6374f24e7",
     "semantic_hash": ""
   }
 }
