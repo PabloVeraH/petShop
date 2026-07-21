@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generarHtmlBalancePrueba } from "@/lib/contabilidad/html-balance-prueba";
+import { getCuentaTipo } from "@/lib/contabilidad/types";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     const cuentaMap: Record<string, { codigo: string; nombre: string; tipo: string; debitos: number; creditos: number }> = {};
     for (const d of detalles ?? []) {
       if (!cuentaMap[d.cuenta_codigo]) {
-        cuentaMap[d.cuenta_codigo] = { codigo: d.cuenta_codigo, nombre: d.cuenta_nombre, tipo: d.cuenta_tipo ?? "", debitos: 0, creditos: 0 };
+        cuentaMap[d.cuenta_codigo] = { codigo: d.cuenta_codigo, nombre: d.cuenta_nombre, tipo: getCuentaTipo(d.cuenta_codigo, d.cuenta_tipo ?? ""), debitos: 0, creditos: 0 };
       }
       cuentaMap[d.cuenta_codigo].debitos += Number(d.debito ?? 0);
       cuentaMap[d.cuenta_codigo].creditos += Number(d.credito ?? 0);

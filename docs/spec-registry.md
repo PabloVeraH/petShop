@@ -144,6 +144,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-422 | REGRESIÓN: OC con subtotal=0 reporta "precio no definido" en detalle_errores (antes solo mostraba el código de OC sin motivo) | POST /api/contabilidad/backfill | integration |
 | I-423 | REGRESIÓN: OC con subtotal válido pero crearAsiento falla reporta "error al crear asiento contable" (antes solo mostraba el código de OC) | POST /api/contabilidad/backfill | integration |
 | I-424 | REGRESIÓN: la consulta de órdenes de compra para backfill excluye estado='cancelada' (una OC cancelada nunca fue recibida, subtotal/total quedan NULL para siempre — sin este filtro se reportaba como error "precio no definido" en vez de omitirse) | POST /api/contabilidad/backfill | integration |
+| I-429 | REGRESIÓN (ticket Trello 6a5e9486a242880262f9556f): Balance de Comprobación resuelve tipo SALDOS_FAVOR desde CUENTAS (PASIVO) aunque journal_detail tenga ACTIVO almacenado — cubre reclasificación retroactiva | GET /api/contabilidad/balance-prueba | integration |
+| I-430 | Balance de Comprobación retorna 401 si no autenticado | GET /api/contabilidad/balance-prueba | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
@@ -480,6 +482,9 @@ I-406/I-407/I-408.
 | U-127 | isClerkDevKey / checkClerkEnv — detecta claves dev de Clerk (pk_test_/sk_test_) y advierte en producción | lib/clerk-env | unit |
 | U-127l | REGRESIÓN: isClerkDevKey también detecta el formato legacy "test_" (sin pk_/sk_) que @clerk/shared todavía reconoce | lib/clerk-env | unit |
 | U-127m | isClerkDevKey NO detecta "live_" (formato legacy) como desarrollo | lib/clerk-env | unit |
+| U-128 | REGRESIÓN (ticket Trello 6a5e9486a242880262f9556f): SALDOS_FAVOR es PASIVO, no ACTIVO — el saldo es una obligación con clientes (notas de crédito pendientes), no un recurso | lib/contabilidad | unit |
+| U-129 | getCuentaTipo resuelve tipo desde CUENTAS por código (110502→PASIVO, 110101→ACTIVO, etc.) | lib/contabilidad | unit |
+| U-130 | getCuentaTipo usa fallback cuando el código no está en CUENTAS | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

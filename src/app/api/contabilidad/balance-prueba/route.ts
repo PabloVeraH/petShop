@@ -1,6 +1,7 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { getCuentaTipo } from "@/lib/contabilidad/types";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
       cuentaMap[d.cuenta_codigo] = {
         codigo: d.cuenta_codigo,
         nombre: d.cuenta_nombre,
-        tipo: d.cuenta_tipo ?? "",
+        tipo: getCuentaTipo(d.cuenta_codigo, d.cuenta_tipo ?? ""),
         debitos: 0,
         creditos: 0,
       };

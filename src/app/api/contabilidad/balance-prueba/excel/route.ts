@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generarExcelBalance } from "@/lib/contabilidad/excel-generator";
+import { getCuentaTipo } from "@/lib/contabilidad/types";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
   const cuentaMap: Record<string, { nombre: string; tipo: string; debitos: number; creditos: number }> = {};
   for (const r of rows) {
     if (!cuentaMap[r.cuenta_codigo]) {
-      cuentaMap[r.cuenta_codigo] = { nombre: r.cuenta_nombre, tipo: r.cuenta_tipo ?? "", debitos: 0, creditos: 0 };
+      cuentaMap[r.cuenta_codigo] = { nombre: r.cuenta_nombre, tipo: getCuentaTipo(r.cuenta_codigo, r.cuenta_tipo ?? ""), debitos: 0, creditos: 0 };
     }
     cuentaMap[r.cuenta_codigo].debitos += Number(r.debito);
     cuentaMap[r.cuenta_codigo].creditos += Number(r.credito);

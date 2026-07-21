@@ -381,6 +381,16 @@ describe("CUENTAS - Plan de Cuentas", () => {
       expect(tiposValidos).toContain(cuenta.tipo);
     });
   });
+
+  // U-128: REGRESIÓN — Saldos a Favor Clientes es PASIVO (antes ACTIVO).
+  // Representa una obligación de la tienda hacia los clientes (notas de crédito
+  // pendientes de usar), no un recurso. Su saldo neto es típicamente negativo
+  // (más créditos que débitos), que en ACTIVO es confuso en reportes.
+  // Ver ticket Trello 6a5e9486a242880262f9556f.
+  it("U-128: SALDOS_FAVOR es PASIVO, no ACTIVO", () => {
+    expect(CUENTAS.SALDOS_FAVOR.tipo).toBe("PASIVO");
+    expect(CUENTAS.SALDOS_FAVOR.tipo).not.toBe("ACTIVO");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -75,7 +75,7 @@ export interface CrearAsientoInput {
 export const CUENTAS = {
   CAJA: { codigo: '110101', nombre: 'Caja Operacional', tipo: 'ACTIVO' as TipoCuenta },
   BANCO: { codigo: '110201', nombre: 'Banco Operacional', tipo: 'ACTIVO' as TipoCuenta },
-  SALDOS_FAVOR: { codigo: '110502', nombre: 'Saldos a Favor Clientes', tipo: 'ACTIVO' as TipoCuenta },
+  SALDOS_FAVOR: { codigo: '110502', nombre: 'Saldos a Favor Clientes', tipo: 'PASIVO' as TipoCuenta },
   // IVA crédito fiscal (activo): se recupera en compras (Dr al comprar)
   IVA_CREDITO_FISCAL: { codigo: '110601', nombre: 'IVA Crédito Fiscal', tipo: 'ACTIVO' as TipoCuenta },
   INVENTARIO: { codigo: '111001', nombre: 'Inventario de Productos', tipo: 'ACTIVO' as TipoCuenta },
@@ -92,3 +92,12 @@ export const CUENTAS = {
   // Devoluciones por canal externo
   DEVOLUCIONES_CANAL: { codigo: '510201', nombre: 'Devoluciones Canal Externo', tipo: 'GASTO' as TipoCuenta },
 } as const;
+
+// Lookup helper: retorna el tipo contable desde CUENTAS por código.
+// Si el código no está en CUENTAS, usa fallback (típicamente el valor almacenado en journal_detail).
+// Útil en reportes para que cuentas existentes reflejen la clasificación actual aunque
+// journal_detail.cuenta_tipo esté desactualizado.
+export function getCuentaTipo(codigo: string, fallback: string = ""): string {
+  const entry = Object.values(CUENTAS).find((c) => c.codigo === codigo);
+  return entry?.tipo ?? fallback;
+}
