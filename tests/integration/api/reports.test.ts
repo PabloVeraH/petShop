@@ -1,5 +1,5 @@
 /**
- * Tests I-79 a I-83: GET /api/reports y /api/reports/export
+ * Tests I-79 a I-83, I-433 a I-435: GET /api/reports y /api/reports/export
  */
 import { NextRequest } from "next/server";
 
@@ -59,6 +59,103 @@ describe("GET /api/reports", () => {
     const { GET } = await import("@/app/api/reports/route");
     const res = await GET(new NextRequest("http://localhost/api/reports"));
     expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /api/reports — predicción (I-433 a I-435)", () => {
+  function daysAgo(n: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString();
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  });
+
+  function setupVentas(ventasRows: Array<{ created_at: string; total: number; id: string }>) {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ventas") return chain(ventasRows);
+      return chain([]);
+    });
+  }
+
+  // I-433 — REGRESIÓN (ticket Trello 6a5e96c9b7ce6c36cc926e1b):
+  // Con 30 días de datos y ventas solo en 5 de esos días, la predicción
+  // debe usar el promedio diario del período COMPLETO (incluye días sin
+  // ventas). Antes del fix, Object.entries(ventasPorDia) devolvía solo días
+  // con ventas, slice(-7) tomaba los últimos 7 días CON venta, y ese promedio
+  // inflado se proyectaba a 7 días — sobreestimación ~3-6x.
+  it("I-433: REGRESIÓN — 30 días con ventas solo en 5 días usa promedio del período completo (incluye días sin venta)", async () => {
+    const ventas = [
+      { created_at: daysAgo(25), total: 10000, id: "v1" },
+      { created_at: daysAgo(25), total: 10000, id: "v2" },
+      { created_at: daysAgo(18), total: 10000, id: "v3" },
+      { created_at: daysAgo(18), total: 10000, id: "v4" },
+      { created_at: daysAgo(11), total: 10000, id: "v5" },
+      { created_at: daysAgo(11), total: 10000, id: "v6" },
+      { created_at: daysAgo(4), total: 10000, id: "v7" },
+      { created_at: daysAgo(4), total: 10000, id: "v8" },
+      { created_at: daysAgo(2), total: 10000, id: "v9" },
+      { created_at: daysAgo(2), total: 10000, id: "v10" },
+    ];
+    setupVentas(ventas);
+
+    const { GET } = await import("@/app/api/reports/route");
+    const res = await GET(new NextRequest("http://localhost/api/reports?periodo=30"));
+    const body: Record<string, unknown> = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.totalPeriodo).toBe(100000);
+    expect(body.totalTransacciones).toBe(10);
+    // promedio = 100000/30 ≈ 3333.33 → Math.round = 3333
+    expect(body.promedioDiario).toBe(3333);
+    // prediccion = round(100000/30 * 7) = round(23333.33) = 23333
+    expect(body.prediccion7dias).toBe(23333);
+  });
+
+  // I-434 — caso normal: ventas en todos los 7 días del período de 7 días,
+  // con suficientes transacciones (≥10) para activar la predicción.
+  // La empresa vende 2 veces al día: 14 transacciones en 7 días.
+  it("I-434: 7 días con ventas en todos los días y ≥10 transacciones, predicción muestra valor correcto", async () => {
+    const ventas = [6,5,4,3,2,1,0].flatMap(n =>
+      Array.from({ length: 2 }, (_, i) => ({
+        created_at: daysAgo(n),
+        total: 10000,
+        id: `v-${n}-${i}`,
+      }))
+    );
+    setupVentas(ventas);
+
+    const { GET } = await import("@/app/api/reports/route");
+    const res = await GET(new NextRequest("http://localhost/api/reports?periodo=7"));
+    const body: Record<string, unknown> = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.totalPeriodo).toBe(140000);
+    expect(body.totalTransacciones).toBe(14);
+    // promedio = 140000 / 7 = 20000 por día (2 ventas de $10k cada una)
+    expect(body.promedioDiario).toBe(20000);
+    expect(body.prediccion7dias).toBe(140000);
+  });
+
+  // I-435 — umbral mínimo de transacciones
+  it("I-435: menos de 10 transacciones → prediccion7dias es null", async () => {
+    const ventas = [20,18,16,14,12].map(n => ({
+      created_at: daysAgo(n),
+      total: 10000,
+      id: `v-${n}`,
+    }));
+    setupVentas(ventas);
+
+    const { GET } = await import("@/app/api/reports/route");
+    const res = await GET(new NextRequest("http://localhost/api/reports?periodo=30"));
+    const body: Record<string, unknown> = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.totalTransacciones).toBe(5);
+    expect(body.prediccion7dias).toBeNull();
   });
 });
 

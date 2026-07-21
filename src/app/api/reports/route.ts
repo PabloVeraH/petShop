@@ -96,21 +96,19 @@ export async function GET(req: NextRequest) {
     procedencias[p].transacciones += 1;
   }
 
-  // Predicción demanda: promedio diario de los últimos 7 días
-  // Requiere mínimo 10 transacciones para evitar proyecciones engañosas con pocos datos
+  const totalPeriodo = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0);
+  const totalTransacciones = ventas?.length ?? 0;
+
+  // Predicción: promedio diario REAL del período (incluye días sin ventas).
+  // Luego proyecta ese promedio a 7 días. Requiere mínimo 10 transacciones.
+  // Fix 6a5e96c9: antes promediaba solo sobre días CON ventas (Object.entries(ventasPorDia)),
+  // inflando la proyección ~3.8x cuando las ventas eran esporádicas.
   const MIN_VENTAS_PREDICCION = 10;
-  const totalVentasCount = ventas?.length ?? 0;
-  const ultimos7 = Object.entries(ventasPorDia)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-7)
-    .map(([, v]) => v.total);
-  const promedioDiario = ultimos7.length ? ultimos7.reduce((s, v) => s + v, 0) / ultimos7.length : 0;
+  const totalVentasCount = totalTransacciones;
+  const promedioDiario = totalPeriodo / periodo;
   const prediccion7dias: number | null = totalVentasCount >= MIN_VENTAS_PREDICCION
     ? Math.round(promedioDiario * 7)
     : null;
-
-  const totalPeriodo = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0);
-  const totalTransacciones = ventas?.length ?? 0;
 
   // Vencimientos
   const hoy = new Date().toISOString().split("T")[0];

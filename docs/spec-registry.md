@@ -147,6 +147,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-429 | REGRESIÓN (ticket Trello 6a5e9486a242880262f9556f): Balance de Comprobación resuelve tipo SALDOS_FAVOR desde CUENTAS (PASIVO) aunque journal_detail tenga ACTIVO almacenado — cubre reclasificación retroactiva | GET /api/contabilidad/balance-prueba | integration |
 | I-430 | Balance de Comprobación retorna 401 si no autenticado | GET /api/contabilidad/balance-prueba | integration |
 | I-432 | REGRESIÓN (ticket Trello 6a5e9533c7978fcb117449d7): Backfill solo procesa OC 'recibida' — pendiente/enviada sin precio no generan error 'precio no definido' (ruido/falsa alarma) | POST /api/contabilidad/backfill | integration |
+| I-433 | REGRESIÓN (ticket Trello 6a5e96c9b7ce6c36cc926e1b): Predicción 7 días usa promedio del período COMPLETO (incluye días sin ventas), no solo días CON ventas — ventas esporádicas inflaban la proyección ~3-6x | GET /api/reports | integration |
+| I-434 | Predicción 7 días con ventas en todos los días del período calcula correctamente (regresión: caso normal no se rompe) | GET /api/reports | integration |
+| I-435 | Predicción retorna null cuando hay menos de 10 transacciones (umbral mínimo) | GET /api/reports | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
