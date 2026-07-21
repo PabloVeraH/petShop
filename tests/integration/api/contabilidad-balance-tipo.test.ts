@@ -116,7 +116,8 @@ describe("GET /api/contabilidad/balance-prueba — tipo resolution", () => {
     expect(body.cuentas[0].tipo).toBe("INGRESO");
   });
 
-  it("usuario no autenticado retorna 401", async () => {
+  // I-430
+  it("I-430: usuario no autenticado retorna 401", async () => {
     (authModule.getStoreId as jest.Mock).mockResolvedValue(null);
 
     const req = new NextRequest("http://localhost/api/contabilidad/balance-prueba?fecha=2026-04-30");
