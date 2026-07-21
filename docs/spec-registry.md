@@ -814,6 +814,13 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 | C-REC-10 | REGRESIÓN: muestra 'Buscando sugerencias' inmediatamente al seleccionar cliente, antes del debounce de 800ms — evita layout shift que empuja el botón "Cobrar" en pos/page.tsx | RecomendacionesIA | component |
 | C-REC-11 | REGRESIÓN: sin recomendaciones tras cargar → muestra mensaje neutral en vez de desmontarse (evita el salto inverso del layout) | RecomendacionesIA | component |
 
+## DialogContent — scroll en viewports pequeños (DLG-01 a DLG-02)
+
+| ID     | Descripción                                              | Componente       | Tipo      |
+|--------|----------------------------------------------------------|------------------|-----------|
+| DLG-01 | DialogContent lleva clase `overflow-y-auto`              | `dialog.tsx`     | component |
+| DLG-02 | DialogContent lleva clase `max-h-[85vh]`                 | `dialog.tsx`     | component |
+
 ## Convención de IDs
 
 - `I-NNN` — test de integración de ruta API
