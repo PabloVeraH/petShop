@@ -450,6 +450,8 @@ I-406/I-407/I-408.
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
 | I-111 | PATCH mark-pagada → genera asiento contable de pago (crearAsiento + lineasPagoProveedor) | PATCH /api/cuentas-pagar | integration |
 | I-112 | PATCH con estado=pendiente (sin pagar) → NO genera asiento contable | PATCH /api/cuentas-pagar | integration |
+| I-439 | REGRESIÓN (ticket Trello 6a5f9ad3fbf979e68251d40e): PATCH sobre cuenta ya pagada → 409 'La cuenta ya está pagada', sin UPDATE ni asiento PAGO_PROVEEDOR duplicado (antes acreditaba Caja/Banco dos veces por la misma deuda) | PATCH /api/cuentas-pagar | integration |
+| I-440 | Pago concurrente: reclamo atómico .neq("estado","pagada") deja el UPDATE en 0 filas → 409 sin asiento (carrera pre-fetch/UPDATE cerrada) | PATCH /api/cuentas-pagar | integration |
 | I-293 | GET /api/ventas retorna 401 sin auth | GET /api/ventas | integration |
 | I-294 | GET /api/ventas retorna ventas paginadas con count | GET /api/ventas | integration |
 | I-295 | GET /api/ventas filtra por metodo_pago y estado | GET /api/ventas | integration |

@@ -217,10 +217,11 @@ function cuentasPagarChain(cuentaData: any) {
     select: jest.fn(),
     update: jest.fn(),
     eq: jest.fn(),
+    neq: jest.fn(),
     order: jest.fn(),
     single: mockSingle,
   };
-  ["select", "update", "eq", "order"].forEach(k => c[k].mockReturnValue(c));
+  ["select", "update", "eq", "neq", "order"].forEach(k => c[k].mockReturnValue(c));
   if (cuentaData) {
     mockSingle.mockResolvedValue({ data: cuentaData, error: null });
   }

@@ -54,17 +54,36 @@ export async function PATCH(req: NextRequest) {
     .eq("store_id", store_id)
     .single();
 
+  // Guard de doble pago (ticket Trello 6a5f9ad3fbf979e68251d40e): una cuenta
+  // ya pagada es inmutable por este endpoint. Sin este chequeo, un segundo
+  // PATCH (doble clic, reintento de red, segunda pestaña) volvía a crear el
+  // asiento PAGO_PROVEEDOR y acreditaba Caja|Banco DOS veces por la misma
+  // deuda — el balance seguía cuadrado pero la cuenta de activo quedaba
+  // artificialmente castigada (puede llegar a saldo negativo).
+  if (cuentaAnterior?.estado === "pagada") {
+    return NextResponse.json({ error: "La cuenta ya está pagada" }, { status: 409 });
+  }
+
   const updateData: Record<string, string> = { estado };
   if (metodo_pago) updateData.metodo_pago = metodo_pago;
 
+  // Reclamo atómico: el .neq("estado", "pagada") cierra la carrera entre el
+  // pre-fetch de arriba y este UPDATE — si otra request pagó la cuenta en
+  // medio, este UPDATE afecta 0 filas y se mapea a 409 abajo.
   const { data, error } = await supabase
     .from("cuentas_pagar")
     .update(updateData)
     .eq("id", id)
     .eq("store_id", store_id)
+    .neq("estado", "pagada")
     .select()
     .single();
   if (error) {
+    // 0 filas por el reclamo atómico: la cuenta existía (pre-fetch OK) pero
+    // otra request la pagó primero — mismo resultado que el guard de arriba.
+    if (error.code === "PGRST116" && cuentaAnterior) {
+      return NextResponse.json({ error: "La cuenta ya está pagada" }, { status: 409 });
+    }
     const { ipAddress, userAgent } = getRequestMetadata(req);
     console.error("[cuentas-pagar] Error en PATCH:", error.message, { id, store_id, updateData });
     logAudit({

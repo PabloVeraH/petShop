@@ -1,5 +1,5 @@
 /**
- * Tests I-84 a I-86: PATCH /api/cuentas-pagar
+ * Tests I-84 a I-90, I-107 a I-113, I-439, I-440: PATCH/GET /api/cuentas-pagar
  */
 import { NextRequest } from "next/server";
 
@@ -24,10 +24,11 @@ function chain() {
     select: jest.fn(),
     update: jest.fn(),
     eq: jest.fn(),
+    neq: jest.fn(),
     order: jest.fn(),
     single: mockSingle,
   };
-  ["select","update","eq","order"].forEach(k => c[k].mockReturnValue(c));
+  ["select","update","eq","neq","order"].forEach(k => c[k].mockReturnValue(c));
   return c;
 }
 
@@ -69,10 +70,12 @@ describe("PATCH /api/cuentas-pagar", () => {
 
   // I-86
   it("I-86: estado válido actualizado → 200", async () => {
-    mockSingle.mockResolvedValue({
-      data: { id: CUENTA_ID, estado: "pagada", store_id: STORE_ID },
-      error: null,
-    });
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: CUENTA_ID, estado: "pendiente" }, error: null })
+      .mockResolvedValue({
+        data: { id: CUENTA_ID, estado: "pagada", store_id: STORE_ID },
+        error: null,
+      });
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
     const res = await PATCH(req("PATCH", { estado: "pagada" }));
     expect(res.status).toBe(200);
@@ -175,15 +178,21 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
 
   // I-90
   it("I-90: PATCH mark-pagada → 200 + estado actualizado", async () => {
-    mockSingle.mockResolvedValue({
-      data: { id: CUENTA_ID, estado: "pagada", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
-      error: null,
-    });
+    mockSingle
+      // primer .single(): pre-fetch de la cuenta (estado previo pendiente)
+      .mockResolvedValueOnce({ data: { id: CUENTA_ID, estado: "pendiente" }, error: null })
+      // segundo .single(): resultado del UPDATE
+      .mockResolvedValue({
+        data: { id: CUENTA_ID, estado: "pagada", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+        error: null,
+      });
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
     const res = await PATCH(markPagadaReq({ estado: "pagada" }));
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.estado).toBe("pagada");
+    // Reclamo atómico contra doble pago (I-439): el UPDATE exige estado != pagada
+    expect(mockFrom().neq).toHaveBeenCalledWith("estado", "pagada");
   });
 
   // I-107
@@ -195,10 +204,12 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
 
   // I-108
   it("I-108: PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB", async () => {
-    mockSingle.mockResolvedValue({
-      data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
-      error: null,
-    });
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: CUENTA_ID, estado: "pendiente" }, error: null })
+      .mockResolvedValue({
+        data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+        error: null,
+      });
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
     const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
     expect(res.status).toBe(200);
@@ -211,10 +222,12 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
 
   // I-111
   it("I-111: PATCH mark-pagada → genera asiento contable de pago (crearAsiento + lineasPagoProveedor)", async () => {
-    mockSingle.mockResolvedValue({
-      data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
-      error: null,
-    });
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: CUENTA_ID, estado: "pendiente" }, error: null })
+      .mockResolvedValue({
+        data: { id: CUENTA_ID, estado: "pagada", metodo_pago: "efectivo", monto: 3800, store_id: STORE_ID, updated_at: "2026-04-24T12:00:00Z" },
+        error: null,
+      });
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
     const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
     expect(res.status).toBe(200);
@@ -268,5 +281,42 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
       expect.objectContaining({ id: CUENTA_ID })
     );
     consoleSpy.mockRestore();
+  });
+
+  // I-439 — REGRESIÓN (ticket Trello 6a5f9ad3fbf979e68251d40e): re-pagar una
+  // cuenta ya pagada duplicaba el asiento PAGO_PROVEEDOR y acreditaba
+  // Caja|Banco dos veces por la misma deuda (balance cuadrado pero activo
+  // artificialmente castigado — posible saldo negativo). Ahora → 409, sin
+  // UPDATE ni asiento.
+  it("I-439: PATCH sobre cuenta ya pagada → 409, sin UPDATE ni asiento duplicado", async () => {
+    mockSingle.mockResolvedValue({ data: { id: CUENTA_ID, estado: "pagada" }, error: null });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("ya está pagada");
+    expect(mockFrom().update).not.toHaveBeenCalled();
+
+    await flushMicrotasks();
+    expect(contabilidad.crearAsiento).not.toHaveBeenCalled();
+  });
+
+  // I-440 — variante concurrente de I-439: la cuenta estaba pendiente en el
+  // pre-fetch pero otra request la pagó primero; el reclamo atómico
+  // (.neq("estado","pagada")) hace que el UPDATE afecte 0 filas → 409.
+  it("I-440: pago concurrente (UPDATE 0 filas por reclamo atómico) → 409, sin asiento", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: CUENTA_ID, estado: "pendiente" }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: "PGRST116", message: "0 rows" } });
+    const { PATCH } = await import("@/app/api/cuentas-pagar/route");
+    const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("ya está pagada");
+
+    await flushMicrotasks();
+    expect(contabilidad.crearAsiento).not.toHaveBeenCalled();
   });
 });
