@@ -705,7 +705,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/inventory/components/LotesPanel.tsx": {
-    "mtime": 1784597811.0588727,
+    "mtime": 1784607911.9700475,
     "ast_hash": "d7397cea2df527e239177421f1eba254",
     "semantic_hash": ""
   },
@@ -720,7 +720,7 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1784606190.4461715,
+    "mtime": 1784607911.9702644,
     "ast_hash": "de80bbadd581ec3b726dbf374723983c",
     "semantic_hash": ""
   },
@@ -780,7 +780,7 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784585000.8032136,
+    "mtime": 1784607911.9703698,
     "ast_hash": "8113c7c3044dfc25fe8570eeea7da7d0",
     "semantic_hash": ""
   },
@@ -800,7 +800,7 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1784584996.5832164,
+    "mtime": 1784607911.9705095,
     "ast_hash": "c7a8aa3bd9724eb8dae92acb9bb614b5",
     "semantic_hash": ""
   },
@@ -815,7 +815,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
-    "mtime": 1784585264.1440349,
+    "mtime": 1784607911.9707432,
     "ast_hash": "df7c43dc33b230cb392e8eaf09e5eb79",
     "semantic_hash": ""
   },
@@ -965,22 +965,22 @@
     "semantic_hash": "172c53ee944273d21889117bd571d1eb"
   },
   "src/app/api/contabilidad/backfill/route.ts": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "01d08917041d12ff93e0fd3f68efacbf",
+    "mtime": 1784608082.9176853,
+    "ast_hash": "80494754e593eea9219f0140fce94d1d",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/excel/route.ts": {
-    "mtime": 1784604413.210766,
+    "mtime": 1784607911.9708128,
     "ast_hash": "49d2a61d24487d95eeaa2d335d439bc7",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/pdf/route.ts": {
-    "mtime": 1784604420.3906999,
+    "mtime": 1784607911.9708614,
     "ast_hash": "95ca85bf30356fffe283a9cb86ade818",
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/balance-prueba/route.ts": {
-    "mtime": 1784604405.3438387,
+    "mtime": 1784607911.9709046,
     "ast_hash": "21340fdbb348ad513d17cc9021210043",
     "semantic_hash": ""
   },
@@ -1390,7 +1390,7 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1784584983.0942254,
+    "mtime": 1784607911.9709914,
     "ast_hash": "8c15122b950a0b521ed341b1965c72a2",
     "semantic_hash": ""
   },
@@ -1600,7 +1600,7 @@
     "semantic_hash": "e8a6ea1d3f16aa4554c4ff094ed954c7"
   },
   "src/lib/contabilidad/types.ts": {
-    "mtime": 1784604398.0059066,
+    "mtime": 1784607911.971045,
     "ast_hash": "c6437a3a4fc0e25f050740172678bfa5",
     "semantic_hash": ""
   },
@@ -1805,7 +1805,7 @@
     "semantic_hash": "d62cd2741bce327ab173ae85866df6a9"
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1784585036.730189,
+    "mtime": 1784607911.9711263,
     "ast_hash": "b9ceb2e37a619976316d4ccb3280a1fe",
     "semantic_hash": ""
   },
@@ -1815,12 +1815,12 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1784597904.2456272,
+    "mtime": 1784607911.9712412,
     "ast_hash": "5b0f8774a4503fac006bf34e321e65f0",
     "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
-    "mtime": 1784597856.4317117,
+    "mtime": 1784607911.9713109,
     "ast_hash": "a59f2ee22776fd719a88acf296ba05cd",
     "semantic_hash": ""
   },
@@ -1855,7 +1855,7 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1784600192.3864944,
+    "mtime": 1784607911.9713733,
     "ast_hash": "9d3b8bceb48e65e05450150faa9705af",
     "semantic_hash": ""
   },
@@ -1885,7 +1885,7 @@
     "semantic_hash": "55d0dbeb61e4446be82d401334851344"
   },
   "tests/components/SalesTicketPage.test.tsx": {
-    "mtime": 1784585043.064185,
+    "mtime": 1784607911.971453,
     "ast_hash": "4f3e63c38697a5355771e71e1c3869a1",
     "semantic_hash": ""
   },
@@ -1895,7 +1895,7 @@
     "semantic_hash": "d1440c82327969038be79575897025bb"
   },
   "tests/components/SuppliersPage.test.tsx": {
-    "mtime": 1784585053.105178,
+    "mtime": 1784607911.9715512,
     "ast_hash": "7c6f1191e898cfca2d4e14d68d243806",
     "semantic_hash": ""
   },
@@ -2045,8 +2045,8 @@
     "semantic_hash": "837dd34772c3568d21c8e046ad2fcd81"
   },
   "tests/integration/api/contabilidad-backfill.test.ts": {
-    "mtime": 1784497064.437037,
-    "ast_hash": "83510293a3e6ece60ffda55cc3c919dc",
+    "mtime": 1784608287.2182667,
+    "ast_hash": "1fd51e841e2d4db8c2bf3c52476cfb3b",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-pdf.test.ts": {
@@ -2135,7 +2135,7 @@
     "semantic_hash": "019e3457d428955f462829540b83f445"
   },
   "tests/integration/api/inventario.patch.test.ts": {
-    "mtime": 1784606837.945541,
+    "mtime": 1784607911.9716625,
     "ast_hash": "b49019194c5b8028eebefc9532021353",
     "semantic_hash": ""
   },
@@ -2375,7 +2375,7 @@
     "semantic_hash": "70793c320b6d3f66238871224c9aa544"
   },
   "tests/unit/lib/contabilidad-generador.test.ts": {
-    "mtime": 1784604440.8705108,
+    "mtime": 1784607911.9717424,
     "ast_hash": "cc00da93cc0a6f82d663bb1071aab3ce",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784606829.5295906,
-    "ast_hash": "cee7fa8e9adf739cbd5750af437c2c1d",
+    "mtime": 1784608291.5323,
+    "ast_hash": "4099b4e85acb9714f7ac4148f7ccce22",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3940,12 +3940,12 @@
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-balance-tipo.test.ts": {
-    "mtime": 1784607427.9714408,
+    "mtime": 1784607911.9716125,
     "ast_hash": "7596d4ddcdcc41cff8c12b8e0d384909",
     "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-tipos.test.ts": {
-    "mtime": 1784604446.2253325,
+    "mtime": 1784607911.9717824,
     "ast_hash": "6aaf33f24277dcf6082c2e264658c9f1",
     "semantic_hash": ""
   }

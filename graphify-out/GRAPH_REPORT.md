@@ -1,16 +1,16 @@
-# Graph Report - app  (2026-07-20)
+# Graph Report - app  (2026-07-21)
 
 ## Corpus Check
-- 486 files · ~323,342 words
+- 486 files · ~323,676 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2901 nodes · 5020 edges · 313 communities (207 shown, 106 thin omitted)
+- 2901 nodes · 5020 edges · 313 communities (206 shown, 107 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `19af394f`
+- Built from commit: `d2f599fc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -332,15 +332,15 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (313 total, 106 thin omitted)
+## Communities (313 total, 107 thin omitted)
 
 ### Community 0 - "Post Management API"
 Cohesion: 0.11
 Nodes (22): Categoria, CategoriasTab(), AjusteModal, Categoria, EMPTY_FORM, formatShortDate(), getCategorias(), getInventario() (+14 more)
 
 ### Community 1 - "User Authentication Management"
-Cohesion: 0.07
-Nodes (51): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+43 more)
+Cohesion: 0.06
+Nodes (52): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+44 more)
 
 ### Community 2 - "POS Metadata and Audit"
 Cohesion: 0.09
@@ -583,8 +583,8 @@ Cohesion: 0.07
 Nodes (27): @base-ui/react, class-variance-authority, @clerk/localizations, @clerk/nextjs, clsx, date-fns, leaflet, dependencies (+19 more)
 
 ### Community 63 - "Auto-Commit Scripts"
-Cohesion: 0.18
-Nodes (8): react, react, CANALES_INFO, CanalInfo, fetchCalls, mockFetch, mockPush, renderPage()
+Cohesion: 0.17
+Nodes (9): react, react, fetchCalls, mockFetch, mockPush, renderPage(), makeWrapper(), mockUseAuth (+1 more)
 
 ### Community 65 - "petShop — Sistema de Control de Vencimientos"
 Cohesion: 0.05
@@ -786,10 +786,6 @@ Nodes (4): config, moduleNameMapper, testPathIgnorePatterns, transform
 Cohesion: 0.60
 Nodes (5): AmmaPet Presentation (Teal), PedidosYa Logo, Rappi Logo, UberEats Logo, AmmaPet Presentation (Modern)
 
-### Community 130 - "Order Creation Dialog"
-Cohesion: 0.40
-Nodes (3): makeWrapper(), mockUseAuth, renderPage()
-
 ### Community 131 - "SettingsPage.test.tsx"
 Cohesion: 0.40
 Nodes (5): 2. BACKEND — APIs Hub, Catálogo Sync ✅, Liquidaciones CRUD ✅, Webhook ✅, Órdenes CRUD ✅
@@ -831,8 +827,8 @@ Cohesion: 0.33
 Nodes (4): mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore
 
 ### Community 151 - "Decisiones de Diseño"
-Cohesion: 0.07
-Nodes (19): GET(), GET(), GET(), GET(), GET(), GET(), GET(), POST() (+11 more)
+Cohesion: 0.08
+Nodes (18): GET(), GET(), GET(), GET(), GET(), GET(), GET(), POST() (+10 more)
 
 ### Community 159 - "Integración con Otros Sistemas"
 Cohesion: 0.40
@@ -1021,7 +1017,7 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Knowledge Gaps
 - **1230 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1225 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **106 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **107 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -1037,6 +1033,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Post Management API` be split into smaller, more focused modules?**
   _Cohesion score 0.10541310541310542 - nodes in this community are weakly interconnected._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.07039337474120083 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06479081821547575 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
   _Cohesion score 0.08821548821548822 - nodes in this community are weakly interconnected._
