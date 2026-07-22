@@ -1,7 +1,7 @@
-# Graph Report - app  (2026-07-21)
+# Graph Report - app  (2026-07-22)
 
 ## Corpus Check
-- 490 files · ~329,053 words
+- 490 files · ~329,116 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bb96bfd5`
+- Built from commit: `cfb2e31d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -391,8 +391,8 @@ Cohesion: 0.09
 Nodes (6): InstagramChannel, PosChannel, RappiChannel, CanalConfig, CanalOrden, CanalProducto
 
 ### Community 12 - "Client and Pet API"
-Cohesion: 0.08
-Nodes (17): GET(), GET(), GET(), GET(), GET(), GET(), POST(), GET() (+9 more)
+Cohesion: 0.07
+Nodes (19): GET(), GET(), GET(), GET(), GET(), BodySchema, POST(), GET() (+11 more)
 
 ### Community 13 - "Inventory Batch Management"
 Cohesion: 0.11
@@ -668,7 +668,7 @@ Nodes (10): AdminRole, Store, AdminLayout(), NavItemProps, IAConfigSection(), Li
 
 ### Community 83 - "Worker Process Manager"
 Cohesion: 0.07
-Nodes (45): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+37 more)
+Nodes (43): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+35 more)
 
 ### Community 84 - "Analytics Tab Tests"
 Cohesion: 0.29

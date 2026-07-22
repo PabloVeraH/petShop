@@ -2275,9 +2275,9 @@
     "semantic_hash": "c2cf63583227e767c676603657d89d25"
   },
   "tests/integration/api/ventas.post.test.ts": {
-    "mtime": 1784094885.1296418,
-    "ast_hash": "93767ae453198f5c03a866ed860dffcd",
-    "semantic_hash": "93767ae453198f5c03a866ed860dffcd"
+    "mtime": 1784743126.9172142,
+    "ast_hash": "073ab5df86feab395f74f014554ed769",
+    "semantic_hash": ""
   },
   "tests/integration/api/whatsapp.send-alerts.test.ts": {
     "mtime": 1776398665.470775,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784676203.133091,
-    "ast_hash": "be243437cd9d356c96bfa7ba1ccfb7d5",
+    "mtime": 1784743135.0801656,
+    "ast_hash": "484d5539bae35ad9ddf73fe96977509c",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
