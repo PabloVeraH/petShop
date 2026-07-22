@@ -560,8 +560,11 @@ describe("POST /api/ventas — procedencia", () => {
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({ p_procedencia: proc }));
   });
 
-  // I-54
-  it("I-54: procedencia se incluye junto con metodo_pago y total en el RPC", async () => {
+  // I-441 — renumerado desde I-54 (colisión: I-54 ya usado en
+  // inventario.patch.test.ts para el fix de salida de stock, ticket Trello
+  // 6a5f9a8c29a2a067617111f7; este I-54 nunca estuvo registrado en
+  // spec-registry.md — ver AGENTS.md §2.3)
+  it("I-441: procedencia se incluye junto con metodo_pago y total en el RPC", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: "whatsapp" }));
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
       p_metodo_pago: "efectivo",
