@@ -69,7 +69,15 @@ export async function PATCH(
     let totalNeto = 0;
 
     for (const item of items) {
-      const subtotalItem = item.cantidad_recibida * item.precio_unitario;
+      // Math.round: precio_unitario acepta decimales (Zod solo exige
+      // nonnegative), y cantidad_recibida * precio_unitario puede no ser un
+      // peso entero. Sin este redondeo por ítem, totalNeto (y por lo tanto
+      // subtotal/total de la OC) queda con decimales residuales — bug real
+      // confirmado en producción (OC-20260329-E299AC, ticket Trello
+      // 6a5f9af49b22d1d60a11747d): "$1.503.077,1" en vez de "$1.503.077".
+      // El impuesto ya se redondeaba (043e378) pero totalNeto no, por lo que
+      // el decimal sobrevivía en total = totalNeto + impuesto.
+      const subtotalItem = Math.round(item.cantidad_recibida * item.precio_unitario);
       totalNeto += subtotalItem;
 
       // Actualizar el item con cantidades y precios reales

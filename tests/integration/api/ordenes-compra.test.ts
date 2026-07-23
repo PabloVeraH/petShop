@@ -538,6 +538,90 @@ describe("Órdenes de Compra API", () => {
       expect(res.status).toBe(200);
     });
 
+    // I-442 — REGRESIÓN (ticket Trello 6a5f9af49b22d1d60a11747d): precio_unitario
+    // acepta decimales (Zod solo exige nonnegative, no .int()) y antes de este
+    // fix totalNeto no se redondeaba por ítem — el impuesto ya se redondeaba
+    // (043e378) pero total = totalNeto + impuesto heredaba el decimal residual
+    // de totalNeto. Bug real confirmado en producción: OC-20260329-E299AC
+    // mostraba total "$1.503.077,1" en vez de "$1.503.077".
+    it("I-442: recibir con precio_unitario decimal → subtotal/impuesto/total quedan en pesos enteros", async () => {
+      type Resolver = (result: { data: unknown; error: null }) => unknown;
+
+      let ordenUpdatePayload: Record<string, unknown> | null = null;
+      const itemUpdates: Record<string, unknown>[] = [];
+
+      const ordenChain: Record<string, unknown> = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn((data: Record<string, unknown>) => { ordenUpdatePayload = data; return ordenChain; }),
+      };
+      ordenChain.single = jest.fn().mockReturnThis();
+      ordenChain.then = (resolve: Resolver) => resolve({ data: mockOrden, error: null });
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn((data: Record<string, unknown>) => {
+              itemUpdates.push(data);
+              return { eq: jest.fn().mockReturnThis(), then: (resolve: Resolver) => resolve({ data: {}, error: null }) };
+            }),
+          };
+        }
+        if (table === "productos") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            update: jest.fn().mockReturnThis(),
+            then: (resolve: Resolver) => resolve({ data: { stock: 0 }, error: null }),
+          };
+        }
+        if (table === "stock_movements") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            then: (resolve: Resolver) => resolve({ data: {}, error: null }),
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: (resolve: Resolver) => resolve({ data: null, error: null }),
+          };
+        }
+      });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [
+            { id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 3, precio_unitario: 100.33, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" },
+            { id: "e1a1a1a1-0482-4450-8745-42c54006d903", cantidad_recibida: 2, precio_unitario: 50.5, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b6" },
+          ],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      // subtotalItem redondeado por ítem: round(3*100.33)=301, round(2*50.5)=101
+      expect(itemUpdates[0].subtotal).toBe(301);
+      expect(itemUpdates[1].subtotal).toBe(101);
+
+      const payload = ordenUpdatePayload as unknown as { subtotal: number; impuesto: number; total: number };
+      expect(payload.subtotal).toBe(402);
+      expect(Number.isInteger(payload.subtotal)).toBe(true);
+      expect(Number.isInteger(payload.impuesto)).toBe(true);
+      expect(Number.isInteger(payload.total)).toBe(true);
+      expect(payload.total).toBe(payload.subtotal + payload.impuesto);
+    });
+
     it("cancelar OC sin notificar_proveedor → 200, no envía email de cancelación", async () => {
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
         from: jest.fn().mockReturnValue(makeOrdenUpdateChain("cancelada")),
