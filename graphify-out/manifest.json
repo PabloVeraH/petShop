@@ -745,9 +745,9 @@
     "semantic_hash": "d0294d49da18ea92aef9d9415f2aa542"
   },
   "src/app/(app)/pos/api.ts": {
-    "mtime": 1782538637.9407458,
-    "ast_hash": "26876f3538ac63d0b90d01657d304d1b",
-    "semantic_hash": "26876f3538ac63d0b90d01657d304d1b"
+    "mtime": 1784838405.3102057,
+    "ast_hash": "fd7fbe67bd951387490cb2f8f04490be",
+    "semantic_hash": ""
   },
   "src/app/(app)/pos/components/BarcodeScanner.tsx": {
     "mtime": 1782355600.3299544,
@@ -765,7 +765,7 @@
     "semantic_hash": "5b662568ee07790465fdbfb9bb7733c1"
   },
   "src/app/(app)/pos/components/ModalPago.tsx": {
-    "mtime": 1784830642.8046014,
+    "mtime": 1784835674.3991637,
     "ast_hash": "3a4d3cc2e247488b76c998d79bcab6d7",
     "semantic_hash": ""
   },
@@ -780,8 +780,8 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784607911.9703698,
-    "ast_hash": "8113c7c3044dfc25fe8570eeea7da7d0",
+    "mtime": 1784838405.3103504,
+    "ast_hash": "5402ed7a9251d5282fdee70bf7670646",
     "semantic_hash": ""
   },
   "src/app/(app)/purchases/page.tsx": {
@@ -1250,9 +1250,9 @@
     "semantic_hash": ""
   },
   "src/app/api/ventas/route.ts": {
-    "mtime": 1783739374.1142807,
-    "ast_hash": "00cd63a2dca2aeb5648fbc68ed648985",
-    "semantic_hash": "00cd63a2dca2aeb5648fbc68ed648985"
+    "mtime": 1784838405.310598,
+    "ast_hash": "0cd7ab8d6addbda67ab84e88552492c7",
+    "semantic_hash": ""
   },
   "src/app/api/webhooks/clerk/route.ts": {
     "mtime": 1784355766.526743,
@@ -1705,9 +1705,9 @@
     "semantic_hash": ""
   },
   "src/lib/validation/ventas.ts": {
-    "mtime": 1783625512.6740143,
-    "ast_hash": "a3d87665e6a2621c057ac5b341b48aab",
-    "semantic_hash": "a3d87665e6a2621c057ac5b341b48aab"
+    "mtime": 1784838405.3107095,
+    "ast_hash": "ece0d306673231bb3591afc2b73a5a69",
+    "semantic_hash": ""
   },
   "src/lib/weather.ts": {
     "mtime": 1780687681.0666943,
@@ -1730,7 +1730,7 @@
     "semantic_hash": "a2e3b5855eeea5dcdfad1d4b84bb0445"
   },
   "src/stores/pos.ts": {
-    "mtime": 1784830642.8048162,
+    "mtime": 1784835674.3992531,
     "ast_hash": "abd3c48627055848cf9e508ef8a6d633",
     "semantic_hash": ""
   },
@@ -1840,7 +1840,7 @@
     "semantic_hash": "73b8352ff31b48c2a843e6385aa8c2db"
   },
   "tests/components/ModalPago.test.tsx": {
-    "mtime": 1784830642.8048162,
+    "mtime": 1784835674.3993552,
     "ast_hash": "f867d3b735199890a0af3ac63761033d",
     "semantic_hash": ""
   },
@@ -1855,8 +1855,8 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1784607911.9713733,
-    "ast_hash": "9d3b8bceb48e65e05450150faa9705af",
+    "mtime": 1784838405.3108609,
+    "ast_hash": "82c2b2006d43be3af02276fd7d9e2182",
     "semantic_hash": ""
   },
   "tests/components/POSPageCache.test.tsx": {
@@ -2260,9 +2260,9 @@
     "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
-    "mtime": 1780938907.2352185,
-    "ast_hash": "41d03722f158b3bad2c9587da1fb879f",
-    "semantic_hash": "41d03722f158b3bad2c9587da1fb879f"
+    "mtime": 1784838405.3110056,
+    "ast_hash": "cadad522acaeeab3ea2c9d789aa8c0e8",
+    "semantic_hash": ""
   },
   "tests/integration/api/ventas-granel.test.ts": {
     "mtime": 1781967313.5619857,
@@ -2275,8 +2275,8 @@
     "semantic_hash": "c2cf63583227e767c676603657d89d25"
   },
   "tests/integration/api/ventas.post.test.ts": {
-    "mtime": 1784743439.4854534,
-    "ast_hash": "073ab5df86feab395f74f014554ed769",
+    "mtime": 1784838405.3113065,
+    "ast_hash": "a62f7c4fd6015ba9d4b5aa6125341fdb",
     "semantic_hash": ""
   },
   "tests/integration/api/whatsapp.send-alerts.test.ts": {
@@ -2300,9 +2300,9 @@
     "semantic_hash": ""
   },
   "tests/integration/hub/hub-sync.integration.test.ts": {
-    "mtime": 1779811940.0934012,
-    "ast_hash": "5f45574b3592c0abe5aa8087d5556811",
-    "semantic_hash": "5f45574b3592c0abe5aa8087d5556811"
+    "mtime": 1784838405.3114464,
+    "ast_hash": "ff4171e8496b5db69e4396a69f21c22c",
+    "semantic_hash": ""
   },
   "tests/integration/security/security.test.ts": {
     "mtime": 1781841183.5767014,
@@ -2440,7 +2440,7 @@
     "semantic_hash": "0a99fdda98e7c300d7e4d3026593b2a1"
   },
   "tests/unit/lib/pos-store.test.ts": {
-    "mtime": 1784830642.804999,
+    "mtime": 1784835674.3994968,
     "ast_hash": "58888228467ff52086674ad1260f0d89",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784830642.8046014,
-    "ast_hash": "7ee27c8a8e0ce9ba6171db64fef01081",
+    "mtime": 1784839030.9983153,
+    "ast_hash": "3b12d236fb4d1519a2fae0e33cd1c94f",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3982,6 +3982,11 @@
   "tests/unit/lib/admin-check.test.ts": {
     "mtime": 1784828125.034797,
     "ast_hash": "558f4664ebe8cf572218f2cc38b46842",
+    "semantic_hash": ""
+  },
+  "migrations/059_ventas_idempotency_key.sql": {
+    "mtime": 1784838877.1896856,
+    "ast_hash": "0595fccd212ae4c93334bfa91f5ab5cb",
     "semantic_hash": ""
   }
 }
