@@ -32,6 +32,7 @@ export async function createVenta({
   pagoNc,
   notas,
   enviarEmail,
+  idempotencyKey,
 }: {
   items: {
     producto_id: string;
@@ -51,11 +52,16 @@ export async function createVenta({
   pagoNc?: { nota_credito_id: string; numero_nc: string; monto: number };
   notas?: string;
   enviarEmail?: boolean;
+  // UUID estable por intento de cobro — se reenvía igual en cada reintento
+  // (ver pos/page.tsx) para que el backend pueda detectar un reintento tras
+  // "Failed to fetch" y devolver la venta ya creada en vez de duplicarla
+  // (ticket Trello 6a61a067a9350a401550e770).
+  idempotencyKey?: string;
 }) {
   const res = await fetch("/api/ventas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, notas, enviarEmail }),
+    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, notas, enviarEmail, idempotencyKey }),
   });
   if (!res.ok) {
     const ct = res.headers.get("content-type") ?? "";

@@ -89,6 +89,7 @@ jest.mock("@/app/(app)/pos/components/RecomendacionesIA", () => ({ __esModule: t
 jest.mock("@/app/(app)/pos/api", () => ({ createVenta: jest.fn().mockResolvedValue({ id: "venta-123" }) }));
 
 import POSPage from "@/app/(app)/pos/page";
+import { createVenta } from "@/app/(app)/pos/api";
 
 function makeWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -200,5 +201,61 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     // Sin refetchType (versión bugueada) no debe llamarse
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
+  });
+});
+
+// ── idempotencyKey por intento de cobro (ticket Trello 6a61a067a9350a401550e770) ──
+//
+// "Failed to fetch" tras cobrar una venta que en realidad se registró
+// correctamente dejaba el modal listo para reintentar sin protección contra
+// duplicados. Fix: se genera un UUID al abrir el modal de pago (click en
+// "Cobrar $X") y se reenvía sin cambios en cada reintento de esa MISMA
+// apertura; reabrir el modal genera una key nueva.
+describe("POSPage — idempotencyKey por intento de cobro (PP-15/PP-16)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // PP-15: REGRESIÓN — reintentos del MISMO intento de cobro reenvían la MISMA key.
+  // El primer intento debe FALLAR (simula "Failed to fetch") — si resolviera OK,
+  // onSuccess resetearía la key antes del "reintento", invalidando el escenario
+  // real del ticket (el reintento ocurre tras un error, no tras un éxito).
+  it("PP-15: REGRESIÓN — dos intentos de 'Cobrar' sin reabrir el modal envían la MISMA idempotencyKey", async () => {
+    (createVenta as jest.Mock).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const store = makeMockStore();
+    mockUsePOSStore.mockReturnValue(store);
+    render(<POSPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+
+    await mutationMutate!(); // primer intento — falla con "Failed to fetch"
+    await mutationMutate!(); // reintento — mismo modal abierto, sin reabrir
+
+    const calls = (createVenta as jest.Mock).mock.calls;
+    expect(calls).toHaveLength(2);
+    const key1 = calls[0][0].idempotencyKey;
+    const key2 = calls[1][0].idempotencyKey;
+    expect(key1).toBeTruthy();
+    expect(key1).toBe(key2);
+  });
+
+  // PP-16: reabrir el modal (nuevo intento de cobro) genera una idempotencyKey distinta
+  it("PP-16: reabrir el modal de cobro genera una idempotencyKey distinta a la anterior", async () => {
+    const store = makeMockStore();
+    mockUsePOSStore.mockReturnValue(store);
+    render(<POSPage />, { wrapper: makeWrapper() });
+
+    const cobrarBtn = screen.getByRole("button", { name: /Cobrar/i });
+    fireEvent.click(cobrarBtn);
+    await mutationMutate!();
+
+    fireEvent.click(cobrarBtn);
+    await mutationMutate!();
+
+    const calls = (createVenta as jest.Mock).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0].idempotencyKey).toBeTruthy();
+    expect(calls[1][0].idempotencyKey).toBeTruthy();
+    expect(calls[0][0].idempotencyKey).not.toBe(calls[1][0].idempotencyKey);
   });
 });

@@ -134,7 +134,7 @@ describe("Checkout — venta delega stock al stored procedure crear_venta_tx", (
   beforeEach(() => {
     jest.clearAllMocks();
     mockRpc.mockReset();
-    mockRpc.mockResolvedValue({ data: DB_VENTA_FIFO, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA_FIFO, created: true }, error: null });
     buildVentaMock();
   });
 

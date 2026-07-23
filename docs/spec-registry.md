@@ -327,6 +327,9 @@ I-406/I-407/I-408.
 | I-449 | REGRESIÓN (encontrada al revisar ticket 6a61a8b2792efeb5e59de96a): usuario sin store_id no puede recibir un rol de tienda vía PATCH → 400, no llama a Clerk | PATCH /api/admin/users/[id] | integration |
 | I-450 | storeAdmin edita rol de un worker de su propia tienda vía PATCH → también sincroniza Clerk publicMetadata con la storeId correcta | PATCH /api/admin/users/[id] | integration |
 | I-451 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale systemAdmin → PATCH /api/admin/users/[id] 403 | PATCH /api/admin/users/[id] | integration |
+| I-452 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): idempotencyKey del body se envía al RPC crear_venta_tx como p_idempotency_key | POST /api/ventas | integration |
+| I-453 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): sin idempotencyKey en el body, el RPC recibe p_idempotency_key null | POST /api/ventas | integration |
+| I-454 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): RPC created=false (reintento idempotente) → 200 con la venta existente pero SIN repetir contabilidad/WhatsApp/email/hub sync | POST /api/ventas | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
@@ -657,6 +660,8 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-12 | El stock en la grilla de productos (SearchProductos real, no mockeado) se actualiza automáticamente tras una venta exitosa, sin recargar la página — investigado como reporte de bug, no reprodujo contra el código actual; test agregado como regresión permanente | POSPage | component |
 | PP-13 | clearCart se llama tras venta exitosa y botón Cobrar cambia a Carrito vacío (regresión: carrito no se limpiaba tras venta) | POSPage | component |
 | PP-14 | REGRESIÓN: Procesar venta invalida ["inventario"], ["productos"] y ["lotes"] con refetchType "all" (stock descontado debe reflejarse en inventario/lotes sin recargar) | POSPage | component |
+| PP-15 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): dos intentos de "Cobrar" sin reabrir el modal envían la misma idempotencyKey | POSPage | component |
+| PP-16 | reabrir el modal de cobro genera una idempotencyKey distinta a la anterior | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 

@@ -18,6 +18,14 @@ export default function POSPage() {
   const [ventaExito, setVentaExito] = useState(false);
   const [ventaError, setVentaError] = useState<string | null>(null);
   const exitoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // UUID estable para todo el intento de cobro actual (mismo modal abierto).
+  // Se genera al abrir el modal y se reenvía sin cambios en cada reintento de
+  // "Cobrar" dentro de esa misma apertura — permite al backend detectar un
+  // reintento tras un error de red ("Failed to fetch" con la venta ya creada
+  // en el servidor) y devolver la venta existente en vez de duplicarla
+  // (ticket Trello 6a61a067a9350a401550e770). Reabrir el modal genera una
+  // key nueva, tratando esa reapertura como un intento de cobro distinto.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const { userId, sessionClaims } = useAuth();
   const meta = sessionClaims?.publicMetadata as Record<string, boolean> | undefined;
@@ -73,8 +81,10 @@ export default function POSPage() {
         pagoNc,
         notas,
         enviarEmail: enviarEmailRecibo,
+        idempotencyKey: idempotencyKeyRef.current ?? undefined,
       }),
     onSuccess: (data) => {
+      idempotencyKeyRef.current = null;
       clearCart();
       setShowPagoModal(false);
       setVentaError(null);
@@ -130,7 +140,10 @@ export default function POSPage() {
            <RecomendacionesIA />
 
            <Button
-            onClick={() => setShowPagoModal(true)}
+            onClick={() => {
+              idempotencyKeyRef.current = crypto.randomUUID();
+              setShowPagoModal(true);
+            }}
             disabled={items.length === 0}
             className="w-full"
             size="lg"

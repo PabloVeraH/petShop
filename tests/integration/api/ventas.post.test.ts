@@ -189,7 +189,7 @@ describe("POST /api/ventas — validaciones", () => {
   // I-46
   it("I-46: venta sin clienteId es válida (clienteId es opcional)", async () => {
     setupHappyPath();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
     expect(res.status).toBe(200);
   });
@@ -231,7 +231,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupHappyPath();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-39: precio tomado de DB (no del body)
@@ -255,6 +255,25 @@ describe("POST /api/ventas — flujo exitoso", () => {
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
       p_store_id: STORE_ID,
       p_cliente_id: CLIENTE_ID,
+    }));
+  });
+
+  // I-452 / I-453 — ticket Trello 6a61a067a9350a401550e770: idempotencyKey del
+  // body se reenvía al RPC como p_idempotency_key, para que crear_venta_tx
+  // pueda detectar un reintento tras "Failed to fetch" y devolver la venta ya
+  // creada en vez de duplicarla.
+  it("I-452: idempotencyKey del body se envía al RPC como p_idempotency_key", async () => {
+    const key = "123e4567-e89b-12d3-a456-426614174099";
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", idempotencyKey: key }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_idempotency_key: key,
+    }));
+  });
+
+  it("I-453: sin idempotencyKey en el body, el RPC recibe p_idempotency_key null", async () => {
+    await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_idempotency_key: null,
     }));
   });
 
@@ -444,6 +463,109 @@ describe("POST /api/ventas — flujo exitoso", () => {
   });
 });
 
+// ── Idempotencia (ticket Trello 6a61a067a9350a401550e770) ────────────────────
+//
+// "Failed to fetch" tras cobrar una venta que en realidad se registró
+// correctamente: el frontend no puede distinguir "no se creó" de "se creó
+// pero la respuesta se perdió en la red", y reintentar podía duplicar la
+// venta (doble cobro, doble descuento de stock). Fix: crear_venta_tx acepta
+// idempotency_key y devuelve created=false cuando la key ya generó una venta
+// — el route NO debe repetir ningún efecto secundario en ese caso.
+describe("POST /api/ventas — idempotencia en reintento (I-454)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mismo setup que I-45 (WhatsApp habilitado) + email, para que TODOS los
+    // efectos secundarios (contabilidad, WhatsApp, email, hub sync) estarían
+    // habilitados si created=true — así "no se llamó" prueba algo real.
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }) };
+        }
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_SYNC], error: null }) };
+      }
+      if (table === "clientes") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { rut: "11111111-1", nombre: "Juan", telefono: "56912345678", email: "juan@test.com" },
+            error: null,
+          }),
+        };
+      }
+      if (table === "stores") {
+        return {
+          ...mockChain,
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: {
+              name: "Test", whatsapp_enabled: true, whatsapp_phone_number_id: "123", whatsapp_access_token: "tok",
+              email_reminder_dias_aviso: 5, fidelizacion_niveles: null, resend_from_email: null, rut: null,
+            },
+            error: null,
+          }),
+        };
+      }
+      if (table === "venta_items") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [{ cantidad: 2, subtotal: 20000, precio_unitario: 10000, productos: { nombre: "Test" } }], error: null }),
+        };
+      }
+      return {
+        ...mockChain,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    });
+  });
+
+  // I-454: REGRESIÓN — reintento idempotente (created=false) no repite efectos secundarios
+  it("I-454: REGRESIÓN — RPC created=false → 200 con la venta pero SIN repetir contabilidad/WhatsApp/email/hub sync", async () => {
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: false }, error: null });
+
+    const res = await POST(makeRequest({
+      items: [VALID_ITEM],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+      enviarEmail: true,
+      idempotencyKey: "123e4567-e89b-12d3-a456-426614174099",
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(DB_VENTA.id);
+
+    expect(crearAsiento).not.toHaveBeenCalled();
+    expect(sendWhatsAppText).not.toHaveBeenCalled();
+    expect(sendBoletaEmail).not.toHaveBeenCalled();
+    expect(syncPurchaseToHub).not.toHaveBeenCalled();
+  });
+
+  // Contraprueba: con el MISMO setup, created=true SÍ dispara los efectos —
+  // confirma que el test de arriba prueba algo real, no un mock mal armado.
+  it("I-454b: contraprueba — mismo setup con created=true SÍ dispara WhatsApp y contabilidad", async () => {
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
+
+    const res = await POST(makeRequest({
+      items: [VALID_ITEM],
+      metodoPago: "efectivo",
+      clienteId: CLIENTE_ID,
+      idempotencyKey: "123e4567-e89b-12d3-a456-426614174099",
+    }));
+
+    expect(res.status).toBe(200);
+    expect(crearAsiento).toHaveBeenCalled();
+    expect(sendWhatsAppText).toHaveBeenCalled();
+  });
+});
+
 // ── Cálculo de descuento ──────────────────────────────────────────────────────
 
 describe("POST /api/ventas — cálculo de descuento", () => {
@@ -474,7 +596,7 @@ describe("POST /api/ventas — cálculo de descuento", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupDiscountCapture();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-47
@@ -543,7 +665,7 @@ describe("POST /api/ventas — procedencia", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupProcedenciaCapture();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-52
@@ -620,7 +742,7 @@ describe("POST /api/ventas — toggle email boleta", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-55
@@ -683,7 +805,7 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupGranel();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-60: REGRESIÓN — item granel usa precio_venta_kg, no precio de lista
@@ -784,7 +906,7 @@ describe("POST /api/ventas — IVA correcto enviado al RPC (I-405)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupHappyPath();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-405: REGRESIÓN — Whiskas 1kg $15.458 → IVA persistido = $2.468, no $2.937
@@ -843,7 +965,7 @@ describe("POST /api/ventas — workerClerkId (I-68)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupWorkerCapture();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-68: workerClerkId se envía al RPC como p_worker_clerk_id
@@ -860,7 +982,7 @@ describe("POST /api/ventas — workerClerkId (I-68)", () => {
 
     jest.clearAllMocks();
     setupWorkerCapture();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
 
     await POST(makeRequest({
       items: [VALID_ITEM],
@@ -917,7 +1039,7 @@ describe("POST /api/ventas — consumo alertas desde mascotas (I-58/I-59)", () =
   beforeEach(() => {
     jest.clearAllMocks();
     setupConsumoAlerta();
-    mockRpc.mockResolvedValue({ data: DB_VENTA, error: null });
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
   });
 
   // I-58: consumo_alertas gestionado en el stored procedure vía p_items + p_dias_aviso

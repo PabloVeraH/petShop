@@ -96,7 +96,7 @@ async function postVenta(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc, notas } = parsed.data;
+  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc, notas, idempotencyKey } = parsed.data;
   const numeroTransaccion = body.numeroTransaccion;
   const enviarEmail = body.enviarEmail === true;
   const descuento_pct = descuentoPct ?? 0;
@@ -250,6 +250,7 @@ async function postVenta(req: NextRequest) {
     p_numero_transaccion:   numeroTransaccion ?? null,
     p_fidelizacion_niveles: fidelizacionNiveles,
     p_dias_aviso:           diasAviso,
+    p_idempotency_key:      idempotencyKey ?? null,
   });
 
   if (txError) {
@@ -271,7 +272,18 @@ async function postVenta(req: NextRequest) {
     );
   }
 
-  const venta = ventaResult as Record<string, unknown>;
+  const { venta, created } = ventaResult as { venta: Record<string, unknown>; created: boolean };
+
+  // Idempotencia: esta idempotencyKey ya generó una venta en un intento anterior
+  // (la respuesta de ese intento se perdió en la red — ticket Trello
+  // 6a61a067a9350a401550e770). Devolver la venta existente SIN repetir ningún
+  // efecto secundario (auditoría, hub sync, WhatsApp, email, asientos
+  // contables) — todos esos ya se dispararon (o se están disparando) para el
+  // intento original.
+  if (!created) {
+    return NextResponse.json(venta);
+  }
+
   const metodoPagoVenta = pagoNc
     ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
     : metodoPago;

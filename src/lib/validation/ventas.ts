@@ -34,6 +34,13 @@ export const VentaCreateSchema = z.object({
     numero_nc: z.string(),
     monto: z.number().positive(),
   }).optional(),
+  // UUID generado por el cliente al abrir el modal de pago, reenviado en cada
+  // reintento de "Cobrar" dentro del mismo intento de cobro. Permite a
+  // crear_venta_tx devolver la venta ya creada en vez de duplicarla si la
+  // respuesta del primer intento se perdió en la red (ticket Trello
+  // 6a61a067a9350a401550e770). Opcional: callers que no la envíen (o clientes
+  // desactualizados) siguen funcionando sin protección de idempotencia.
+  idempotencyKey: z.string().uuid().optional(),
 }).superRefine((val, ctx) => {
   if (["debito", "credito", "transferencia"].includes(val.metodoPago) && !val.numeroTransaccion?.trim()) {
     ctx.addIssue({
