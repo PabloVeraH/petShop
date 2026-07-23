@@ -640,5 +640,37 @@ describe("crearAsiento", () => {
 
       expect(result).toBe("entry-uuid-1");
     });
+
+    // U-140 / U-141 — REGRESIÓN encontrada al revisar el fix de U-134/U-135:
+    // bloquear TODO movimiento no-CIERRE_MES en un período cerrado también
+    // bloqueaba correcciones legítimas de algo ya ocurrido en ese período
+    // (no "nuevo negocio"), dejando anular_venta_tx y el backfill de
+    // asientos faltantes silenciosamente sin efecto contable.
+    it("U-140: permite ANULACION_VENTA aunque el período ya tenga cierre (reverso de venta original del mismo período)", async () => {
+      const client = makeSupabaseMock({ skipPeriodCheck: true });
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento({
+        ...INPUT_BASE,
+        tipoMovimiento: "ANULACION_VENTA",
+        descripcion: "Anulación venta 2026-04",
+      });
+
+      expect(result).toBe("entry-uuid-1");
+    });
+
+    it("U-141: permite asiento con creadoPor='backfill' aunque el período ya tenga cierre (reconciliación de asiento faltante)", async () => {
+      const client = makeSupabaseMock({ skipPeriodCheck: true });
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento({
+        ...INPUT_BASE,
+        tipoMovimiento: "VENTA",
+        creadoPor: "backfill",
+        descripcion: "Venta efectivo (backfill)",
+      });
+
+      expect(result).toBe("entry-uuid-1");
+    });
   });
 });

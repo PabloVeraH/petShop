@@ -92,14 +92,30 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
     return null;
   }
 
-  // Validar que el período contable no esté cerrado. El propio asiento de
-  // CIERRE_MES es el que cierra el período, por lo tanto lo excluimos — de
-  // lo contrario nunca podría crearse. Todas las tablas sin store_id (venta_items,
-  // nota_credito_items) validan ownership vía su padre; aquí el ownership
-  // no es el riesgo — la integridad del cierre sí: una vez que existe un
-  // CIERRE_MES para un período, ningún otro tipo de movimiento debe poder
-  // registrarse con fecha dentro de ese período.
-  if (input.tipoMovimiento !== "CIERRE_MES") {
+  // Validar que el período contable no esté cerrado. Una vez que existe un
+  // CIERRE_MES para un período, ningún movimiento NUEVO debe poder
+  // registrarse con fecha dentro de ese período (ticket Trello
+  // 6a61a41b75e6c54191f0c2c2). Tres excepciones deliberadas, no son "nuevo
+  // negocio" sino correcciones de algo que ya ocurrió en ese período:
+  // - CIERRE_MES: el propio asiento que cierra el período — de lo contrario
+  //   nunca podría crearse.
+  // - ANULACION_VENTA: su fecha es deliberadamente la de la venta original
+  //   (no la de hoy, ver comentario en ventas/[id]/route.ts) para que el
+  //   reverso caiga en el mismo período que el asiento que anula. Bloquearlo
+  //   dejaría anular_venta_tx (que no tiene guard de período) reversando
+  //   stock/fidelización/saldo con total normalidad mientras el Libro Diario
+  //   nunca refleja la anulación — el ingreso original queda contabilizado
+  //   para siempre sin su reverso.
+  // - creadoPor==="backfill": POST /api/contabilidad/backfill es el
+  //   mecanismo documentado (AGENTS.md §10.1) para reconciliar asientos que
+  //   se perdieron por una falla transitoria en un período que puede haberse
+  //   cerrado desde entonces — bloquearlo inutilizaría esa reconciliación
+  //   para cualquier período ya cerrado.
+  if (
+    input.tipoMovimiento !== "CIERRE_MES" &&
+    input.tipoMovimiento !== "ANULACION_VENTA" &&
+    input.creadoPor !== "backfill"
+  ) {
     const periodo = input.fecha.substring(0, 7);
     const { data: cierre } = await supabase
       .from("journal_entries")

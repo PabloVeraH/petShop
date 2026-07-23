@@ -537,6 +537,8 @@ I-406/I-407/I-408.
 | U-139b | resolveAdminContext NO corrige si DB confirma system_admin | lib/admin-check | unit |
 | U-139c | resolveAdminContext retorna admin sin cambios si no es systemAdmin (no consulta DB) | lib/admin-check | unit |
 | U-139d | resolveAdminContext retorna null si input es null | lib/admin-check | unit |
+| U-140 | REGRESIÓN (encontrada al revisar ticket 6a61a41b75e6c54191f0c2c2): crearAsiento permite ANULACION_VENTA aunque el período ya tenga cierre — el reverso de una anulación se fecha en el período de la venta original, no debe bloquearse igual que un movimiento nuevo | lib/contabilidad | unit |
+| U-141 | REGRESIÓN (encontrada al revisar ticket 6a61a41b75e6c54191f0c2c2): crearAsiento permite asiento con creadoPor='backfill' aunque el período ya tenga cierre — el backfill reconcilia asientos faltantes de transacciones ya ocurridas, no debe bloquearse igual que un movimiento nuevo | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |
