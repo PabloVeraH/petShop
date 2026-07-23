@@ -845,8 +845,8 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/[id]/route.ts": {
-    "mtime": 1784820158.1332304,
-    "ast_hash": "1806621409ec46333498321a3d4cdd4a",
+    "mtime": 1784824134.2623522,
+    "ast_hash": "9a75b8c64f53428b5e3b7746d80de467",
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
@@ -1945,8 +1945,8 @@
     "semantic_hash": "1eb521570eb2cc91f18dc92cb680fcd0"
   },
   "tests/integration/api/admin.test.ts": {
-    "mtime": 1784820302.2648072,
-    "ast_hash": "a6f316e2334260af6fc74d0e6936c989",
+    "mtime": 1784824116.8744416,
+    "ast_hash": "7b50e74c76e7e06e086abc791aed1bc2",
     "semantic_hash": ""
   },
   "tests/integration/api/ai-vencimientos.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784823343.913445,
-    "ast_hash": "1dcc300f84a0552c649a507ef2caf2fd",
+    "mtime": 1784824154.8792465,
+    "ast_hash": "6e2cd8105726119dd6eb5ca67b5f365b",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
