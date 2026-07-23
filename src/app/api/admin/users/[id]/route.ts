@@ -91,9 +91,23 @@ async function handlePatchUser(
   const supabase = createServiceClient();
   const { data: oldUser } = await supabase
     .from("clerk_users")
-    .select("email, nombre, store_admin, store_worker, system_admin")
+    .select("email, nombre, store_admin, store_worker, system_admin, store_id")
     .eq("clerk_id", clerkId)
     .single();
+
+  // Un rol de tienda (storeAdmin/storeWorker) necesita un storeId. Este endpoint
+  // no recibe uno en el body — se preserva el store_id que el usuario ya tenía
+  // en clerk_users. Si no tiene uno (ej. systemAdmin creado sin tienda vía
+  // /api/admin/users/create), no hay tienda válida que asignarle: mejor fallar
+  // explícito que dejar un storeAdmin/storeWorker sin tienda (getStoreId()
+  // le devolvería null y quedaría inutilizable).
+  const targetStoreId: string | null = oldUser?.store_id ?? null;
+  if (role !== "systemAdmin" && !targetStoreId) {
+    return NextResponse.json(
+      { error: "El usuario no tiene una tienda asignada; no se le puede otorgar un rol de tienda" },
+      { status: 400 }
+    );
+  }
 
   const client = await clerkClient();
 
@@ -107,7 +121,30 @@ async function handlePatchUser(
         { status: 409 }
       );
     }
-    // Add new email address as primary and verified
+  }
+
+  // Sincronizar el rol con Clerk publicMetadata — sin esto, el JWT del usuario
+  // conserva su rol anterior para siempre (clerk_users es solo un espejo interno,
+  // no la fuente de autorización real; ticket Trello 6a61a8b2792efeb5e59de96a).
+  // Se envía el objeto completo (systemAdmin/storeAdmin/storeWorker/storeId)
+  // en vez de solo las claves que cambian, para no depender de si Clerk
+  // mergea o reemplaza publicMetadata — así el resultado es correcto en ambos casos.
+  await client.users.updateUserMetadata(clerkId, {
+    publicMetadata:
+      role === "systemAdmin"
+        ? { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: null }
+        : {
+            systemAdmin: false,
+            storeAdmin: role === "storeAdmin",
+            storeWorker: role === "storeWorker",
+            storeId: targetStoreId,
+          },
+  });
+
+  // Add new email address as primary and verified (después de sincronizar el
+  // rol: si esto falla, el rol en Clerk ya quedó correcto — no hay reversión
+  // automática, mismo patrón sin rollback que ya tenía esta función).
+  if (email && email !== oldUser?.email) {
     await client.emailAddresses.createEmailAddress({
       userId:       clerkId,
       emailAddress: email,
@@ -125,6 +162,7 @@ async function handlePatchUser(
   }
 
   const updates: Record<string, unknown> = { ...flags };
+  if (role !== "systemAdmin") updates.store_id = targetStoreId;
   if (nombre) updates.nombre = nombre.trim();
   if (email && email !== oldUser?.email) updates.email = email;
 

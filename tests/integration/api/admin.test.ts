@@ -1,6 +1,7 @@
 /**
- * Tests I-92 a I-97, I-290 a I-292, I-444 a I-446:
- * GET /api/admin/stores, POST /api/admin/users, DB cross-verify stale JWT
+ * Tests I-92 a I-97, I-290 a I-292, I-444 a I-451:
+ * GET /api/admin/stores, POST /api/admin/users, PATCH /api/admin/users/[id],
+ * DB cross-verify stale JWT
  */
 import { NextRequest } from "next/server";
 
@@ -340,5 +341,192 @@ describe("POST /api/admin/users", () => {
     }));
     expect(res.status).toBe(200);
     expect(capturedPayload[0]).not.toHaveProperty("nombre");
+  });
+});
+
+// PATCH /api/admin/users/[id] — REGRESIÓN encontrada al revisar el fix del ticket
+// Trello 6a61a8b2792efeb5e59de96a: handlePatchUser actualizaba el rol solo en la
+// tabla espejo clerk_users, nunca en Clerk publicMetadata (la fuente real de
+// autorización vía JWT) — un usuario "degradado" desde el panel conservaba su
+// rol viejo en el JWT para siempre.
+describe("PATCH /api/admin/users/[id]", () => {
+  const TARGET_ID = "clerk_target_user";
+
+  /**
+   * Mock de supabase.from("clerk_users") para el flujo de handlePatchUser.
+   * Primera llamada a .single() = la que hace requireSystemAdminConsistent
+   * (cross-verify del que llama) o el targetUser fetch de la rama storeAdmin
+   * (según quién llama). Segunda llamada = oldUser fetch dentro de handlePatchUser.
+   */
+  function makePatchChain({
+    firstSingleResult,
+    oldUser = {
+      email: "old@store.com",
+      nombre: "Old Name",
+      store_admin: false,
+      store_worker: true,
+      system_admin: false,
+      store_id: STORE_ID,
+    },
+    updateResult = { error: null },
+  }: {
+    firstSingleResult: unknown;
+    oldUser?: Record<string, unknown> | null;
+    updateResult?: { error: unknown };
+  }) {
+    let singleCallCount = 0;
+    const c: Record<string, jest.Mock> = {};
+    c.select = jest.fn().mockReturnValue(c);
+    c.eq = jest.fn().mockReturnValue(c);
+    c.single = jest.fn().mockImplementation(() => {
+      singleCallCount++;
+      if (singleCallCount === 1) return Promise.resolve({ data: firstSingleResult, error: null });
+      return Promise.resolve({ data: oldUser, error: null });
+    });
+    c.update = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue(updateResult) });
+    return c;
+  }
+
+  function patchReq(body: unknown) {
+    return new NextRequest(`http://localhost/api/admin/users/${TARGET_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // I-447: REGRESIÓN — systemAdmin degrada a otro systemAdmin a storeAdmin →
+  // Clerk publicMetadata debe reflejar el nuevo rol, no solo la tabla clerk_users
+  it("I-447: systemAdmin degrada systemAdmin→storeAdmin → sincroniza Clerk publicMetadata", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(makePatchChain({
+      firstSingleResult: { system_admin: true }, // cross-verify: caller es systemAdmin real
+      oldUser: {
+        email: "target@store.com", nombre: "Target", store_admin: false,
+        store_worker: false, system_admin: true, store_id: STORE_ID,
+      },
+    }));
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: { updateUserMetadata: mockUpdateUserMetadata, getUserList: jest.fn(), updateUser: jest.fn() },
+      emailAddresses: { createEmailAddress: jest.fn() },
+    });
+
+    const { PATCH } = await import("@/app/api/admin/users/[id]/route");
+    const res = await PATCH(patchReq({ role: "storeAdmin" }), { params: Promise.resolve({ id: TARGET_ID }) });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith(TARGET_ID, {
+      publicMetadata: { systemAdmin: false, storeAdmin: true, storeWorker: false, storeId: STORE_ID },
+    });
+  });
+
+  // I-448: promoción a systemAdmin → publicMetadata limpio, sin storeId/storeAdmin/storeWorker residual
+  it("I-448: systemAdmin promueve storeWorker→systemAdmin → Clerk publicMetadata limpio (sin storeId residual)", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(makePatchChain({
+      firstSingleResult: { system_admin: true },
+      oldUser: {
+        email: "worker@store.com", nombre: "Worker", store_admin: false,
+        store_worker: true, system_admin: false, store_id: STORE_ID,
+      },
+    }));
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: { updateUserMetadata: mockUpdateUserMetadata, getUserList: jest.fn(), updateUser: jest.fn() },
+      emailAddresses: { createEmailAddress: jest.fn() },
+    });
+
+    const { PATCH } = await import("@/app/api/admin/users/[id]/route");
+    const res = await PATCH(patchReq({ role: "systemAdmin" }), { params: Promise.resolve({ id: TARGET_ID }) });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith(TARGET_ID, {
+      publicMetadata: { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: null },
+    });
+  });
+
+  // I-449: usuario sin store_id no puede recibir un rol de tienda — 400, sin tocar Clerk
+  it("I-449: usuario sin store_id → rol de tienda rechazado con 400, no llama a Clerk", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(makePatchChain({
+      firstSingleResult: { system_admin: true },
+      oldUser: {
+        email: "orphan@x.com", nombre: "Orphan", store_admin: false,
+        store_worker: false, system_admin: true, store_id: null,
+      },
+    }));
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: { updateUserMetadata: mockUpdateUserMetadata, getUserList: jest.fn(), updateUser: jest.fn() },
+      emailAddresses: { createEmailAddress: jest.fn() },
+    });
+
+    const { PATCH } = await import("@/app/api/admin/users/[id]/route");
+    const res = await PATCH(patchReq({ role: "storeAdmin" }), { params: Promise.resolve({ id: TARGET_ID }) });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+  });
+
+  // I-450: storeAdmin edita a un worker de su propia tienda → también sincroniza Clerk
+  it("I-450: storeAdmin edita worker de su tienda → sincroniza Clerk publicMetadata con su propia storeId", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    mockFrom.mockReturnValue(makePatchChain({
+      firstSingleResult: { store_id: STORE_ID }, // targetUser fetch de la rama storeAdmin
+      oldUser: {
+        email: "worker@store.com", nombre: "Worker", store_admin: false,
+        store_worker: true, system_admin: false, store_id: STORE_ID,
+      },
+    }));
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: { updateUserMetadata: mockUpdateUserMetadata, getUserList: jest.fn(), updateUser: jest.fn() },
+      emailAddresses: { createEmailAddress: jest.fn() },
+    });
+
+    const { PATCH } = await import("@/app/api/admin/users/[id]/route");
+    const res = await PATCH(patchReq({ role: "storeAdmin" }), { params: Promise.resolve({ id: TARGET_ID }) });
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith(TARGET_ID, {
+      publicMetadata: { systemAdmin: false, storeAdmin: true, storeWorker: false, storeId: STORE_ID },
+    });
+  });
+
+  // I-451: REGRESIÓN — JWT stale (systemAdmin en JWT, DB storeAdmin) en PATCH → 403
+  it("I-451: JWT stale systemAdmin en PATCH /api/admin/users/[id] → 403", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(makePatchChain({ firstSingleResult: { system_admin: false } }));
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: { updateUserMetadata: mockUpdateUserMetadata, getUserList: jest.fn(), updateUser: jest.fn() },
+      emailAddresses: { createEmailAddress: jest.fn() },
+    });
+
+    const { PATCH } = await import("@/app/api/admin/users/[id]/route");
+    const res = await PATCH(patchReq({ role: "storeAdmin" }), { params: Promise.resolve({ id: TARGET_ID }) });
+
+    expect(res.status).toBe(403);
+    expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
   });
 });

@@ -322,6 +322,11 @@ I-406/I-407/I-408.
 | I-444 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale (systemAdmin en JWT, DB storeAdmin) → GET /api/admin/stores 403 | GET /api/admin/stores | integration |
 | I-445 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): storeAdmin → POST /api/admin/users 403 (requiere systemAdmin) | POST /api/admin/users | integration |
 | I-446 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale systemAdmin → POST /api/admin/users 403 | POST /api/admin/users | integration |
+| I-447 | REGRESIÓN (encontrada al revisar ticket 6a61a8b2792efeb5e59de96a): systemAdmin degrada systemAdmin→storeAdmin vía PATCH → sincroniza Clerk publicMetadata (antes solo actualizaba la tabla espejo clerk_users, el JWT conservaba el rol viejo para siempre) | PATCH /api/admin/users/[id] | integration |
+| I-448 | REGRESIÓN (encontrada al revisar ticket 6a61a8b2792efeb5e59de96a): promoción a systemAdmin vía PATCH → Clerk publicMetadata queda limpio, sin storeId/storeAdmin/storeWorker residual | PATCH /api/admin/users/[id] | integration |
+| I-449 | REGRESIÓN (encontrada al revisar ticket 6a61a8b2792efeb5e59de96a): usuario sin store_id no puede recibir un rol de tienda vía PATCH → 400, no llama a Clerk | PATCH /api/admin/users/[id] | integration |
+| I-450 | storeAdmin edita rol de un worker de su propia tienda vía PATCH → también sincroniza Clerk publicMetadata con la storeId correcta | PATCH /api/admin/users/[id] | integration |
+| I-451 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale systemAdmin → PATCH /api/admin/users/[id] 403 | PATCH /api/admin/users/[id] | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
