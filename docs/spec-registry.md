@@ -511,6 +511,8 @@ I-406/I-407/I-408.
 | U-132 | lineasAnulacionVentaConNc mixta: Saldos a Favor por el crédito y Banco solo por el resto con tarjeta | lib/contabilidad | unit |
 | U-133 | lineasAnulacionVentaConNc mixta con resto en efectivo: el resto revierte a Caja, no a Banco | lib/contabilidad | unit |
 | U-133b | lineasAnulacionVentaConNc es el inverso exacto de lineasVentaConNc (Dr/Cr espejo por cuenta) | lib/contabilidad | unit |
+| U-134 | REGRESIÓN (ticket Trello 6a61a41b75e6c54191f0c2c2): crearAsiento retorna null cuando el período tiene un asiento CIERRE_MES — protege contra nuevos asientos en períodos ya cerrados | lib/contabilidad | unit |
+| U-135 | REGRESIÓN (ticket Trello 6a61a41b75e6c54191f0c2c2): crearAsiento permite asiento CIERRE_MES aunque el período ya tenga cierre (el propio cierre se salta la validación) | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

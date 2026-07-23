@@ -81,7 +81,7 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
   const balanceado = td === tc;
 
   if (!balanceado) {
-    console.error(`[contabilidad] Asiento desequilibrado: débito=${td} crédito=${tc} | ${input.descripcion}`);
+    console.error(`[contabilidad] Asiento desbalanceado: débito=${td} crédito=${tc} | ${input.descripcion}`);
     return null;
   }
 
@@ -90,6 +90,31 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
   if (td === 0) {
     console.error(`[contabilidad] Asiento rechazado: monto cero | ${input.descripcion}`);
     return null;
+  }
+
+  // Validar que el período contable no esté cerrado. El propio asiento de
+  // CIERRE_MES es el que cierra el período, por lo tanto lo excluimos — de
+  // lo contrario nunca podría crearse. Todas las tablas sin store_id (venta_items,
+  // nota_credito_items) validan ownership vía su padre; aquí el ownership
+  // no es el riesgo — la integridad del cierre sí: una vez que existe un
+  // CIERRE_MES para un período, ningún otro tipo de movimiento debe poder
+  // registrarse con fecha dentro de ese período.
+  if (input.tipoMovimiento !== "CIERRE_MES") {
+    const periodo = input.fecha.substring(0, 7);
+    const { data: cierre } = await supabase
+      .from("journal_entries")
+      .select("id")
+      .eq("store_id", input.storeId)
+      .eq("tipo_movimiento", "CIERRE_MES")
+      .eq("referencia_numero", periodo)
+      .limit(1);
+
+    if (cierre && cierre.length > 0) {
+      console.error(
+        `[contabilidad] Período ${periodo} ya cerrado — se rechaza asiento | ${input.descripcion}`
+      );
+      return null;
+    }
   }
 
   // El insert de journal_detail puede fallar por razones transitorias (timeout,

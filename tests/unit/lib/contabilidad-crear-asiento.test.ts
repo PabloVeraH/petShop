@@ -15,6 +15,8 @@ interface MockOptions {
   entryResult?: { data: { id: string } | null; error: { message: string } | null };
   detailResult?: { error: { message: string } | null };
   deleteResult?: { error: null };
+  periodoAbierto?: boolean;
+  skipPeriodCheck?: boolean;
 }
 
 // Cíclico por intento — [0]=nextNumeroAsiento (select), [1]=insert entry,
@@ -28,15 +30,39 @@ function makeSupabaseMock({
   entryResult = { data: { id: "entry-uuid-1" }, error: null },
   detailResult = { error: null },
   deleteResult = { error: null },
+  periodoAbierto = true,
+  skipPeriodCheck = false,
 }: MockOptions = {}) {
+  // periodoAbierto=true/false: hay step 0 (period check).
+  // periodoAbierto=false: crearAsiento sale tras el period check.
+  // skipPeriodCheck=true: usado para CIERRE_MES (no hay period check).
+  const hasPeriodCheck = !skipPeriodCheck;
   let step = 0;
 
   const mockFrom = jest.fn((table: string) => {
     if (table === "journal_entries") {
-      const currentStep = step % 3;
+      const currentStep = step;
       step++;
 
-      if (currentStep === 0) {
+      // Period check step (solo si aplica)
+      if (hasPeriodCheck && currentStep === 0) {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({
+            data: periodoAbierto ? [] : [{ id: "cierre-existente" }],
+            error: null,
+          }),
+        };
+      }
+
+      // Periodo cerrado: crearAsiento devuelve null sin más consultas
+      if (periodoAbierto === false) return {};
+
+      // Ajustar el step si el period check consumió el step 0
+      const adjustedStep = hasPeriodCheck ? (currentStep - 1) % 3 : currentStep % 3;
+
+      if (adjustedStep === 0) {
         // nextNumeroAsiento: .select().eq().order().limit().single()
         return {
           select: jest.fn().mockReturnThis(),
@@ -50,7 +76,7 @@ function makeSupabaseMock({
         };
       }
 
-      if (currentStep === 1) {
+      if (adjustedStep === 1) {
         // insert entry: .insert().select().single()
         return {
           insert: jest.fn().mockReturnThis(),
@@ -260,13 +286,23 @@ describe("crearAsiento", () => {
     type EntryResult = { data: { id: string } | null; error: { message: string; code?: string } | null };
 
     function makeRaceConditionMock(insertResults: EntryResult[]) {
-      let journalEntriesCallIdx = 0;
+      let journalEntriesCallIdx = -1; // -1 porque la llamada 0 es el periodo check
 
       const mockFrom = jest.fn((table: string) => {
         if (table === "journal_entries") {
           journalEntriesCallIdx++;
 
-          // Llamados impares = nextNumeroAsiento (select); pares = insert del asiento
+          // Llamada 0 = period check (siempre retorna vacío — período abierto)
+          if (journalEntriesCallIdx === 0) {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+            };
+          }
+
+          // Llamados impares (1, 3, 5...) = nextNumeroAsiento (select);
+          // pares (2, 4, 6...) = insert del asiento
           if (journalEntriesCallIdx % 2 === 1) {
             return {
               select: jest.fn().mockReturnThis(),
@@ -306,7 +342,7 @@ describe("crearAsiento", () => {
 
       expect(result).toBe("entry-uuid-retry");
       const journalEntriesCalls = client.from.mock.calls.filter(([t]: string[]) => t === "journal_entries");
-      expect(journalEntriesCalls).toHaveLength(4); // 2 pares (select + insert)
+      expect(journalEntriesCalls).toHaveLength(5); // period check + 2 pares (select + insert)
     });
 
     it("U-117: retorna null tras agotar los reintentos si el conflicto de numero_asiento persiste", async () => {
@@ -333,7 +369,7 @@ describe("crearAsiento", () => {
 
       expect(result).toBeNull();
       const journalEntriesCalls = client.from.mock.calls.filter(([t]: string[]) => t === "journal_entries");
-      expect(journalEntriesCalls).toHaveLength(2); // un solo par — no reintentó
+      expect(journalEntriesCalls).toHaveLength(3); // period check + un solo par — no reintentó
     });
 
     // U-119 — REGRESIÓN CRÍTICA: reproduce el escenario real reportado ("la
@@ -432,10 +468,21 @@ describe("crearAsiento", () => {
 
       const mockFrom = jest.fn((table: string) => {
         if (table === "journal_entries") {
-          const currentStep = step % 3;
+          const currentStep = step;
           step++;
 
+          // Step 0 = period check (siempre abierto)
           if (currentStep === 0) {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+            };
+          }
+
+          const adjustedStep = (currentStep - 1) % 3;
+
+          if (adjustedStep === 0) {
             const lastNumero = insertedNumeros.length > 0 ? Math.max(...insertedNumeros) : 5;
             return {
               select: jest.fn().mockReturnThis(),
@@ -446,7 +493,7 @@ describe("crearAsiento", () => {
             };
           }
 
-          if (currentStep === 1) {
+          if (adjustedStep === 1) {
             return {
               insert: jest.fn((payload: { numero_asiento: number }) => {
                 insertedNumeros.push(payload.numero_asiento);
@@ -559,6 +606,38 @@ describe("crearAsiento", () => {
         creadoPor: "sistema_pos",
       };
       const result = await crearAsiento(input);
+      expect(result).toBe("entry-uuid-1");
+    });
+  });
+
+  // U-134 / U-135 — REGRESIÓN: ticket Trello 6a61a41b75e6c54191f0c2c2. crearAsiento()
+  // no validaba si el período ya tenía un asiento CIERRE_MES, permitiendo
+  // registrar nuevas ventas/NC/asientos en meses contables ya cerrados.
+  describe("validación de período cerrado", () => {
+    it("U-134: REGRESIÓN — retorna null cuando el período tiene un asiento CIERRE_MES", async () => {
+      const client = makeSupabaseMock({ periodoAbierto: false });
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+
+      expect(result).toBeNull();
+      // Solo debe haber llamado a Supabase una vez (el period check),
+      // no debe llegar a insert
+      expect(client.from).toHaveBeenCalledTimes(1);
+      expect(client.from).toHaveBeenCalledWith("journal_entries");
+    });
+
+    it("U-135: permite asiento CIERRE_MES aunque el período ya tenga cierre (él mismo lo crea)", async () => {
+      // Skip period check: debe pasar directo a la inserción
+      const client = makeSupabaseMock({ skipPeriodCheck: true });
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento({
+        ...INPUT_BASE,
+        tipoMovimiento: "CIERRE_MES",
+        descripcion: "Cierre 2026-07 - Costo de ventas",
+      });
+
       expect(result).toBe("entry-uuid-1");
     });
   });
