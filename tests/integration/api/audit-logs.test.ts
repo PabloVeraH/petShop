@@ -13,7 +13,11 @@ const mockGetAdminStatus = jest.fn();
 const mockFrom         = jest.fn();
 
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
-jest.mock("@/lib/admin-check", () => ({ getAdminStatus: mockGetAdminStatus }));
+const mockResolveAdminContext = jest.fn((admin) => Promise.resolve(admin));
+jest.mock("@/lib/admin-check", () => ({
+  getAdminStatus: mockGetAdminStatus,
+  resolveAdminContext: mockResolveAdminContext,
+}));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 
 function makeUrl(path: string, params?: Record<string, string>) {

@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { LicenseConfigSchema } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
-import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { computeLicenseStatus } from "@/lib/license";
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const admin = getAdminStatus(sessionClaims);
 
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "System admin required" }, { status: 403 });
   }
@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest) {
   const admin = getAdminStatus(sessionClaims);
 
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "System admin required" }, { status: 403 });
   }

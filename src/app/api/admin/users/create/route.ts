@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus, requireStoreAdmin, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { AdminUserCreateFullSchema } from "@/lib/validation";
 
 type ClerkApiError = {
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
 
   // systemAdmin — control total
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

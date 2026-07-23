@@ -116,6 +116,35 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
   }
 
+  // Rutas solo para systemAdmin — excluye /api/admin (cada API route tiene su propio guard de
+  // autorización, y storeAdmin necesita llamar ciertos endpoints como /api/admin/stores).
+  if (req.nextUrl.pathname.startsWith("/admin") && !req.nextUrl.pathname.startsWith("/api/admin")) {
+    if (!isSystemAdmin) {
+      const blockedPath = encodeURIComponent(req.nextUrl.pathname);
+      return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
+    }
+    // JWT claims systemAdmin — cross-verify against DB to catch stale JWTs
+    if (userId) {
+      try {
+        const supabase = createServiceClient();
+        const { data: dbUser } = await supabase
+          .from("clerk_users")
+          .select("system_admin")
+          .eq("clerk_id", userId)
+          .single();
+        if (!dbUser?.system_admin) {
+          const blockedPath = encodeURIComponent(req.nextUrl.pathname);
+          return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
+        }
+      } catch {
+        // Fail-secure: DB error blocks access to /admin (better than exposing data)
+        console.error("[middleware] DB check failed for /admin — denying access:", userId);
+        const blockedPath = encodeURIComponent(req.nextUrl.pathname);
+        return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));
+      }
+    }
+  }
+
   // Redirect desde raíz según rol — ANTES del check de storeWorker para evitar falso positivo:
   // sin este orden, un storeWorker que navega a "/" recibiría ?_denied aunque no intentó
   // acceder a ninguna sección restringida, solo cargó la app desde la raíz.

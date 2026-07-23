@@ -47,21 +47,28 @@ export default function AdminPage() {
 
     setRole(userRole);
 
-    // Redirect if not authorized
-    if (userRole !== "systemAdmin" && userRole !== "storeAdmin") {
+    // Redirect if not authorized — only systemAdmin can access /admin
+    if (userRole !== "systemAdmin") {
       router.replace("/pos");
     }
   }, [userId, sessionClaims, router]);
 
-  const { data: stores = [], isLoading: storesLoading } = useQuery<Store[]>({
+  const { data: stores = [], isLoading: storesLoading, isError: storesError } = useQuery<Store[]>({
     queryKey: ["admin-stores"],
     queryFn: () =>
       fetch("/api/admin/stores").then(async (r) => {
         if (!r.ok) throw new Error("Acceso denegado");
         return r.json();
       }),
-    enabled: role === "systemAdmin" || role === "storeAdmin",
+    enabled: role === "systemAdmin",
   });
+
+  // Redirect on API error (e.g., 403 from DB cross-verify catching stale JWT)
+  useEffect(() => {
+    if (storesError) {
+      router.replace("/pos");
+    }
+  }, [storesError, router]);
 
   if (!userId || !role || storesLoading) {
     return (
@@ -71,7 +78,7 @@ export default function AdminPage() {
     );
   }
 
-  if (role !== "systemAdmin" && role !== "storeAdmin") {
+  if (role !== "systemAdmin") {
     return null;
   }
 

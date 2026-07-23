@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus } from "@/lib/admin-check";
+import { getAdminStatus, resolveAdminContext } from "@/lib/admin-check";
 
 export async function PATCH(
   req: NextRequest,
@@ -10,10 +10,13 @@ export async function PATCH(
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = getAdminStatus(sessionClaims);
+  let admin = getAdminStatus(sessionClaims);
   if (!admin?.isSystemAdmin && !admin?.isStoreAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  // Cross-verify systemAdmin claim against DB (stale JWT check)
+  admin = await resolveAdminContext(admin) ?? admin;
 
   const { id } = await params;
   const supabase = createServiceClient();

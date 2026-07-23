@@ -319,6 +319,9 @@ I-406/I-407/I-408.
 | I-290 | GET stores como storeAdmin retorna solo su propia tienda | GET /api/admin/stores | integration |
 | I-291 | GET users como storeAdmin retorna usuarios de su tienda | GET /api/admin/users | integration |
 | I-292 | GET stores como storeAdmin sin storeId retorna 403 | GET /api/admin/stores | integration |
+| I-444 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale (systemAdmin en JWT, DB storeAdmin) → GET /api/admin/stores 403 | GET /api/admin/stores | integration |
+| I-445 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): storeAdmin → POST /api/admin/users 403 (requiere systemAdmin) | POST /api/admin/users | integration |
+| I-446 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale systemAdmin → POST /api/admin/users 403 | POST /api/admin/users | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
@@ -373,6 +376,19 @@ I-406/I-407/I-408.
 | ID | Requisito | Componente | Tipo |
 |----|-----------|-----------|------|
 | MW-24 | /workers redirige a /vendedores | next.config.ts | unit |
+| MW-25 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): storeAdmin NO puede acceder a /admin (solo systemAdmin) | middleware-routing | unit |
+| MW-26 | /api/admin NO es bloqueado para storeAdmin en el middleware (cada API route tiene su propio guard) | middleware-routing | unit |
+| MW-27 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): stale JWT (JWT systemAdmin, DB storeAdmin) → acceso denegado a /admin | middleware-routing | unit |
+| MW-28 | JWT y DB confirman systemAdmin → acceso permitido a /admin | middleware-routing | unit |
+
+## AdminPage (AP-XX)
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| AP-01 | storeAdmin redirigido a /pos (no debe acceder a /admin) | AdminPage | component |
+| AP-02 | systemAdmin NO es redirigido (puede acceder a /admin) | AdminPage | component |
+| AP-03 | storeWorker redirigido a /pos | AdminPage | component |
+| AP-04 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): JWT stale systemAdmin con API stores 403 → redirige a /pos | AdminPage | component |
 
 ## Button — Base UI + Tailwind (BTN-XX)
 
@@ -513,6 +529,14 @@ I-406/I-407/I-408.
 | U-133b | lineasAnulacionVentaConNc es el inverso exacto de lineasVentaConNc (Dr/Cr espejo por cuenta) | lib/contabilidad | unit |
 | U-134 | REGRESIÓN (ticket Trello 6a61a41b75e6c54191f0c2c2): crearAsiento retorna null cuando el período tiene un asiento CIERRE_MES — protege contra nuevos asientos en períodos ya cerrados | lib/contabilidad | unit |
 | U-135 | REGRESIÓN (ticket Trello 6a61a41b75e6c54191f0c2c2): crearAsiento permite asiento CIERRE_MES aunque el período ya tenga cierre (el propio cierre se salta la validación) | lib/contabilidad | unit |
+| U-136 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): requireSystemAdminConsistent lanza Error si admin es null | lib/admin-check | unit |
+| U-136b | requireSystemAdminConsistent lanza Error si isSystemAdmin es false | lib/admin-check | unit |
+| U-137 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): requireSystemAdminConsistent lanza Error si DB no confirma system_admin (stale JWT) | lib/admin-check | unit |
+| U-138 | requireSystemAdminConsistent pasa si DB confirma system_admin | lib/admin-check | unit |
+| U-139 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): resolveAdminContext corrige JWT stale (JWT systemAdmin, DB storeAdmin) | lib/admin-check | unit |
+| U-139b | resolveAdminContext NO corrige si DB confirma system_admin | lib/admin-check | unit |
+| U-139c | resolveAdminContext retorna admin sin cambios si no es systemAdmin (no consulta DB) | lib/admin-check | unit |
+| U-139d | resolveAdminContext retorna null si input es null | lib/admin-check | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

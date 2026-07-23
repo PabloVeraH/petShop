@@ -25,6 +25,12 @@ function simulateRouting(meta: Record<string, unknown>, pathname: string): strin
     return `redirect:/acceso-denegado?from=${encodeURIComponent(pathname)}`;
   }
 
+  // Rutas systemAdmin-only (admin) → página dedicada de acceso denegado
+  // /api/admin NO está incluido — cada API route tiene su propio guard de autorización.
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/api/admin") && !isSystemAdmin) {
+    return `redirect:/acceso-denegado?from=${encodeURIComponent(pathname)}`;
+  }
+
   // Root redirect — ANTES del check de storeWorker para evitar falso positivo:
   // sin este orden, "/" dispararía redirect aunque el usuario no intentó nada restringido.
   if (pathname === "/") {
@@ -145,9 +151,85 @@ describe("Middleware — routing por rol", () => {
   it("MW-23: storeWorker puede acceder a /acceso-denegado (no genera loop de redirección)", () => {
     expect(simulateRouting(buildMeta("storeWorker"), "/acceso-denegado")).toBe("allow");
   });
+
+  // MW-25: REGRESIÓN — ticket 6a61a8b2792efeb5e59de96a: storeAdmin NO puede acceder a /admin.
+  // storeAdmin podía acceder al panel /admin directamente por URL, viendo datos de auditoría
+  // y gestión de usuarios. Solo systemAdmin debe acceder a /admin.
+  it("MW-25: storeAdmin redirigido de /admin a /acceso-denegado (solo systemAdmin tiene acceso)", () => {
+    expect(simulateRouting(buildMeta("storeAdmin"), "/admin")).toBe(
+      `redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`
+    );
+    // systemAdmin sí puede acceder
+    expect(simulateRouting(buildMeta("systemAdmin"), "/admin")).toBe("allow");
+  });
+
+  // MW-26: /api/admin NO debe ser bloqueado para storeAdmin (cada API route tiene su propio guard).
+  it("MW-26: storeAdmin puede llamar /api/admin/stores (no bloqueado por regla /admin)", () => {
+    expect(simulateRouting(buildMeta("storeAdmin"), "/api/admin/stores")).toBe("allow");
+    expect(simulateRouting(buildMeta("storeWorker"), "/api/admin/users")).toBe("allow");
+  });
 });
 
-// ── Suite 2: license check fail-open (REGRESIÓN) ─────────────────────────────
+// ── Suite 2: DB cross-verify (stale JWT) en /admin ──────────────────────────
+//
+// El middleware ahora cross-verifica el claim systemAdmin contra la BD cuando
+// se accede a /admin (no /api/admin). Si el JWT dice systemAdmin pero la BD
+// dice que no, el acceso es denegado. Esto protege contra JWTs obsoletos tras
+// un cambio de rol (ticket 6a61a8b2792efeb5e59de96a).
+
+async function simulateAdminDbCheck(
+  dbResult: { system_admin: boolean } | null | undefined,
+  dbError: boolean
+): Promise<string> {
+  const userId = "user-1";
+  const isSystemAdmin = true; // JWT claims systemAdmin (stale scenario)
+
+  // Replica la lógica del middleware para /admin (no /api/admin)
+  if (!isSystemAdmin) {
+    return `redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`;
+  }
+
+  if (userId) {
+    try {
+      if (dbError) throw new Error("DB error");
+      if (!dbResult?.system_admin) {
+        return `redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`;
+      }
+    } catch {
+      // Fail-secure for /admin
+      return `redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`;
+    }
+  }
+
+  return "allow";
+}
+
+describe("Middleware — DB cross-verify admin (MW-27/MW-28)", () => {
+
+  // MW-27: REGRESIÓN — stale JWT (JWT dice systemAdmin, BD dice storeAdmin)
+  it("MW-27: JWT stale con systemAdmin pero BD rechaza → acceso denegado a /admin", async () => {
+    const result = await simulateAdminDbCheck({ system_admin: false }, false);
+    expect(result).toBe(`redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`);
+  });
+
+  // MW-28: JWT y BD coinciden en systemAdmin → acceso permitido
+  it("MW-28: JWT y BD confirman systemAdmin → acceso permitido a /admin", async () => {
+    const result = await simulateAdminDbCheck({ system_admin: true }, false);
+    expect(result).toBe("allow");
+  });
+
+  it("MW-28b: error de BD en admin check → fail-secure (denegado)", async () => {
+    const result = await simulateAdminDbCheck(undefined, true);
+    expect(result).toBe(`redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`);
+  });
+
+  it("MW-28c: usuario sin fila en clerk_users (null) → acceso denegado", async () => {
+    const result = await simulateAdminDbCheck(null, false);
+    expect(result).toBe(`redirect:/acceso-denegado?from=${encodeURIComponent("/admin")}`);
+  });
+});
+
+// ── Suite 3: license check fail-open (REGRESIÓN) ─────────────────────────────
 //
 // El middleware hace una consulta Supabase en cada request protegido.
 // Si Supabase falla transitoriamente, el check debe ser fail-open (allow)
@@ -219,7 +301,7 @@ describe("Middleware — license check fail-open", () => {
   });
 });
 
-// ── Suite 3: CSP worker-src blob: (REGRESIÓN) ────────────────────────────────
+// ── Suite 4: CSP worker-src blob: (REGRESIÓN) ────────────────────────────────
 //
 // Clerk crea un Web Worker desde una blob: URL para hacer polling del token de
 // sesión. La directiva worker-src del CSP debe incluir blob: en todos los
@@ -255,7 +337,7 @@ describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
   });
 });
 
-describe("Middleware — redirect de /workers a /vendedores (MW-24)", () => {
+describe("Middleware — redirect de /workers a /vendedores (MW-24, Suite 5)", () => {
 
   // MW-24: REGRESIÓN — /workers debe redirigir a /vendedores.
   // La ruta canónica es /vendedores (español); /workers no tiene page y daba 404 sin navegación.

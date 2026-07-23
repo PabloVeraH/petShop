@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireSystemAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { AdminUserAssignSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const admin = getAdminStatus(sessionClaims);
 
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

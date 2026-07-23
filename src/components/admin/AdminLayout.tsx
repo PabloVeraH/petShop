@@ -34,49 +34,41 @@ export function AdminLayout({ role, activeSection, onSectionChange, children }: 
 
         {/* Navigation */}
         <nav className="flex-1 py-6 px-3 space-y-2">
-          {/* Usuarios - only for systemAdmin and storeAdmin */}
-          {(role === "systemAdmin" || role === "storeAdmin") && (
-            <NavItem
-              icon="👥"
-              label="Usuarios"
-              isActive={activeSection === "usuarios"}
-              onClick={() => onSectionChange("usuarios")}
-              collapsed={!sidebarOpen}
-            />
-          )}
+          {/* Usuarios */}
+          <NavItem
+            icon="👥"
+            label="Usuarios"
+            isActive={activeSection === "usuarios"}
+            onClick={() => onSectionChange("usuarios")}
+            collapsed={!sidebarOpen}
+          />
 
-          {/* Licencia - only for systemAdmin */}
-          {role === "systemAdmin" && (
-            <NavItem
-              icon="🔐"
-              label="Licencia"
-              isActive={activeSection === "licencia"}
-              onClick={() => onSectionChange("licencia")}
-              collapsed={!sidebarOpen}
-            />
-          )}
+          {/* Licencia */}
+          <NavItem
+            icon="🔐"
+            label="Licencia"
+            isActive={activeSection === "licencia"}
+            onClick={() => onSectionChange("licencia")}
+            collapsed={!sidebarOpen}
+          />
 
-           {/* Auditoría - only for systemAdmin and storeAdmin */}
-           {(role === "systemAdmin" || role === "storeAdmin") && (
-             <NavItem
-               icon="📋"
-               label="Auditoría"
-               isActive={activeSection === "auditoria"}
-               onClick={() => onSectionChange("auditoria")}
-               collapsed={!sidebarOpen}
-             />
-           )}
+          {/* Auditoría */}
+          <NavItem
+            icon="📋"
+            label="Auditoría"
+            isActive={activeSection === "auditoria"}
+            onClick={() => onSectionChange("auditoria")}
+            collapsed={!sidebarOpen}
+          />
 
-           {/* IA - only for systemAdmin */}
-           {role === "systemAdmin" && (
-             <NavItem
-               icon="🤖"
-               label="IA"
-               isActive={activeSection === "ia"}
-               onClick={() => onSectionChange("ia")}
-               collapsed={!sidebarOpen}
-             />
-           )}
+          {/* IA */}
+          <NavItem
+            icon="🤖"
+            label="IA"
+            isActive={activeSection === "ia"}
+            onClick={() => onSectionChange("ia")}
+            collapsed={!sidebarOpen}
+          />
         </nav>
 
         {/* Toggle button */}

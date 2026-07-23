@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus, requireStoreAdmin, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 const PatchUserSchema = z.object({
@@ -58,7 +58,7 @@ export async function PATCH(
   }
 
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -164,7 +164,7 @@ export async function DELETE(
   const admin = getAdminStatus(sessionClaims);
   
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

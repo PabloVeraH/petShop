@@ -1,4 +1,4 @@
-import { requireSystemAdmin, getAdminStatus } from "@/lib/admin-check";
+import { requireSystemAdminConsistent, getAdminStatus } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
 import { AiConfigUpdateSchema } from "@/lib/validation";
@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest) {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
   try {
-    requireSystemAdmin(admin);
+    await requireSystemAdminConsistent(admin);
   } catch {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
   }

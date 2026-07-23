@@ -24,6 +24,7 @@ function makeChain(data: unknown[] = [], count: number = 0) {
     lte: jest.fn().mockReturnThis(),
     order: jest.fn().mockReturnThis(),
     range: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { system_admin: true }, error: null }),
     throwOnError: jest.fn().mockResolvedValue({ data, error: null, count }),
   };
   chain.select.mockReturnValue(chain);

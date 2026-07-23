@@ -1,5 +1,6 @@
 /**
- * Tests I-92 a I-95: GET /api/admin/stores, POST /api/admin/users
+ * Tests I-92 a I-97, I-290 a I-292, I-444 a I-446:
+ * GET /api/admin/stores, POST /api/admin/users, DB cross-verify stale JWT
  */
 import { NextRequest } from "next/server";
 
@@ -16,20 +17,68 @@ jest.mock("@clerk/nextjs/server", () => ({
 }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 
-function chain(data: unknown[] = []) {
-  const resolved = Promise.resolve({ data, error: null });
+/**
+ * Crea una cadena de mock para supabase.from(table).select()...
+ * Soporta dos llamadas: la primera es la DB cross-verify (clerk_users),
+ * la segunda es la query de negocio (stores, etc).
+ * 
+ * @param dataForQueries - datos para la segunda llamada (query de negocio)
+ * @param clerkDbResult - resultado de la DB cross-verify para clerk_users
+ */
+function chain(
+  dataForQueries: unknown[] = [],
+  clerkDbResult: { system_admin: boolean } = { system_admin: true }
+) {
+  const mockSingle = jest.fn();
+  const resolved = Promise.resolve({ data: dataForQueries, error: null });
   const c: Record<string, jest.Mock> = {
     select: jest.fn(),
     eq: jest.fn(),
     order: jest.fn(),
     upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
-    single: jest.fn().mockResolvedValue({ data: data[0] ?? null, error: null }),
+    single: mockSingle,
     then: jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
-      resolve({ data, error: null })
+      resolve({ data: dataForQueries, error: null })
     ),
   };
-  ["select","eq","order","upsert","single"].forEach(k => c[k].mockReturnValue(c));
+  ["select","eq","order","upsert"].forEach(k => c[k].mockReturnValue(c));
+
+  // Primera llamada a .single() = DB cross-verify (clerk_users)
+  // Segunda llamada = query de negocio (stores, clerk_users para conteo, etc)
+  const clerkSingle = jest.fn().mockResolvedValue({ data: clerkDbResult, error: null });
+  const bizSingle = jest.fn().mockResolvedValue({ data: dataForQueries[0] ?? null, error: null });
+
+  let singleCallCount = 0;
+  mockSingle.mockImplementation(() => {
+    singleCallCount++;
+    if (singleCallCount === 1) return clerkSingle();
+    return bizSingle();
+  });
+
   c.order = jest.fn().mockReturnValue(resolved);
+  // For chain() style that returns a thenable (stores route)
+  c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) => {
+    // Determine what data to return based on how many times then is called
+    if (singleCallCount === 0) {
+      // No single() called yet — this is likely the first query (stores)
+      return resolve({ data: dataForQueries, error: null });
+    }
+    return resolve({ data: dataForQueries, error: null });
+  });
+  return c;
+}
+
+/**
+ * Default minimal chain for DB cross-verify (select/eq/single on clerk_users).
+ * Used in tests that set up a custom mock for the business query (e.g., upsert)
+ * but still need the DB cross-verify to work.
+ */
+function defaultChain(): Record<string, jest.Mock> {
+  const c: Record<string, jest.Mock> = {};
+  c.select = jest.fn().mockReturnValue(c);
+  c.eq = jest.fn().mockReturnValue(c);
+  c.single = jest.fn().mockResolvedValue({ data: { system_admin: true }, error: null });
+  c.upsert = jest.fn().mockRejectedValue(new Error("unexpected upsert"));
   return c;
 }
 
@@ -62,6 +111,36 @@ describe("GET /api/admin/stores", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
+  });
+
+  // I-444: REGRESIÓN — JWT dice systemAdmin pero DB dice storeAdmin → 403
+  it("I-444: JWT stale (systemAdmin en JWT pero no en DB) → 403", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    // DB cross-verify returns system_admin=false (stale JWT)
+    mockFrom.mockReturnValue(chain([], { system_admin: false }));
+    const { GET } = await import("@/app/api/admin/stores/route");
+    const res = await GET();
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body).toMatchObject({ error: "Forbidden" });
+  });
+
+  // I-445: REGRESIÓN — storeAdmin NO puede crear usuarios (POST /api/admin/users requiere systemAdmin)
+  it("I-445: storeAdmin → POST /api/admin/users 403 (requiere systemAdmin)", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
+    });
+    const { POST } = await import("@/app/api/admin/users/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "a@b.com", storeId: STORE_ID, role: "storeWorker" }),
+    }));
+    expect(res.status).toBe(403);
   });
 });
 
@@ -108,16 +187,23 @@ describe("POST /api/admin/users", () => {
     expect(mockUpdateUserMetadata).toHaveBeenCalled();
   });
 
-  // I-96: REGRESIÓN — asignar usuario sin lastName en Clerk NO debe pasar nombre:null al upsert.
-  // Bug original: firstName && lastName requería ambos; si faltaba uno, nombre=null se pasaba
-  // explícitamente al upsert sobreescribiendo un nombre previo en clerk_users.
+  // I-96: REGRESIÓN — asignar usuario sin lastName en Clerk NO debe pasar nombre:null al upsert
   it("I-96: Clerk user sin lastName → upsert NO incluye clave nombre (no sobreescribe existente)", async () => {
     const capturedPayload: unknown[] = [];
     const mockUpsertCapture = jest.fn((data) => {
       capturedPayload.push(data);
       return Promise.resolve({ data: null, error: null });
     });
-    mockFrom.mockReturnValue({ upsert: mockUpsertCapture });
+    // Need to support both DB cross-verify and upsert in same mock chain
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") {
+        return {
+          ...defaultChain(),
+          upsert: mockUpsertCapture,
+        };
+      }
+      return { upsert: mockUpsertCapture };
+    });
     mockClerkClient.mockResolvedValue({
       users: {
         getUserList: jest.fn().mockResolvedValue({
@@ -163,6 +249,22 @@ describe("POST /api/admin/users", () => {
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(STORE_ID);
     expect(body[0].name).toBe("Mi Tienda");
+  });
+
+  // I-446: REGRESIÓN — JWT stale (systemAdmin en JWT, DB storeAdmin) en POST /api/admin/users → 403
+  it("I-446: JWT stale systemAdmin en POST /api/admin/users → 403", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(chain([], { system_admin: false }));
+    const { POST } = await import("@/app/api/admin/users/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "a@b.com", storeId: STORE_ID, role: "storeWorker" }),
+    }));
+    expect(res.status).toBe(403);
   });
 
   // I-291: storeAdmin GET users → 200 con usuarios de su tienda
@@ -212,7 +314,16 @@ describe("POST /api/admin/users", () => {
       capturedPayload.push(data);
       return Promise.resolve({ data: null, error: null });
     });
-    mockFrom.mockReturnValue({ upsert: mockUpsertCapture });
+    // Support both DB cross-verify (select/eq/single) and upsert
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "clerk_users") {
+        return {
+          ...defaultChain(),
+          upsert: mockUpsertCapture,
+        };
+      }
+      return { upsert: mockUpsertCapture };
+    });
     mockClerkClient.mockResolvedValue({
       users: {
         getUserList: jest.fn().mockResolvedValue({

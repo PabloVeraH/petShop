@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getAdminStatus, requireStoreAdmin, requireSystemAdmin } from "@/lib/admin-check";
+import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 
 export async function GET() {
   const { sessionClaims } = await auth();
@@ -10,6 +10,15 @@ export async function GET() {
   const supabase = createServiceClient();
 
   // systemAdmin → all stores; storeAdmin → their own store only
+  // Cross-verify against DB to catch stale JWTs
+  if (admin?.isSystemAdmin) {
+    try {
+      await requireSystemAdminConsistent(admin);
+    } catch {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   if (admin?.isSystemAdmin) {
     const { data: stores, error } = await supabase
       .from("stores")
