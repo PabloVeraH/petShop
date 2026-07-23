@@ -26,11 +26,21 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("canal_config")
-    .select("id, canal_id, activo, created_at, updated_at")
+    .select("id, canal_id, activo, created_at, updated_at, credenciales_encriptada")
     .eq("store_id", store_id);
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // tiene_credenciales: booleano derivado — el frontend lo usa para permitir
+  // reactivar un canal sin reingresar credenciales ya guardadas (ticket
+  // Trello 6a5f9b146418dc26e56d7274). Nunca se expone credenciales_encriptada
+  // (ni desencriptada) en la respuesta.
+  const result = (data ?? []).map(({ credenciales_encriptada, ...rest }) => ({
+    ...rest,
+    tiene_credenciales: !!credenciales_encriptada,
+  }));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {

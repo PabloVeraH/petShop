@@ -272,6 +272,50 @@ describe("POST /api/canales/config — activo handling", () => {
   });
 });
 
+describe("GET /api/canales/config — tiene_credenciales", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
+  });
+
+  // I-443 — REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): "No se puede
+  // reactivar un canal ya configurado sin re-ingresar todas las
+  // credenciales". El frontend necesita saber si el canal YA tiene
+  // credenciales guardadas (sin exponer el ciphertext) para permitir
+  // reactivar sin reingresarlas — antes GET no exponía esa información en
+  // absoluto, así que el frontend solo podía basarse en el formulario vacío.
+  it("I-443: GET expone tiene_credenciales derivado por canal y nunca credenciales_encriptada", async () => {
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn(() => {
+        const c = buildChain();
+        c.select.mockReturnValue(c);
+        c.eq.mockReturnValue(c);
+        (c as any).then = (resolve: any) =>
+          resolve({
+            data: [
+              { id: CONFIG_ID, canal_id: "rappi", activo: false, created_at: "x", updated_at: "y", credenciales_encriptada: "ciphertext-abc" },
+              { id: "cfg-2", canal_id: "pedidosya", activo: false, created_at: "x", updated_at: "y", credenciales_encriptada: null },
+            ],
+            error: null,
+          });
+        return c;
+      }),
+    });
+
+    const res = await GET(authReq("GET"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    const rappi = body.find((c: { canal_id: string }) => c.canal_id === "rappi");
+    const pedidosya = body.find((c: { canal_id: string }) => c.canal_id === "pedidosya");
+
+    expect(rappi.tiene_credenciales).toBe(true);
+    expect(pedidosya.tiene_credenciales).toBe(false);
+    expect(rappi.credenciales_encriptada).toBeUndefined();
+    expect(pedidosya.credenciales_encriptada).toBeUndefined();
+  });
+});
+
 describe("PATCH /api/canales/config — no modifica activo si no se envía", () => {
   beforeEach(() => {
     jest.clearAllMocks();

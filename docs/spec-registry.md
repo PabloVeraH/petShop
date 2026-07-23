@@ -229,12 +229,14 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-325 | REGRESIÓN: venta creada al aceptar orden de canal persiste `impuesto` con fórmula de extracción (antes quedaba NULL) | POST /api/canales/orders/[id]/accept | integration |
 | I-326 | REGRESIÓN: venta_items de orden de canal usa columna `precio_unitario` (antes usaba `precio`, inexistente — insert fallaba en silencio) | POST /api/canales/orders/[id]/accept | integration |
 | I-327 | Aceptar orden de canal responde accepted y vincula venta_id en canal_ordenes | POST /api/canales/orders/[id]/accept | integration |
+| I-443 | REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): GET /api/canales/config expone `tiene_credenciales` derivado por canal y nunca `credenciales_encriptada` | GET /api/canales/config | integration |
 | CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
 | CC-07 | REGRESIÓN: campos type="password" (API Key, API Secret, Webhook Secret) tienen autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | CanalConfigPage | component |
 | CC-08 | Campo type="text" (Store ID) tiene autoComplete="off" | CanalConfigPage | component |
 | CC-09 | REGRESIÓN: datetime-local input (Programar Publicación) tiene autoComplete="off" — evita autocompletado del navegador en campo de fecha/hora | InstagramEditor | component |
 | CC-10 | REGRESIÓN: toggle a inactivo después de error de credenciales → error se limpia sin necesidad de guardar | CanalConfigPage | component |
+| CC-11 | REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): reactivar canal con credenciales ya guardadas en el backend y formulario vacío → no bloquea client-side, envía el PATCH | CanalConfigPage | component |
 
 Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
 credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`

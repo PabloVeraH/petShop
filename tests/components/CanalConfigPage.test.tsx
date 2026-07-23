@@ -316,4 +316,56 @@ describe("CanalConfigPage — activo handling", () => {
     expect(textInputs.length).toBe(1);
     expect(textInputs[0]).toHaveAttribute("autocomplete", "off");
   });
+
+  // CC-11 — REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): reactivar un
+  // canal que YA tiene credenciales guardadas en el backend, sin reingresarlas
+  // en el formulario (que nunca las precarga — no se desencriptan por
+  // seguridad), no debe bloquearse client-side. Antes, allCredentialsFilled
+  // solo miraba el estado del formulario y rechazaba la reactivación aunque
+  // el backend ya tuviera las credenciales guardadas.
+  it("CC-11: reactivar canal con credenciales ya guardadas y formulario vacío → no bloquea, envía el PATCH", async () => {
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      if (options?.method === "PATCH") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ id: "cfg-1", canal_id: "rappi", activo: true }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: "cfg-1", canal_id: "rappi", activo: false, tiene_credenciales: true }],
+      });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Inactivo")).toBeInTheDocument();
+    });
+
+    // No llenar ningún campo de credencial — reactivar directamente
+    const toggleSwitch = document.querySelector(".bg-gray-300");
+    expect(toggleSwitch).not.toBeNull();
+    fireEvent.click(toggleSwitch!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Activo")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Guardar configuración"));
+
+    await waitFor(() => {
+      const patchCall = fetchCalls.find((c) => c.options?.method === "PATCH");
+      expect(patchCall).toBeDefined();
+      const body = JSON.parse(patchCall!.options!.body as string);
+      expect(body.activo).toBe(true);
+      expect(body.credenciales).toEqual({});
+    });
+
+    expect(screen.queryByText(/Debe completar todas las credenciales/i)).toBeNull();
+  });
 });

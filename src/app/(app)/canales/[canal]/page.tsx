@@ -79,6 +79,7 @@ export default function CanalConfigPage() {
   const [activo, setActivo] = useState(false);
   const [credenciales, setCredenciales] = useState<Record<string, string>>({});
   const [configExists, setConfigExists] = useState(false);
+  const [tieneCredencialesGuardadas, setTieneCredencialesGuardadas] = useState(false);
 
   const canalInfo = canalId ? CANALES_INFO[canalId] : undefined;
 
@@ -97,6 +98,7 @@ export default function CanalConfigPage() {
           if (config) {
             setActivo(config.activo);
             setConfigExists(true);
+            setTieneCredencialesGuardadas(!!config.tiene_credenciales);
           }
         }
         setLoading(false);
@@ -111,11 +113,21 @@ export default function CanalConfigPage() {
     ? canalInfo.campos.every((campo) => credenciales[campo.key] && credenciales[campo.key].trim() !== "")
     : false;
 
+  // Reactivar un canal ya configurado no debe exigir reingresar credenciales
+  // que el backend ya tiene almacenadas (ticket Trello
+  // 6a5f9b146418dc26e56d7274): el formulario nunca las precarga (no se
+  // desencriptan por seguridad), así que bloquear solo por
+  // allCredentialsFilled rechazaba una reactivación legítima antes de
+  // siquiera intentar el request. El backend (PATCH) sigue siendo la
+  // autoridad final: si el usuario edita algún campo sin completar todos,
+  // el 422 existente de allCredentialsFilled server-side lo sigue cubriendo.
+  const puedeActivar = allCredentialsFilled || (configExists && tieneCredencialesGuardadas);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!canalInfo) return;
 
-    if (activo && !allCredentialsFilled) {
+    if (activo && !puedeActivar) {
       setError("Debe completar todas las credenciales antes de activar el canal");
       return;
     }
