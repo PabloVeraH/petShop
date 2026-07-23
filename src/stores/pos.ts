@@ -227,18 +227,24 @@ export const usePOSStore = create<POSStore>()(
     {
       name: "pos-cart",
       storage: createJSONStorage(() => localStorage),
+      // metodoPago, numeroTransaccion y pagoNc quedan FUERA a propósito: son
+      // estado transitorio del intento de cobro actual dentro de ModalPago, no
+      // parte de "la venta que se está armando" (a diferencia de items/clienteId/
+      // descuento, que sí deben sobrevivir un reload accidental). Persistirlos
+      // hacía que un cobro con Nota de Crédito interrumpido a mitad de camino
+      // (metodoPago="nota_credito" + pagoNc seteado, sin completar la venta)
+      // sobreviviera al reload y la siguiente apertura del modal heredara ese NC
+      // ajeno, bloqueando el cambio de método de pago (ticket Trello
+      // 6a619fafd0aa9aa5ad06b1dd). Ver S-43/S-44 en tests/unit/lib/pos-store.test.ts.
       partialize: (state) => ({
         items: state.items,
         clienteId: state.clienteId,
         clienteEmail: state.clienteEmail,
         mascotaId: state.mascotaId,
         workerClerkId: state.workerClerkId,
-        metodoPago: state.metodoPago,
-        numeroTransaccion: state.numeroTransaccion,
         descuento: state.descuento,
         fidelizacionDescuento: state.fidelizacionDescuento,
         procedencia: state.procedencia,
-        pagoNc: state.pagoNc,
         notas: state.notas,
       }),
     }

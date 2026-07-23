@@ -468,6 +468,9 @@ I-406/I-407/I-408.
 | MP-14 | efectivo no muestra el campo N° transacción | ModalPago | component |
 | MP-15 | credito con TRX vacío en blur muestra error obligatorio | ModalPago | component |
 | MP-16 | skeleton placeholder mientras carga workers, evita layout shift | ModalPago | component |
+| MP-17 | REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd): abre con NC heredado (metodoPago='nota_credito' + pagoNc seteado) → resetea a efectivo y limpia pagoNc al montar | ModalPago | component |
+| MP-18 | metodoPago vacío (undefined) al montar se inicializa a efectivo | ModalPago | component |
+| MP-19 | metodoPago ya 'efectivo' sin pagoNc al montar → no llama setMetodoPago ni clearPayNc (sin sets innecesarios) | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
@@ -551,6 +554,8 @@ I-406/I-407/I-408.
 | S-40 | REGRESIÓN: calcularTotalCarrito(items, descuento) coincide con state.total() tras el merge real de rehidratación de Zustand persist | stores/pos | unit |
 | S-41 | Múltiples set() síncronos consecutivos (addItem en tanda) no pierden mutaciones — el total final refleja todos los items | stores/pos | unit |
 | S-42 | Re-aplicar el merge de rehidratación con el mismo contenido (nueva referencia de objeto) es idempotente — no duplica items ni altera el total | stores/pos | unit |
+| S-43 | REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd): metodoPago, numeroTransaccion y pagoNc NO se persisten en localStorage (partialize los excluye a propósito) | stores/pos | unit |
+| S-44 | REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd): tras guardar con NC activo y rehidratar vía persist.rehydrate() real, metodoPago vuelve a 'efectivo' y pagoNc queda undefined | stores/pos | unit |
 
 ## IVA — extracción canónica (IVA-01 a IVA-10)
 

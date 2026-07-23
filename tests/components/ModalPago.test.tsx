@@ -28,6 +28,7 @@ let mockDescuento                           = 0;
 let mockSubtotalValue                       = 10000;
 let mockMetodoPago                          = "efectivo";
 let mockNumeroTransaccion: string | undefined = undefined;
+let mockPagoNc: { nota_credito_id: string; numero_nc: string; monto: number } | undefined = undefined;
 
 // ModalPago ahora destructura `items` y computa subtotal/total con las
 // funciones puras reales de @/stores/pos (calcularSubtotalCarrito, etc.),
@@ -49,7 +50,7 @@ jest.mock("@/stores/pos", () => ({
     setWorker:             mockSetWorker,
     procedencia:           "presencial",
     setProcedencia:        mockSetProcedencia,
-    pagoNc:                undefined,
+    pagoNc:                mockPagoNc,
     setPayNc:              mockSetPayNc,
     clearPayNc:            mockClearPayNc,
     clienteEmail:          mockClienteEmail,
@@ -320,5 +321,54 @@ describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
     const input = screen.getByPlaceholderText("Ej: TRX123456789");
     fireEvent.blur(input);
     expect(screen.getByText("Campo obligatorio para pagos con débito/crédito/transferencia")).toBeInTheDocument();
+  });
+});
+
+// ── Reset de método de pago al montar — REGRESIÓN ticket Trello 6a619fafd0aa9aa5ad06b1dd ──
+//
+// El modal se abría con metodoPago="nota_credito" y pagoNc ya seteado, heredado de
+// localStorage de una venta anterior interrumpida a mitad de un pago mixto con NC
+// (root cause corregido en src/stores/pos.ts — metodoPago/numeroTransaccion/pagoNc
+// ya no se persisten, ver S-43/S-44 en tests/unit/lib/pos-store.test.ts). Estos tests
+// cubren la segunda capa: aunque el estado en memoria/localStorage YA esté "sucio"
+// (blobs guardados por una versión anterior de la app, antes del fix de pos.ts, o un
+// Cancelar sin limpiar dentro de la misma sesión), ModalPago debe arrancar en un
+// estado neutro cada vez que se monta.
+describe("ModalPago — reset de método de pago al montar (MP-17 a MP-19)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail      = undefined;
+    mockEnviarEmailRecibo = false;
+    mockWorkerClerkId     = undefined;
+    mockWorkers           = [];
+    mockDescuento         = 0;
+    mockSubtotalValue     = 10000;
+    mockNumeroTransaccion = undefined;
+  });
+
+  // MP-17
+  it("MP-17: REGRESIÓN — abre con NC heredado (metodoPago='nota_credito' + pagoNc seteado) → resetea a efectivo y limpia pagoNc", () => {
+    mockMetodoPago = "nota_credito";
+    mockPagoNc = { nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 };
+    setup();
+    expect(mockSetMetodoPago).toHaveBeenCalledWith("efectivo");
+    expect(mockClearPayNc).toHaveBeenCalled();
+  });
+
+  // MP-18: caso ya cubierto antes del ticket (metodoPago vacío) — no debe dejar de funcionar
+  it("MP-18: metodoPago vacío (undefined) se inicializa a efectivo", () => {
+    mockMetodoPago = undefined as unknown as string;
+    mockPagoNc = undefined;
+    setup();
+    expect(mockSetMetodoPago).toHaveBeenCalledWith("efectivo");
+  });
+
+  // MP-19: caso normal — sin nada heredado, no debe disparar sets innecesarios
+  it("MP-19: metodoPago ya 'efectivo' sin pagoNc → no llama setMetodoPago ni clearPayNc", () => {
+    mockMetodoPago = "efectivo";
+    mockPagoNc = undefined;
+    setup();
+    expect(mockSetMetodoPago).not.toHaveBeenCalled();
+    expect(mockClearPayNc).not.toHaveBeenCalled();
   });
 });

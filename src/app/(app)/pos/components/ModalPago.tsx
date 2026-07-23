@@ -65,10 +65,24 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     clienteEmail, enviarEmailRecibo, setEnviarEmailRecibo,
   } = usePOSStore();
 
-  // Garantiza un método por defecto aunque localStorage tenga datos de una versión anterior
+  // Garantiza un estado de pago neutro cada vez que el modal se monta — no solo
+  // cuando metodoPago está vacío. metodoPago/pagoNc ya no se persisten en
+  // localStorage (ver src/stores/pos.ts), pero esto sigue siendo necesario para:
+  // (a) blobs de localStorage guardados por una versión anterior de la app, antes
+  // de ese fix, que un usuario real puede tener todavía en el navegador; y
+  // (b) reabrir el modal tras un "Cancelar" a mitad de un pago con NC dentro de la
+  // MISMA sesión (pagoNc no se limpiaba al cancelar). Sin esto, el modal podía abrir
+  // con metodoPago="nota_credito" y el panel "Pagar diferencia con" ya visible, como
+  // si una NC ya estuviera validada, bloqueando el cambio a Efectivo/Débito/Crédito/
+  // Transferencia en la fila principal (ticket Trello 6a619fafd0aa9aa5ad06b1dd).
   useEffect(() => {
-    if (!metodoPago) setMetodoPago("efectivo");
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (metodoPago !== "efectivo" || pagoNc) {
+      setMetodoPago("efectivo");
+      clearPayNc();
+      setNumeroTransaccion(undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: workers, isLoading: workersLoading } = useQuery<Worker[]>({
     queryKey: ["workers"],
