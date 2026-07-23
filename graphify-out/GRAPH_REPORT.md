@@ -1,16 +1,16 @@
 # Graph Report - app  (2026-07-22)
 
 ## Corpus Check
-- 491 files · ~330,228 words
+- 491 files · ~330,822 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2917 nodes · 5048 edges · 321 communities (216 shown, 105 thin omitted)
+- 2917 nodes · 5048 edges · 320 communities (214 shown, 106 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `32c948c6`
+- Built from commit: `9a2d150d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -227,7 +227,6 @@
 - Store ID Mocking
 - Vercel Cron Jobs
 - VendedoresPage.test.tsx
-- AdminRole
 - renderPage
 - 💰 Cambio en Estrategia de Precios
 - 📊 Cambios en Contabilidad
@@ -338,23 +337,23 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (321 total, 105 thin omitted)
+## Communities (320 total, 106 thin omitted)
 
 ### Community 0 - "Post Management API"
 Cohesion: 0.08
 Nodes (26): Categoria, CategoriasTab(), OptimizadorVencimientosTab(), AjusteModal, Categoria, EMPTY_FORM, formatShortDate(), getCategorias() (+18 more)
 
 ### Community 1 - "User Authentication Management"
-Cohesion: 0.08
-Nodes (40): GET(), ClerkApiError, createClerkUser(), isClerkApiError(), isEmailTakenError(), POST(), analizarConReintentoSiTimeout(), GET() (+32 more)
+Cohesion: 0.07
+Nodes (43): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+35 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.08
-Nodes (43): PATCH(), POST(), GET(), liquidacionSchema, POST(), POST(), POST(), rejectSchema (+35 more)
+Cohesion: 0.09
+Nodes (41): POST(), GET(), liquidacionSchema, POST(), POST(), POST(), rejectSchema, DELETE() (+33 more)
 
 ### Community 3 - "Admin Dashboard Layout"
-Cohesion: 0.14
-Nodes (9): CreateUserFormProps, Store, StoreUser, UsuariosCard(), AdminAuthData, canCreateUser(), canDeleteUser(), DEFAULT_USERS (+1 more)
+Cohesion: 0.16
+Nodes (11): AdminLayoutProps, AuditoriaCardProps, CreateUserFormProps, Store, StoreUser, UsuariosCard(), UsuariosCardProps, AdminAuthData (+3 more)
 
 ### Community 4 - "AI Embedding Service"
 Cohesion: 0.07
@@ -396,8 +395,8 @@ Cohesion: 0.08
 Nodes (6): InstagramChannel, PosChannel, RappiChannel, CanalConfig, CanalOrden, CanalProducto
 
 ### Community 12 - "Client and Pet API"
-Cohesion: 0.07
-Nodes (18): GET(), GET(), GET(), GET(), GET(), GET(), GET(), GET() (+10 more)
+Cohesion: 0.08
+Nodes (16): GET(), GET(), GET(), GET(), GET(), GET(), GET(), GET() (+8 more)
 
 ### Community 13 - "Inventory Batch Management"
 Cohesion: 0.13
@@ -688,8 +687,8 @@ Cohesion: 0.22
 Nodes (9): makeWrapper(), MOCK_BALANCE_RESPONSE, MOCK_RESULTADO_RESPONSE, mockBackfillResponse, mockCierreResponse, mockLibroDiarioResponse, mockPreviewResponse, setup() (+1 more)
 
 ### Community 88 - "Customer Modal Tests"
-Cohesion: 0.14
-Nodes (16): DELETE(), PATCH(), requireAdmin(), GET(), POST(), GET(), POST(), GET() (+8 more)
+Cohesion: 0.12
+Nodes (20): DELETE(), PATCH(), requireAdmin(), GET(), POST(), DELETE(), GET(), PATCH() (+12 more)
 
 ### Community 89 - "Audit Log Tests"
 Cohesion: 0.25
@@ -724,8 +723,8 @@ Cohesion: 0.29
 Nodes (4): mockDelete, mockFrom, mockUpsert, mockVerify
 
 ### Community 97 - "Monthly Closing Tests"
-Cohesion: 0.15
-Nodes (18): GET(), PATCH(), GET(), POST(), DELETE(), handlePatchUser(), PATCH(), PatchUserSchema (+10 more)
+Cohesion: 0.11
+Nodes (19): analizarConReintentoSiTimeout(), GET(), POST(), GET(), CierreMesSchema, POST(), tomarRespaldoCierre(), GET() (+11 more)
 
 ### Community 99 - "Inventory Patch Tests"
 Cohesion: 0.07
@@ -778,10 +777,6 @@ Nodes (4): mockFrom, mockInsert, mockSelect, mockVerify
 ### Community 118 - "Hub Product Sync"
 Cohesion: 0.33
 Nodes (3): mockAuth, mockGetStoreId, mockSyncProductsToHub
-
-### Community 119 - "Credit Note Testing"
-Cohesion: 0.70
-Nodes (4): DELETE(), PATCH(), requireAdmin(), LoteUpdateSchema
 
 ### Community 120 - "Bulk POS Storage"
 Cohesion: 0.33
@@ -939,10 +934,6 @@ Nodes (35): CI/CD Integration, Comando: Tests específicos, Comando: Todos los t
 Cohesion: 0.06
 Nodes (34): 1. Conectar Repositorio, 2. Configurar Variables de Entorno, 3. Build Settings, 4. Desplegar, 5. Actualizar Webhooks, 🏗️ Arquitectura, Autenticación & Roles, 🗄️ Base de Datos (+26 more)
 
-### Community 229 - "AdminRole"
-Cohesion: 0.50
-Nodes (4): AdminLayoutProps, AuditoriaCardProps, UsuariosCardProps, AdminRole
-
 ### Community 230 - "renderPage"
 Cohesion: 0.67
 Nodes (3): makeWrapper(), renderPage(), SETTINGS_BASE
@@ -1074,12 +1065,12 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Knowledge Gaps
 - **1235 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1230 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **105 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **106 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Worker Process Manager` to `User Authentication Management`, `POS Metadata and Audit`, `SettingsPage.test.tsx`, `Rappi Integration`, `Client and Pet API`, `Security and Licensing`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `FakeJsPDF`, `AI POS Recommendations`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Customer Detail UI`, `AI Recommendation UI`, `Supplier Hub Page`, `Profit and Loss API`, `Project Progress Metrics`, `AdminLayout.tsx`, `External Channel Interface`, `rateLimit.ts`, `Customer Modal Tests`, `Monthly Closing Tests`, `Vendedores API Security`, `Credit Note Testing`?**
+- **Why does `createServiceClient()` connect `Worker Process Manager` to `User Authentication Management`, `POS Metadata and Audit`, `SettingsPage.test.tsx`, `Rappi Integration`, `Client and Pet API`, `Security and Licensing`, `UberEats Integration`, `Accounting Journal Entries`, `Decisiones de Diseño`, `FakeJsPDF`, `AI POS Recommendations`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Customer Detail UI`, `AI Recommendation UI`, `Supplier Hub Page`, `Profit and Loss API`, `Project Progress Metrics`, `AdminLayout.tsx`, `External Channel Interface`, `rateLimit.ts`, `Customer Modal Tests`, `Monthly Closing Tests`, `Vendedores API Security`?**
   _High betweenness centrality (0.151) - this node is a cross-community bridge._
 - **Why does `dependencies` connect `Frontend Dependencies` to `Trial Balance PDF`, `zustand`, `⚠️ Consideraciones Importantes`, `Session File Management`, `react-barcode`, `@supabase/supabase-js`, `tw-animate-css`, `react-dom`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `Auto-Commit Scripts`?**
   _High betweenness centrality (0.054) - this node is a cross-community bridge._
@@ -1090,6 +1081,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Post Management API` be split into smaller, more focused modules?**
   _Cohesion score 0.0784313725490196 - nodes in this community are weakly interconnected._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.08181818181818182 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07431693989071038 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.08135593220338982 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08646616541353383 - nodes in this community are weakly interconnected._

@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1784562707.152973,
-    "ast_hash": "9c3deb39bb668086ac11a414d45cc7ad",
+    "mtime": 1784772983.4674675,
+    "ast_hash": "b55b6f1207da02a5936b8b0a29674342",
     "semantic_hash": ""
   },
   "src/app/(app)/canales/instagram/posts/editor/page.tsx": {
@@ -890,9 +890,9 @@
     "semantic_hash": "7c16e563a48f634b9fa908cc72af488d"
   },
   "src/app/api/canales/config/route.ts": {
-    "mtime": 1783661476.4677336,
-    "ast_hash": "3935026bb62304b4f8d0207ece8ebebe",
-    "semantic_hash": "3935026bb62304b4f8d0207ece8ebebe"
+    "mtime": 1784772983.467546,
+    "ast_hash": "775f90058c095c7aceaec5d2da19644d",
+    "semantic_hash": ""
   },
   "src/app/api/canales/instagram/posts/[id]/route.ts": {
     "mtime": 1780687681.0645201,
@@ -1780,8 +1780,8 @@
     "semantic_hash": "9a5c2f15c3ec07622c90ec9fc71e7b0c"
   },
   "tests/components/CanalConfigPage.test.tsx": {
-    "mtime": 1784511368.9566813,
-    "ast_hash": "2dd4ba1116a2e9687c392133ffad46ad",
+    "mtime": 1784772983.467622,
+    "ast_hash": "5ccfa7ad5bf588b2c77f60c9fef77ded",
     "semantic_hash": ""
   },
   "tests/components/CategoriasTab.test.tsx": {
@@ -1990,9 +1990,9 @@
     "semantic_hash": "f540364bedcf3c1d17a006dff2d4dc05"
   },
   "tests/integration/api/canales-config.test.ts": {
-    "mtime": 1783661476.4683375,
-    "ast_hash": "0d89aab7c05cbdc04967e7e84bb3ec66",
-    "semantic_hash": "0d89aab7c05cbdc04967e7e84bb3ec66"
+    "mtime": 1784772983.4677277,
+    "ast_hash": "789f8e758ecc2c06c0651b85d17de912",
+    "semantic_hash": ""
   },
   "tests/integration/api/canales-instagram.test.ts": {
     "mtime": 1780687681.0666943,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784749375.1709917,
-    "ast_hash": "0d19809e0df1a10999b824b7eacf071a",
+    "mtime": 1784772983.467375,
+    "ast_hash": "c80e6f75fe0bf27ae6d710c0ca39e226",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
