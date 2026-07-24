@@ -330,6 +330,8 @@ I-406/I-407/I-408.
 | I-452 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): idempotencyKey del body se envía al RPC crear_venta_tx como p_idempotency_key | POST /api/ventas | integration |
 | I-453 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): sin idempotencyKey en el body, el RPC recibe p_idempotency_key null | POST /api/ventas | integration |
 | I-454 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): RPC created=false (reintento idempotente) → 200 con la venta existente pero SIN repetir contabilidad/WhatsApp/email/hub sync | POST /api/ventas | integration |
+| I-455 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): incremento de stock al recibir OC sin fecha de vencimiento usa RPC atómico increment_stock, no SELECT+UPDATE | PATCH /api/ordenes-compra/[id] | integration |
+| I-456 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): restitución de stock por devolución sin lotes usa RPC atómico increment_stock, no SELECT+UPDATE | POST /api/notas-credito | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)

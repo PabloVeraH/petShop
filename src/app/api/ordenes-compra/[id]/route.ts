@@ -192,18 +192,16 @@ export async function PATCH(
           user_id: ctx.userId,
         });
       } else {
-        // Sin fecha de vencimiento → stock directo
-        const { data: prod } = await supabase
-          .from("productos")
-          .select("stock")
-          .eq("id", productoId)
-          .single();
-        if (prod) {
-          await supabase
-            .from("productos")
-            .update({ stock: prod.stock + item.cantidad_recibida })
-            .eq("id", productoId);
-        }
+        // Sin fecha de vencimiento → stock directo. Incremento atómico vía RPC
+        // (no SELECT stock + UPDATE stock=leído+cantidad en dos statements
+        // separados): ese patrón es un lost update real bajo dos recepciones
+        // concurrentes del mismo producto (dos OC casi simultáneas, o un
+        // doble clic en "Confirmar recepción") — encontrado al investigar el
+        // ticket Trello 6a61a6136d3d8009490d7113.
+        await supabase.rpc("increment_stock", {
+          p_producto_id: productoId,
+          p_cantidad: item.cantidad_recibida,
+        });
 
         await supabase.from("stock_movements").insert({
           producto_id: productoId,

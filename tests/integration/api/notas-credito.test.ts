@@ -140,17 +140,9 @@ function makeFromDevolucion(
       chain.insert.mockResolvedValue({ error: null });
       return chain;
     }
-    if (table === "productos") {
-      queries.productos++;
-      if (queries.productos % 2 === 1) {
-        // SELECT stock antes de actualizar
-        chain.single.mockResolvedValue({ data: { stock: 10 }, error: null });
-      } else {
-        // UPDATE stock
-        chain.eq.mockResolvedValue({ data: null, error: null });
-      }
-      return chain;
-    }
+    // Nota: ya no hay caso "productos" — la restitución de stock sin lotes
+    // usa el RPC increment_stock (mockRpc, resuelve {data:null,error:null}
+    // por defecto), no consulta la tabla productos directamente. Ver I-456.
     if (table === "stock_movements") {
       queries.stock_movements++;
       chain.insert.mockResolvedValue({ error: null });
@@ -316,7 +308,45 @@ describe("POST /api/notas-credito", () => {
     );
 
     expect(res.status).toBe(200);
-    // Mock verifica que se llamó a productos.update con stock incrementado
+    expect(mockRpc).toHaveBeenCalledWith("increment_stock", {
+      p_producto_id: "523e4567-e89b-12d3-a456-426614174004",
+      p_cantidad: 3,
+    });
+  });
+
+  // I-456 — REGRESIÓN (investigado a raíz del ticket Trello
+  // 6a61a6136d3d8009490d7113, mismo patrón encontrado en la recepción de OC
+  // sin lotes): la restitución de stock por devolución debe ser atómica (RPC
+  // increment_stock), no un SELECT stock + UPDATE stock=leído+cantidad en dos
+  // statements separados — ese patrón pierde incrementos bajo dos
+  // devoluciones concurrentes del mismo producto. makeFromDevolucion ya NO
+  // define un caso especial para "productos" (se eliminó junto con este fix):
+  // si el código volviera al patrón viejo, la llamada a .select("stock")
+  // caería en el chain genérico (single→data:null) y el .stock de un objeto
+  // null lanzaría un TypeError, fallando el test.
+  it("I-456: REGRESIÓN — restitución de stock sin lotes usa RPC atómico increment_stock, no SELECT+UPDATE", async () => {
+    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada" };
+    const ventaItem = { id: "423e4567-e89b-12d3-a456-426614174003", producto_id: "523e4567-e89b-12d3-a456-426614174004", cantidad: 10, precio_unitario: 1000 };
+    mockFrom.mockImplementation(makeFromDevolucion(venta, [ventaItem]));
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: "423e4567-e89b-12d3-a456-426614174003", cantidadDevuelta: 4, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockFrom).not.toHaveBeenCalledWith("productos");
+    expect(mockRpc).toHaveBeenCalledWith("increment_stock", {
+      p_producto_id: "523e4567-e89b-12d3-a456-426614174004",
+      p_cantidad: 4,
+    });
   });
 
   it("devolución sin restituirStock → no toca stock", async () => {

@@ -129,7 +129,6 @@ describe("Órdenes de Compra API", () => {
         return resolve({ data: mockOrden, error: null });
       };
 
-      let capturedUpdate = false;
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return ordenChain;
         if (table === "ordenes_compra_items") {
@@ -137,15 +136,6 @@ describe("Órdenes de Compra API", () => {
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
             then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
-        }
-        if (table === "productos") {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: { stock: 0 }, error: null }); },
           };
         }
         if (table === "stock_movements") {
@@ -164,8 +154,9 @@ describe("Órdenes de Compra API", () => {
           };
         }
       });
+      const rpcMock = jest.fn().mockResolvedValue({ data: null, error: null });
 
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock, rpc: rpcMock });
 
       const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
         method: "PATCH",
@@ -177,6 +168,78 @@ describe("Órdenes de Compra API", () => {
       });
       const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
       expect(res.status).toBe(200);
+      expect(rpcMock).toHaveBeenCalledWith("increment_stock", {
+        p_producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5",
+        p_cantidad: 10,
+      });
+    });
+
+    // I-455 — REGRESIÓN (investigado a raíz del ticket Trello
+    // 6a61a6136d3d8009490d7113): el incremento de stock sin fecha de
+    // vencimiento debe ser atómico (RPC increment_stock), no un SELECT stock
+    // + UPDATE stock=leído+cantidad en dos statements separados — ese patrón
+    // pierde incrementos bajo dos recepciones concurrentes del mismo
+    // producto. El fromMock de este test NO define un caso para la tabla
+    // "productos": si el código volviera al patrón viejo (select/update
+    // directo), fromMock("productos") devolvería undefined y el acceso a
+    // .select() lanzaría un TypeError, fallando el test.
+    it("I-455: REGRESIÓN — incremento de stock sin vencimiento usa RPC atómico increment_stock, no SELECT+UPDATE", async () => {
+      const ordenChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis(),
+      };
+      (ordenChain as any).single = jest.fn().mockReturnThis();
+      (ordenChain as any).then = function(resolve: any) {
+        return resolve({ data: mockOrden, error: null });
+      };
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra_items") {
+          return {
+            update: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "stock_movements") {
+          return {
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "cuentas_pagar") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+          };
+        }
+        // Sin caso para "productos" a propósito — ver comentario del test.
+      });
+      const rpcMock = jest.fn().mockResolvedValue({ data: null, error: null });
+
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock, rpc: rpcMock });
+
+      const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recibir",
+          items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 5, precio_unitario: 20, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+        }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+      expect(res.status).toBe(200);
+      expect(fromMock).not.toHaveBeenCalledWith("productos");
+      expect(rpcMock).toHaveBeenCalledWith("increment_stock", {
+        p_producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5",
+        p_cantidad: 5,
+      });
     });
   });
 
@@ -568,15 +631,6 @@ describe("Órdenes de Compra API", () => {
             }),
           };
         }
-        if (table === "productos") {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            then: (resolve: Resolver) => resolve({ data: { stock: 0 }, error: null }),
-          };
-        }
         if (table === "stock_movements") {
           return {
             insert: jest.fn().mockReturnThis(),
@@ -593,8 +647,9 @@ describe("Órdenes de Compra API", () => {
           };
         }
       });
+      const rpcMock = jest.fn().mockResolvedValue({ data: null, error: null });
 
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock, rpc: rpcMock });
 
       const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
         method: "PATCH",

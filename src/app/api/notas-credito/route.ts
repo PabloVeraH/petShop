@@ -233,19 +233,17 @@ export async function POST(req: NextRequest) {
         });
         if (lotesErr) stockNcErrors.push(`lotes producto ${item.productoId}: ${lotesErr.message}`);
       } else {
-        const { data: prod } = await supabase
-          .from("productos")
-          .select("stock")
-          .eq("id", item.productoId)
-          .single();
-
-        if (prod) {
-          const { error: stockErr } = await supabase
-            .from("productos")
-            .update({ stock: prod.stock + item.cantidadDevuelta })
-            .eq("id", item.productoId);
-          if (stockErr) stockNcErrors.push(`producto ${item.productoId}: ${stockErr.message}`);
-        }
+        // Incremento atómico vía RPC — mismo motivo que devolver_stock_a_lotes
+        // arriba y gastar_saldo_a_favor_pago más abajo: un SELECT stock +
+        // UPDATE stock=leído+cantidad en dos statements separados pierde
+        // incrementos bajo dos devoluciones concurrentes del mismo producto
+        // (encontrado al investigar el ticket Trello 6a61a6136d3d8009490d7113,
+        // mismo patrón que el bug real en la recepción de OC sin lotes).
+        const { error: stockErr } = await supabase.rpc("increment_stock", {
+          p_producto_id: item.productoId,
+          p_cantidad: item.cantidadDevuelta,
+        });
+        if (stockErr) stockNcErrors.push(`producto ${item.productoId}: ${stockErr.message}`);
       }
 
       const { error: movErr } = await supabase.from("stock_movements").insert({

@@ -21,11 +21,15 @@ const mockLogAudit = jest.fn();
 const mockGetRequestMetadata = jest.fn(() => ({ ipAddress: "127.0.0.1", userAgent: "test-agent" }));
 const mockSyncProductsToHub = jest.fn();
 const mockCrearAsiento = jest.fn();
+// increment_stock (restitución de stock en notas-credito, ver ticket Trello
+// 6a61a6136d3d8009490d7113) — resuelve OK por defecto, este archivo no
+// verifica atomicidad de stock, solo cobertura de logAudit.
+const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/admin-check", () => ({ getAdminStatus: mockGetAdminStatus }));
-jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/audit", () => ({
   logAudit: mockLogAudit,
   getRequestMetadata: mockGetRequestMetadata,
