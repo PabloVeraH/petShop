@@ -745,7 +745,7 @@
     "semantic_hash": "d0294d49da18ea92aef9d9415f2aa542"
   },
   "src/app/(app)/pos/api.ts": {
-    "mtime": 1784838405.3102057,
+    "mtime": 1784839124.5360458,
     "ast_hash": "fd7fbe67bd951387490cb2f8f04490be",
     "semantic_hash": ""
   },
@@ -780,7 +780,7 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784838405.3103504,
+    "mtime": 1784839124.5361154,
     "ast_hash": "5402ed7a9251d5282fdee70bf7670646",
     "semantic_hash": ""
   },
@@ -1140,8 +1140,8 @@
     "semantic_hash": "5ebd60fcf7a104d995334bcda9f19b5b"
   },
   "src/app/api/notas-credito/route.ts": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "e2c30b6901954e802d263798070a2c35",
+    "mtime": 1784863154.9492395,
+    "ast_hash": "4c3930c3d1f5776228c51d252ee3c9a5",
     "semantic_hash": ""
   },
   "src/app/api/onboarding/complete/route.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": "0039226a99fcab5b53f2d2d05ec24002"
   },
   "src/app/api/ordenes-compra/[id]/route.ts": {
-    "mtime": 1784773413.0869834,
-    "ast_hash": "b38554e06784839a47ac2bb957707547",
+    "mtime": 1784863154.9496655,
+    "ast_hash": "9787f4737cbe2499378a726f44f19203",
     "semantic_hash": ""
   },
   "src/app/api/ordenes-compra/route.ts": {
@@ -1250,7 +1250,7 @@
     "semantic_hash": ""
   },
   "src/app/api/ventas/route.ts": {
-    "mtime": 1784838405.310598,
+    "mtime": 1784839124.536248,
     "ast_hash": "0cd7ab8d6addbda67ab84e88552492c7",
     "semantic_hash": ""
   },
@@ -1705,7 +1705,7 @@
     "semantic_hash": ""
   },
   "src/lib/validation/ventas.ts": {
-    "mtime": 1784838405.3107095,
+    "mtime": 1784839124.5363154,
     "ast_hash": "ece0d306673231bb3591afc2b73a5a69",
     "semantic_hash": ""
   },
@@ -1855,7 +1855,7 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1784838405.3108609,
+    "mtime": 1784839124.536407,
     "ast_hash": "82c2b2006d43be3af02276fd7d9e2182",
     "semantic_hash": ""
   },
@@ -1965,8 +1965,8 @@
     "semantic_hash": "7c30ed51937d8dcac5eae5b97c49d691"
   },
   "tests/integration/api/audit-coverage.test.ts": {
-    "mtime": 1784743439.4847813,
-    "ast_hash": "919be322715493960520f292c11cfeb2",
+    "mtime": 1784863154.9499187,
+    "ast_hash": "335a10c37d8cab64511e88c7debb6801",
     "semantic_hash": ""
   },
   "tests/integration/api/audit-extended.test.ts": {
@@ -2155,8 +2155,8 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1784497064.437037,
-    "ast_hash": "cad50b080979f1afa13fec0c37f6a12f",
+    "mtime": 1784863154.9501798,
+    "ast_hash": "0bc7b2b9ddfe31d9323829214e1ba69a",
     "semantic_hash": ""
   },
   "tests/integration/api/onboarding.test.ts": {
@@ -2165,8 +2165,8 @@
     "semantic_hash": "69fa071ebdf1c18720c9d69968baa638"
   },
   "tests/integration/api/ordenes-compra.test.ts": {
-    "mtime": 1784773413.0874772,
-    "ast_hash": "dedebacfe09710ef7bf3dabe33c109f4",
+    "mtime": 1784863154.9504046,
+    "ast_hash": "e12b7913f6c5a29f339b6c5edccd617c",
     "semantic_hash": ""
   },
   "tests/integration/api/pagos.test.ts": {
@@ -2260,7 +2260,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
-    "mtime": 1784838405.3110056,
+    "mtime": 1784839124.5365088,
     "ast_hash": "cadad522acaeeab3ea2c9d789aa8c0e8",
     "semantic_hash": ""
   },
@@ -2275,7 +2275,7 @@
     "semantic_hash": "c2cf63583227e767c676603657d89d25"
   },
   "tests/integration/api/ventas.post.test.ts": {
-    "mtime": 1784838405.3113065,
+    "mtime": 1784839124.5366976,
     "ast_hash": "a62f7c4fd6015ba9d4b5aa6125341fdb",
     "semantic_hash": ""
   },
@@ -2300,7 +2300,7 @@
     "semantic_hash": ""
   },
   "tests/integration/hub/hub-sync.integration.test.ts": {
-    "mtime": 1784838405.3114464,
+    "mtime": 1784839124.536782,
     "ast_hash": "ff4171e8496b5db69e4396a69f21c22c",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784839030.9983153,
-    "ast_hash": "3b12d236fb4d1519a2fae0e33cd1c94f",
+    "mtime": 1784863263.5971766,
+    "ast_hash": "aedbd851452156ecd9b3d5ac3ba0cc90",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3985,8 +3985,13 @@
     "semantic_hash": ""
   },
   "migrations/059_ventas_idempotency_key.sql": {
-    "mtime": 1784838877.1896856,
+    "mtime": 1784839124.5359726,
     "ast_hash": "0595fccd212ae4c93334bfa91f5ab5cb",
+    "semantic_hash": ""
+  },
+  "migrations/060_increment_stock.sql": {
+    "mtime": 1784863154.9592063,
+    "ast_hash": "c31a6f2c54695ecf61eeeff958452d29",
     "semantic_hash": ""
   }
 }
