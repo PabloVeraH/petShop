@@ -307,7 +307,7 @@ describe("SalesTicketPage — badge Dev. X y disponibilidad de items", () => {
 
 // ── Tests de anulación ─────────────────────────────────────────────────────
 
-describe("SalesTicketPage — anulación de venta (VT-01 a VT-04)", () => {
+describe("SalesTicketPage — anulación de venta (VT-01 a VT-06)", () => {
   beforeEach(() => jest.clearAllMocks());
 
   // VT-03: REGRESIÓN — anular venta debe invalidar queries de detalle Y listado con refetchType "all".
@@ -509,4 +509,79 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-04)", () => {
     );
     expect(screen.queryByText(/gracias por su compra/i)).not.toBeInTheDocument();
   });
+
+  // VT-06: REGRESIÓN (ticket Trello 6a61a12381bf8bf365e5a9d3) — al anular venta,
+  // el cache de TanStack Query debe reflejar estado="anulada" AHORA (no tras la
+  // refetch de invalidateQueries), para que el banner "Venta anulada" aparezca y
+  // el botón "Anular venta" desaparezca sin esperar la respuesta del GET.
+  // Sin setQueryData en onSuccess, el setConfirmAnular(false) corre antes de que
+  // el refetch complete dejando la UI inconsistente (botón visible + sin banner).
+  it("VT-06: REGRESIÓN — anular venta actualiza data.estado a 'anulada' en cache vía setQueryData, no solo tras refetch", async () => {
+    const VENTA_ACTIVA = {
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Producto VT06", 1, 5000)],
+    };
+
+    let datosActualizados = false;
+
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("/api/ventas/") && opts?.method === "PATCH") {
+        datosActualizados = true;
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...VENTA_ACTIVA, estado: "anulada" }) });
+      }
+      if (url.includes("/api/ventas/")) {
+        // Después de PATCH, GET devuelve datos actualizados
+        if (datosActualizados) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ ...VENTA_ACTIVA, estado: "anulada" }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(VENTA_ACTIVA) });
+      }
+      if (url.includes("/api/notas-credito")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      if (url.includes("/api/settings")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ name: "PetShop Test" }) });
+      if (url.includes("/api/saldos-a-favor")) return Promise.resolve({ ok: true, json: () => Promise.resolve({ saldo_disponible: 0 }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const setQueryDataSpy = jest.spyOn(qc, "setQueryData");
+
+    render(
+      <QueryClientProvider client={qc}>
+        <TicketPage params={Promise.resolve({ id: VENTA_ID })} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Producto VT06")).toBeInTheDocument()
+    );
+
+    // Click "Anular venta" → confirmación
+    fireEvent.click(screen.getByRole("button", { name: /Anular venta/i }));
+    // Click "Sí, anular"
+    fireEvent.click(screen.getByRole("button", { name: /Sí, anular/i }));
+
+    // Después de la mutación exitosa:
+    // - setQueryData debe haberse llamado con queryKey ["venta", VENTA_ID]
+    await waitFor(() => {
+      expect(setQueryDataSpy).toHaveBeenCalled();
+    });
+    const setDataCalls = setQueryDataSpy.mock.calls.filter(
+      (call) => JSON.stringify(call[0]) === JSON.stringify(["venta", VENTA_ID])
+    );
+    expect(setDataCalls.length).toBeGreaterThanOrEqual(1);
+
+    // - El banner "Venta anulada" debe aparecer (data.estado cambió a "anulada")
+    await waitFor(() => {
+      expect(screen.getByText(/venta anulada/i)).toBeInTheDocument();
+    });
+
+    // - El botón "Anular venta" NO debe estar visible
+    expect(screen.queryByRole("button", { name: /^Anular venta$/ })).not.toBeInTheDocument();
+
+    // - El mensaje "Gracias por su compra" NO debe mostrarse
+    expect(screen.queryByText(/gracias por su compra/i)).not.toBeInTheDocument();
+
+    setQueryDataSpy.mockRestore();
+  });
+
 });

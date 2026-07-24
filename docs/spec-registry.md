@@ -377,6 +377,7 @@ I-406/I-407/I-408.
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
 | VT-03 | Anular venta invalida queries ["venta", id], ["ventas"], ["inventario"], ["productos"], ["lotes"] y ["notas-credito", id] con refetchType "all" | SalesTicketPage | component |
 | VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
+| VT-06 | REGRESIÓN (ticket Trello 6a61a12381bf8bf365e5a9d3): anular venta actualiza cache vía setQueryData — banner "Venta anulada" aparece sin esperar refetch | SalesTicketPage | component |
 | REG-01 | Anular venta refresca listado al volver (invalida ["ventas"]) | SalesTicketPage | regression |
 | C-39 | REGRESIÓN: Subtotal muestra el neto (total − impuesto), no el bruto que igualaba a Total | SalesTicketPage | component |
 | C-40 | Con descuento, Subtotal + IVA sigue sumando exactamente Total | SalesTicketPage | component |

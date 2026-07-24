@@ -108,6 +108,10 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     },
     onSuccess: () => {
       setErrorMsg(null);
+      queryClient.setQueryData<VentaDetalle>(["venta", id], (old) => {
+        if (!old) return old;
+        return { ...old, estado: "anulada" };
+      });
       queryClient.invalidateQueries({ queryKey: ["venta", id], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
