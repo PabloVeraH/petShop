@@ -53,132 +53,6 @@ function patchParams(id: string) {
   return Promise.resolve({ id });
 }
 
-function ncChain(venta: any, ventaItem: any) {
-  const queries = { ventas: 0, venta_items: 0, notas_credito: 0, nc_items: 0, productos: 0, saldos: 0, fidel: 0, stock_movements: 0 };
-
-  return jest.fn((table: string) => {
-    const chain: Record<string, jest.Mock> = {
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: [], error: null }),
-      upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
-      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
-      gt: jest.fn().mockReturnThis(),
-    };
-
-    if (table === "ventas") {
-      queries.ventas++;
-      chain.single.mockResolvedValue({ data: venta, error: venta ? null : new Error("Not found") });
-      return chain;
-    }
-    if (table === "venta_items") {
-      queries.venta_items++;
-      chain.single.mockResolvedValue({ data: ventaItem, error: null });
-      return chain;
-    }
-    if (table === "notas_credito") {
-      queries.notas_credito++;
-      chain.insert.mockReturnThis();
-      chain.single.mockResolvedValue({
-        data: { id: "nc1", numero_nc: "NC-20260508-TEST1234" },
-        error: null,
-      });
-      return chain;
-    }
-    if (table === "nota_credito_items") {
-      queries.nc_items++;
-      chain.insert.mockResolvedValue({ error: null });
-      return chain;
-    }
-    if (table === "productos") {
-      queries.productos++;
-      chain.single.mockResolvedValue({ data: { stock: 10 }, error: null });
-      chain.eq.mockReturnThis();
-      return chain;
-    }
-    if (table === "stock_movements") {
-      queries.stock_movements++;
-      chain.insert.mockResolvedValue({ error: null });
-      return chain;
-    }
-    if (table === "saldos_a_favor") {
-      queries.saldos++;
-      chain.eq.mockReturnThis();
-      chain.single.mockResolvedValue({ data: null, error: new Error("Not found") });
-      chain.upsert.mockResolvedValue({ data: null, error: null });
-      return chain;
-    }
-    if (table === "fidelizacion") {
-      queries.fidel++;
-      chain.eq.mockReturnThis();
-      chain.single.mockResolvedValue({ data: null, error: new Error("Not found") });
-      return chain;
-    }
-    return chain;
-  });
-}
-
-function ncChainWithError(venta: any, ventaItem: any, ncInsertError: string) {
-  return jest.fn((table: string) => {
-    const chain: Record<string, jest.Mock> = {
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue({ data: [], error: null }),
-      upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
-      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
-      gt: jest.fn().mockReturnThis(),
-    };
-
-    if (table === "ventas") {
-      chain.single.mockResolvedValue({ data: venta, error: venta ? null : new Error("Not found") });
-      return chain;
-    }
-    if (table === "venta_items") {
-      chain.single.mockResolvedValue({ data: ventaItem, error: null });
-      return chain;
-    }
-    if (table === "notas_credito") {
-      chain.insert.mockReturnThis();
-      chain.single.mockResolvedValue({
-        data: null,
-        error: { message: ncInsertError, code: "23503" },
-      });
-      return chain;
-    }
-    if (table === "nota_credito_items") {
-      chain.insert.mockResolvedValue({ error: null });
-      return chain;
-    }
-    if (table === "productos") {
-      chain.single.mockResolvedValue({ data: { stock: 10 }, error: null });
-      chain.eq.mockReturnThis();
-      return chain;
-    }
-    if (table === "stock_movements") {
-      chain.insert.mockResolvedValue({ error: null });
-      return chain;
-    }
-    if (table === "saldos_a_favor") {
-      chain.eq.mockReturnThis();
-      chain.single.mockResolvedValue({ data: null, error: new Error("Not found") });
-      chain.upsert.mockResolvedValue({ data: null, error: null });
-      return chain;
-    }
-    if (table === "fidelizacion") {
-      chain.eq.mockReturnThis();
-      chain.single.mockResolvedValue({ data: null, error: new Error("Not found") });
-      return chain;
-    }
-    return chain;
-  });
-}
-
 function catChain(catData: any) {
   const c: Record<string, jest.Mock> = {
     select: jest.fn(),
@@ -259,14 +133,10 @@ describe("I-233: POST /api/notas-credito → logAudit", () => {
   });
 
   it("I-233: POST exitoso llama logAudit con action: CREATE, entityType: nota_credito", async () => {
-    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada", total: 5000 };
-    const ventaItem = {
-      id: "423e4567-e89b-12d3-a456-426614174003",
-      producto_id: "523e4567-e89b-12d3-a456-426614174004",
-      cantidad: 5,
-      precio_unitario: 1000,
-    };
-    mockFrom.mockImplementation(ncChain(venta, [ventaItem]));
+    mockRpc.mockResolvedValue({
+      data: { id: "nc1", monto_total: 2000, costo_total: 500, venta_cliente_id: CLIENTE_ID },
+      error: null,
+    });
 
     const { POST } = await import("@/app/api/notas-credito/route");
     const res = await POST(
@@ -528,14 +398,7 @@ describe("I-238: error en route → logAudit con result: failure", () => {
   });
 
   it("I-238: error de BD en POST notas-credito → logAudit con result: failure y errorMessage", async () => {
-    const venta = { id: VENTA_ID, cliente_id: CLIENTE_ID, estado: "completada", total: 5000 };
-    const ventaItem = {
-      id: "423e4567-e89b-12d3-a456-426614174003",
-      producto_id: "523e4567-e89b-12d3-a456-426614174004",
-      cantidad: 5,
-      precio_unitario: 1000,
-    };
-    mockFrom.mockImplementation(ncChainWithError(venta, ventaItem, "FK violation"));
+    mockRpc.mockResolvedValue({ data: null, error: { message: "FK violation" } });
 
     const { POST } = await import("@/app/api/notas-credito/route");
     const res = await POST(

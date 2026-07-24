@@ -197,68 +197,9 @@ describe("Devolución con trazabilidad de lotes", () => {
   });
 
   it("devuelve stock a lotes originales si hay venta_item_lotes", async () => {
-    const ventaData    = { id: VENTA_ID, cliente_id: null, total: 20000, subtotal: 20000, estado: "pagada" };
-    const ventaItemData = { id: VENTA_ITEM_ID, producto_id: PRODUCTO_ID, cantidad: 2, precio_unitario: 10000 };
-
-    // ventas: patrón condicional → objeto plano con todos los métodos
-    const ventasMock = flatQueryMock(ventaData);
-    // venta_items: mismo patrón
-    const ventaItemsMock = flatQueryMock(ventaItemData);
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "ventas")            return ventasMock;
-      if (table === "venta_items")       return ventaItemsMock;
-
-      if (table === "notas_credito") {
-        return {
-          insert: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: { id: "nc-1" }, error: null }),
-            }),
-          }),
-        };
-      }
-      if (table === "nota_credito_items") {
-        // Route chains two .eq() calls (IDOR security check): .eq("venta_item_id",...).eq("notas_credito.venta_id",...)
-        const nciChain = {
-          eq: jest.fn().mockReturnThis(),
-          then: (resolve: (v: { data: never[]; error: null }) => unknown) =>
-            resolve({ data: [], error: null }),
-        };
-        return {
-          select: jest.fn().mockReturnValue(nciChain),
-          insert: jest.fn().mockResolvedValue({ error: null }),
-        };
-      }
-
-      // venta_item_lotes: .select().eq().limit()
-      if (table === "venta_item_lotes") {
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue({ data: [{ id: "vil-1" }], error: null }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "stock_movements") {
-        return { insert: jest.fn().mockResolvedValue({ error: null }) };
-      }
-      if (table === "saldos_a_favor") {
-        const m = flatQueryMock(null);
-        m.upsert = jest.fn().mockResolvedValue({ error: null });
-        return m;
-      }
-      if (table === "fidelizacion") {
-        const m = flatQueryMock(null);
-        m.update = jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        });
-        return m;
-      }
-
-      return {};
+    mockRpc.mockResolvedValue({
+      data: { id: "nc-1", monto_total: 2000, costo_total: 500, venta_cliente_id: null },
+      error: null,
     });
 
     const res = await NotaCreditoPost(makeNCRequest({
@@ -269,9 +210,12 @@ describe("Devolución con trazabilidad de lotes", () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("devolver_stock_a_lotes", {
-      p_venta_item_id: VENTA_ITEM_ID,
-    });
+    expect(mockRpc).toHaveBeenCalledWith("crear_nota_credito_tx", expect.objectContaining({
+      p_venta_id: VENTA_ID,
+      p_items: expect.arrayContaining([
+        expect.objectContaining({ venta_item_id: VENTA_ITEM_ID, cantidad_devuelta: 2 }),
+      ]),
+    }));
   });
 });
 
