@@ -345,7 +345,7 @@ I-406/I-407/I-408.
 | SEC-05 | PATCH con placeholder no actualiza webhook_verify_token | PATCH /api/settings | integration |
 | SEC-06 | GET settings enmascara ambos tokens simultáneamente | GET /api/settings | integration |
 
-## Órdenes de Compra — Componentes (COD-01 a COD-06)
+## Órdenes de Compra — Componentes (COD-01 a COD-07)
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|-----------|------|
@@ -355,6 +355,7 @@ I-406/I-407/I-408.
 | COD-04 | Botón Crear OC deshabilitado sin items | CreateOrderDialog | component |
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
+| COD-07 | REGRESIÓN (investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b): escribir en Notas letra por letra (Dialog real, no mockeado) no pierde caracteres ni vuelve a robar el foco | CreateOrderDialog | component |
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
 | IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
@@ -477,6 +478,7 @@ I-406/I-407/I-408.
 | MP-17 | REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd): abre con NC heredado (metodoPago='nota_credito' + pagoNc seteado) → resetea a efectivo y limpia pagoNc al montar | ModalPago | component |
 | MP-18 | metodoPago vacío (undefined) al montar se inicializa a efectivo | ModalPago | component |
 | MP-19 | metodoPago ya 'efectivo' sin pagoNc al montar → no llama setMetodoPago ni clearPayNc (sin sets innecesarios) | ModalPago | component |
+| MP-20 | REGRESIÓN (investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b, store real no mockeado): escribir en Notas internas letra por letra no pierde caracteres ni vuelve a robar el foco | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |

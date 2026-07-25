@@ -1,11 +1,12 @@
 /**
- * Tests COD-01 a COD-06: CreateOrderDialog
+ * Tests COD-01 a COD-07: CreateOrderDialog
  * - COD-01: renderiza campos requeridos al abrir
  * - COD-02: permite agregar items existentes
  * - COD-03: permite agregar items nuevos (nombre libre)
  * - COD-04: valida que haya al menos un item antes de crear
  * - COD-05: envía POST con items + fecha_estimada + notas
  * - COD-06: limpia el formulario al cerrar
+ * - COD-07: escribir en Notas no pierde caracteres (Dialog real, no mockeado)
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -19,15 +20,6 @@ const PRODUCTOS_MOCK = [
   { id: "prod-1", nombre: "Alimento Premium", sku: "AP-001", precio: 15000 },
   { id: "prod-2", nombre: "Arena Gatitos", sku: "AG-002", precio: 5000 },
 ];
-
-jest.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: { children: ReactNode; open: boolean }) =>
-    open ? <div data-testid="dialog">{children}</div> : null,
-  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
 
 jest.mock("@/components/ui/button", () => ({
   Button: ({
@@ -72,8 +64,8 @@ describe("CreateOrderDialog", () => {
     });
 
     it("no renderiza nada cuando está cerrado", () => {
-      const { container } = renderDialog(false);
-      expect(container.querySelector('[data-testid="dialog"]')).toBeNull();
+      renderDialog(false);
+      expect(screen.queryByText("Nueva Orden de Compra")).not.toBeInTheDocument();
     });
 
     it("muestra campos de fecha estimada y notas", () => {
@@ -280,6 +272,38 @@ describe("CreateOrderDialog", () => {
       // Fecha debe estar vacía
       const dateInputs = screen.getAllByDisplayValue("") as HTMLInputElement[];
       expect(dateInputs.some(el => el.type === "date")).toBe(true);
+    });
+  });
+
+  // COD-07: investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b
+  // ("Motivo trunca a 1 carácter"). Ese bug era del ModalOverlay custom (fix
+  // en commit 1270b13, ver DV-17/IV-03/LP-01) — CreateOrderDialog usa el
+  // Dialog real de @base-ui/react, una implementación completamente
+  // distinta, sin el efecto de foco propenso al bug. No se encontró
+  // mecanismo equivalente acá, pero el campo Notas no tenía ningún test que
+  // ejercitara un re-render real mientras se escribe (COD-05 solo hace un
+  // fireEvent.change con el valor final de una vez). Este test usa el Dialog
+  // real (ya no mockeado en este archivo, ver arriba) y dispara varios
+  // re-renders sucesivos mientras se escribe, verificando que ninguno
+  // pierde caracteres ni vuelve a robar el foco.
+  describe("COD-07: escribir en Notas (Dialog real)", () => {
+    it("COD-07: escribir en Notas letra por letra no pierde caracteres ni roba el foco", () => {
+      const focusSpy = jest.spyOn(HTMLElement.prototype, "focus");
+      renderDialog(true);
+      const llamadasAlAbrir = focusSpy.mock.calls.length;
+
+      const notasTextarea = screen.getByPlaceholderText("Notas opcionales para la orden...");
+      const texto = "QA test - devolución Arena Arenero";
+      let acumulado = "";
+      for (const char of texto) {
+        acumulado += char;
+        fireEvent.change(notasTextarea, { target: { value: acumulado } });
+      }
+
+      expect(notasTextarea).toHaveValue(texto);
+      expect(focusSpy).toHaveBeenCalledTimes(llamadasAlAbrir);
+
+      focusSpy.mockRestore();
     });
   });
 });
