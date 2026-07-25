@@ -1140,7 +1140,7 @@
     "semantic_hash": "5ebd60fcf7a104d995334bcda9f19b5b"
   },
   "src/app/api/notas-credito/route.ts": {
-    "mtime": 1784911713.963488,
+    "mtime": 1784915483.3901455,
     "ast_hash": "0bf7906eefbbc0e3dd2c0265ea33726a",
     "semantic_hash": ""
   },
@@ -1420,7 +1420,7 @@
     "semantic_hash": "0607b02d99a2e92f9509223f36ccc6ec"
   },
   "src/components/ui/modal-overlay.tsx": {
-    "mtime": 1784150503.2381601,
+    "mtime": 1784919780.2446542,
     "ast_hash": "c994f785e67aa689aabf098007be07a8",
     "semantic_hash": "c994f785e67aa689aabf098007be07a8"
   },
@@ -1800,9 +1800,9 @@
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
-    "mtime": 1782362967.7241862,
-    "ast_hash": "d62cd2741bce327ab173ae85866df6a9",
-    "semantic_hash": "d62cd2741bce327ab173ae85866df6a9"
+    "mtime": 1784949632.2597628,
+    "ast_hash": "30ce1de2de51ad0ca087a337d07e17f1",
+    "semantic_hash": ""
   },
   "tests/components/DevolucionModal.test.tsx": {
     "mtime": 1784607911.9711263,
@@ -1965,7 +1965,7 @@
     "semantic_hash": "7c30ed51937d8dcac5eae5b97c49d691"
   },
   "tests/integration/api/audit-coverage.test.ts": {
-    "mtime": 1784912755.4786813,
+    "mtime": 1784915483.3902836,
     "ast_hash": "180f8cc5fa0b3fd66c042d360fecda9c",
     "semantic_hash": ""
   },
@@ -2155,7 +2155,7 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1784911713.9638686,
+    "mtime": 1784915483.3904471,
     "ast_hash": "2c69db5355a51176e21c8625f7541a44",
     "semantic_hash": ""
   },
@@ -2260,7 +2260,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
-    "mtime": 1784911713.963999,
+    "mtime": 1784915483.390556,
     "ast_hash": "99730a8efb8e036782d552ebd6b2014c",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784870507.9191034,
-    "ast_hash": "09e1f91582329c23291802cacb1db176",
+    "mtime": 1784949746.341104,
+    "ast_hash": "f919f71e2def6b67ce14d2b6ee5b6201",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3995,8 +3995,13 @@
     "semantic_hash": ""
   },
   "migrations/061_crear_nota_credito_tx.sql": {
-    "mtime": 1784909687.6255429,
+    "mtime": 1784915483.3900213,
     "ast_hash": "eb7d5725c93d08860cd22f7961c20439",
+    "semantic_hash": ""
+  },
+  "tests/components/pos-modalpago-notas.test.tsx": {
+    "mtime": 1784949700.752198,
+    "ast_hash": "6fd1df53c29c2ad0f27c38d9ef69956d",
     "semantic_hash": ""
   }
 }
