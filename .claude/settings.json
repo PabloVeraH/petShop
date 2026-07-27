@@ -12,7 +12,7 @@
     "allow": [
       "Bash(npx @claude-flow*)",
       "Bash(npx claude-flow*)",
-      "Bash(node .claude/*)",
+      "Bash(node .claude/helpers/*)",
       "mcp__claude-flow__*"
     ],
     "deny": [
@@ -20,7 +20,12 @@
       "Read(./.env.*)",
       "Read(./**/*.pem)",
       "Read(./**/*id_rsa*)",
-      "Read(./**/*id_ed25519*)"
+      "Read(./**/*id_ed25519*)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(chmod 777 *)",
+      "Bash(ssh *)",
+      "Bash(* > /dev/*)"
     ]
   },
   "hooks": {
