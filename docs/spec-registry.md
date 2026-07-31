@@ -333,6 +333,12 @@ I-406/I-407/I-408.
 | I-455 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): incremento de stock al recibir OC sin fecha de vencimiento usa RPC atómico increment_stock, no SELECT+UPDATE | PATCH /api/ordenes-compra/[id] | integration |
 | I-456 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): restitución de stock por devolución sin lotes usa RPC atómico increment_stock, no SELECT+UPDATE | POST /api/notas-credito | integration |
 | I-457 | REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): PATCH con meta_ventas negativo → 400 (WorkerUpdateSchema rechaza valores negativos, defensa server-side) | PATCH /api/workers | integration |
+| I-458 | Nuevo mecanismo (ticket Trello 6a61195cfc6f97edc3c0a3b0): POST aporte-capital retorna 401 sin sesión | POST /api/contabilidad/aporte-capital | integration |
+| I-459 | REGRESIÓN (ticket Trello 6a61195cfc6f97edc3c0a3b0): registrar un aporte de capital es una acción contable sensible — retorna 403 si el usuario no es storeAdmin ni systemAdmin | POST /api/contabilidad/aporte-capital | integration |
+| I-460 | Nuevo mecanismo: retorna 400 si monto no es positivo (incluye 0 y negativo) | POST /api/contabilidad/aporte-capital | integration |
+| I-461 | Nuevo mecanismo: retorna 400 si cuentaDestino no es "caja" ni "banco" | POST /api/contabilidad/aporte-capital | integration |
+| I-462 | Nuevo mecanismo: crea el asiento con tipoMovimiento APORTE_CAPITAL y líneas balanceadas Dr cuenta destino / Cr Capital | POST /api/contabilidad/aporte-capital | integration |
+| I-463 | Nuevo mecanismo: retorna 500 si crearAsiento falla | POST /api/contabilidad/aporte-capital | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
@@ -467,6 +473,11 @@ I-406/I-407/I-408.
 | CP-29 | Botón Backfill visible solo para storeAdmin y systemAdmin, oculto para storeWorker | ContabilidadPage | component |
 | CP-30 | Click en Backfill abre modal de confirmación con descripción de la operación; Cancelar cierra el modal sin llamar al API | ContabilidadPage | component |
 | CP-31 | Backfill exitoso muestra banner con creados/errores y detalle expandible; errores en rojo | ContabilidadPage | component |
+| CP-32 | Botón "+ Aporte de Capital" visible solo para storeAdmin y systemAdmin, oculto para storeWorker | ContabilidadPage | component |
+| CP-33 | Click en "+ Aporte de Capital" abre el modal del formulario de aporte | ContabilidadPage | component |
+| CP-34 | Monto vacío o 0 muestra error "El monto debe ser mayor a 0" y no llama al API | ContabilidadPage | component |
+| CP-35 | Envío válido llama a POST /api/contabilidad/aporte-capital con cuentaDestino y monto del formulario, muestra banner de éxito y cierra el modal | ContabilidadPage | component |
+| CP-36 | Error del API se muestra dentro del modal de aporte sin cerrarlo | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
@@ -557,6 +568,9 @@ I-406/I-407/I-408.
 | U-139d | resolveAdminContext retorna null si input es null | lib/admin-check | unit |
 | U-140 | REGRESIÓN (encontrada al revisar ticket 6a61a41b75e6c54191f0c2c2): crearAsiento permite ANULACION_VENTA aunque el período ya tenga cierre — el reverso de una anulación se fecha en el período de la venta original, no debe bloquearse igual que un movimiento nuevo | lib/contabilidad | unit |
 | U-141 | REGRESIÓN (encontrada al revisar ticket 6a61a41b75e6c54191f0c2c2): crearAsiento permite asiento con creadoPor='backfill' aunque el período ya tenga cierre — el backfill reconcilia asientos faltantes de transacciones ya ocurridas, no debe bloquearse igual que un movimiento nuevo | lib/contabilidad | unit |
+| U-142 | Nuevo mecanismo (ticket Trello 6a61195cfc6f97edc3c0a3b0): lineasAporteCapital crea líneas balanceadas Dr Caja / Cr Capital (PATRIMONIO) | lib/contabilidad | unit |
+| U-143 | Nuevo mecanismo: lineasAporteCapital con cuentaDestino=banco debita BANCO en vez de CAJA | lib/contabilidad | unit |
+| U-144 | Nuevo mecanismo: la cuenta CAPITAL es de tipo PATRIMONIO en el plan de cuentas | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

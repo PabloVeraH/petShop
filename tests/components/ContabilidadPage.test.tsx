@@ -33,6 +33,11 @@
  * CP-29  Botón Backfill visible solo para storeAdmin/systemAdmin
  * CP-30  Click en Backfill abre modal de confirmación con descripción de la operación
  * CP-31  Éxito de backfill muestra banner con creados/errores
+ * CP-32  Botón "+ Aporte de Capital" visible solo para storeAdmin/systemAdmin
+ * CP-33  Click abre el modal del formulario de aporte
+ * CP-34  Monto vacío o 0 muestra error y no llama al API
+ * CP-35  Envío válido llama a POST /api/contabilidad/aporte-capital y muestra banner de éxito
+ * CP-36  Error del API se muestra dentro del modal sin cerrarlo
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -115,6 +120,12 @@ let mockBackfillResponse: { ok: boolean; status: number; body: object } = {
   },
 };
 
+let mockAporteResponse: { ok: boolean; status: number; body: object } = {
+  ok: true,
+  status: 201,
+  body: { ok: true, asientoId: "asiento-aporte-uuid" },
+};
+
 function defaultFetchMock(url: string) {
   if (String(url).includes("cierre-mes/preview")) {
     return Promise.resolve({
@@ -135,6 +146,13 @@ function defaultFetchMock(url: string) {
       ok: mockBackfillResponse.ok,
       status: mockBackfillResponse.status,
       json: async () => mockBackfillResponse.body,
+    });
+  }
+  if (String(url).includes("/api/contabilidad/aporte-capital")) {
+    return Promise.resolve({
+      ok: mockAporteResponse.ok,
+      status: mockAporteResponse.status,
+      json: async () => mockAporteResponse.body,
     });
   }
   return Promise.resolve({
@@ -1020,5 +1038,126 @@ describe("ContabilidadPage — Backfill (CP-29 a CP-31)", () => {
     await waitFor(() => {
       expect(screen.getByText(/Backfill completado/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe("ContabilidadPage — Aporte de Capital (CP-32 a CP-36)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as jest.Mock).mockImplementation(defaultFetchMock);
+    mockAdminRole = "storeAdmin";
+    mockAporteResponse = { ok: true, status: 201, body: { ok: true, asientoId: "asiento-aporte-uuid" } };
+  });
+
+  it("CP-32: botón '+ Aporte de Capital' visible para storeAdmin", async () => {
+    mockAdminRole = "storeAdmin";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Aporte de Capital/i })).toBeInTheDocument();
+    });
+  });
+
+  it("CP-32: botón '+ Aporte de Capital' visible para systemAdmin", async () => {
+    mockAdminRole = "systemAdmin";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Aporte de Capital/i })).toBeInTheDocument();
+    });
+  });
+
+  it("CP-32: botón '+ Aporte de Capital' NO visible para storeWorker", async () => {
+    mockAdminRole = "storeWorker";
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /Aporte de Capital/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("CP-33: click abre el modal del formulario de aporte", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    expect(screen.getByText(/Registrar Aporte de Capital/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Registrar aporte/i })).toBeInTheDocument();
+  });
+
+  it("CP-34: monto vacío muestra error y no llama al API", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    fireEvent.click(screen.getByText("Registrar aporte"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/El monto debe ser mayor a 0/i)).toBeInTheDocument();
+    });
+
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/contabilidad/aporte-capital"),
+      expect.anything()
+    );
+  });
+
+  it("CP-35: envío válido llama a POST /api/contabilidad/aporte-capital con los datos del formulario y muestra banner de éxito", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (String(url).includes("/api/contabilidad/aporte-capital") && options?.method === "POST") {
+        capturedBody = JSON.parse(options.body as string);
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({ ok: true, asientoId: "asiento-aporte-uuid" }) });
+      }
+      return defaultFetchMock(url);
+    });
+
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    const montoInput = screen.getByText(/Monto \(\$\)/i).parentElement!.querySelector("input")!;
+    fireEvent.change(montoInput, { target: { value: "500000" } });
+
+    const cuentaSelect = screen.getByText(/Cuenta destino/i).parentElement!.querySelector("select")!;
+    fireEvent.change(cuentaSelect, { target: { value: "banco" } });
+
+    fireEvent.click(screen.getByText("Registrar aporte"));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody).toMatchObject({ cuentaDestino: "banco", monto: 500000 });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Aporte de capital registrado/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Registrar Aporte de Capital/i)).not.toBeInTheDocument();
+  });
+
+  it("CP-36: error del API se muestra dentro del modal sin cerrarlo", async () => {
+    mockAporteResponse = { ok: false, status: 403, body: { error: "Forbidden" } };
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    const montoInput = screen.getByText(/Monto \(\$\)/i).parentElement!.querySelector("input")!;
+    fireEvent.change(montoInput, { target: { value: "100000" } });
+
+    fireEvent.click(screen.getByText("Registrar aporte"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Forbidden")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Registrar Aporte de Capital/i)).toBeInTheDocument();
   });
 });

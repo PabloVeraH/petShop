@@ -10,6 +10,7 @@ const {
   lineasAnulacionCOGS,
   lineasNotaCreditoCOGS,
   lineasVentaConNc,
+  lineasAporteCapital,
 } = require("@/lib/contabilidad/generador-asientos");
 
 const { CUENTAS } = require("@/lib/contabilidad/types");
@@ -268,6 +269,48 @@ describe("Generador de Asientos Contables", () => {
     });
   });
 
+  // lineasAporteCapital — mecanismo agregado para el ticket Trello
+  // 6a61195cfc6f97edc3c0a3b0: sin esto, un ingreso de dinero que no es una
+  // venta (aporte de socios) no tenía ninguna contrapartida contable, dejando
+  // Caja/Banco estructuralmente expuestas a saldo negativo cuando los pagos a
+  // proveedores superan los cobros.
+  describe("lineasAporteCapital - Aporte de Capital", () => {
+    // U-142
+    it("U-142: debe crear líneas balanceadas Dr Caja / Cr Capital", () => {
+      const lineas = lineasAporteCapital({ cuentaDestino: "caja", monto: 500000 });
+
+      expect(lineas).toHaveLength(2);
+      const debitos = lineas.reduce((s: number, l: { debito: number }) => s + l.debito, 0);
+      const creditos = lineas.reduce((s: number, l: { credito: number }) => s + l.credito, 0);
+      expect(debitos).toBe(500000);
+      expect(creditos).toBe(500000);
+
+      const lineaCaja = lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+      expect(lineaCaja?.debito).toBe(500000);
+      expect(lineaCaja?.credito).toBe(0);
+
+      const lineaCapital = lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.CAPITAL.codigo);
+      expect(lineaCapital?.credito).toBe(500000);
+      expect(lineaCapital?.debito).toBe(0);
+      expect(lineaCapital?.cuentaTipo).toBe("PATRIMONIO");
+    });
+
+    // U-143
+    it("U-143: cuentaDestino=banco → debita BANCO en vez de CAJA", () => {
+      const lineas = lineasAporteCapital({ cuentaDestino: "banco", monto: 250000 });
+
+      const lineaBanco = lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+      expect(lineaBanco?.debito).toBe(250000);
+      const lineaCaja = lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+      expect(lineaCaja).toBeUndefined();
+    });
+
+    // U-144
+    it("U-144: la cuenta CAPITAL es de tipo PATRIMONIO en el plan de cuentas", () => {
+      expect(CUENTAS.CAPITAL.tipo).toBe("PATRIMONIO");
+    });
+  });
+
   describe("lineasCierreCOGS - Cierre de Mes", () => {
     it("debe crear líneas balanceadas para asiento de COGS", () => {
       const lineas = lineasCierreCOGS(150000);
@@ -377,7 +420,7 @@ describe("CUENTAS - Plan de Cuentas", () => {
   });
 
   it("debe tener tipos de cuenta válidos", () => {
-    const tiposValidos = ["ACTIVO", "PASIVO", "INGRESO", "GASTO"];
+    const tiposValidos = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO"];
 
     Object.values(CUENTAS).forEach((cuenta) => {
       expect(tiposValidos).toContain(cuenta.tipo);

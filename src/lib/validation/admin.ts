@@ -126,6 +126,15 @@ export const POSRecomendadorRequestSchema = z.object({
 
 export type POSRecomendadorRequestInput = z.infer<typeof POSRecomendadorRequestSchema>;
 
+export const AporteCapitalSchema = z.object({
+  cuentaDestino: z.enum(["caja", "banco"]),
+  monto: z.number().int().positive("El monto debe ser mayor a 0"),
+  descripcion: z.string().max(200).optional(),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida").optional(),
+});
+
+export type AporteCapitalInput = z.infer<typeof AporteCapitalSchema>;
+
 export const WorkerUpdateSchema = z.object({
   clerk_id: z.string().min(1, "clerk_id requerido"),
   rut: z.string().max(20).optional().nullable().refine(

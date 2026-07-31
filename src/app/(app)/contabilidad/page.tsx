@@ -100,6 +100,15 @@ export default function ContabilidadPage() {
   const [showBackfillResult, setShowBackfillResult] = useState<BackfillResult | null>(null);
   const [backfillError, setBackfillError] = useState<string | null>(null);
 
+  const [showAporteForm, setShowAporteForm] = useState(false);
+  const [aporteForm, setAporteForm] = useState<{ cuentaDestino: "caja" | "banco"; monto: string; descripcion: string }>({
+    cuentaDestino: "caja",
+    monto: "",
+    descripcion: "",
+  });
+  const [aporteError, setAporteError] = useState<string | null>(null);
+  const [aporteSuccess, setAporteSuccess] = useState<{ monto: number; cuentaDestino: "caja" | "banco" } | null>(null);
+
   const params = mes ? `mes=${Number(mes)}&año=${año}` : `año=${año}`;
 
   const { data: libro, isLoading: loadingLibro } = useQuery<LibroDiarioResumen>({
@@ -205,6 +214,35 @@ export default function ContabilidadPage() {
     },
   });
 
+  const { mutate: registrarAporte, isPending: registrandoAporte } = useMutation({
+    mutationFn: async () => {
+      const montoNum = Number(aporteForm.monto);
+      const r = await fetch("/api/contabilidad/aporte-capital", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cuentaDestino: aporteForm.cuentaDestino,
+          monto: montoNum,
+          descripcion: aporteForm.descripcion.trim() || undefined,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Error al registrar el aporte de capital");
+      return data;
+    },
+    onSuccess: () => {
+      setAporteSuccess({ monto: Number(aporteForm.monto), cuentaDestino: aporteForm.cuentaDestino });
+      setAporteError(null);
+      setShowAporteForm(false);
+      setAporteForm({ cuentaDestino: "caja", monto: "", descripcion: "" });
+      queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
+      queryClient.invalidateQueries({ queryKey: ["balance-prueba"] });
+    },
+    onError: (err: Error) => {
+      setAporteError(err.message);
+    },
+  });
+
   const periodoCerrado = useMemo(() => {
     return (libro?.asientos ?? []).some(a => a.tipo_movimiento === "CIERRE_MES");
   }, [libro]);
@@ -261,6 +299,19 @@ export default function ContabilidadPage() {
                 disabled={backfilling}
               >
                 {backfilling ? "Procesando..." : "Backfill"}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAporteSuccess(null);
+                  setAporteError(null);
+                  setShowAporteForm(true);
+                }}
+              >
+                + Aporte de Capital
               </Button>
             )}
           </div>
@@ -692,6 +743,25 @@ export default function ContabilidadPage() {
         </div>
       )}
 
+      {/* Banner de resultado aporte de capital */}
+      {aporteSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-green-700 font-bold text-sm">✓ Aporte de capital registrado</span>
+            <button
+              onClick={() => setAporteSuccess(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-sm text-gray-700">
+            {fmt(aporteSuccess.monto)} registrados en {aporteSuccess.cuentaDestino === "caja" ? "Caja" : "Banco"}.
+          </p>
+        </div>
+      )}
+
       {/* Banners de resultado cierre */}
       {cierreResult && (
         <div className="fixed bottom-6 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-5 max-w-sm space-y-2">
@@ -916,6 +986,86 @@ export default function ContabilidadPage() {
                   disabled={backfilling}
                 >
                   {backfilling ? "Procesando..." : "Ejecutar Backfill"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* Modal registrar aporte de capital */}
+      {showAporteForm && (
+        <ModalOverlay open onClose={() => { setShowAporteForm(false); setAporteError(""); }}>
+          <div className="bg-white rounded-lg max-w-sm w-full shadow-xl m-4">
+            <div className="p-6 space-y-4">
+              <div>
+                <h2 className="font-bold text-gray-900">Registrar Aporte de Capital</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Registra dinero ingresado por los socios/dueños de la tienda (no proviene de una venta).
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Cuenta destino</label>
+                <select
+                  value={aporteForm.cuentaDestino}
+                  onChange={(e) => setAporteForm((f) => ({ ...f, cuentaDestino: e.target.value as "caja" | "banco" }))}
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="caja">Caja</option>
+                  <option value="banco">Banco</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Monto ($)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={aporteForm.monto}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    setAporteForm((f) => ({ ...f, monto: v }));
+                  }}
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Descripción (opcional)</label>
+                <input
+                  type="text"
+                  value={aporteForm.descripcion}
+                  onChange={(e) => setAporteForm((f) => ({ ...f, descripcion: e.target.value }))}
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {aporteError && <p className="text-xs text-red-500">{aporteError}</p>}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setShowAporteForm(false); setAporteError(""); }}
+                  disabled={registrandoAporte}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const montoNum = Number(aporteForm.monto);
+                    if (!aporteForm.monto || !Number.isFinite(montoNum) || montoNum <= 0) {
+                      setAporteError("El monto debe ser mayor a 0");
+                      return;
+                    }
+                    setAporteError("");
+                    registrarAporte();
+                  }}
+                  disabled={registrandoAporte}
+                >
+                  {registrandoAporte ? "Registrando..." : "Registrar aporte"}
                 </Button>
               </div>
             </div>

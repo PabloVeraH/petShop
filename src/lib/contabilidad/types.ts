@@ -1,5 +1,5 @@
 export type TipoCuenta = 'ACTIVO' | 'PASIVO' | 'PATRIMONIO' | 'INGRESO' | 'GASTO';
-export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES' | 'ANULACION_VENTA';
+export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES' | 'ANULACION_VENTA' | 'APORTE_CAPITAL';
 
 export interface ChartOfAccount {
   id: string;
@@ -91,6 +91,8 @@ export const CUENTAS = {
   CXC_UBEREATS: { codigo: '110403', nombre: 'CxC UberEats', tipo: 'ACTIVO' as TipoCuenta },
   // Devoluciones por canal externo
   DEVOLUCIONES_CANAL: { codigo: '510201', nombre: 'Devoluciones Canal Externo', tipo: 'GASTO' as TipoCuenta },
+  // Patrimonio: aportes de capital de los socios/dueños de la tienda
+  CAPITAL: { codigo: '310101', nombre: 'Capital', tipo: 'PATRIMONIO' as TipoCuenta },
 } as const;
 
 // Lookup helper: retorna el tipo contable desde CUENTAS por código.

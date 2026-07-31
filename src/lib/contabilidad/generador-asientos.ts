@@ -613,6 +613,36 @@ export function lineasAnulacionCOGS(costoTotal: number): LineaAsiento[] {
   ];
 }
 
+// Aporte de capital de los socios/dueños hacia Caja o Banco. Dr la cuenta de
+// activo que recibe el dinero, Cr Capital (patrimonio) — la contrapartida
+// contable que faltaba para que un ingreso de dinero que NO es una venta
+// pueda registrarse sin inflar cuentas de ingreso ni dejar la cuenta de
+// destino con saldo negativo estructural (ticket Trello 6a61195cfc6f97edc3c0a3b0).
+export function lineasAporteCapital(params: {
+  cuentaDestino: "caja" | "banco";
+  monto: number;
+}): LineaAsiento[] {
+  const cuenta = params.cuentaDestino === "caja" ? CUENTAS.CAJA : CUENTAS.BANCO;
+  return [
+    {
+      cuentaCodigo: cuenta.codigo,
+      cuentaNombre: cuenta.nombre,
+      cuentaTipo: cuenta.tipo,
+      debito: params.monto,
+      credito: 0,
+      descripcionLinea: "Aporte de capital recibido",
+    },
+    {
+      cuentaCodigo: CUENTAS.CAPITAL.codigo,
+      cuentaNombre: CUENTAS.CAPITAL.nombre,
+      cuentaTipo: CUENTAS.CAPITAL.tipo,
+      debito: 0,
+      credito: params.monto,
+      descripcionLinea: "Aporte de capital de socios",
+    },
+  ];
+}
+
 // Asiento de cierre: COGS = costo de ventas del mes
 export function lineasCierreCOGS(costoTotal: number): LineaAsiento[] {
   return [
