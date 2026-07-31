@@ -332,6 +332,7 @@ I-406/I-407/I-408.
 | I-454 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): RPC created=false (reintento idempotente) → 200 con la venta existente pero SIN repetir contabilidad/WhatsApp/email/hub sync | POST /api/ventas | integration |
 | I-455 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): incremento de stock al recibir OC sin fecha de vencimiento usa RPC atómico increment_stock, no SELECT+UPDATE | PATCH /api/ordenes-compra/[id] | integration |
 | I-456 | REGRESIÓN (investigado a raíz del ticket Trello 6a61a6136d3d8009490d7113): restitución de stock por devolución sin lotes usa RPC atómico increment_stock, no SELECT+UPDATE | POST /api/notas-credito | integration |
+| I-457 | REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): PATCH con meta_ventas negativo → 400 (WorkerUpdateSchema rechaza valores negativos, defensa server-side) | PATCH /api/workers | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
@@ -432,6 +433,7 @@ I-406/I-407/I-408.
 | DV-13 | Con descuento, precio unitario se muestra tachado + nuevo precio | DevolucionModal | component |
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
+| V-10 | REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): Meta mensual con signo negativo muestra error y bloquea Guardar (no trunca a positivo en silencio) | VendedoresPage | component |
 | POS-01 | SearchProductos renderiza y desmonta sin error de timer | SearchProductos | component |
 | POS-02 | RecomendacionesIA renderiza sin cliente y desmonta sin error de fetch | RecomendacionesIA | component |
 | CT-01 | Click Eliminar en categoría abre modal de confirmación | CategoriasTab | component |

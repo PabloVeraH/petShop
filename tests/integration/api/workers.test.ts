@@ -291,4 +291,24 @@ describe("PATCH /api/workers", () => {
     const body = await res.json();
     expect(body.error).toContain("RUT");
   });
+
+  // I-457 — REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): "Meta mensual
+  // acepta valores negativos sin validación, generando % de avance absurdo".
+  // El bug real está en el frontend (VendedoresPage V-10): el onChange del
+  // input descartaba silenciosamente el signo "-" antes de que el valor
+  // llegara a este endpoint. Este test documenta y fija la defensa de
+  // profundidad server-side (WorkerUpdateSchema.meta_ventas usa .min(0)) que
+  // ya existía pero no estaba cubierta por ningún test — si alguien llama a
+  // este endpoint directamente (sin pasar por el formulario), sigue
+  // bloqueado.
+  it("I-457: PATCH con meta_ventas negativo → 400 (WorkerUpdateSchema rechaza valores negativos)", async () => {
+    const { PATCH } = await import("@/app/api/workers/route");
+    const req = new NextRequest("http://localhost/api/workers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_id: "c1", meta_ventas: -1000 }),
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(400);
+  });
 });

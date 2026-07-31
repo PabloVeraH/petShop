@@ -11,6 +11,9 @@
  * V-07  REGRESIÓN — typing en RUT no dispara guardado automático
  * V-08  RUT input muestra el RUT del trabajador cuando existe
  * V-09  Guardar cambios envía RUT en body de PATCH y cierra modal
+ * V-10  REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): Meta mensual con
+ *       signo negativo no se trunca silenciosamente a un valor positivo —
+ *       muestra error y bloquea "Guardar cambios"
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -320,5 +323,46 @@ describe("VendedoresPage — detalle y meta mensual", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Meta mensual/i)).not.toBeInTheDocument();
     });
+  });
+
+  // V-10 — REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): antes, el
+  // onChange de Meta mensual descartaba silenciosamente cualquier carácter
+  // no numérico (incluido el signo "-") sin mostrar error. Al escribir
+  // "-1000", el resultado quedaba en "1000" — un valor positivo pero
+  // completamente distinto al que el usuario intentó ingresar, guardado sin
+  // ninguna advertencia y distorsionando el cálculo de "Avance".
+  it("V-10: Meta mensual con signo negativo muestra error y bloquea Guardar (no trunca a positivo en silencio)", async () => {
+    let patchCalls = 0;
+    (global.fetch as jest.Mock).mockImplementation((url: string, opts?: RequestInit) => {
+      if (String(url).includes("/api/workers") && opts?.method === "PATCH") {
+        patchCalls++;
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => WORKERS });
+    });
+
+    render(<VendedoresPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Carlos López")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Ver detalle")[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Meta mensual/i)).toBeInTheDocument();
+    });
+
+    const metaInput = screen.getByDisplayValue("500000") as HTMLInputElement;
+    fireEvent.change(metaInput, { target: { value: "-1000" } });
+
+    // El valor no debe truncarse silenciosamente a "1000"
+    expect(metaInput.value).not.toBe("1000");
+
+    await waitFor(() => {
+      expect(screen.getByText(/meta.*(debe ser|positiv)/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Guardar cambios"));
+
+    // No debe enviarse ningún PATCH mientras el valor sea inválido
+    expect(patchCalls).toBe(0);
   });
 });

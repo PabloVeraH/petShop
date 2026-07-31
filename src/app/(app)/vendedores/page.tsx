@@ -104,6 +104,9 @@ export default function VendedoresPage() {
 
   const rutError = editForm.rut !== "" && !validateRUT(editForm.rut);
 
+  const metaVentasNum = editForm.meta_ventas === "" ? null : Number(editForm.meta_ventas);
+  const metaVentasError = metaVentasNum !== null && (!Number.isFinite(metaVentasNum) || metaVentasNum < 0);
+
   const { mutate: saveWorker, isPending } = useMutation({
     mutationFn: () => updateWorker(selectedWorker!.clerk_id, {
       rut: editForm.rut !== "" ? editForm.rut : undefined,
@@ -237,22 +240,25 @@ export default function VendedoresPage() {
                   <input
                     type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
+                    pattern="-?[0-9]*"
                     value={editForm.meta_ventas}
                     onChange={(e) => {
-                      const v = e.target.value.replace(/[^0-9]/g, "");
+                      const v = e.target.value.replace(/[^0-9-]/g, "");
                       setEditForm((f) => ({ ...f, meta_ventas: v }));
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                     className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
+                  {metaVentasError && (
+                    <p className="text-xs text-red-400 mt-0.5">La meta mensual debe ser un valor positivo</p>
+                  )}
                 </div>
             </div>
 
             {editError && <p className="text-xs text-red-500">{editError}</p>}
 
             <div className="flex gap-2">
-              <Button onClick={() => saveWorker()} disabled={isPending || rutError} size="sm">
+              <Button onClick={() => saveWorker()} disabled={isPending || rutError || metaVentasError} size="sm">
                 {isPending ? "Guardando..." : "Guardar cambios"}
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowDetail(false)}>
