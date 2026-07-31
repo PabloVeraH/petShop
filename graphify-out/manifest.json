@@ -615,8 +615,8 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1784816614.083475,
-    "ast_hash": "78539fb97f681273345d186882c7bac7",
+    "mtime": 1785533392.0839717,
+    "ast_hash": "0992793277caf7ad8e25941cfd0e4d5f",
     "semantic_hash": ""
   },
   "src/app/(app)/customers/components/ClienteDetalle.tsx": {
@@ -1580,8 +1580,8 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1784828125.034412,
-    "ast_hash": "be280d367f8e0f966483bb339552a9e3",
+    "mtime": 1785533392.0840812,
+    "ast_hash": "406dcaff94814c39bce47e3844805065",
     "semantic_hash": ""
   },
   "src/lib/contabilidad/html-balance-prueba.ts": {
@@ -1600,8 +1600,8 @@
     "semantic_hash": "e8a6ea1d3f16aa4554c4ff094ed954c7"
   },
   "src/lib/contabilidad/types.ts": {
-    "mtime": 1784816614.0841925,
-    "ast_hash": "c6437a3a4fc0e25f050740172678bfa5",
+    "mtime": 1785533392.0841253,
+    "ast_hash": "eed5629b16c692170177d5e49afe83d1",
     "semantic_hash": ""
   },
   "src/lib/email-alerts.ts": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": "12c42eb4bb6e8047570fae6956fddd93"
   },
   "src/lib/validation/admin.ts": {
-    "mtime": 1784388782.3425815,
-    "ast_hash": "dd219b8ded271cfe81c04d2aecfa61b3",
+    "mtime": 1785533392.0841773,
+    "ast_hash": "ea78a0bf96180c167309fe67859f5243",
     "semantic_hash": ""
   },
   "src/lib/validation/clientes.ts": {
@@ -1795,8 +1795,8 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1784497064.436037,
-    "ast_hash": "98e0fd9317ebc0e6622a5ccf1891df4f",
+    "mtime": 1785533392.084344,
+    "ast_hash": "824969c3e43ab98ab8fd594279c984f5",
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
@@ -2375,8 +2375,8 @@
     "semantic_hash": "70793c320b6d3f66238871224c9aa544"
   },
   "tests/unit/lib/contabilidad-generador.test.ts": {
-    "mtime": 1784743439.4856358,
-    "ast_hash": "9234ecdaa1cedd7f3df44b62d3b15857",
+    "mtime": 1785533392.0844462,
+    "ast_hash": "4b6de3e65f448d50f34dd38e7e3eb177",
     "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-html-balance.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785479919.213757,
-    "ast_hash": "007273399673c47267da08527fcb50bb",
+    "mtime": 1785533392.0837944,
+    "ast_hash": "725e211627515f790f018e8a5040ea07",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4007,6 +4007,16 @@
   "migrations/062_rls_policies_tables_sin_cobertura.sql": {
     "mtime": 1785191968.0661998,
     "ast_hash": "5f7983a10e7663c1cefc7297e46d2735",
+    "semantic_hash": ""
+  },
+  "src/app/api/contabilidad/aporte-capital/route.ts": {
+    "mtime": 1785533161.9687173,
+    "ast_hash": "bcd6aafba024a9dab37f010e939d60a0",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/contabilidad-aporte-capital.test.ts": {
+    "mtime": 1785533135.202049,
+    "ast_hash": "33cb6c4e76da8cc26aedb6a5d1733eeb",
     "semantic_hash": ""
   }
 }
