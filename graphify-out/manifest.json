@@ -800,7 +800,7 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1784870507.9331212,
+    "mtime": 1785477972.1437628,
     "ast_hash": "d951128ef891541aab8a0fac55b34492",
     "semantic_hash": ""
   },
@@ -820,8 +820,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/vendedores/page.tsx": {
-    "mtime": 1784511368.9556813,
-    "ast_hash": "854d6db4bd5151131bb457403e6b1c34",
+    "mtime": 1785479858.4186146,
+    "ast_hash": "06cf7086beceb446df941c6329ce475d",
     "semantic_hash": ""
   },
   "src/app/api/admin/ai-config/route.ts": {
@@ -1800,7 +1800,7 @@
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
-    "mtime": 1784949632.2597628,
+    "mtime": 1785184149.8571048,
     "ast_hash": "30ce1de2de51ad0ca087a337d07e17f1",
     "semantic_hash": ""
   },
@@ -1900,9 +1900,9 @@
     "semantic_hash": ""
   },
   "tests/components/VendedoresPage.test.tsx": {
-    "mtime": 1782492235.7008939,
-    "ast_hash": "aaf02c3a3300c0fe4c308157ec55d771",
-    "semantic_hash": "aaf02c3a3300c0fe4c308157ec55d771"
+    "mtime": 1785479821.853645,
+    "ast_hash": "b787cf27a5c2041b8bc167aba3d3e289",
+    "semantic_hash": ""
   },
   "tests/components/button.test.tsx": {
     "mtime": 1782671438.8174593,
@@ -2295,8 +2295,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/workers.test.ts": {
-    "mtime": 1784511368.9566813,
-    "ast_hash": "dec7cea73a1019c846b7e1bd59a1deb5",
+    "mtime": 1785479885.4354374,
+    "ast_hash": "18bc6e066eed428b80d378d6cbae4eae",
     "semantic_hash": ""
   },
   "tests/integration/hub/hub-sync.integration.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1784949746.341104,
-    "ast_hash": "f919f71e2def6b67ce14d2b6ee5b6201",
+    "mtime": 1785479919.213757,
+    "ast_hash": "007273399673c47267da08527fcb50bb",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4000,8 +4000,13 @@
     "semantic_hash": ""
   },
   "tests/components/pos-modalpago-notas.test.tsx": {
-    "mtime": 1784949700.752198,
+    "mtime": 1785184149.8571048,
     "ast_hash": "6fd1df53c29c2ad0f27c38d9ef69956d",
+    "semantic_hash": ""
+  },
+  "migrations/062_rls_policies_tables_sin_cobertura.sql": {
+    "mtime": 1785191968.0661998,
+    "ast_hash": "5f7983a10e7663c1cefc7297e46d2735",
     "semantic_hash": ""
   }
 }

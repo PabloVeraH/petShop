@@ -1,16 +1,16 @@
-# Graph Report - app  (2026-07-24)
+# Graph Report - app  (2026-07-31)
 
 ## Corpus Check
-- 497 files · ~339,572 words
+- 498 files · ~340,572 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2943 nodes · 5093 edges · 327 communities (216 shown, 111 thin omitted)
+- 2948 nodes · 5097 edges · 330 communities (216 shown, 114 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0ff86276`
+- Built from commit: `8f41e5b3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -247,7 +247,10 @@
 - Product Hub Synchronization
 - Gross to Net Calculation
 - Sales Transaction Logic
+- VentasPorProcedencia.tsx
+- property-invariants.test.ts
 - zustand
+- tw-animate-css
 - FASE 3: Adaptador UberEats
 - Cambios en la Estructura de BD — Impacto en Ventas
 - petShop — Instrucciones para agentes
@@ -342,27 +345,27 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (327 total, 111 thin omitted)
+## Communities (330 total, 114 thin omitted)
 
 ### Community 0 - "Post Management API"
-Cohesion: 0.21
-Nodes (11): ModalClienteCreate(), getClienteByRUT(), getMascotasByCliente(), AlimentoCheckItem, autoFormatRUT(), getAlimentoCheck(), getFidelizacion(), ModalCliente() (+3 more)
+Cohesion: 0.20
+Nodes (11): getClienteByRUT(), getMascotasByCliente(), AlimentoCheckItem, autoFormatRUT(), getAlimentoCheck(), getFidelizacion(), ModalCliente(), ModalClienteProps (+3 more)
 
 ### Community 1 - "User Authentication Management"
 Cohesion: 0.08
-Nodes (49): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+41 more)
+Nodes (50): PATCH(), GET(), PATCH(), GET(), POST(), GET(), DELETE(), handlePatchUser() (+42 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.08
-Nodes (42): POST(), allCredentialsFilled(), GET(), PATCH(), POST(), REQUIRED_CREDENTIAL_FIELDS, POST(), POST() (+34 more)
+Cohesion: 0.07
+Nodes (49): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POST(), allCredentialsFilled(), PATCH(), POST() (+41 more)
 
 ### Community 3 - "Admin Dashboard Layout"
 Cohesion: 0.16
 Nodes (11): AdminLayoutProps, AuditoriaCardProps, CreateUserFormProps, Store, StoreUser, UsuariosCard(), UsuariosCardProps, AdminAuthData (+3 more)
 
 ### Community 4 - "AI Embedding Service"
-Cohesion: 0.06
-Nodes (28): ImportError, ImportResult, Alerta, AnaliticaTab(), getDashboardData(), getStockAlertas(), getVencimientos(), LoteDashboard (+20 more)
+Cohesion: 0.07
+Nodes (30): ImportError, ImportResult, Alerta, AnaliticaTab(), getDashboardData(), getStockAlertas(), getVencimientos(), LoteDashboard (+22 more)
 
 ### Community 5 - "Development Dependencies"
 Cohesion: 0.04
@@ -370,7 +373,7 @@ Nodes (47): eslint, eslint-config-next, fast-check, jest, jest-environment-jsdom
 
 ### Community 6 - "Inventory Import and KPI"
 Cohesion: 0.12
-Nodes (10): createVenta(), POSPage(), mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore, mockClearCart, mockInvalidateQueries (+2 more)
+Nodes (10): createVenta(), POSPage(), mockClearCart, mockInvalidateQueries, mockSetWorker, mockUsePOSStore, mockClearCart, mockCreateVenta (+2 more)
 
 ### Community 7 - "Order Channel Hub"
 Cohesion: 0.13
@@ -381,32 +384,32 @@ Cohesion: 0.14
 Nodes (24): getRappiToken(), TokenCache, checkRappiMenuApproval(), getRappiStores(), rappiHeaders(), setRappiAvailability(), syncRappiCatalog(), confirmRappiOrder() (+16 more)
 
 ### Community 9 - "Demand Forecasting Reports"
-Cohesion: 0.21
-Nodes (14): Badge(), badgeVariants, CardAction(), CardFooter(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel() (+6 more)
+Cohesion: 0.18
+Nodes (16): Badge(), badgeVariants, CardAction(), CardFooter(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel() (+8 more)
 
 ### Community 10 - "Customer and Pet Management"
-Cohesion: 0.08
-Nodes (30): NuevaMascota, CustomersPage(), getClientes(), BarcodeScannerProps, Window, getVenta(), TicketPage(), VentaDetalle (+22 more)
+Cohesion: 0.10
+Nodes (23): ModalClienteCreate(), NuevaMascota, BarcodeScannerProps, Window, PagoModalProps, CreateOrderDialogProps, OrderItem, ProductoOpt (+15 more)
 
 ### Community 11 - "Instagram Channel Integration"
 Cohesion: 0.09
 Nodes (6): InstagramChannel, PosChannel, RappiChannel, CanalConfig, CanalOrden, CanalProducto
 
 ### Community 12 - "Client and Pet API"
-Cohesion: 0.80
-Nodes (3): extraerIva(), IVA_RATE, netoDesdeBruto()
+Cohesion: 0.38
+Nodes (6): generarHTMLRecibo(), GET(), ReciboDatos, extraerIva(), IVA_RATE, netoDesdeBruto()
 
 ### Community 13 - "Inventory Batch Management"
-Cohesion: 0.15
-Nodes (23): ClientesTable(), defaultDesde(), ESTADOS, getVentas(), METODOS, SalesPage(), toDateInput(), VentaRow (+15 more)
+Cohesion: 0.17
+Nodes (20): defaultDesde(), ESTADOS, getVentas(), METODOS, SalesPage(), toDateInput(), VentaRow, autoFormatRUT() (+12 more)
 
 ### Community 14 - "Security and Licensing"
 Cohesion: 0.14
 Nodes (12): GET(), FidelizacionNivel, SettingsPage(), StoreSettings, computeLicenseStatus(), LicenseStatus, buildCsp(), config (+4 more)
 
 ### Community 15 - "Local Data Persistence"
-Cohesion: 0.23
-Nodes (10): GET(), PATCH(), DELETE(), PATCH(), GET(), POST(), syncProductsToHub(), InventarioUpdateSchema (+2 more)
+Cohesion: 0.27
+Nodes (9): PATCH(), DELETE(), PATCH(), GET(), POST(), syncProductsToHub(), InventarioUpdateSchema, ProductoCreateSchema (+1 more)
 
 ### Community 16 - "POS Checkout Flow"
 Cohesion: 0.14
@@ -426,15 +429,15 @@ Nodes (29): dom, dom.iterable, esnext, **/*.mts, .next/dev/types/**/*.ts, **/*.t
 
 ### Community 20 - "Stock and Expiry Alerts"
 Cohesion: 0.11
-Nodes (22): Categoria, CategoriasTab(), AjusteModal, Categoria, EMPTY_FORM, formatShortDate(), getCategorias(), getInventario() (+14 more)
+Nodes (18): OptimizadorVencimientosTab(), AjusteModal, Categoria, EMPTY_FORM, formatShortDate(), getCategorias(), getInventario(), getVencimientoStatus() (+10 more)
 
 ### Community 21 - "Inventory and Expiry UI"
 Cohesion: 0.22
 Nodes (6): DB_PRODUCTO, DB_RECOMENDACION, mockAnalizarIA, mockAuth, mockFrom, mockGetStoreId
 
 ### Community 22 - "Accounting Journal Entries"
-Cohesion: 0.19
-Nodes (17): calcularCostoTotalNc(), calcularCostoTotalVenta(), POST(), POST(), crearAsiento(), lineasCierreCOGS(), lineasCompra(), lineasNotaCredito() (+9 more)
+Cohesion: 0.21
+Nodes (15): calcularCostoTotalNc(), calcularCostoTotalVenta(), POST(), lineasCierreCOGS(), lineasNotaCredito(), lineasNotaCreditoCOGS(), lineasPagoProveedor(), lineasVenta() (+7 more)
 
 ### Community 23 - "Tailwind Utility Merger"
 Cohesion: 0.17
@@ -457,8 +460,8 @@ Cohesion: 0.21
 Nodes (15): jspdf, jspdf, GET(), QuerySchema, generateFullReportExcel(), generatePrediccionExcel(), generateReorderExcel(), PrediccionReportData (+7 more)
 
 ### Community 28 - "Accounting Ledger UI"
-Cohesion: 0.17
-Nodes (12): CuentaPagar, DetalleProveedor, EMPTY_FORM, OrdenCompra, OrdenItem, parseFechaLocal(), ProdRow, ProductoOpt (+4 more)
+Cohesion: 0.09
+Nodes (23): Categoria, CategoriasTab(), CuentaPagar, DetalleProveedor, EMPTY_FORM, OrdenCompra, OrdenItem, parseFechaLocal() (+15 more)
 
 ### Community 29 - "Agent Swarm Orchestration"
 Cohesion: 0.20
@@ -469,12 +472,12 @@ Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
 ### Community 31 - "Customer Loyalty POS"
-Cohesion: 0.22
-Nodes (8): CuentasPagarSchema, NotaCreditoPostSchema, NotasCreditoCreateSchema, OrdenCompraItemCreateSchema, OrdenCompraReceiveItemSchema, OrdenesCompraCreateSchema, ProveedorProductoSchema, ProveedorUpdateSchema
+Cohesion: 0.18
+Nodes (15): PATCH(), lineasCompra(), getResend(), sendOrdenCompraCancelacionEmail(), sendOrdenCompraEmail(), CuentasPagarSchema, NotasCreditoCreateSchema, OrdenCompraEditItemsSchema (+7 more)
 
 ### Community 32 - "Sales Integration Tests"
-Cohesion: 0.09
-Nodes (15): hubHeaders(), syncPurchaseToHub(), DB_PRODUCTO, DB_PRODUCTO_GRANEL, DB_PRODUCTO_GRANEL_SYNC, DB_PRODUCTO_SYNC, DB_VENTA, ITEM_CON_MASCOTA (+7 more)
+Cohesion: 0.10
+Nodes (11): DB_PRODUCTO, DB_PRODUCTO_GRANEL, DB_PRODUCTO_GRANEL_SYNC, DB_PRODUCTO_SYNC, DB_VENTA, ITEM_CON_MASCOTA, mockChain, mockFrom (+3 more)
 
 ### Community 33 - "WhatsApp Notifications"
 Cohesion: 0.21
@@ -485,20 +488,20 @@ Cohesion: 0.25
 Nodes (6): mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore, PRODUCTO_ANTES, PRODUCTO_DESPUES
 
 ### Community 35 - "Accounting Data Types"
-Cohesion: 0.18
-Nodes (17): PATCH(), buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), FoodReminderEmailParams, getResend(), OrdenCompraCancelacionEmailParams (+9 more)
+Cohesion: 0.21
+Nodes (11): buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), FoodReminderEmailParams, OrdenCompraCancelacionEmailParams, OrdenCompraEmailParams, sendBoletaEmail() (+3 more)
 
 ### Community 36 - "AI POS Recommendations"
-Cohesion: 0.06
-Nodes (36): buildResult(), ContextoPOS, POST(), RecomendacionPOS, analizarVencimientosConIA(), ContextoPOS, ProductoParaAnalisis, RecomendacionPOS (+28 more)
+Cohesion: 0.14
+Nodes (15): analizarVencimientosConIA(), ContextoPOS, ProductoParaAnalisis, RecomendacionPOS, RecomendacionPOSSchema, RecomendacionVencimiento, RecomendacionVencimientoSchema, recomendarProductosEnPOS() (+7 more)
 
 ### Community 37 - "Audit Coverage Testing"
 Cohesion: 0.12
 Nodes (10): mockAuth, mockCrearAsiento, mockFrom, mockGetAdminStatus, mockGetRequestMetadata, mockGetStoreId, mockLogAudit, mockRpc (+2 more)
 
 ### Community 38 - "Project Metrics Database"
-Cohesion: 0.27
-Nodes (5): GET(), PATCH(), lineasAnulacionCOGS(), lineasAnulacionVentaCanal(), lineasAnulacionVentaConNc()
+Cohesion: 0.26
+Nodes (8): GET(), PATCH(), crearAsiento(), insertJournalEntryConNumeroUnico(), lineasAnulacionCOGS(), lineasAnulacionVentaCanal(), lineasAnulacionVentaConNc(), nextNumeroAsiento()
 
 ### Community 39 - "PedidosYa Integration"
 Cohesion: 0.16
@@ -521,24 +524,24 @@ Cohesion: 0.12
 Nodes (11): MOCK_CUENTA, MOCK_PROVEEDOR, MOCK_PROVEEDOR_2, MOCK_SUPPLIER_STATS, mockFetch, mockInvalidateQueries, mockMutate, mockUseMutation (+3 more)
 
 ### Community 44 - "System Status Monitoring"
-Cohesion: 0.18
-Nodes (8): AnalisisResultado, ESTRATEGIA_LABELS, OptimizadorVencimientosTab(), RecomendacionVencimiento, URGENCIA_COLORS, MOCK_RECOMENDACION, MOCK_RESULTADO, mockFetch
+Cohesion: 0.21
+Nodes (10): actualizarLote(), crearLote(), desactivarLote(), EMPTY_LOTE_FORM, getLotes(), LoteForm, LotesPanel(), LotesPanelProps (+2 more)
 
 ### Community 45 - "Learning Session Hooks"
 Cohesion: 0.25
 Nodes (5): mockChain, mockFrom, mockGetStoreId, mockRpc, mockSingle
 
 ### Community 46 - "Swarm Communication Bus"
-Cohesion: 0.25
-Nodes (8): autoFormatRUT(), ClienteDetalle(), DetalleData, EditClienteForm, EditMascotaForm, MascotaItem, VentaItem, Cliente
+Cohesion: 0.20
+Nodes (10): autoFormatRUT(), ClienteDetalle(), DetalleData, EditClienteForm, EditMascotaForm, MascotaItem, VentaItem, ClientesTable() (+2 more)
 
 ### Community 47 - "AI Expiry Analysis API"
 Cohesion: 0.25
 Nodes (10): ALERT_THRESHOLDS, AlertSeverity, alertStore, checkAuthThreshold(), getIP(), logSecurityAlert(), pageOnCall(), SecurityAlert (+2 more)
 
 ### Community 48 - "Customer Detail UI"
-Cohesion: 0.13
-Nodes (14): insertJournalEntryConNumeroUnico(), nextNumeroAsiento(), ChartOfAccount, CrearAsientoInput, CUENTAS, JournalDetail, JournalEntry, LineaAsiento (+6 more)
+Cohesion: 0.12
+Nodes (12): ChartOfAccount, CrearAsientoInput, CUENTAS, JournalDetail, JournalEntry, LineaAsiento, TipoCuenta, TipoMovimiento (+4 more)
 
 ### Community 49 - "Payment Modal Tests"
 Cohesion: 0.15
@@ -576,10 +579,6 @@ Nodes (9): Arquitectura de Base de Datos, Campos en tabla `productos`, Clasifica
 Cohesion: 0.21
 Nodes (8): calcularCostoVentaActual(), COGS_CODIGOS, DEVOLUCIONES_CODIGOS, GET(), INGRESOS_CODIGOS, buildStoreResponse(), makeDb(), SingleResult
 
-### Community 59 - "Product Search UI"
-Cohesion: 0.06
-Nodes (48): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+40 more)
-
 ### Community 60 - "route.ts"
 Cohesion: 0.25
 Nodes (4): CLIENTE, DETALLE_CON_MASCOTAS, DETALLE_DATA, MASCOTAS
@@ -590,19 +589,19 @@ Nodes (10): buildVentasMockFrom(), chain(), DB_VENTA_HUB, mockFrom, mockGetStore
 
 ### Community 62 - "Frontend Dependencies"
 Cohesion: 0.11
-Nodes (19): @base-ui/react, @clerk/nextjs, leaflet, dependencies, @base-ui/react, @clerk/nextjs, leaflet, react-barcode (+11 more)
+Nodes (19): @base-ui/react, class-variance-authority, @clerk/nextjs, leaflet, dependencies, @base-ui/react, class-variance-authority, @clerk/nextjs (+11 more)
 
 ### Community 63 - "Auto-Commit Scripts"
 Cohesion: 0.18
 Nodes (8): react, react, CANALES_INFO, CanalInfo, fetchCalls, mockFetch, mockPush, renderPage()
 
 ### Community 65 - "petShop — Sistema de Control de Vencimientos"
-Cohesion: 0.29
-Nodes (6): BASE_PROPS, ITEM_1, ITEM_2, makeWrapper(), mockInvalidateQueries, setup()
+Cohesion: 0.18
+Nodes (10): getVenta(), TicketPage(), VentaDetalle, DevolucionModal(), BASE_PROPS, ITEM_1, ITEM_2, makeWrapper() (+2 more)
 
 ### Community 66 - "Trial Balance PDF"
-Cohesion: 0.07
-Nodes (31): xlsx, GET(), GET(), GET(), CuentaBalance, EstadoResultadoData, generarExcelBalance(), generarExcelEstadoResultado() (+23 more)
+Cohesion: 0.09
+Nodes (24): xlsx, GET(), GET(), CuentaBalance, EstadoResultadoData, generarExcelBalance(), generarExcelEstadoResultado(), generarExcelLibroDiario() (+16 more)
 
 ### Community 67 - "Daily Ledger HTML"
 Cohesion: 0.29
@@ -617,8 +616,8 @@ Cohesion: 0.36
 Nodes (9): deducir_stock_fifo(), devolver_stock_a_lotes(), lotes_producto, lotes_producto_updated_at, sync_fecha_vencimiento_on_lote, sync_producto_fecha_vencimiento(), sync_producto_stock_from_lotes(), sync_stock_on_lote (+1 more)
 
 ### Community 70 - "ADR Compliance Checker"
-Cohesion: 0.25
-Nodes (11): Carrito(), ModalPago(), calcularImpuestoCarrito(), calcularSubtotalCarrito(), calcularSubtotalNetoCarrito(), calcularTotalCarrito(), CartItem, PagoNc (+3 more)
+Cohesion: 0.16
+Nodes (17): Carrito(), ModalPago(), calcularImpuestoCarrito(), calcularSubtotalCarrito(), calcularSubtotalNetoCarrito(), calcularTotalCarrito(), CartItem, PagoNc (+9 more)
 
 ### Community 71 - "Swarm Activity Monitor"
 Cohesion: 0.18
@@ -626,11 +625,11 @@ Nodes (7): Convenciones de Commits, 🔗 Documentos Relacionados, 📊 Estado Ge
 
 ### Community 72 - "Receipt and Tax Logic"
 Cohesion: 0.07
-Nodes (32): GET(), POST(), DELETE(), GET(), PATCH(), GET(), POST(), GET() (+24 more)
+Nodes (34): DELETE(), PATCH(), requireAdmin(), GET(), POST(), DELETE(), GET(), PATCH() (+26 more)
 
 ### Community 74 - "POS Recommendation Tests"
-Cohesion: 0.20
-Nodes (7): DESCUENTOS_RAPIDOS, METODOS_PAGO, METODOS_RESTO, ModalPagoProps, PROCEDENCIAS, Worker, storage
+Cohesion: 0.18
+Nodes (8): DESCUENTOS_RAPIDOS, METODOS_PAGO, METODOS_RESTO, ModalPagoProps, PROCEDENCIAS, Worker, Skeleton(), storage
 
 ### Community 75 - "Worker Management Tests"
 Cohesion: 0.18
@@ -661,8 +660,8 @@ Cohesion: 0.15
 Nodes (10): AdminRole, Store, AdminLayout(), NavItemProps, IAConfigSection(), LicenciaCard(), LicenseConfig, LicenseData (+2 more)
 
 ### Community 83 - "Worker Process Manager"
-Cohesion: 0.08
-Nodes (19): GET(), GET(), GET(), GET(), GET(), POST(), GET(), PATCH() (+11 more)
+Cohesion: 0.05
+Nodes (49): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+41 more)
 
 ### Community 84 - "Analytics Tab Tests"
 Cohesion: 0.29
@@ -701,8 +700,8 @@ Cohesion: 0.29
 Nodes (4): mockDelete, mockFrom, mockUpsert, mockVerify
 
 ### Community 97 - "Monthly Closing Tests"
-Cohesion: 0.20
-Nodes (8): GET(), CierreMesSchema, POST(), tomarRespaldoCierre(), checkExistingCierre(), computeCierrePreview(), mockAuth, mockAuth
+Cohesion: 0.11
+Nodes (20): ClerkApiError, createClerkUser(), isClerkApiError(), isEmailTakenError(), POST(), analizarConReintentoSiTimeout(), POST(), GET() (+12 more)
 
 ### Community 99 - "Inventory Patch Tests"
 Cohesion: 0.05
@@ -717,8 +716,8 @@ Cohesion: 0.29
 Nodes (5): BASE_ALERTA, BASE_STORE, mockFrom, mockGetStoreId, mockSendWhatsAppText
 
 ### Community 102 - "route.ts"
-Cohesion: 0.12
-Nodes (22): actualizarLote(), crearLote(), desactivarLote(), EMPTY_LOTE_FORM, getLotes(), LoteForm, LotesPanel(), LotesPanelProps (+14 more)
+Cohesion: 0.13
+Nodes (20): getProductos(), SearchProductos(), clasificarLotes(), enriquecerLotes(), getLoteStatus(), productoTieneLotes(), Cliente, DeduccionFIFOResultado (+12 more)
 
 ### Community 103 - "Learning Optimization Script"
 Cohesion: 0.39
@@ -765,8 +764,8 @@ Cohesion: 0.33
 Nodes (4): CartItem, localStorageMock, POSStore, storage
 
 ### Community 122 - "POSPage.test.tsx"
-Cohesion: 0.23
-Nodes (8): getProductos(), SearchProductos(), Skeleton(), Producto, mockAddItem, mockGetProductos, prod(), PROD_BASE
+Cohesion: 0.31
+Nodes (8): cache, derivarTemporada(), fallback(), obtenerContextoClimatico(), WeatherContext, wmoADescripcion(), mockFetch, OPEN_METEO_RESPONSE
 
 ### Community 123 - "17. Grafos de conocimiento (graphify y codebase-memory-mcp)"
 Cohesion: 0.40
@@ -821,8 +820,8 @@ Cohesion: 0.43
 Nodes (5): chain(), mockAuthFn, setupMock(), setupNcBackfillMock(), setupOcBackfillMock()
 
 ### Community 143 - "Cobertura Actual: 40 tests (100%)"
-Cohesion: 0.33
-Nodes (4): mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore
+Cohesion: 0.22
+Nodes (8): buildChain(), MOCK_CLIMA, MOCK_RECS, mockClimatico, mockFrom, mockGetStoreId, mockRecomendarPOS, setupSupabase()
 
 ### Community 151 - "AdminPage.test.tsx"
 Cohesion: 0.50
@@ -837,8 +836,8 @@ Cohesion: 0.40
 Nodes (5): 1. Integración de Órdenes Externas, 2. Precios Diferenciados, 3. Reportes Existentes, 4. Búsquedas Históricas, ⚠️ Consideraciones Importantes
 
 ### Community 160 - "FakeJsPDF"
-Cohesion: 0.29
-Nodes (4): mockFrom, mockGetStoreId, mockSingle, params
+Cohesion: 0.18
+Nodes (8): hubHeaders(), syncPurchaseToHub(), mockFrom, mockGetStoreId, mockSingle, params, BASE_PRODUCT, mockFetch
 
 ### Community 161 - "Test Documentation Registry"
 Cohesion: 0.20
@@ -849,8 +848,8 @@ Cohesion: 0.12
 Nodes (15): ACTION_COLORS, AuditFilters, AuditLog, AuditoriaCard(), ErrorFilters, ErrorLog, EVENT_TYPE_COLORS, RESULT_COLORS (+7 more)
 
 ### Community 180 - "pos-store.test.ts"
-Cohesion: 0.25
-Nodes (6): usePOSStore, AutoAssignWorker(), storage, ITEM_BASE, localStorageMock, storage
+Cohesion: 0.38
+Nodes (4): GET(), buildChain(), mockPatch(), mockSupResult()
 
 ### Community 181 - "pos-fidelizacion-descuento-e2e.test.tsx"
 Cohesion: 0.40
@@ -877,8 +876,8 @@ Cohesion: 0.17
 Nodes (12): 2. BACKEND, 3. FRONTEND, 4. TESTS, APIs ✅, 📋 Checklist de Tareas, Contabilidad ✅, Core Library ✅, Cron Jobs ✅ (+4 more)
 
 ### Community 194 - "AdminLayout.tsx"
-Cohesion: 0.25
-Nodes (13): POST(), postVenta(), POST(), lineasVentaCanal(), lineasVentaCOGS(), lineasVentaConNc(), sendBoletaEmail(), VentaCreateSchema (+5 more)
+Cohesion: 0.29
+Nodes (11): POST(), postVenta(), POST(), lineasVentaCanal(), lineasVentaConNc(), VentaCreateSchema, buildConsumoAlertMessage(), buildReceiptMessage() (+3 more)
 
 ### Community 196 - "📡 API Changes — POST /api/ventas"
 Cohesion: 0.50
@@ -889,8 +888,8 @@ Cohesion: 0.50
 Nodes (4): Comando: Tests específicos, Comando: Todos los tests, Coverage Report, Ejecución de Tests
 
 ### Community 202 - "clerk-env.ts"
-Cohesion: 0.40
-Nodes (3): CLIENTE, mockGetClienteByRUT, mockGetMascotasByCliente
+Cohesion: 0.43
+Nodes (5): BalancePruebaHTMLData, clp(), CuentaBalanceHTML, generarHtmlBalancePrueba(), BASE_DATA
 
 ### Community 203 - "Casos de Uso"
 Cohesion: 0.50
@@ -917,8 +916,8 @@ Cohesion: 0.50
 Nodes (4): Devoluciones, Fidelización, Integración con Otros Sistemas, Reportes
 
 ### Community 228 - "route.ts"
-Cohesion: 0.67
-Nodes (3): GET(), PATCH(), WorkerUpdateSchema
+Cohesion: 0.33
+Nodes (4): mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore
 
 ### Community 229 - "💰 Cambio en Estrategia de Precios"
 Cohesion: 0.67
@@ -931,6 +930,10 @@ Nodes (3): makeWrapper(), mockUseAuth, renderPage()
 ### Community 231 - "🔐 Cambios en Validación"
 Cohesion: 0.67
 Nodes (3): 🔐 Cambios en Validación, Schema Zod — Antes, Schema Zod — Después
+
+### Community 232 - "📊 Cambios en Contabilidad"
+Cohesion: 0.40
+Nodes (4): ai_pos_cache, ai_vencimientos_analisis, chart_of_accounts, movimientos_automaticos
 
 ### Community 241 - "Demand Prediction Plan"
 Cohesion: 0.06
@@ -1049,24 +1052,24 @@ Cohesion: 0.67
 Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 
 ## Knowledge Gaps
-- **1242 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1237 more)
+- **1246 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1241 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **111 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **114 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Product Search UI` to `User Authentication Management`, `POS Metadata and Audit`, `Rappi Integration`, `Security and Licensing`, `Local Data Persistence`, `UberEats Integration`, `Accounting Journal Entries`, `Supply Chain Accounting`, `Accounting Data Types`, `AI POS Recommendations`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `FIFO Batch Helpers`, `AI Expiry Analysis API`, `Customer Detail UI`, `Supplier Hub Page`, `Profit and Loss API`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `Worker Process Manager`, `Customer Modal Tests`, `Batch Management Tests`, `Monthly Closing Tests`, `route.ts`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`?**
-  _High betweenness centrality (0.141) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `Frontend Dependencies` to `Trial Balance PDF`, `Development Dependencies`, `zustand`, `📊 Cambios en Contabilidad`, `🔐 Cambios en Validación`, `💾 Impacto en Datos Existentes`, `date-fns`, `react-leaflet`, `@supabase/supabase-js`, `@tanstack/react-query`, `@types/leaflet`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `resend`, `Auto-Commit Scripts`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
+- **Why does `createServiceClient()` connect `User Authentication Management` to `POS Metadata and Audit`, `Rappi Integration`, `Client and Pet API`, `Security and Licensing`, `Local Data Persistence`, `UberEats Integration`, `Accounting Journal Entries`, `Supply Chain Accounting`, `Customer Loyalty POS`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `FIFO Batch Helpers`, `AI Expiry Analysis API`, `pos-store.test.ts`, `Supplier Hub Page`, `Profit and Loss API`, `Product Search UI`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `Worker Process Manager`, `Customer Modal Tests`, `Batch Management Tests`, `Monthly Closing Tests`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`?**
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `Frontend Dependencies` to `Trial Balance PDF`, `Development Dependencies`, `zustand`, `tw-animate-css`, `🔐 Cambios en Validación`, `💾 Impacto en Datos Existentes`, `date-fns`, `react-leaflet`, `@supabase/supabase-js`, `@tanstack/react-query`, `@types/leaflet`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `resend`, `Auto-Commit Scripts`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Why does `xlsx` connect `Trial Balance PDF` to `Supply Chain Accounting`, `Accounting Ledger UI`, `Frontend Dependencies`?**
-  _High betweenness centrality (0.042) - this node is a cross-community bridge._
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **What connects `codebase-memory-mcp`, `npx`, `@claude-flow/cli` to the rest of the system?**
-  _1242 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1246 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.0798076923076923 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07887323943661972 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.08299240210403273 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07226107226107226 - nodes in this community are weakly interconnected._
 - **Should `AI Embedding Service` be split into smaller, more focused modules?**
-  _Cohesion score 0.06471631205673758 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06717687074829932 - nodes in this community are weakly interconnected._
