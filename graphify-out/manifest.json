@@ -755,9 +755,9 @@
     "semantic_hash": "41f407cbde1ab6e6747a38d04291fad2"
   },
   "src/app/(app)/pos/components/Carrito.tsx": {
-    "mtime": 1783739374.1135464,
-    "ast_hash": "969b90541924edd2e33d48b869fd055a",
-    "semantic_hash": "969b90541924edd2e33d48b869fd055a"
+    "mtime": 1785555077.148034,
+    "ast_hash": "eaca507b117767c6f8ce8ffb9962a969",
+    "semantic_hash": ""
   },
   "src/app/(app)/pos/components/ModalCliente.tsx": {
     "mtime": 1783785316.8538773,
@@ -765,8 +765,8 @@
     "semantic_hash": "5b662568ee07790465fdbfb9bb7733c1"
   },
   "src/app/(app)/pos/components/ModalPago.tsx": {
-    "mtime": 1784835674.3991637,
-    "ast_hash": "3a4d3cc2e247488b76c998d79bcab6d7",
+    "mtime": 1785555077.1482527,
+    "ast_hash": "05fd529650602b62fbf5802cc0fdbf04",
     "semantic_hash": ""
   },
   "src/app/(app)/pos/components/RecomendacionesIA.tsx": {
@@ -1840,8 +1840,8 @@
     "semantic_hash": "73b8352ff31b48c2a843e6385aa8c2db"
   },
   "tests/components/ModalPago.test.tsx": {
-    "mtime": 1784835674.3993552,
-    "ast_hash": "f867d3b735199890a0af3ac63761033d",
+    "mtime": 1785555077.1482527,
+    "ast_hash": "9a908bcd21ffe8c26b01d44cc440b861",
     "semantic_hash": ""
   },
   "tests/components/OptimizadorVencimientosTab.test.tsx": {
@@ -1920,14 +1920,14 @@
     "semantic_hash": "a5013cbe495c34967187c31d45a7a1fb"
   },
   "tests/components/pos-carrito-subtotal.test.tsx": {
-    "mtime": 1783739374.1162806,
-    "ast_hash": "eda87db70ae98a55ba04fd9e6d542133",
-    "semantic_hash": "eda87db70ae98a55ba04fd9e6d542133"
+    "mtime": 1785555077.1482527,
+    "ast_hash": "bef9f6339b5f2a705b9fc27c1a7a7a6f",
+    "semantic_hash": ""
   },
   "tests/components/pos-fidelizacion-descuento-e2e.test.tsx": {
-    "mtime": 1784094885.1296418,
-    "ast_hash": "f4dcbe394b4790a1bf6202fa0adcb138",
-    "semantic_hash": "f4dcbe394b4790a1bf6202fa0adcb138"
+    "mtime": 1785555077.1482527,
+    "ast_hash": "37c87ce3e988eefb3b84358c99b2c620",
+    "semantic_hash": ""
   },
   "tests/components/pos-worker-auto-assign.test.tsx": {
     "mtime": 1784133239.7421901,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785533392.0837944,
-    "ast_hash": "725e211627515f790f018e8a5040ea07",
+    "mtime": 1785555077.148034,
+    "ast_hash": "5b3625c3b829b9870e3232c530e435dd",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
