@@ -86,6 +86,17 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     }))
     .filter((item) => item.cantidad > 0);
 
+  // MEJORA (ticket Trello 6a62eb35759d896b8e127aa7): NCs de ESTA venta que
+  // todavía tienen saldo a favor sin consumir. anular_venta_tx (AGENTS.md §23.5)
+  // ya revierte ese saldo de forma atómica al anular — solo NCs con estado
+  // 'activa' (una 'usada' ya fue consumida como pago de otra venta y no debe
+  // tocarse de nuevo). Se advierte ANTES de confirmar para que el usuario
+  // conozca el efecto, no para bloquear ni para ofrecer una acción distinta.
+  const ncsActivasConSaldo = (notasCredito?.data ?? []).filter(
+    (nc: { tipo_reembolso: string; estado: string }) =>
+      nc.tipo_reembolso === "saldo_a_favor" && nc.estado === "activa"
+  );
+
   const { data: saldoFavor } = useQuery({
     queryKey: ["saldo", data?.clientes?.id],
     queryFn: () => {
@@ -197,19 +208,29 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               Devolución parcial
             </Button>
             {confirmAnular ? (
-              <div className="flex gap-2 items-center">
-                <span className="text-sm text-red-600">¿Confirmar anulación?</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => anularVenta()}
-                  disabled={anulando}
-                >
-                  {anulando ? "Anulando..." : "Sí, anular"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setConfirmAnular(false)}>
-                  No
-                </Button>
+              <div className="flex flex-col gap-2">
+                {ncsActivasConSaldo.length > 0 && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 max-w-sm">
+                    ⚠ Esta venta tiene {ncsActivasConSaldo.length === 1 ? "una Nota de Crédito activa" : `${ncsActivasConSaldo.length} Notas de Crédito activas`}{" "}
+                    con saldo a favor por ${Math.round(
+                      ncsActivasConSaldo.reduce((sum: number, nc: { monto_total: number }) => sum + Number(nc.monto_total), 0)
+                    ).toLocaleString("es-CL")}. Al anular, ese saldo será invalidado automáticamente.
+                  </p>
+                )}
+                <div className="flex gap-2 items-center">
+                  <span className="text-sm text-red-600">¿Confirmar anulación?</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => anularVenta()}
+                    disabled={anulando}
+                  >
+                    {anulando ? "Anulando..." : "Sí, anular"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setConfirmAnular(false)}>
+                    No
+                  </Button>
+                </div>
               </div>
             ) : (
               <Button variant="outline" onClick={() => setConfirmAnular(true)} className="text-red-600 border-red-200 hover:bg-red-50">

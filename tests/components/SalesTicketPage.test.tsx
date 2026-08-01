@@ -307,7 +307,7 @@ describe("SalesTicketPage — badge Dev. X y disponibilidad de items", () => {
 
 // ── Tests de anulación ─────────────────────────────────────────────────────
 
-describe("SalesTicketPage — anulación de venta (VT-01 a VT-06)", () => {
+describe("SalesTicketPage — anulación de venta (VT-01 a VT-08)", () => {
   beforeEach(() => jest.clearAllMocks());
 
   // VT-03: REGRESIÓN — anular venta debe invalidar queries de detalle Y listado con refetchType "all".
@@ -582,6 +582,57 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-06)", () => {
     expect(screen.queryByText(/gracias por su compra/i)).not.toBeInTheDocument();
 
     setQueryDataSpy.mockRestore();
+  });
+
+  // MEJORA (ticket Trello 6a62eb35759d896b8e127aa7): anular_venta_tx (AGENTS.md
+  // §23.5) ya revierte el saldo a favor de una NC activa de forma atómica —
+  // pero la UI nunca se lo advertía al usuario antes de confirmar, pese a que
+  // notasCredito ya se fetchea (usado solo para el badge de devoluciones).
+  it("VT-07: al anular con una NC activa con saldo a favor, la confirmación advierte el monto que será invalidado", async () => {
+    const VENTA_ACTIVA = {
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Collar Perro", 2, 5000)],
+    };
+    const ncActiva = { ...makeNc("nc-1", "i1", 1), estado: "activa", monto_total: 5000 };
+
+    mockFetch(VENTA_ACTIVA, [ncActiva]);
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar Perro")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Anular venta/i }));
+
+    expect(
+      screen.getByText(/Esta venta tiene una Nota de Crédito activa con saldo a favor por \$5\.000/i)
+    ).toBeInTheDocument();
+  });
+
+  it("VT-08: sin NC activa con saldo a favor (sin NC, NC usada, o NC de reembolso directo), la confirmación NO muestra advertencia", async () => {
+    const VENTA_ACTIVA = {
+      ...VENTA_BASE,
+      items: [makeItem("i1", "Collar Perro", 3, 5000)],
+    };
+    const ncUsada = { ...makeNc("nc-1", "i1", 1), estado: "usada" };
+    const ncReembolsoDirecto = { ...makeNc("nc-2", "i1", 1), tipo_reembolso: "reembolso_directo", estado: "activa" };
+
+    mockFetch(VENTA_ACTIVA, [ncUsada, ncReembolsoDirecto]);
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Collar Perro")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Anular venta/i }));
+
+    expect(screen.getByText(/¿Confirmar anulación\?/i)).toBeInTheDocument();
+    // Acotado al texto de la advertencia (no a "saldo a favor" en general —
+    // ese texto también aparece en el badge de "Devoluciones registradas",
+    // que sí debe seguir mostrando la NC usada como "Saldo a favor").
+    expect(screen.queryByText(/será invalidado automáticamente/i)).not.toBeInTheDocument();
   });
 
 });
