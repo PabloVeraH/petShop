@@ -765,8 +765,8 @@
     "semantic_hash": "5b662568ee07790465fdbfb9bb7733c1"
   },
   "src/app/(app)/pos/components/ModalPago.tsx": {
-    "mtime": 1785594007.026703,
-    "ast_hash": "774f0bf58691f32c34a6e37a263c44e3",
+    "mtime": 1785599363.5809667,
+    "ast_hash": "9e0868035bca5ca2538405a53385c8a3",
     "semantic_hash": ""
   },
   "src/app/(app)/pos/components/RecomendacionesIA.tsx": {
@@ -1840,8 +1840,8 @@
     "semantic_hash": "73b8352ff31b48c2a843e6385aa8c2db"
   },
   "tests/components/ModalPago.test.tsx": {
-    "mtime": 1785594007.0282614,
-    "ast_hash": "631e6a613bfc96562111e02ab73f57dd",
+    "mtime": 1785599337.3640196,
+    "ast_hash": "2a7c0af4ab901b7aa066b9253acd0ddd",
     "semantic_hash": ""
   },
   "tests/components/OptimizadorVencimientosTab.test.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785596244.026865,
-    "ast_hash": "f61288fe7d2b9a8ee314e1839f7777d8",
+    "mtime": 1785599466.425672,
+    "ast_hash": "29314b77da973d279b3bf0b72f77a87c",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
