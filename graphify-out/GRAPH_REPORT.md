@@ -1,16 +1,16 @@
 # Graph Report - app  (2026-08-01)
 
 ## Corpus Check
-- 500 files · ~345,457 words
+- 500 files · ~345,806 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2959 nodes · 5134 edges · 319 communities (212 shown, 107 thin omitted)
+- 2959 nodes · 5134 edges · 318 communities (211 shown, 107 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e1ba601b`
+- Built from commit: `585e5ce9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -104,6 +104,7 @@
 - Returns Modal Tests
 - Customer Modal Tests
 - Audit Log Tests
+- date-fns
 - User Onboarding Tests
 - Product Management Tests
 - Store Settings Tests
@@ -208,7 +209,6 @@
 - ESLint Configuration
 - ⚠️ Consideraciones Importantes
 - UltimasVentas.tsx
-- clerk-env.ts
 - Casos de Uso
 - InstagramEditor.test.tsx
 - Cobertura Actual: 40 tests (100%)
@@ -230,7 +230,6 @@
 - @tanstack/react-query
 - @types/leaflet
 - Demand Prediction Plan
-- route.ts
 - Sublinear Goal Planning
 - Instagram Branding Assets
 - UberEats Catalog Interface
@@ -334,7 +333,7 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (319 total, 107 thin omitted)
+## Communities (318 total, 107 thin omitted)
 
 ### Community 0 - "Post Management API"
 Cohesion: 0.14
@@ -345,8 +344,8 @@ Cohesion: 0.07
 Nodes (55): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+47 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.10
-Nodes (37): POST(), GET(), liquidacionSchema, POST(), POST(), POST(), rejectSchema, DELETE() (+29 more)
+Cohesion: 0.06
+Nodes (58): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POST(), POST(), POST(), rejectSchema (+50 more)
 
 ### Community 3 - "Admin Dashboard Layout"
 Cohesion: 0.14
@@ -365,8 +364,8 @@ Cohesion: 0.29
 Nodes (4): mockClearCart, mockInvalidateQueries, mockSetWorker, mockUsePOSStore
 
 ### Community 7 - "Order Channel Hub"
-Cohesion: 0.08
-Nodes (30): assertChannelEnabled(), getActiveOrders(), getCanalConfig(), handleCancellation(), liberarReservaSinDescontar(), liberarReservaYDescontarStock(), TODO: Crear nota de crédito automática, TODO: Generar asiento contable de devolución (+22 more)
+Cohesion: 0.10
+Nodes (19): ALL_ADAPTERS, channelRegistry, enabledChannels, getEnabledChannelIds(), CANAL_DEFAULT, CanalId, CanalOrdenItem, ChannelError (+11 more)
 
 ### Community 8 - "Rappi Integration"
 Cohesion: 0.15
@@ -405,8 +404,8 @@ Cohesion: 0.08
 Nodes (26): 1. BACKEND — Adaptador PedidosYa, 2. BACKEND — Integración, 3. FRONTEND, 4. TESTS, ✅ Build Status, 📝 Características Implementadas, 📋 Checklist de Tareas, 🔧 Configuración Requerida (+18 more)
 
 ### Community 17 - "Excel Report Generation"
-Cohesion: 0.13
-Nodes (16): DELETE(), PATCH(), requireAdmin(), GET(), POST(), GET(), POST(), GET() (+8 more)
+Cohesion: 0.29
+Nodes (11): assertChannelEnabled(), getActiveOrders(), getCanalConfig(), handleCancellation(), liberarReservaSinDescontar(), liberarReservaYDescontarStock(), TODO: Crear nota de crédito automática, TODO: Generar asiento contable de devolución (+3 more)
 
 ### Community 18 - "UberEats Integration"
 Cohesion: 0.15
@@ -565,8 +564,8 @@ Cohesion: 0.15
 Nodes (10): 10. Configuración del entorno de pruebas, 11. Métricas de éxito, 1. Alcance, 2. Stack de pruebas recomendado, 3. Convenciones, 6. Pruebas de seguridad, 7. Pruebas de integración hub-sync, 8. Pruebas E2E (Playwright) (+2 more)
 
 ### Community 59 - "Product Search UI"
-Cohesion: 0.05
-Nodes (63): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+55 more)
+Cohesion: 0.06
+Nodes (48): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+40 more)
 
 ### Community 60 - "route.ts"
 Cohesion: 0.33
@@ -578,7 +577,7 @@ Nodes (10): buildVentasMockFrom(), chain(), DB_VENTA_HUB, mockFrom, mockGetStore
 
 ### Community 62 - "Frontend Dependencies"
 Cohesion: 0.11
-Nodes (19): @base-ui/react, @clerk/nextjs, date-fns, leaflet, dependencies, @base-ui/react, @clerk/nextjs, date-fns (+11 more)
+Nodes (19): @base-ui/react, class-variance-authority, @clerk/nextjs, leaflet, dependencies, @base-ui/react, class-variance-authority, @clerk/nextjs (+11 more)
 
 ### Community 63 - "Auto-Commit Scripts"
 Cohesion: 0.18
@@ -649,8 +648,8 @@ Cohesion: 0.15
 Nodes (10): AdminRole, Store, AdminLayout(), NavItemProps, IAConfigSection(), LicenciaCard(), LicenseConfig, LicenseData (+2 more)
 
 ### Community 83 - "Worker Process Manager"
-Cohesion: 0.70
-Nodes (3): GET(), POST(), PagoSchema
+Cohesion: 0.40
+Nodes (5): 1️⃣ Cliente inicia devolución, 2️⃣ Confirmación en modal (2 pasos), 3️⃣ Sistema procesa, 4️⃣ Visualización, Flujo de Devolución
 
 ### Community 84 - "Analytics Tab Tests"
 Cohesion: 0.29
@@ -677,8 +676,8 @@ Cohesion: 0.25
 Nodes (4): mockAuth, mockFrom, mockGetStoreId, mockSingle
 
 ### Community 94 - "FIFO Sales Tests"
-Cohesion: 0.10
-Nodes (21): 1️⃣ Cliente inicia devolución, 2️⃣ Confirmación en modal (2 pasos), 3️⃣ Sistema procesa, 4️⃣ Visualización, Arquitectura de Base de Datos, Descripción General, Devolución parcial, Devolución total (anulación completa) (+13 more)
+Cohesion: 0.12
+Nodes (16): Arquitectura de Base de Datos, Descripción General, Devolución parcial, Devolución total (anulación completa), Flujo Técnico Detallado, Lógica de Reembolso, Opción 1: restituir_stock=true, Opción 2: restituir_stock=false (+8 more)
 
 ### Community 96 - "Clerk Webhook Tests"
 Cohesion: 0.29
@@ -745,8 +744,8 @@ Cohesion: 0.33
 Nodes (3): mockAuth, mockGetStoreId, mockSyncProductsToHub
 
 ### Community 119 - "route.ts"
-Cohesion: 0.53
-Nodes (3): GET(), POST(), SaldosFavorUsageSchema
+Cohesion: 0.07
+Nodes (21): GET(), GET(), GET(), GET(), GET(), GET(), POST(), GET() (+13 more)
 
 ### Community 120 - "Bulk POS Storage"
 Cohesion: 0.33
@@ -920,10 +919,6 @@ Nodes (4): ai_pos_cache, ai_vencimientos_analisis, chart_of_accounts, movimiento
 Cohesion: 0.06
 Nodes (35): 1.1 Objetivo, 1.2 Estado Actual, 1.3.1 Paso 1: Crear Tabla de Historial de Ventas por Producto, 1.3.2 Paso 2: Crear Biblioteca de Algoritmos de Predicción, 1.3.3 Paso 3: Crear Endpoint de Predicción, 1.3.4 Paso 4: Crear Frontend de Predicción, 1.3.5 Paso 5: Tests Unitarios, 1.3 Step-by-Step (+27 more)
 
-### Community 242 - "route.ts"
-Cohesion: 0.47
-Nodes (5): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POSRecomendadorRequestSchema
-
 ### Community 268 - "FASE 3: Adaptador UberEats"
 Cohesion: 0.07
 Nodes (29): 1. BACKEND — Adaptador UberEats, 2. BACKEND — Integración, 3. FRONTEND, 4. TESTS, ✅ Build Status, 📝 Características Implementadas, 📋 Checklist de Tareas, Complejidad Adicional: OAuth 2.0 (+21 more)
@@ -1032,9 +1027,9 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Product Search UI` to `Post Management API`, `User Authentication Management`, `POS Metadata and Audit`, `Rappi Integration`, `Client and Pet API`, `Security and Licensing`, `Local Data Persistence`, `Excel Report Generation`, `UberEats Integration`, `Accounting Journal Entries`, `Supply Chain Accounting`, `Accounting Data Types`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Supplier Hub Page`, `Profit and Loss API`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Worker Process Manager`, `Monthly Closing Tests`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`, `route.ts`?**
+- **Why does `createServiceClient()` connect `Product Search UI` to `Post Management API`, `User Authentication Management`, `POS Metadata and Audit`, `Rappi Integration`, `Client and Pet API`, `Security and Licensing`, `Local Data Persistence`, `UberEats Integration`, `Accounting Journal Entries`, `Supply Chain Accounting`, `Accounting Data Types`, `Project Metrics Database`, `PedidosYa Integration`, `Webhook Security Encryption`, `Supplier Hub Page`, `Profit and Loss API`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Monthly Closing Tests`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`?**
   _High betweenness centrality (0.126) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `Frontend Dependencies` to `Trial Balance PDF`, `Development Dependencies`, `zustand`, `Customer Modal Tests`, `🔐 Cambios en Validación`, `clerk-env.ts`, `💾 Impacto en Datos Existentes`, `react-leaflet`, `@supabase/supabase-js`, `@tanstack/react-query`, `@types/leaflet`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `resend`, `Auto-Commit Scripts`?**
+- **Why does `dependencies` connect `Frontend Dependencies` to `Trial Balance PDF`, `Development Dependencies`, `zustand`, `Customer Modal Tests`, `🔐 Cambios en Validación`, `💾 Impacto en Datos Existentes`, `react-leaflet`, `@supabase/supabase-js`, `@tanstack/react-query`, `@types/leaflet`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `date-fns`, `Supply Chain Accounting`, `resend`, `Auto-Commit Scripts`?**
   _High betweenness centrality (0.059) - this node is a cross-community bridge._
 - **Why does `xlsx` connect `Trial Balance PDF` to `Supply Chain Accounting`, `Accounting Ledger UI`, `Frontend Dependencies`?**
   _High betweenness centrality (0.056) - this node is a cross-community bridge._
@@ -1045,4 +1040,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
   _Cohesion score 0.06960385042576823 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.09647058823529411 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06392405063291139 - nodes in this community are weakly interconnected._

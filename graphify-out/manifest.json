@@ -815,7 +815,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/suppliers/page.tsx": {
-    "mtime": 1784607911.9707432,
+    "mtime": 1785595950.1821747,
     "ast_hash": "df7c43dc33b230cb392e8eaf09e5eb79",
     "semantic_hash": ""
   },
@@ -1895,8 +1895,8 @@
     "semantic_hash": "d1440c82327969038be79575897025bb"
   },
   "tests/components/SuppliersPage.test.tsx": {
-    "mtime": 1784607911.9715512,
-    "ast_hash": "7c6f1191e898cfca2d4e14d68d243806",
+    "mtime": 1785596244.0271842,
+    "ast_hash": "a6f3bd26cef993ec12d91303e315906f",
     "semantic_hash": ""
   },
   "tests/components/VendedoresPage.test.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785594007.0260904,
-    "ast_hash": "b9285ab20eb2e52c178823a039f561ea",
+    "mtime": 1785596244.026865,
+    "ast_hash": "f61288fe7d2b9a8ee314e1839f7777d8",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
