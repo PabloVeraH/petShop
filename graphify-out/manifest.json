@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/canales/[canal]/page.tsx": {
-    "mtime": 1784773413.0867105,
-    "ast_hash": "b55b6f1207da02a5936b8b0a29674342",
+    "mtime": 1785622185.605201,
+    "ast_hash": "871d4b0407cea26655c8b50141a44f78",
     "semantic_hash": ""
   },
   "src/app/(app)/canales/instagram/posts/editor/page.tsx": {
@@ -1780,8 +1780,8 @@
     "semantic_hash": "9a5c2f15c3ec07622c90ec9fc71e7b0c"
   },
   "tests/components/CanalConfigPage.test.tsx": {
-    "mtime": 1784773413.08711,
-    "ast_hash": "5ccfa7ad5bf588b2c77f60c9fef77ded",
+    "mtime": 1785622158.7892458,
+    "ast_hash": "294771ed5216e44f04ee40b7111014cb",
     "semantic_hash": ""
   },
   "tests/components/CategoriasTab.test.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785621469.0362923,
-    "ast_hash": "7591e8e59eebbd047c554737bec91c8c",
+    "mtime": 1785622266.7430794,
+    "ast_hash": "3152b81a84be24e78cdec274dc3c85ed",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
