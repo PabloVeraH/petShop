@@ -200,6 +200,24 @@ describe("POST /api/ventas — validaciones", () => {
     expect(res.status).toBe(400);
   });
 
+  // I-468 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas internas
+  // siguen opcionales, pero si se ingresa algo debe alcanzar un mínimo de
+  // trazabilidad real — un solo carácter no sirve para auditoría.
+  it("I-468: notas con menos de 5 caracteres → 400", async () => {
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", notas: "ab" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/al menos 5 caracteres/i);
+  });
+
+  // I-469
+  it("I-469: notas con exactamente 5 caracteres → aceptado", async () => {
+    setupHappyPath();
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", notas: "abcde" }));
+    expect(res.status).toBe(200);
+  });
+
   // I-300
   it("I-300: rechaza debito sin numeroTransaccion con 400", async () => {
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "debito" }));

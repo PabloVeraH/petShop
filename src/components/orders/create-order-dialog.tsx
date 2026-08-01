@@ -38,6 +38,11 @@ export default function CreateOrderDialog({ open, onClose, proveedorId, producto
 
   const prevOpen = useRef(open);
 
+  // Notas siguen opcionales, pero si se escribe algo debe alcanzar para
+  // trazabilidad real (ticket Trello 6a62eb3057bc5972b4ca8dcc);
+  // OrdenCompraCreateSchema aplica la misma regla como defensa server-side.
+  const notasError = notas.trim().length > 0 && notas.trim().length < 5;
+
   const resetForm = () => {
     setItems([]);
     setAddingItem({ producto_id: "", nombre_nuevo: "", cantidad: "1", esNuevo: false });
@@ -220,7 +225,14 @@ export default function CreateOrderDialog({ open, onClose, proveedorId, producto
               placeholder="Notas opcionales para la orden..."
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
+              maxLength={255}
             />
+            <div className="flex justify-between text-xs mt-1">
+              <span className={notasError ? "text-red-500" : "text-transparent"}>
+                {notasError ? "Las notas deben tener al menos 5 caracteres" : "-"}
+              </span>
+              <span className="text-gray-400">{notas.length}/255</span>
+            </div>
           </div>
 
           <p className="text-xs text-gray-500">El precio se ingresará al recibir la orden.</p>
@@ -230,7 +242,7 @@ export default function CreateOrderDialog({ open, onClose, proveedorId, producto
           <Button variant="outline" size="sm" onClick={() => { resetForm(); onClose(); }}>
             Cancelar
           </Button>
-          <Button size="sm" disabled={items.length === 0 || isPending} onClick={handleCreate}>
+          <Button size="sm" disabled={items.length === 0 || isPending || notasError} onClick={handleCreate}>
             {isPending ? "Creando..." : "Crear OC"}
           </Button>
         </DialogFooter>

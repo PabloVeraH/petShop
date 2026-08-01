@@ -16,7 +16,10 @@ export const CategoriaUpdateSchema = z.object({
 export const InventarioUpdateSchema = z.object({
   tipo: z.enum(["entrada", "salida"]),
   cantidad: z.number().int().positive(),
-  notas: z.string().max(500).optional(),
+  notas: z.string().max(255, "El motivo no puede superar los 255 caracteres").optional().refine(
+    (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
+    { message: "El motivo debe tener al menos 5 caracteres" }
+  ),
 });
 
 export const ProductoCreateSchema = z.object({

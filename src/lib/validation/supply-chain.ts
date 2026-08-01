@@ -58,7 +58,14 @@ export const NotaCreditoPostSchema = z.object({
   })).min(1),
   tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),
   metodoReembolso: z.string().max(100).nullable().optional(),
-  motivo: z.string().max(500).nullable().optional(),
+  // motivo sigue siendo opcional (campo vacío/null = "no se indicó motivo"),
+  // pero si se ingresa algo, exige un mínimo de trazabilidad real — un
+  // carácter suelto no sirve para auditoría (ticket Trello
+  // 6a62eb3057bc5972b4ca8dcc).
+  motivo: z.string().max(255, "El motivo no puede superar los 255 caracteres").nullable().optional().refine(
+    (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
+    { message: "El motivo debe tener al menos 5 caracteres" }
+  ),
 });
 
 export const OrdenesCompraCreateSchema = z.object({
@@ -84,7 +91,10 @@ export const OrdenCompraCreateSchema = z.object({
   proveedor_id: UUIDSchema,
   items: z.array(OrdenCompraItemCreateSchema).min(1),
   fecha_estimada: z.string().datetime().optional(),
-  notas: z.string().max(500).optional(),
+  notas: z.string().max(255, "Las notas no pueden superar los 255 caracteres").optional().refine(
+    (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
+    { message: "Las notas deben tener al menos 5 caracteres" }
+  ),
 });
 
 export const OrdenCompraReceiveItemSchema = z.object({

@@ -24,7 +24,10 @@ export const VentaCreateSchema = z.object({
   items: z.array(VentaItemSchema).min(1, "La venta debe tener al menos un producto"),
   descuentoPct: z.number().nonnegative().max(100).optional(),
   metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor", "plataforma", "nota_credito", "mixto"]),
-  notas: z.string().max(500).optional(),
+  notas: z.string().max(255, "Las notas no pueden superar los 255 caracteres").optional().refine(
+    (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
+    { message: "Las notas deben tener al menos 5 caracteres" }
+  ),
   numeroTransaccion: z.string().optional(),
   canal: z.enum(["pos", "rappi", "pedidosya", "ubereats"]).default("pos"),
   procedencia: z.enum(["presencial", "instagram", "whatsapp", "facebook", "tiktok", "telefonico"]).default("presencial"),

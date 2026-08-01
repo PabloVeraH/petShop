@@ -130,6 +130,29 @@ describe("CreateOrderDialog", () => {
     });
   });
 
+  // COD-08 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Notas sigue
+  // opcional, pero si se escribe algo debe alcanzar un mínimo de trazabilidad
+  // real. Muestra el error y bloquea "Crear OC" sin enviar el POST.
+  describe("COD-08: validación de longitud mínima en Notas", () => {
+    it("COD-08: Notas con menos de 5 caracteres muestra error y bloquea Crear OC", async () => {
+      renderDialog(true);
+
+      const select = screen.getByRole("combobox");
+      fireEvent.change(select, { target: { value: "prod-1" } });
+      fireEvent.click(screen.getByText("Agregar"));
+
+      const notasTextarea = screen.getByPlaceholderText("Notas opcionales para la orden...");
+      fireEvent.change(notasTextarea, { target: { value: "ab" } });
+
+      expect(screen.getByText(/Las notas deben tener al menos 5 caracteres/i)).toBeInTheDocument();
+      expect(screen.getByText("Crear OC")).toBeDisabled();
+
+      const fetchCallsAntes = (global.fetch as jest.Mock).mock.calls.length;
+      fireEvent.click(screen.getByText("Crear OC"));
+      expect((global.fetch as jest.Mock).mock.calls.length).toBe(fetchCallsAntes);
+    });
+  });
+
   describe("COD-05: envío de POST", () => {
     it("envía POST con items y fecha_estimada", async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ id: "oc-001" }) });

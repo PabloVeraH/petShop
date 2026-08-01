@@ -106,6 +106,12 @@ export function DevolucionModal({
     onClose();
   };
 
+  // El motivo sigue siendo opcional — vacío es válido — pero si el vendedor
+  // escribe algo, debe ser suficiente para trazabilidad real (ticket Trello
+  // 6a62eb3057bc5972b4ca8dcc; el backend en NotaCreditoPostSchema aplica la
+  // misma regla como defensa server-side).
+  const motivoError = motivo.trim().length > 0 && motivo.trim().length < 5;
+
   const descuentoFactor = descuento > 0 ? (100 - descuento) / 100 : 1;
 
   const montoTotal = Object.entries(selectedItems)
@@ -337,9 +343,16 @@ export function DevolucionModal({
                   placeholder="Ej: Producto defectuoso, cambio de opinión..."
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
+                  maxLength={255}
                   className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50"
                   disabled={isPending}
                 />
+                <div className="flex justify-between text-xs">
+                  <span className={motivoError ? "text-red-500" : "text-transparent"}>
+                    {motivoError ? "El motivo debe tener al menos 5 caracteres" : "-"}
+                  </span>
+                  <span className="text-gray-400">{motivo.length}/255</span>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-4">
@@ -353,7 +366,7 @@ export function DevolucionModal({
                 </Button>
                 <Button
                   onClick={() => crearNC()}
-                  disabled={isPending}
+                  disabled={isPending || motivoError}
                   className="flex-1"
                 >
                   {isPending ? "Procesando..." : "Confirmar devolución"}

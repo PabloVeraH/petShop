@@ -115,6 +115,25 @@ describe("Órdenes de Compra API", () => {
 
       expect(res.status).toBe(400);
     });
+
+    // I-470 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas siguen
+    // opcionales, pero si se ingresa algo debe alcanzar un mínimo de
+    // trazabilidad real — un solo carácter no sirve para auditoría.
+    it("I-470: notas con menos de 5 caracteres → 400", async () => {
+      const req = new NextRequest("http://localhost/api/ordenes-compra", {
+        method: "POST",
+        body: JSON.stringify({
+          proveedor_id: "d93cfe99-3abf-4255-8f5f-be40d3d452a0",
+          items: [{ producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", cantidad_solicitada: 1 }],
+          notas: "ab",
+        }),
+      });
+      const res = await POST(req);
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toMatch(/al menos 5 caracteres/i);
+    });
   });
 
   describe("PATCH /api/ordenes-compra/[id] — recibir sin lotes", () => {

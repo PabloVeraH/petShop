@@ -175,9 +175,15 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
     }
   }
 
+  // Notas internas siguen opcionales, pero si se escribe algo debe alcanzar
+  // para trazabilidad real (ticket Trello 6a62eb3057bc5972b4ca8dcc);
+  // VentaCreateSchema aplica la misma regla como defensa server-side.
+  const notasError = notas.trim().length > 0 && notas.trim().length < 5;
+
   const confirmarDisabled =
     isLoading ||
     !metodoPago ||
+    notasError ||
     (!pagoNc && ["debito", "credito", "transferencia"].includes(metodoPago ?? "") && !numeroTransaccion) ||
     (pagoNc && montoResto > 0 && ["debito", "credito", "transferencia"].includes(metodoPago ?? "") && !numeroTransaccion) ||
     (modoNc && !pagoNc) ||
@@ -435,8 +441,15 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Observaciones (no visible en el recibo)"
               rows={2}
+              maxLength={255}
               className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
             />
+            <div className="flex justify-between text-xs mt-1">
+              <span className={notasError ? "text-red-500" : "text-transparent"}>
+                {notasError ? "Las notas deben tener al menos 5 caracteres" : "-"}
+              </span>
+              <span className="text-gray-400">{notas.length}/255</span>
+            </div>
           </div>
 
           {/* Email toggle — solo visible si el cliente tiene email */}

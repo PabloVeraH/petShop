@@ -496,6 +496,26 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     expect(body.notas).toBe("QA test - devolución Arena Arenero");
   });
 
+  // IV-13 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Motivo sigue
+  // opcional, pero si se escribe algo debe alcanzar un mínimo de trazabilidad
+  // real. Muestra el error y bloquea "Agregar" sin enviar el PATCH.
+  it("IV-13: Motivo con menos de 5 caracteres muestra error y bloquea Agregar", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+
+    const motivoInput = screen.getByPlaceholderText(/conteo físico, devolución, merma/i);
+    fireEvent.change(motivoInput, { target: { value: "ab" } });
+
+    expect(screen.getByText(/El motivo debe tener al menos 5 caracteres/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Agregar" })).toBeDisabled();
+
+    const fetchCallsAntes = (global.fetch as jest.Mock).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
+    expect((global.fetch as jest.Mock).mock.calls.length).toBe(fetchCallsAntes);
+  });
+
   // IV-03: REGRESIÓN — re-renderizar mientras el modal de ajuste está abierto
   // (ej. al cambiar Cantidad, que pasa un onClose inline nuevo a ModalOverlay
   // en cada render) NO debe volver a robar el foco. Este test habría fallado

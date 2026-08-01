@@ -199,6 +199,44 @@ describe("POST /api/notas-credito", () => {
     expect(res.status).toBe(400);
   });
 
+  // I-464 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo sigue
+  // opcional, pero si se ingresa algo debe alcanzar un mínimo de trazabilidad
+  // real para auditoría/Libro Diario — un solo carácter no sirve.
+  it("I-464: motivo con menos de 5 caracteres → 400", async () => {
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: NC_ID, cantidadDevuelta: 1 }],
+          tipoReembolso: "reembolso_directo",
+          motivo: "abc",
+        }),
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/al menos 5 caracteres/i);
+  });
+
+  // I-465
+  it("I-465: motivo con exactamente 5 caracteres → aceptado", async () => {
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: NC_ID, cantidadDevuelta: 1 }],
+          tipoReembolso: "reembolso_directo",
+          motivo: "abcde",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("tipoReembolso inválido → 400", async () => {
     const { POST } = await import("@/app/api/notas-credito/route");
     const res = await POST(

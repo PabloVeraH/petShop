@@ -4,6 +4,7 @@
  * - MP-06 a MP-10: dropdown "Asignar a vendedor"
  * - MP-17 a MP-19: reset de método de pago al montar
  * - MP-21/MP-22: etiqueta "Descuento fidelización" vs. descuento manual
+ * - MP-23: validación de longitud mínima en Notas internas
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -21,6 +22,7 @@ const mockSetNumeroTransaccion = jest.fn();
 const mockSetWorker            = jest.fn();
 const mockSetPayNc             = jest.fn();
 const mockClearPayNc           = jest.fn();
+const mockSetNotas             = jest.fn();
 
 // Variables mutables — se leen en la factory cada vez que el componente llama usePOSStore()
 let mockClienteEmail: string | undefined    = undefined;
@@ -32,6 +34,7 @@ let mockSubtotalValue                       = 10000;
 let mockMetodoPago                          = "efectivo";
 let mockNumeroTransaccion: string | undefined = undefined;
 let mockPagoNc: { nota_credito_id: string; numero_nc: string; monto: number } | undefined = undefined;
+let mockNotas                               = "";
 
 // ModalPago ahora destructura `items` y computa subtotal/total con las
 // funciones puras reales de @/stores/pos (calcularSubtotalCarrito, etc.),
@@ -59,6 +62,8 @@ jest.mock("@/stores/pos", () => ({
     clienteEmail:          mockClienteEmail,
     enviarEmailRecibo:     mockEnviarEmailRecibo,
     setEnviarEmailRecibo:  mockSetEnviarEmailRecibo,
+    notas:                 mockNotas,
+    setNotas:              mockSetNotas,
   })),
 }));
 
@@ -417,5 +422,29 @@ describe("ModalPago — etiqueta de descuento por fidelización (MP-21/MP-22)", 
     setup();
     expect(screen.getByText("Descuento (10%)")).toBeInTheDocument();
     expect(screen.queryByText(/Descuento fidelización/)).not.toBeInTheDocument();
+  });
+});
+
+// ── Validación de longitud mínima en Notas internas — MEJORA ticket Trello 6a62eb3057bc5972b4ca8dcc ──
+describe("ModalPago — validación de longitud mínima en Notas internas (MP-23)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail  = undefined;
+    mockDescuento     = 0;
+    mockSubtotalValue = 10000;
+    mockNotas         = "";
+  });
+
+  it("MP-23: Notas internas con menos de 5 caracteres muestra error y bloquea Cobrar", () => {
+    mockNotas = "ab";
+    setup();
+    expect(screen.getByText(/Las notas deben tener al menos 5 caracteres/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cobrar \$/)).toBeDisabled();
+  });
+
+  it("MP-23b: Notas internas con 5 o más caracteres no muestra error", () => {
+    mockNotas = "abcde";
+    setup();
+    expect(screen.queryByText(/Las notas deben tener al menos 5 caracteres/i)).not.toBeInTheDocument();
   });
 });

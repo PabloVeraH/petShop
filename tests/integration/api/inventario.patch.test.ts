@@ -61,6 +61,26 @@ describe("PATCH /api/inventario/[id]", () => {
     expect(res.status).toBe(400);
   });
 
+  // I-466 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): el motivo del
+  // ajuste sigue opcional, pero si se ingresa algo debe alcanzar un mínimo de
+  // trazabilidad real para Libro Diario/auditoría — un solo carácter no sirve.
+  it("I-466: notas (motivo) con menos de 5 caracteres → 400", async () => {
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5, notas: "ab" }), { params });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/al menos 5 caracteres/i);
+  });
+
+  // I-467
+  it("I-467: notas (motivo) con exactamente 5 caracteres → aceptado", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 10 }, error: null })
+      .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, nombre: "Alimento", marca: null, precio: 10000, stock: 15 }, error: null });
+
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5, notas: "abcde" }), { params });
+    expect(res.status).toBe(200);
+  });
+
   // I-52
   it("I-52: producto de otro store → 404", async () => {
     mockSingle.mockResolvedValue({ data: null, error: { code: "PGRST116" } });

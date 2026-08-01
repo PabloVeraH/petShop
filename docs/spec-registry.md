@@ -339,6 +339,13 @@ I-406/I-407/I-408.
 | I-461 | Nuevo mecanismo: retorna 400 si cuentaDestino no es "caja" ni "banco" | POST /api/contabilidad/aporte-capital | integration |
 | I-462 | Nuevo mecanismo: crea el asiento con tipoMovimiento APORTE_CAPITAL y líneas balanceadas Dr cuenta destino / Cr Capital | POST /api/contabilidad/aporte-capital | integration |
 | I-463 | Nuevo mecanismo: retorna 500 si crearAsiento falla | POST /api/contabilidad/aporte-capital | integration |
+| I-464 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres → 400 (sigue opcional, pero si se ingresa algo exige mínimo de trazabilidad) | POST /api/notas-credito | integration |
+| I-465 | MEJORA: motivo con exactamente 5 caracteres → aceptado | POST /api/notas-credito | integration |
+| I-466 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas (motivo del ajuste) con menos de 5 caracteres → 400 | PATCH /api/inventario/[id] | integration |
+| I-467 | MEJORA: notas (motivo del ajuste) con exactamente 5 caracteres → aceptado | PATCH /api/inventario/[id] | integration |
+| I-468 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas internas con menos de 5 caracteres → 400 | POST /api/ventas | integration |
+| I-469 | MEJORA: notas internas con exactamente 5 caracteres → aceptado | POST /api/ventas | integration |
+| I-470 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas de OC con menos de 5 caracteres → 400 | POST /api/ordenes-compra | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)
@@ -363,6 +370,7 @@ I-406/I-407/I-408.
 | COD-05 | Envía POST con items + fecha_estimada + notas | CreateOrderDialog | component |
 | COD-06 | Formulario se limpia al cerrar y reabrir | CreateOrderDialog | component |
 | COD-07 | REGRESIÓN (investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b): escribir en Notas letra por letra (Dialog real, no mockeado) no pierde caracteres ni vuelve a robar el foco | CreateOrderDialog | component |
+| COD-08 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Notas con menos de 5 caracteres muestra error y bloquea "Crear OC" sin enviar el POST | CreateOrderDialog | component |
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
 | IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
@@ -375,6 +383,7 @@ I-406/I-407/I-408.
 | IV-10 | REGRESIÓN (ticket Trello 6a5f9a8c29a2a067617111f7): salida con cantidad mayor al stock muestra error inline 'Stock insuficiente: disponible N', input con max=stock y botón Descontar deshabilitado — no se envía PATCH | InventoryPage | component |
 | IV-11 | Frontera: salida con cantidad igual al stock habilita Descontar y envía el PATCH con esa cantidad (no sobre-bloquear) | InventoryPage | component |
 | IV-12 | Rechazo 422 del backend (stock stale) se muestra como error en el modal de ajuste — la operación no falla en silencio | InventoryPage | component |
+| IV-13 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Motivo con menos de 5 caracteres muestra error y bloquea "Agregar" sin enviar el PATCH | InventoryPage | component |
 | FP-07 | Crear producto con campos vacíos muestra errores inline | InventoryPage | component |
 | FP-08 | Llenar campo requerido remueve su error inline | InventoryPage | component |
 | FP-09 | Formulario válido no muestra errores inline | InventoryPage | component |
@@ -494,6 +503,7 @@ I-406/I-407/I-408.
 | MP-20 | REGRESIÓN (investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b, store real no mockeado): escribir en Notas internas letra por letra no pierde caracteres ni vuelve a robar el foco | ModalPago | component |
 | MP-21 | MEJORA (ticket Trello 6a62eb2efd10640e778299af): descuento activo igual al nivel de fidelización del cliente → etiqueta "Descuento fidelización (X%)" | ModalPago | component |
 | MP-22 | MEJORA: descuento editado manualmente (distinto al nivel de fidelización) → etiqueta genérica "Descuento (X%)", sin mención a fidelización | ModalPago | component |
+| MP-23 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Notas internas con menos de 5 caracteres muestra error y bloquea "Cobrar" | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
@@ -739,6 +749,7 @@ llamar `focus()` tras un cambio de estado — el mecanismo exacto del bug.
 | DV-15 | REGRESIÓN: motivo completo con acentos se envía en el body del fetch | DevolucionModal | component |
 | DV-16 | REGRESIÓN: motivo vacío se envía como null en el body | DevolucionModal | component |
 | DV-17 | REGRESIÓN: escribir en Motivo no vuelve a robar el foco del ModalOverlay real | DevolucionModal | component |
+| DV-18 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres muestra error y bloquea "Confirmar devolución" sin llamar al API | DevolucionModal | component |
 
 ## LotesPanel — formulario de Lote, Notas (LP-01 a LP-03)
 

@@ -176,6 +176,12 @@ export default function InventoryPage() {
   // el backend rechaza con 422; aquí se previene y se advierte antes de enviar.
   const ajusteExcedeStock = !!ajuste && ajuste.tipo === "salida" && Number(ajusteCantidad) > ajuste.producto.stock;
 
+  // Motivo sigue opcional (vacío es válido), pero si se escribe algo debe
+  // alcanzar para trazabilidad real en el Libro Diario/auditoría (ticket
+  // Trello 6a62eb3057bc5972b4ca8dcc). InventarioUpdateSchema aplica la misma
+  // regla como defensa server-side.
+  const ajusteMotivoError = ajusteNotas.trim().length > 0 && ajusteNotas.trim().length < 5;
+
   const { mutate: guardarProducto, isPending: guardandoProducto } = useMutation({
     mutationFn: async () => {
       if (!validate()) throw new Error("VALIDATION_ERROR");
@@ -590,7 +596,14 @@ export default function InventoryPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Motivo (opcional)</label>
                 <input type="text" value={ajusteNotas} onChange={(e) => setAjusteNotas(e.target.value)}
                   placeholder="Ej: conteo físico, devolución, merma..."
+                  maxLength={255}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <div className="flex justify-between text-xs mt-1">
+                  <span className={ajusteMotivoError ? "text-red-500" : "text-transparent"}>
+                    {ajusteMotivoError ? "El motivo debe tener al menos 5 caracteres" : "-"}
+                  </span>
+                  <span className="text-gray-400">{ajusteNotas.length}/255</span>
+                </div>
               </div>
             </div>
             {ajusteExcedeStock && (
@@ -601,7 +614,7 @@ export default function InventoryPage() {
             )}
             <div className="flex gap-2 mt-5">
               <Button variant="outline" onClick={() => setAjuste(null)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => aplicarAjuste()} disabled={guardandoAjuste || !ajusteCantidad || Number(ajusteCantidad) <= 0 || ajusteExcedeStock}
+              <Button onClick={() => aplicarAjuste()} disabled={guardandoAjuste || !ajusteCantidad || Number(ajusteCantidad) <= 0 || ajusteExcedeStock || ajusteMotivoError}
                 className={`flex-1 ${ajuste!.tipo === "salida" ? "bg-red-600 hover:bg-red-700" : ""}`}>
                 {guardandoAjuste ? "Guardando..." : ajuste!.tipo === "entrada" ? "Agregar" : "Descontar"}
               </Button>

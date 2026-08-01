@@ -367,4 +367,22 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
   });
+
+  // DV-18 — MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo sigue
+  // opcional, pero si se escribe algo debe alcanzar un mínimo de trazabilidad
+  // real. Muestra el error y bloquea "Confirmar devolución" sin llamar al API.
+  it("DV-18: motivo con menos de 5 caracteres muestra error y bloquea Confirmar devolución", async () => {
+    setup();
+    selectItemAndAdvance();
+
+    const motivoInput = screen.getByPlaceholderText(/Producto defectuoso/i);
+    fireEvent.change(motivoInput, { target: { value: "abc" } });
+
+    expect(screen.getByText(/El motivo debe tener al menos 5 caracteres/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Confirmar devolución/i })).toBeDisabled();
+
+    const fetchCallsAntes = (global.fetch as jest.Mock).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+    expect((global.fetch as jest.Mock).mock.calls.length).toBe(fetchCallsAntes);
+  });
 });
