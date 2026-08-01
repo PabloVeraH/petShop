@@ -800,8 +800,8 @@
     "semantic_hash": "14c7c55978a9ab7cbd19cba8bfcf984c"
   },
   "src/app/(app)/sales/[id]/page.tsx": {
-    "mtime": 1785477972.1437628,
-    "ast_hash": "d951128ef891541aab8a0fac55b34492",
+    "mtime": 1785621431.1544476,
+    "ast_hash": "068c6e2705fb60d2efec528d6314c213",
     "semantic_hash": ""
   },
   "src/app/(app)/sales/page.tsx": {
@@ -1885,8 +1885,8 @@
     "semantic_hash": "55d0dbeb61e4446be82d401334851344"
   },
   "tests/components/SalesTicketPage.test.tsx": {
-    "mtime": 1784870507.9336207,
-    "ast_hash": "092e7a625d18f7a478127dd7a97866ba",
+    "mtime": 1785621431.154657,
+    "ast_hash": "19025d8d14a4e0928dccf42ee63642bb",
     "semantic_hash": ""
   },
   "tests/components/SearchProductos.test.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785599466.425672,
-    "ast_hash": "29314b77da973d279b3bf0b72f77a87c",
+    "mtime": 1785621469.0362923,
+    "ast_hash": "7591e8e59eebbd047c554737bec91c8c",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
