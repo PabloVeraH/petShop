@@ -120,6 +120,48 @@ describe("POS Carrito — subtotal display", () => {
     // Descuento 10% sobre bruto
     expect(screen.getByText(/10%/)).toBeInTheDocument();
   });
+
+  // PC-16 — MEJORA ticket Trello 6a62eb2efd10640e778299af: la etiqueta debe
+  // decir "Descuento fidelización" solo mientras el descuento activo coincida
+  // con el nivel del cliente. Un descuento puramente manual (sin cliente con
+  // fidelización) usa la etiqueta genérica.
+  it("PC-16: descuento manual sin cliente con fidelización → etiqueta genérica 'Descuento (X%)'", () => {
+    act(() => {
+      usePOSStore.getState().addItem({
+        producto_id: "p1",
+        nombre: "Producto Test",
+        precio: 119000,
+        cantidad: 1,
+        subtotal: 119000,
+      });
+      usePOSStore.getState().setDescuento(10); // manual, sin setCliente
+    });
+
+    render(React.createElement(Carrito));
+
+    expect(screen.getByText("Descuento (10%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Descuento fidelización/)).not.toBeInTheDocument();
+  });
+
+  // PC-17
+  it("PC-17: descuento subido manualmente por sobre el nivel de fidelización → etiqueta genérica", () => {
+    act(() => {
+      usePOSStore.getState().addItem({
+        producto_id: "p1",
+        nombre: "Producto Test",
+        precio: 119000,
+        cantidad: 1,
+        subtotal: 119000,
+      });
+      usePOSStore.getState().setCliente("cli-1", undefined, 10); // fidelización 10% auto-aplicada
+      usePOSStore.getState().setDescuento(15); // el vendedor lo sube manualmente
+    });
+
+    render(React.createElement(Carrito));
+
+    expect(screen.getByText("Descuento (15%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Descuento fidelización/)).not.toBeInTheDocument();
+  });
 });
 
 // ── Rehidratación de persist — regresión "Cobrar $0" ──────────────────────────

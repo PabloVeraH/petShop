@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Carrito() {
-  const { items, removeItem, updateQuantity, descuento, clearCart } = usePOSStore();
+  const { items, removeItem, updateQuantity, descuento, fidelizacionDescuento, clearCart } = usePOSStore();
   const [confirmClear, setConfirmClear] = useState(false);
 
   // Calculados con items/descuento del MISMO render (ver invariante en stores/pos.ts) —
@@ -23,6 +23,12 @@ export default function Carrito() {
   const cartDescuentoMonto = (cartSubtotal * descuento) / 100;
   const cartImpuesto = calcularImpuestoCarrito(items, descuento);
   const cartTotal = calcularTotalCarrito(items, descuento);
+
+  // El descuento activo se identifica como "de fidelización" solo cuando aún
+  // coincide con el nivel del cliente seleccionado — si el vendedor lo edita
+  // manualmente en ModalPago (input libre o DESCUENTOS_RAPIDOS), deja de ser
+  // el mismo valor y la etiqueta vuelve a la genérica.
+  const esDescuentoFidelizacion = fidelizacionDescuento > 0 && descuento === fidelizacionDescuento;
 
   const isVencido = (item: typeof items[0]) => {
     if (!item.fecha_vencimiento) return false;
@@ -179,7 +185,7 @@ export default function Carrito() {
         </div>
         {descuento > 0 && (
           <div className="flex justify-between text-green-600">
-            <span>Descuento ({descuento}%)</span>
+            <span>{esDescuentoFidelizacion ? `Descuento fidelización (${descuento}%)` : `Descuento (${descuento}%)`}</span>
             <span>−${cartDescuentoMonto.toLocaleString("es-CL")}</span>
           </div>
         )}

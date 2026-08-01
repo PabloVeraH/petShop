@@ -113,9 +113,12 @@ describe("Fidelización — descuento automático de punta a punta (MC-31)", () 
 
     // Y el Carrito real, leyendo del mismo store, muestra el total ya descontado —
     // esto es lo que el vendedor ve en pantalla, sin tener que aplicar nada a mano.
+    // La etiqueta dice específicamente "fidelización" (ticket Trello
+    // 6a62eb2efd10640e778299af) mientras el descuento activo siga igual al
+    // nivel del cliente — comunica al cajero y al cliente por qué se aplicó.
     modal.unmount();
     render(<Carrito />);
-    expect(screen.getByText("Descuento (10%)")).toBeInTheDocument();
+    expect(screen.getByText("Descuento fidelización (10%)")).toBeInTheDocument();
     expect(screen.getByText("−$1.000")).toBeInTheDocument();
     expect(screen.getByText("$9.000")).toBeInTheDocument(); // Total: 10.000 - 10%
   });

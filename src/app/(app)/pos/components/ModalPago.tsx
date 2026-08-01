@@ -96,6 +96,12 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   const ivaAmount = extraerIva(tot);
   const neto = tot - ivaAmount;
 
+  // Mismo criterio que Carrito.tsx: la etiqueta solo dice "fidelización"
+  // mientras el descuento activo siga igual al nivel del cliente — si el
+  // vendedor lo edita manualmente (input libre o DESCUENTOS_RAPIDOS más
+  // abajo), pasa a mostrarse como descuento genérico.
+  const esDescuentoFidelizacion = fidelizacionDescuento > 0 && descuento === fidelizacionDescuento;
+
   // TRX validation
   const [trxError, setTrxError] = useState(false);
 
@@ -192,7 +198,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
                   <span>${subNeto.toLocaleString("es-CL")}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
-                  <span>Descuento ({descuento}%)</span>
+                  <span>{esDescuentoFidelizacion ? `Descuento fidelización (${descuento}%)` : `Descuento (${descuento}%)`}</span>
                   <span>−${Math.round(desc).toLocaleString("es-CL")}</span>
                 </div>
               </>

@@ -1,7 +1,9 @@
 /**
- * Tests MP-01 a MP-10: ModalPago
+ * Tests MP-01 a MP-22: ModalPago
  * - MP-01 a MP-05: toggle "Enviar boleta por mail al cliente"
  * - MP-06 a MP-10: dropdown "Asignar a vendedor"
+ * - MP-17 a MP-19: reset de método de pago al montar
+ * - MP-21/MP-22: etiqueta "Descuento fidelización" vs. descuento manual
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -25,6 +27,7 @@ let mockClienteEmail: string | undefined    = undefined;
 let mockEnviarEmailRecibo                   = false;
 let mockWorkerClerkId: string | undefined   = undefined;
 let mockDescuento                           = 0;
+let mockFidelizacionDescuento               = 0;
 let mockSubtotalValue                       = 10000;
 let mockMetodoPago                          = "efectivo";
 let mockNumeroTransaccion: string | undefined = undefined;
@@ -45,7 +48,7 @@ jest.mock("@/stores/pos", () => ({
     numeroTransaccion:     mockNumeroTransaccion,
     setNumeroTransaccion:  mockSetNumeroTransaccion,
     setDescuento:          mockSetDescuento,
-    fidelizacionDescuento: 0,
+    fidelizacionDescuento: mockFidelizacionDescuento,
     workerClerkId:         mockWorkerClerkId,
     setWorker:             mockSetWorker,
     procedencia:           "presencial",
@@ -370,5 +373,49 @@ describe("ModalPago — reset de método de pago al montar (MP-17 a MP-19)", () 
     setup();
     expect(mockSetMetodoPago).not.toHaveBeenCalled();
     expect(mockClearPayNc).not.toHaveBeenCalled();
+  });
+});
+
+// ── Etiqueta "Descuento fidelización" — MEJORA ticket Trello 6a62eb2efd10640e778299af ──
+//
+// El descuento auto-aplicado al seleccionar cliente (BUG-04, ya corregido) usaba
+// la etiqueta genérica "Descuento (X%)", igual que un descuento manual — el
+// cajero y el cliente no podían distinguir por qué se aplicó. La etiqueta ahora
+// dice "Descuento fidelización (X%)" solo mientras el descuento activo siga
+// siendo igual al nivel de fidelización del cliente; si el vendedor lo edita
+// manualmente (input libre o DESCUENTOS_RAPIDOS), vuelve a la etiqueta genérica.
+describe("ModalPago — etiqueta de descuento por fidelización (MP-21/MP-22)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail          = undefined;
+    mockEnviarEmailRecibo     = false;
+    mockDescuento             = 0;
+    mockFidelizacionDescuento = 0;
+    mockSubtotalValue         = 10000;
+  });
+
+  // MP-21
+  it("MP-21: descuento activo igual al nivel de fidelización → etiqueta 'Descuento fidelización (X%)'", () => {
+    mockDescuento             = 10;
+    mockFidelizacionDescuento = 10;
+    setup();
+    expect(screen.getByText("Descuento fidelización (10%)")).toBeInTheDocument();
+  });
+
+  // MP-22
+  it("MP-22: descuento editado manualmente (distinto al nivel de fidelización) → etiqueta genérica 'Descuento (X%)'", () => {
+    mockDescuento             = 15; // el vendedor lo subió con DESCUENTOS_RAPIDOS o el input libre
+    mockFidelizacionDescuento = 10; // el cliente sigue teniendo 10% de fidelización
+    setup();
+    expect(screen.getByText("Descuento (15%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Descuento fidelización/)).not.toBeInTheDocument();
+  });
+
+  it("MP-22b: sin cliente con fidelización (fidelizacionDescuento=0) y descuento manual → etiqueta genérica", () => {
+    mockDescuento             = 10;
+    mockFidelizacionDescuento = 0;
+    setup();
+    expect(screen.getByText("Descuento (10%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Descuento fidelización/)).not.toBeInTheDocument();
   });
 });

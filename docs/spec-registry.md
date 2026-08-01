@@ -492,6 +492,8 @@ I-406/I-407/I-408.
 | MP-18 | metodoPago vacío (undefined) al montar se inicializa a efectivo | ModalPago | component |
 | MP-19 | metodoPago ya 'efectivo' sin pagoNc al montar → no llama setMetodoPago ni clearPayNc (sin sets innecesarios) | ModalPago | component |
 | MP-20 | REGRESIÓN (investigado a raíz del ticket Trello 6a62eb1e35946ffc7c2a818b, store real no mockeado): escribir en Notas internas letra por letra no pierde caracteres ni vuelve a robar el foco | ModalPago | component |
+| MP-21 | MEJORA (ticket Trello 6a62eb2efd10640e778299af): descuento activo igual al nivel de fidelización del cliente → etiqueta "Descuento fidelización (X%)" | ModalPago | component |
+| MP-22 | MEJORA: descuento editado manualmente (distinto al nivel de fidelización) → etiqueta genérica "Descuento (X%)", sin mención a fidelización | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
@@ -712,6 +714,8 @@ fijado al estado pre-hidratación de `persist`.
 | PC-13 | REGRESIÓN (rehidratación REAL de Zustand persist, no simulada): con carrito persistido en localStorage, el footer converge al total real tras la rehidratación real de persist | Carrito | component |
 | PC-14 | REGRESIÓN (SSR + hydrateRoot reales): servidor sin localStorage (carrito vacío) + hidratación con carrito persistido converge al total real ($15.458) sin waitFor | Carrito | component |
 | PC-15 | Sin carrito persistido, SSR + hydrateRoot reales mantienen el estado vacío coherente (no inventa contenido) | Carrito | component |
+| PC-16 | MEJORA (ticket Trello 6a62eb2efd10640e778299af): descuento manual sin cliente con fidelización → etiqueta genérica "Descuento (X%)" | Carrito | component |
+| PC-17 | MEJORA: descuento subido manualmente por sobre el nivel de fidelización auto-aplicado → etiqueta genérica, no "Descuento fidelización" | Carrito | component |
 
 ## Devolución Modal Cache (DV-14)
 
@@ -787,7 +791,7 @@ sin ninguna acción manual del vendedor.
 | MC-28 | REGRESIÓN: confirmar cliente sin fidelización pasa descuento 0 | ModalCliente | component |
 | MC-29 | REGRESIÓN: confirmar cuando fidelización retorna null aplica descuento 0 | ModalCliente | component |
 | MC-30 | REGRESIÓN: confirmar con mascota seleccionada y descuento 10% | ModalCliente | component |
-| MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual | ModalCliente + Carrito | component |
+| MC-31 | REGRESIÓN (punta a punta, store real): confirmar cliente con 10% de fidelización descuenta el total mostrado en Carrito sin clic manual, con etiqueta "Descuento fidelización (10%)" (ticket Trello 6a62eb2efd10640e778299af) | ModalCliente + Carrito | component |
 
 ## Optimizador IA de Vencimientos — integración (I-AI-01 a I-AI-18)
 
