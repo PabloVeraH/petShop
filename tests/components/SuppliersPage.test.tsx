@@ -4,7 +4,7 @@
  * SP-06 a SP-07: Per-supplier stats in list (sidebar bug fix)
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -448,5 +448,51 @@ describe("SuppliersPage - KPI Dashboard", () => {
       // Debe coincidir con la queryKey realmente cacheada ("all"), no quedar en undefined
       expect(arg.queryKey?.[1]).toBe("all");
     });
+  });
+
+  // KPI-07 — MEJORA (ticket Trello 6a62eb3196b03eec0d77f028): el segundo
+  // requisito del ticket ("al seleccionar un proveedor específico, los KPIs
+  // filtran para ese proveedor") nunca tenía cobertura — KPI-01 a KPI-06 solo
+  // prueban el caso "sin selección = global". El mecanismo (queryKey
+  // ["cuentas-proveedor", selected?.id ?? "all"]) ya filtraba correctamente
+  // por construcción, pero sin un test que diferencie datos por proveedor
+  // (setupKpiMocks ignora queryKey[1]) esa garantía nunca se verificó.
+  it("KPI-07: al seleccionar un proveedor específico, los KPIs muestran SUS totales, no los globales", async () => {
+    const CUENTA_PROV2 = { id: "cp-prov2", monto: 12000, fecha_vencimiento: fechaRelativa(30), estado: "pendiente" };
+    const ORDENES_PROV2 = [{ id: "oc-prov2", numero: "OC-PROV2", estado: "pendiente", total: 5000 }];
+
+    useQuery.mockImplementation(({ queryKey }: any) => {
+      if (queryKey[0] === "proveedores") return { data: [MOCK_PROVEEDOR, MOCK_PROVEEDOR_2], isLoading: false };
+      if (queryKey[0] === "cuentas-proveedor") {
+        return { data: queryKey[1] === "prov-2" ? [CUENTA_PROV2] : ALL_CUENTAS };
+      }
+      if (queryKey[0] === "ordenes-proveedor") {
+        return { data: queryKey[1] === "prov-2" ? ORDENES_PROV2 : MOCK_ORDENES };
+      }
+      if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR_2, productos: [] } };
+      if (queryKey[0] === "productos-activos") return { data: [] };
+      if (queryKey[0] === "proveedores-stats") return { data: { orderCounts: {}, payableCounts: {}, payableAmounts: {} } };
+      return { data: [], isLoading: false };
+    });
+
+    await renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Vencidas")).toBeInTheDocument();
+    });
+    // Global: $1.303.550 pendiente, 1 OC en proceso (verificado en KPI-01/04)
+    const pendienteCard = () => screen.getByText("Pendiente").closest("div")!;
+    expect(within(pendienteCard()).getByText("$1.303.550")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByText("Otro Proveedor")[0]);
+
+    await waitFor(() => {
+      // Pendiente de "Otro Proveedor": solo $12.000 (CUENTA_PROV2), no el global.
+      // Se acota al KPI (no a "Cuentas por Pagar" del detalle, que también
+      // muestra "$12.000" para esa misma cuenta — coincidencia esperada, no
+      // ambigüedad real).
+      expect(within(pendienteCard()).getByText("$12.000")).toBeInTheDocument();
+    });
+    // El total global ya no debe seguir mostrándose en el KPI tras filtrar por proveedor
+    expect(within(pendienteCard()).queryByText("$1.303.550")).not.toBeInTheDocument();
   });
 });

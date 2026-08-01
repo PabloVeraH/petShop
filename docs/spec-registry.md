@@ -539,6 +539,7 @@ I-406/I-407/I-408.
 | KPI-04 | Card OC en Proceso cuenta órdenes pendientes | SuppliersPage | component |
 | KPI-05 | Sin proveedor seleccionado la query usa queryKey con "all" (global, no enabled guard) | SuppliersPage | component |
 | KPI-06 | REGRESIÓN: invalidar cuentas/ordenes-proveedor sin proveedor seleccionado usa key "all" (no undefined) | SuppliersPage | component |
+| KPI-07 | MEJORA (ticket Trello 6a62eb3196b03eec0d77f028): al seleccionar un proveedor específico, los KPIs muestran sus totales propios, no los globales — gap de cobertura cerrado (el mecanismo ya filtraba correctamente por construcción, pero nunca estaba verificado) | SuppliersPage | component |
 
 ## Tests unitarios (U-XX)
 
