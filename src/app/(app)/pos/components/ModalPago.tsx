@@ -378,6 +378,17 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             </div>
           )}
 
+          {/* MEJORA (ticket Trello 6a62eb34f2869126d5e8bb30): advierte cuando
+              no hay un vendedor específico elegido. El texto evita afirmar que
+              la venta "no se atribuye": el backend siempre usa ctx.userId como
+              fallback (route.ts: p_worker_clerk_id: workerClerkId ?? ctx.userId),
+              así que worker_clerk_id nunca queda NULL en la BD. */}
+          {!workerClerkId && (
+            <p className="text-xs text-amber-600 font-medium">
+              ⚠ No hay un vendedor seleccionado para esta venta
+            </p>
+          )}
+
           {/* Procedencia */}
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">

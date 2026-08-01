@@ -5,6 +5,7 @@
  * - MP-17 a MP-19: reset de método de pago al montar
  * - MP-21/MP-22: etiqueta "Descuento fidelización" vs. descuento manual
  * - MP-23: validación de longitud mínima en Notas internas
+ * - MP-24/MP-25: alerta de vendedor sin seleccionar
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -446,5 +447,69 @@ describe("ModalPago — validación de longitud mínima en Notas internas (MP-23
     mockNotas = "abcde";
     setup();
     expect(screen.queryByText(/Las notas deben tener al menos 5 caracteres/i)).not.toBeInTheDocument();
+  });
+});
+
+// MEJORA (ticket Trello 6a62eb34f2869126d5e8bb30): el auto-asignado del
+// vendedor logueado (pos/page.tsx, fix previo commit 0d6fd91) y la reasignación
+// manual (MP-06 a MP-10) ya existían, pero no había ninguna advertencia cuando
+// no hay vendedor seleccionado — ni con "Sin asignar" elegido a propósito, ni
+// cuando el store no tiene workers cargados. El texto de la alerta NO afirma
+// que la venta queda sin atribuir en la BD: verificado en route.ts que el
+// backend siempre usa ctx.userId como fallback (p_worker_clerk_id: workerClerkId
+// ?? ctx.userId), así que worker_clerk_id nunca queda NULL.
+describe("ModalPago — alerta de venta sin vendedor asignado (MP-24/MP-25)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail  = undefined;
+    mockDescuento     = 0;
+    mockSubtotalValue = 10000;
+    mockWorkerClerkId = undefined;
+    mockWorkers       = [];
+  });
+
+  it("MP-24: workerClerkId vacío muestra la alerta de vendedor sin seleccionar", async () => {
+    mockWorkerClerkId = undefined;
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+    expect(await screen.findByText(/No hay un vendedor seleccionado para esta venta/i)).toBeInTheDocument();
+  });
+
+  it("MP-24b: la alerta se muestra también sin workers registrados en la tienda (dropdown ni siquiera se renderiza)", async () => {
+    mockWorkerClerkId = undefined;
+    mockWorkers = [];
+    setup();
+    expect(screen.getByText(/No hay un vendedor seleccionado para esta venta/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Asignar a vendedor")).not.toBeInTheDocument();
+    });
+  });
+
+  it("MP-25: workerClerkId asignado NO muestra la alerta", async () => {
+    mockWorkerClerkId = "user-actual";
+    mockWorkers = [WORKER_ACTUAL];
+    setup();
+    await screen.findByText("Asignar a vendedor");
+    expect(screen.queryByText(/No hay un vendedor seleccionado para esta venta/i)).not.toBeInTheDocument();
+  });
+
+  it("MP-25b: al cambiar de 'Sin asignar' a un vendedor, deja de mostrarse la alerta", async () => {
+    mockWorkers = [WORKER_ACTUAL];
+    const { rerender } = (() => {
+      const onConfirm = jest.fn();
+      const onCancel = jest.fn();
+      const utils = render(
+        <ModalPago onConfirm={onConfirm} onCancel={onCancel} isLoading={false} />,
+        { wrapper: makeWrapper() },
+      );
+      return { rerender: utils.rerender };
+    })();
+    expect(await screen.findByText(/No hay un vendedor seleccionado para esta venta/i)).toBeInTheDocument();
+
+    mockWorkerClerkId = "user-actual";
+    rerender(<ModalPago onConfirm={jest.fn()} onCancel={jest.fn()} isLoading={false} />);
+    await waitFor(() => {
+      expect(screen.queryByText(/No hay un vendedor seleccionado para esta venta/i)).not.toBeInTheDocument();
+    });
   });
 });

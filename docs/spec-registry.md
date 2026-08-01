@@ -504,6 +504,8 @@ I-406/I-407/I-408.
 | MP-21 | MEJORA (ticket Trello 6a62eb2efd10640e778299af): descuento activo igual al nivel de fidelización del cliente → etiqueta "Descuento fidelización (X%)" | ModalPago | component |
 | MP-22 | MEJORA: descuento editado manualmente (distinto al nivel de fidelización) → etiqueta genérica "Descuento (X%)", sin mención a fidelización | ModalPago | component |
 | MP-23 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): Notas internas con menos de 5 caracteres muestra error y bloquea "Cobrar" | ModalPago | component |
+| MP-24 | MEJORA (ticket Trello 6a62eb34f2869126d5e8bb30): sin workerClerkId (workers cargados o no) muestra alerta "No hay un vendedor seleccionado para esta venta" | ModalPago | component |
+| MP-25 | MEJORA (ticket Trello 6a62eb34f2869126d5e8bb30): con workerClerkId asignado (o al reasignarlo) la alerta de vendedor sin seleccionar no se muestra | ModalPago | component |
 
 | I-107 | PATCH con metodo_pago inválido → 400 | PATCH /api/cuentas-pagar | integration |
 | I-108 | PATCH con metodo_pago=efectivo → 200 + metodo_pago en DB | PATCH /api/cuentas-pagar | integration |
