@@ -237,6 +237,11 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | CC-09 | REGRESIÓN: datetime-local input (Programar Publicación) tiene autoComplete="off" — evita autocompletado del navegador en campo de fecha/hora | InstagramEditor | component |
 | CC-10 | REGRESIÓN: toggle a inactivo después de error de credenciales → error se limpia sin necesidad de guardar | CanalConfigPage | component |
 | CC-11 | REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): reactivar canal con credenciales ya guardadas en el backend y formulario vacío → no bloquea client-side, envía el PATCH | CanalConfigPage | component |
+| CC-12 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): canal inactivo sin ningún campo lleno → checklist muestra los 4 campos de Rappi como pendientes | CanalConfigPage | component |
+| CC-13 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): al completar un campo en el formulario, el checklist lo marca como configurado en vivo (sin afectar los demás) | CanalConfigPage | component |
+| CC-14 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): canal con tiene_credenciales=true → checklist muestra todos los campos configurados sin que el formulario los reescriba | CanalConfigPage | component |
+| CC-15 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): el checklist NO incluye un paso de "Webhook registrado" — ese webhook solo está implementado para Rappi, no para todos los canales | CanalConfigPage | component |
+| CC-16 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): canal ya activo → el checklist de onboarding no se muestra | CanalConfigPage | component |
 
 Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
 credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`

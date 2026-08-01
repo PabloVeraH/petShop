@@ -123,6 +123,24 @@ export default function CanalConfigPage() {
   // el 422 existente de allCredentialsFilled server-side lo sigue cubriendo.
   const puedeActivar = allCredentialsFilled || (configExists && tieneCredencialesGuardadas);
 
+  // MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): checklist visual de
+  // pasos pendientes para canales de delivery inactivos. Por campo: se
+  // considera "configurado" si ya está escrito en el formulario actual, O si
+  // el canal ya tiene credenciales guardadas en el backend (tiene_credenciales
+  // es un booleano agregado — allCredentialsFilled se exige server-side antes
+  // de persistir cualquier credencial, ver POST/PATCH /api/canales/config, así
+  // que tiene_credenciales=true implica que TODOS los campos ya están
+  // guardados, no solo algunos). No se incluye un paso de "Webhook
+  // registrado" como el ejemplo del ticket: el webhook de canales solo está
+  // implementado para Rappi (POST /api/canales/webhook/[canal] rechaza
+  // pedidosya/ubereats con "Canal no soportado", ver route.ts) — mostrar ese
+  // paso para los otros dos canales sería instrucción falsa.
+  const yaGuardado = configExists && tieneCredencialesGuardadas;
+  const camposEstado = canalInfo?.campos.map((campo) => ({
+    ...campo,
+    completado: yaGuardado || (credenciales[campo.key]?.trim() ?? "") !== "",
+  })) ?? [];
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!canalInfo) return;
@@ -187,6 +205,24 @@ export default function CanalConfigPage() {
           <p className="text-sm text-gray-500">{canalInfo.descripcion}</p>
         </div>
       </div>
+
+      {canalId !== "instagram" && !activo && (
+        <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 space-y-1.5">
+          <p className="text-xs font-medium text-gray-600 mb-1">
+            Pasos para activar {canalInfo.nombre}
+          </p>
+          {camposEstado.map((campo) => (
+            <div key={campo.key} className="flex items-center gap-2 text-sm">
+              <span className={campo.completado ? "text-green-600" : "text-gray-400"}>
+                {campo.completado ? "✓" : "✗"}
+              </span>
+              <span className={campo.completado ? "text-gray-700" : "text-gray-500"}>
+                {campo.label} {campo.completado ? "configurada" : "pendiente"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="space-y-4">

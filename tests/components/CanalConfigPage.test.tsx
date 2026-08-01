@@ -368,4 +368,108 @@ describe("CanalConfigPage — activo handling", () => {
 
     expect(screen.queryByText(/Debe completar todas las credenciales/i)).toBeNull();
   });
+
+  // MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): la página solo mostraba
+  // campos vacíos sin ninguna guía de qué falta para activar el canal. El
+  // checklist es puramente derivado del estado ya cargado (form actual +
+  // tiene_credenciales) — no depende de desencriptar nada nuevo en el backend.
+  it("CC-12: canal inactivo sin ningún campo lleno → checklist muestra los 4 campos de Rappi como pendientes", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Pasos para activar Rappi/i)).toBeInTheDocument();
+    expect(screen.getByText("API Key pendiente")).toBeInTheDocument();
+    expect(screen.getByText("API Secret pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Store ID pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Webhook Secret pendiente")).toBeInTheDocument();
+  });
+
+  // CC-13
+  it("CC-13: al completar un campo en el formulario, el checklist lo marca como configurado en vivo", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("API Key pendiente")).toBeInTheDocument();
+
+    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("API Key configurada")).toBeInTheDocument();
+    });
+    // Los demás siguen pendientes — no se marcan todos por completar uno solo
+    expect(screen.getByText("API Secret pendiente")).toBeInTheDocument();
+  });
+
+  // CC-14
+  it("CC-14: canal con credenciales ya guardadas (tiene_credenciales=true) → checklist muestra todos los campos configurados sin reescribirlos", async () => {
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: "cfg-1", canal_id: "rappi", activo: false, tiene_credenciales: true }],
+      });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    // El formulario NO precarga las credenciales (siguen vacías por seguridad)...
+    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    inputs.forEach((input) => expect(input).toHaveValue(""));
+
+    // ...pero el checklist sabe (vía tiene_credenciales) que YA están guardadas
+    await waitFor(() => {
+      expect(screen.getByText("API Key configurada")).toBeInTheDocument();
+    });
+    expect(screen.getByText("API Secret configurada")).toBeInTheDocument();
+    expect(screen.getByText("Store ID configurada")).toBeInTheDocument();
+    expect(screen.getByText("Webhook Secret configurada")).toBeInTheDocument();
+  });
+
+  // CC-15 — REGRESIÓN: el ticket menciona "Webhook registrado" como ejemplo,
+  // pero /api/canales/webhook/[canal] solo soporta Rappi (PedidosYa/UberEats
+  // devuelven "Canal no soportado") — el checklist NO debe inventar ese paso.
+  it("CC-15: el checklist no incluye un paso de \"Webhook registrado\" que no está implementado para todos los canales", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Webhook registrado/i)).not.toBeInTheDocument();
+  });
+
+  // CC-16 — el checklist es específico de onboarding: una vez el canal está
+  // activo, ya no aporta guía (todas las credenciales estaban completas para
+  // llegar a ese estado) y no debe seguir ocupando espacio en la página.
+  it("CC-16: canal ya activo → el checklist no se muestra", async () => {
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: "cfg-1", canal_id: "rappi", activo: true, tiene_credenciales: true }],
+      });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Rappi")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Activo")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Pasos para activar/i)).not.toBeInTheDocument();
+  });
 });
