@@ -956,6 +956,8 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 - `I-NCC-BF-NN` — test de integración del reverso de COGS en el backfill de NC
 - `I-SRV-NN` — test de integración de las rutas /api/servicios y /api/servicios/[id]/horarios
 - `U-SRV-NN` — test unitario de los schemas Zod de servicios (src/lib/validation/servicios.ts)
+- `I-CITA-NN` — test de integración de /api/citas, /api/servicios/[id]/disponibilidad y /api/servicios/[id]/excepciones
+- `U-CITA-NN` — test unitario de lib/disponibilidad y de los schemas Zod de citas (src/lib/validation/citas.ts)
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.
 
@@ -1023,3 +1025,104 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
 | PROP-04 | servicio_horarios: invariante hora_inicio < hora_fin (aceptado iff true) | ServicioHorarioItemSchema / property-invariants.test.ts | property |
+
+## Citas — Fase 2 (I-CITA-01 a I-CITA-45, U-CITA-01 a U-CITA-18, PROP-05)
+
+Citas de clientes contra servicios configurados en Fase 1. Migración
+`066_citas.sql`. Decisiones §9 del plan aprobadas por el usuario
+(2026-08-02). Crear/cancelar/completar NO requiere admin (§9a); solo las
+excepciones son admin-only.
+
+### Integración — /api/citas
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-01 | Sin sesión → 401 | POST /api/citas | integration |
+| I-CITA-02 | cliente_id de otra tienda (RPC P0002) → 404 | POST /api/citas | integration |
+| I-CITA-03 | servicio_id de otra tienda o inactivo (RPC P0002) → 404 | POST /api/citas | integration |
+| I-CITA-04 | mascota_id que no pertenece al cliente (RPC P0002) → 404 | POST /api/citas | integration |
+| I-CITA-05 | Horario fuera de la ventana (RPC PS001) → 422 | POST /api/citas | integration |
+| I-CITA-06 | Día sin servicio_horarios configurado (RPC PS001) → 422 | POST /api/citas | integration |
+| I-CITA-07 | Excepción cerrado=true ese día (RPC PS001) → 422 | POST /api/citas | integration |
+| I-CITA-08 | Conflicto: horario ya ocupado (RPC PS002) → 409 | POST /api/citas | integration |
+| I-CITA-09 | Payload válido → 201; p_store_id/p_created_by del contexto, no del body | POST /api/citas | integration |
+| I-CITA-10 | hora_inicio formato inválido → 400 | POST /api/citas | integration |
+| I-CITA-11 | fecha formato inválido → 400 | POST /api/citas | integration |
+| I-CITA-12 | mascota_id ausente → 201 (opcional) | POST /api/citas | integration |
+| I-CITA-13 | Sin sesión → 401 | GET /api/citas | integration |
+| I-CITA-14 | Filtra por store_id | GET /api/citas | integration |
+| I-CITA-15 | Filtros opcionales (fecha/servicio_id/cliente_id/estado) como .eq() adicionales | GET /api/citas | integration |
+| I-CITA-16 | Query param con formato inválido → 400 | GET /api/citas | integration |
+| I-CITA-17 | Cita de otra tienda → 404 | GET /api/citas/[id] | integration |
+| I-CITA-18 | Cita existente → 200 con joins cliente/mascota/servicio | GET /api/citas/[id] | integration |
+| I-CITA-19 | Sin sesión → 401 | PATCH /api/citas/[id] | integration |
+| I-CITA-20 | cancelar con motivo → 200, estado cancelada; RPC con p_cancelado_por del contexto | PATCH /api/citas/[id] | integration |
+| I-CITA-21 | Cancelar cita ya cancelada (RPC PS003) → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-22 | Cancelar cita ya completada (RPC PS003) → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-23 | Cancelar cita de otra tienda (RPC P0002) → 404 | PATCH /api/citas/[id] | integration |
+| I-CITA-24 | Cancelar sin motivo → 400 (Zod) | PATCH /api/citas/[id] | integration |
+| I-CITA-25 | completar sobre cita confirmada → 200 | PATCH /api/citas/[id] | integration |
+| I-CITA-26 | no_show sobre cita confirmada → 200 | PATCH /api/citas/[id] | integration |
+| I-CITA-27 | completar sobre cita ya cancelada → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-28 | accion no reconocida → 400 (Zod) | PATCH /api/citas/[id] | integration |
+| I-CITA-29 | Cita de otra tienda con completar → 404 | PATCH /api/citas/[id] | integration |
+
+### Integración — /api/servicios/[id]/disponibilidad
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-30 | Servicio de otra tienda → 404 | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-31 | fecha ausente o formato inválido → 400 | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-32 | Día sin servicio_horarios → 200 array vacío | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-33 | Día con excepción cerrado=true → 200 array vacío | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-34 | Excepción cerrado=false → usa la ventana de la excepción, no la semanal | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-35 | Slots solapados con cita existente no aparecen | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-36 | El último slot generado respeta la duración completa dentro de la ventana | GET /api/servicios/[id]/disponibilidad | integration |
+
+### Integración — /api/servicios/[id]/excepciones
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-37 | GET sin sesión → 401 | GET /api/servicios/[id]/excepciones | integration |
+| I-CITA-38 | GET lista excepciones ordenadas por fecha | GET /api/servicios/[id]/excepciones | integration |
+| I-CITA-39 | POST sin rol admin → 403 | POST /api/servicios/[id]/excepciones | integration |
+| I-CITA-40 | POST cerrado:true con horas → 400 (Zod refine) | POST /api/servicios/[id]/excepciones | integration |
+| I-CITA-41 | POST cerrado:false sin horas → 400 (Zod refine) | POST /api/servicios/[id]/excepciones | integration |
+| I-CITA-42 | POST válido → 201 | POST /api/servicios/[id]/excepciones | integration |
+| I-CITA-43 | POST fecha duplicada (23505) → 409 | POST /api/servicios/[id]/excepciones | integration |
+| I-CITA-44 | DELETE excepción de otra tienda/servicio → 404 | DELETE /api/servicios/[id]/excepciones/[excepcionId] | integration |
+| I-CITA-45 | DELETE válido → 204 (hard delete) | DELETE /api/servicios/[id]/excepciones/[excepcionId] | integration |
+
+### Unit — lib/disponibilidad
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-CITA-01 | rangosSuperponen: solape parcial → true | lib/disponibilidad | unit |
+| U-CITA-02 | rangosSuperponen: rangos contiguos → false | lib/disponibilidad | unit |
+| U-CITA-03 | sumarMinutos("09:00", 90) → "10:30" | lib/disponibilidad | unit |
+| U-CITA-04 | Cruce de medianoche no contemplado — limitación documentada, sin comportamiento definido | lib/disponibilidad | unit |
+| U-CITA-05 | Ventana 09:00-11:00, 30min, sin ocupados → 4 slots | lib/disponibilidad | unit |
+| U-CITA-06 | Con ocupado 09:30-10:00 → quedan 3 slots | lib/disponibilidad | unit |
+| U-CITA-07 | Duración no entera en ventana → último slot no excede hora_fin | lib/disponibilidad | unit |
+
+### Unit Zod — schemas de citas
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-CITA-08 | Payload válido → success | CitaCreateSchema | unit |
+| U-CITA-09 | mascota_id ausente → success (opcional) | CitaCreateSchema | unit |
+| U-CITA-10 | fecha formato inválido → fail | CitaCreateSchema | unit |
+| U-CITA-11 | {accion:"cancelar", motivo} → success | CitaAccionSchema | unit |
+| U-CITA-12 | {accion:"cancelar"} sin motivo → fail | CitaAccionSchema | unit |
+| U-CITA-13 | {accion:"completar"}/{accion:"no_show"} → success | CitaAccionSchema | unit |
+| U-CITA-14 | {accion:"invalida"} → fail | CitaAccionSchema | unit |
+| U-CITA-15 | cerrado:true sin horas → success | ServicioExcepcionCreateSchema | unit |
+| U-CITA-16 | cerrado:true con horas → fail | ServicioExcepcionCreateSchema | unit |
+| U-CITA-17 | cerrado:false sin horas → fail | ServicioExcepcionCreateSchema | unit |
+| U-CITA-18 | cerrado:false, hora_inicio >= hora_fin → fail | ServicioExcepcionCreateSchema | unit |
+
+### Property — PROP-05
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| PROP-05 | calcularSlotsDisponibles: ningún slot generado excede la ventana | lib/disponibilidad / property-invariants.test.ts | property |

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { HorarioSemanalEditor } from "./HorarioSemanalEditor";
+import { ExcepcionesEditor } from "./ExcepcionesEditor";
 import type { Servicio } from "@/types";
 
 export function ServiciosTab() {
@@ -22,6 +23,7 @@ export function ServiciosTab() {
   const [editando, setEditando] = useState<Servicio | null>(null);
   const [error, setError] = useState("");
   const [horarioAbierto, setHorarioAbierto] = useState<Servicio | null>(null);
+  const [excepcionesAbierto, setExcepcionesAbierto] = useState<Servicio | null>(null);
   const queryClient = useQueryClient();
 
   const { data: servicios = [], isLoading } = useQuery<Servicio[]>({
@@ -171,6 +173,9 @@ export function ServiciosTab() {
               <button onClick={() => setHorarioAbierto(s)} className="text-xs text-green-500 hover:underline">
                 Horario
               </button>
+              <button onClick={() => setExcepcionesAbierto(s)} className="text-xs text-orange-500 hover:underline">
+                Feriados
+              </button>
               <button onClick={() => abrirEditar(s)} className="text-xs text-blue-500 hover:underline">
                 Editar
               </button>
@@ -206,6 +211,15 @@ export function ServiciosTab() {
           <HorarioSemanalEditor
             servicio={horarioAbierto}
             onClose={() => setHorarioAbierto(null)}
+          />
+        </ModalOverlay>
+      )}
+
+      {excepcionesAbierto && (
+        <ModalOverlay open onClose={() => setExcepcionesAbierto(null)}>
+          <ExcepcionesEditor
+            servicio={excepcionesAbierto}
+            onClose={() => setExcepcionesAbierto(null)}
           />
         </ModalOverlay>
       )}

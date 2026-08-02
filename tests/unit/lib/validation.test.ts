@@ -9,6 +9,9 @@ import {
   ServicioCreateSchema,
   ServicioHorarioItemSchema,
   ServicioHorariosReplaceSchema,
+  CitaCreateSchema,
+  CitaAccionSchema,
+  ServicioExcepcionCreateSchema,
 } from "@/lib/validation";
 
 const VALID_UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -344,5 +347,81 @@ describe("ServicioHorariosReplaceSchema", () => {
   it("U-SRV-12: array vacío → success", () => {
     const r = ServicioHorariosReplaceSchema.safeParse({ horarios: [] });
     expect(r.success).toBe(true);
+  });
+});
+
+// ─── Citas (U-CITA-08 a U-CITA-18) ───────────────────────────────────────────
+
+const CITA_BASE = {
+  servicio_id: "123e4567-e89b-12d3-a456-426614174100",
+  cliente_id: "123e4567-e89b-12d3-a456-426614174200",
+  fecha: "2026-08-10",
+  hora_inicio: "10:00",
+};
+
+describe("CitaCreateSchema", () => {
+  it("U-CITA-08: payload válido → success", () => {
+    expect(CitaCreateSchema.safeParse(CITA_BASE).success).toBe(true);
+  });
+
+  it("U-CITA-09: mascota_id ausente → success (opcional)", () => {
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, mascota_id: undefined }).success).toBe(true);
+    expect(CitaCreateSchema.safeParse(CITA_BASE).success).toBe(true);
+  });
+
+  it("U-CITA-10: fecha formato inválido → fail", () => {
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "10-08-2026" }).success).toBe(false);
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "2026/08/10" }).success).toBe(false);
+  });
+});
+
+describe("CitaAccionSchema", () => {
+  it("U-CITA-11: {accion:'cancelar', motivo:'...'} válido → success", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "cancelar", motivo: "Cliente no puede asistir" }).success).toBe(true);
+  });
+
+  it("U-CITA-12: {accion:'cancelar'} sin motivo → fail", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "cancelar" }).success).toBe(false);
+  });
+
+  it("U-CITA-13: {accion:'completar'} → success", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "completar" }).success).toBe(true);
+    expect(CitaAccionSchema.safeParse({ accion: "no_show" }).success).toBe(true);
+  });
+
+  it("U-CITA-14: {accion:'invalida'} → fail", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "borrar" }).success).toBe(false);
+  });
+});
+
+describe("ServicioExcepcionCreateSchema", () => {
+  it("U-CITA-15: cerrado:true sin horas → success", () => {
+    expect(ServicioExcepcionCreateSchema.safeParse({ fecha: "2026-12-25", cerrado: true }).success).toBe(true);
+  });
+
+  it("U-CITA-16: cerrado:true con horas → fail", () => {
+    expect(
+      ServicioExcepcionCreateSchema.safeParse({
+        fecha: "2026-12-25",
+        cerrado: true,
+        hora_inicio: "09:00",
+        hora_fin: "12:00",
+      }).success
+    ).toBe(false);
+  });
+
+  it("U-CITA-17: cerrado:false sin horas → fail", () => {
+    expect(ServicioExcepcionCreateSchema.safeParse({ fecha: "2026-12-25", cerrado: false }).success).toBe(false);
+  });
+
+  it("U-CITA-18: cerrado:false con hora_inicio >= hora_fin → fail", () => {
+    expect(
+      ServicioExcepcionCreateSchema.safeParse({
+        fecha: "2026-12-25",
+        cerrado: false,
+        hora_inicio: "12:00",
+        hora_fin: "09:00",
+      }).success
+    ).toBe(false);
   });
 });

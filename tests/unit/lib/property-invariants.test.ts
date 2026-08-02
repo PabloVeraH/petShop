@@ -1,5 +1,6 @@
 import * as fc from "fast-check";
 import { validateRUT, formatRUT, ServicioHorarioItemSchema } from "@/lib/validation";
+import { calcularSlotsDisponibles } from "@/lib/disponibilidad";
 
 // Arbitrary that generates valid RUT bodies (7-8 digits)
 const validRutBody = fc.integer({ min: 1000000, max: 99999999 }).map(String);
@@ -106,6 +107,23 @@ describe("PROP-04: servicio_horarios — invariante hora_inicio < hora_fin", () 
           const fin = `${pad(h2)}:${pad(m2)}`;
           const result = ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: inicio, hora_fin: fin });
           expect(result.success).toBe(inicio < fin);
+        }
+      )
+    );
+  });
+});
+
+describe("PROP-05: calcularSlotsDisponibles — ningún slot generado excede la ventana", () => {
+  it("para cualquier ventana y duración, todo slot generado cumple hora_fin <= ventana.hora_fin", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 20 }), fc.integer({ min: 1, max: 4 }), // ventana: hora inicio, horas de duración
+        fc.integer({ min: 5, max: 120 }), // duración del slot en minutos
+        (horaInicio, horasVentana, duracionMinutos) => {
+          const inicio = `${String(horaInicio).padStart(2, "0")}:00`;
+          const fin = `${String(Math.min(horaInicio + horasVentana, 23)).padStart(2, "0")}:00`;
+          const slots = calcularSlotsDisponibles({ hora_inicio: inicio, hora_fin: fin }, duracionMinutos, []);
+          return slots.every((s) => s.hora_fin <= fin);
         }
       )
     );

@@ -1,17 +1,21 @@
 # Plan: Servicios agendables (Peluquería y similares)
 
-Estado: **análisis / no implementado**. Documento de planificación, no un
-cierre de cambio (§22 de `AGENTS.md`). Nada de este documento autoriza
-aplicar la migración ni escribir código de producto — ver §0 "Verificación
-de este documento" al final.
+Estado: **Fase 1 y Fase 2 implementadas y aplicadas** (migraciones 063-066
+en `wnxrdbnvreofrrmhcybc`, revisadas y verificadas — ver §0 y §18). Este
+documento ya no es solo un plan de análisis; documenta también lo
+efectivamente construido.
 
-## Fase 1 — Configuración administrativa (este plan, listo para implementar)
+## Fase 1 — Configuración administrativa (implementada)
 
 Admin de tienda configura servicios ofrecidos (ej. "Peluquería — Corte
 básico", 30 min) y su horario semanal habilitado (días Lun–Dom, hora
 inicio/fin por día). Es solo catálogo/configuración — sin lógica de citas.
 
-## Fase 2 — Citas de clientes (fuera de alcance, solo esbozo — ver §8)
+## Fase 2 — Citas de clientes (implementada — diseño completo en §9 en adelante)
+
+Citas de clientes contra los servicios de Fase 1: disponibilidad, prevención
+de conflictos bajo concurrencia, cancelaciones y excepciones/feriados. Ver
+§9-§18 más abajo.
 
 ---
 
@@ -503,18 +507,334 @@ describe("PROP-04: servicio_horarios — invariante hora_inicio < hora_fin", () 
 });
 ```
 
-## 8. Alcance excluido explícitamente — Fase 2 (NO implementar en este cambio)
+## 8. Fase 1 completa — a partir de aquí, diseño e implementación de Fase 2 (§9 en adelante)
 
-- Tabla(s) de citas (`citas`: `cliente_id`, `mascota_id?`, `servicio_id`, `fecha`, `hora_inicio`/`hora_fin` calculadas desde `duracion_minutos`, `estado`).
-- Cálculo de disponibilidad real (slots libres) cruzando `servicio_horarios` con citas ya reservadas.
-- Detección/prevención de conflictos entre citas concurrentes (constraint de exclusión de rangos o lógica transaccional equivalente).
-- Excepciones/feriados — decisión §1c, explícitamente diferida.
-- Cancelaciones de citas, con o sin reglas de anticipación mínima.
-- Notificaciones/recordatorios (email/WhatsApp).
-- Vista de calendario/agenda para staff.
-- Integración con POS (cobro del servicio) o canales externos (reserva vía Instagram/WhatsApp bot).
-- Multi-profesional / asignación de quién atiende — ni siquiera un campo `profesional_id` en Fase 1 (consistente con "tienda como bloque único", decidido con el usuario).
-- Buffer time / bloqueo de limpieza entre citas.
+Todo lo de §1-§7 es Fase 1, implementada y aplicada (migración 063). Lo que
+sigue (§9-§17) es el diseño completo de Fase 2 (citas reales de clientes),
+también implementado y aplicado (migración 066). Fase 2 dependía de que
+Fase 1 ya estuviera implementada — las tablas `servicios` y
+`servicio_horarios`, y las funciones `get_user_store_id()`,
+`is_system_admin()`, `update_updated_at()` eran prerequisito directo.
+
+---
+
+## 9. Fase 2 — Alcance asumido y decisiones de diseño — ✅ APROBADAS por el usuario (2026-08-02)
+
+Antes de diseñar se preguntó explícitamente (a) quién reserva las citas y (b)
+qué subconjunto de "todo lo de Fase 2" se quería completo. El usuario aprobó
+avanzar con las opciones recomendadas por defecto (§9a-§9g), y confirmó
+implementar y aplicar la migración correspondiente.
+
+### 9a. ¿Quién crea una cita? — solo staff, vía panel interno
+
+La cita la agenda el personal de la tienda (`storeWorker`/`storeAdmin`) desde
+el panel autenticado con Clerk, igual que una venta se registra desde el POS
+— no hay autoservicio del cliente (reserva pública sin login) en Fase 2. Si
+se necesita autoservicio, es un cambio de superficie de seguridad importante
+(autenticación distinta, rate limiting, verificación de identidad sin Clerk)
+que se deja para Fase 3 (§17).
+
+### 9b. Alcance de "Fase 2 completa" — core + cancelaciones + excepciones/feriados
+
+Se diseñó e implementó completo: tabla `citas`, cálculo de disponibilidad,
+prevención de conflictos de horario, cancelaciones (sin política de
+anticipación mínima obligatoria — ver 9f), y excepciones/feriados (la
+decisión que Fase 1 §1c difirió explícitamente).
+
+Queda fuera, movido a "Fase 3" (§17): notificaciones/recordatorios,
+multi-profesional, buffer time entre citas, integración con POS/canales
+externos, vista de calendario/agenda visual, y autoservicio del cliente.
+
+### 9c. Mecanismo de prevención de conflictos bajo concurrencia — `pg_advisory_xact_lock`, no `EXCLUDE`/`btree_gist`
+
+**Decisión: bloqueo consultivo (`pg_advisory_xact_lock`) dentro de la función
+`crear_cita_tx`, keyed por `(servicio_id, fecha)`.**
+
+Investigación puntual sobre el repo real: `grep` exhaustivo de
+`EXCLUDE|GIST|btree_gist|tsrange|tstzrange` sobre `migrations/*.sql` da **0
+resultados** — no hay ningún precedente de exclusion constraints de rango
+temporal en este proyecto. El patrón que sí existe, repetido en
+`crear_venta_tx`, `anular_venta_tx` (053), `crear_nota_credito_tx` (061) y las
+funciones de `saldos_a_favor` (051, ver AGENTS.md §23.6), es: función
+`plpgsql` con reclamo atómico de un recurso, sin exclusion constraints
+declarativos. Se sigue ese patrón en vez de introducir `CREATE EXTENSION
+btree_gist` + `EXCLUDE USING gist (...)`, que sería la primera vez en el
+proyecto.
+
+Detalle del problema que resuelve el lock: sin él, dos requests concurrentes
+para el mismo `servicio_id`+`fecha` podrían ambos ejecutar el `SELECT` de
+conflicto de horario, ver "sin conflicto" (ninguno ve todavía la fila que el
+otro está por insertar, bajo el nivel de aislamiento READ COMMITTED por
+defecto de Postgres), y ambos insertar — citas solapadas.
+`pg_advisory_xact_lock(hashtextextended(servicio_id::text || fecha::text, 0))`
+serializa los intentos concurrentes sobre esa combinación específica; se
+libera automáticamente al terminar la transacción (commit o rollback), sin
+dejar el lock colgado ante un error.
+
+Alternativa descartada: `EXCLUDE USING gist (servicio_id WITH =, tstzrange(...) WITH &&)`
+es la solución "de libro" en Postgres para este problema, y más robusta en
+general (protege incluso contra un `INSERT` directo que se salte la función,
+cosa que el advisory lock no hace). Se descarta por ahora porque: (a) requiere
+una extensión no usada en el proyecto, (b) el resto del código nunca protege
+sus invariantes de concurrencia así — todas usan funciones `plpgsql`, y (c)
+como todas las escrituras pasan por `createServiceClient()` sin excepción
+(§0.2 de AGENTS.md), no hay un camino real de "insert directo que se salte la
+función" que el `EXCLUDE` proteja y el advisory lock no. Si en el futuro se
+habilita escritura directa a la tabla desde otro lugar (ej. un backfill, un
+script), reevaluar.
+
+### 9d. `mascota_id` — opcional, no obligatorio
+
+Una cita requiere `cliente_id` (no tiene sentido una cita sin cliente), pero
+`mascota_id` queda nullable. Razonamiento: Fase 1 no definió el catálogo de
+servicios más allá de "Peluquería" como ejemplo — forzar `mascota_id`
+obligatorio asumiría que todo servicio futuro aplica a una mascota específica,
+lo cual el catálogo de Fase 1 no garantiza. La UI puede exigirlo por UX para
+servicios de peluquería sin que sea un `NOT NULL` a nivel de base de datos.
+
+### 9e. Estados de la cita: 4 valores (`confirmada`, `cancelada`, `completada`, `no_show`)
+
+Se incluyen los 4 desde ahora (no solo `confirmada`/`cancelada`) porque el
+costo de agregarlos es solo un `CHECK` con más valores — no traen infraestructura
+adicional (no hay automatización de no-show, ni notificación de completado;
+son transiciones manuales que el staff hace después de la cita). Se evita así
+una migración de columna después solo para agregar dos valores a un enum de
+texto. No hay estado `pendiente`: al no haber autoservicio (9a), toda cita
+creada por staff queda `confirmada` de inmediato — no hay flujo de aprobación.
+
+### 9f. Cancelación: libre por staff, sin política de anticipación mínima obligatoria
+
+Dado que solo el staff cancela (9a), no hay necesidad de una regla de
+anticipación mínima a nivel de sistema — el criterio queda en el personal.
+Se registra obligatoriamente `motivo_cancelacion` y el actor (`cancelado_por`,
+`cancelado_at`) para trazabilidad. Si se habilita autoservicio de cliente en
+Fase 3, ahí sí se necesitará una política configurable (§17).
+
+### 9g. No se ofrece "reagendar" atómico — cancelar + crear nueva
+
+Mover una cita a otro horario no es una operación separada en Fase 2:
+se cancela la cita existente (con motivo, ej. "reagendada") y se crea una
+nueva vía `crear_cita_tx`. Esto reutiliza toda la lógica de validación de
+conflicto/horario sin duplicarla en un tercer flujo de "update de fecha/hora",
+a costa de perder la trazabilidad de "esta cita es la continuación de
+aquella" (dos filas sin vínculo explícito). Si esa trazabilidad importa,
+Fase 3 puede agregar un campo `reagendada_desde_id` sin tocar el resto del
+diseño.
+
+---
+
+## 10. Fase 2 — Migración SQL — `migrations/066_citas.sql` (aplicada)
+
+Requería que `migrations/063_servicios.sql` (Fase 1) ya estuviera aplicada.
+Numeración real: el diseño original llamaba a este archivo `064_citas.sql`,
+pero 064/065 quedaron ocupadas por las migraciones de `REVOKE` de Fase 1
+(fix del advisor de seguridad, ver §0). Se numeró `066`.
+
+**Desviación aprobada respecto al diseño original de §10:** se incluyeron
+`REVOKE EXECUTE ... FROM PUBLIC` y `FROM anon, authenticated` directamente en
+la misma migración para `crear_cita_tx` y `cancelar_cita_tx` — Supabase
+otorga `EXECUTE` a `anon`/`authenticated` como grant directo en funciones
+nuevas del schema `public` (hallazgo verificado al aplicar 063/064/065, ver
+§0). Se evitó así repetir el ciclo "aplicar → advisor flaggea → migración de
+revoke" que ocurrió en Fase 1. Verificado tras aplicar: `pg_proc.proacl` de
+ambas funciones solo lista `postgres`/`service_role`; `get_advisors`
+confirma que ninguna de las dos aparece en los hallazgos de
+`anon`/`authenticated_security_definer_function_executable`.
+
+```sql
+-- servicio_excepciones: feriados/cierres puntuales que sobreescriben
+-- servicio_horarios para un día específico (decisión §1c, resuelta en 9b/10).
+CREATE TABLE servicio_excepciones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  servicio_id UUID NOT NULL REFERENCES servicios(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  cerrado BOOLEAN NOT NULL DEFAULT true,
+  hora_inicio TIME,
+  hora_fin TIME,
+  CHECK (
+    (cerrado = true  AND hora_inicio IS NULL AND hora_fin IS NULL) OR
+    (cerrado = false AND hora_inicio IS NOT NULL AND hora_fin IS NOT NULL AND hora_inicio < hora_fin)
+  ),
+  UNIQUE (servicio_id, fecha)
+);
+
+-- citas: cliente_id obligatorio (9d), mascota_id opcional (9d), duracion_minutos
+-- es snapshot al crear (no se recalcula si el servicio cambia después),
+-- estado con 4 valores (9e).
+CREATE TABLE citas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  servicio_id UUID NOT NULL REFERENCES servicios(id) ON DELETE RESTRICT,
+  cliente_id UUID NOT NULL REFERENCES clientes(id) ON DELETE RESTRICT,
+  mascota_id UUID REFERENCES mascotas(id) ON DELETE SET NULL,
+  fecha DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  duracion_minutos INTEGER NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'confirmada'
+    CHECK (estado IN ('confirmada', 'cancelada', 'completada', 'no_show')),
+  notas TEXT CHECK (char_length(notas) <= 500),
+  motivo_cancelacion TEXT CHECK (char_length(motivo_cancelacion) <= 500),
+  cancelado_at TIMESTAMPTZ,
+  cancelado_por TEXT,
+  created_by TEXT NOT NULL,
+  CHECK (hora_inicio < hora_fin)
+);
+
+-- crear_cita_tx: valida servicio/cliente/mascota, resuelve la ventana horaria
+-- del día (excepción si existe, si no servicio_horarios), valida encaje y
+-- ausencia de conflicto — todo serializado por pg_advisory_xact_lock (9c).
+-- ERRCODE: P0002 = no encontrado; PS001 = fuera de horario habilitado;
+-- PS002 = conflicto de horario (slot ocupado).
+--
+-- cancelar_cita_tx: mismo patrón de reclamo atómico que anular_venta_tx
+-- (AGENTS.md §23.5) — el UPDATE con condición de estado es la primera y
+-- única operación que transiciona a 'cancelada'.
+-- ERRCODE: P0002 = no encontrada; PS003 = transición de estado inválida.
+```
+
+Ver el archivo real `migrations/066_citas.sql` para el SQL completo de ambas
+funciones (omitido aquí por extensión — no hay drift entre este resumen y el
+archivo aplicado, verificado en la revisión).
+
+---
+
+## 11. Fase 2 — Contrato de API (implementado)
+
+Mismo patrón de auth que Fase 1 (`getStoreId()` + `requireStoreAdmin` cuando
+aplica), con una diferencia: **crear/cancelar/completar una cita no requiere
+rol admin** (decisión §9a — es una operación operativa de cualquier
+`storeWorker`, igual que registrar una venta en el POS). Solo la
+configuración de excepciones/feriados es admin-only, igual que
+horarios/servicios en Fase 1.
+
+- `POST /api/citas` — `src/app/api/citas/route.ts`. Llama `crear_cita_tx`.
+  Mapeo de errores: `P0002`→`404`; `PS001`→`422` (regla de negocio: fuera de
+  horario); `PS002`→`409` (conflicto). `201` con la cita creada.
+- `GET /api/citas` — mismo archivo. Filtros opcionales `fecha`,
+  `servicio_id`, `cliente_id`, `estado` vía `CitasQuerySchema`. Joins con
+  `clientes(nombre, telefono)`, `mascotas(nombre)`, `servicios(nombre)`.
+- `GET /api/citas/[id]` — `src/app/api/citas/[id]/route.ts`. Mismo `select`
+  con joins, `404` si `PGRST116`.
+- `PATCH /api/citas/[id]` — mismo archivo. `CitaAccionSchema` (unión
+  discriminada por `accion`): `cancelar` (llama `cancelar_cita_tx`,
+  `P0002`→`404`, `PS003`→`409`), `completar`/`no_show` (transición simple
+  sin RPC — `SELECT` previo distingue `404` de `409`, `.eq("estado",
+  "confirmada")` en el `UPDATE` como defensa contra carrera entre el
+  `SELECT` y el `UPDATE`). No hay `DELETE`: cancelar es un cambio de estado,
+  no un borrado.
+- `GET /api/servicios/[id]/disponibilidad` — calcula ventana horaria del día
+  (excepción > horario semanal), trae citas ocupadas, genera slots con
+  `calcularSlotsDisponibles` (§13). `[]` si el día está cerrado o sin
+  horario configurado.
+- `GET/POST /api/servicios/[id]/excepciones` — GET abierto a la tienda;
+  POST admin-only (`ServicioExcepcionCreateSchema`), `409` en fecha
+  duplicada (`23505`).
+- `DELETE /api/servicios/[id]/excepciones/[excepcionId]` — admin-only, hard
+  delete (a diferencia del soft-delete de `servicios`): una excepción no
+  tiene referencias entrantes, es un toggle de configuración sin historial
+  que preservar.
+
+---
+
+## 12. Fase 2 — Tipos TypeScript (implementados)
+
+`CitaEstado`, `Cita` (con joins opcionales `cliente`/`mascota`/`servicio`),
+`ServicioExcepcion`, `SlotDisponible` — agregados a `src/types/index.ts`.
+
+---
+
+## 13. Fase 2 — Librería pura de disponibilidad — `src/lib/disponibilidad.ts` (implementada)
+
+Funciones puras, sin mocks de DB: `rangosSuperponen`, `sumarMinutos`,
+`calcularSlotsDisponibles`, `diaSemanaIsoDesdeFecha`. Se extraen como
+funciones puras porque el cálculo de disponibilidad es de solo lectura (la
+única sección crítica real es *reservar*, ya cubierta por `crear_cita_tx`
+en SQL con el advisory lock).
+
+**Limitaciones documentadas, no bugs:**
+- No contempla cruce de medianoche (`sumarMinutos("23:30", 60)` produce
+  `"24:30"`, una hora inválida) — los servicios del catálogo son diurnos y
+  el `CHECK hora_inicio < hora_fin` de `citas`/`servicio_horarios` lo
+  impide a nivel de datos.
+- No hay ajuste de zona horaria para excluir slots ya pasados si `fecha` es
+  hoy — `stores` no tiene columna de timezone. La UI puede filtrar
+  client-side con la hora local del navegador como aproximación; no es
+  parte de este endpoint.
+- `diaSemanaIsoDesdeFecha` parsea la fecha como UTC (`getUTCDay()`) para
+  coincidir exactamente con `EXTRACT(ISODOW ...)` del lado SQL —
+  verificado con un caso concreto en los tests (`2026-08-10` es lunes,
+  ISODOW=1).
+
+---
+
+## 14. Fase 2 — Schemas Zod — `src/lib/validation/citas.ts` (implementado)
+
+`CitaCreateSchema`, `CitaAccionSchema` (unión discriminada por `accion`),
+`CitasQuerySchema`, `DisponibilidadQuerySchema`, `ServicioExcepcionCreateSchema`
+(con `.refine()` cruzado: `cerrado=true` sin horas, `cerrado=false` con
+`hora_inicio < hora_fin` obligatorias).
+
+---
+
+## 15. Fase 2 — Desglose de tareas (completado)
+
+Migración → tipos → librería pura → Zod → API (`citas`, `disponibilidad`,
+`excepciones`) → UI (`/citas`: `CitasTab` + `NuevaCitaForm`;
+`ExcepcionesEditor` agregado a `/servicios`) → tests → registro en
+`docs/spec-registry.md`. `layout.tsx` recibió el link `/citas` con
+`storeWorker` incluido en los roles (a diferencia de `/servicios`, que
+quedó `storeAdmin`/`systemAdmin` únicamente — decisión §9a).
+
+---
+
+## 16. Fase 2 — Plan de pruebas (implementado — I-CITA-01 a I-CITA-45, U-CITA-01 a U-CITA-18, PROP-05)
+
+Sub-prefijo `I-CITA-NN`/`U-CITA-NN`, mismo patrón que `I-SRV-NN` de Fase 1.
+Registrado íntegro en `docs/spec-registry.md` sección "Citas — Fase 2".
+Cobertura: autorización (crear/cancelar/completar sin rol admin — §9a;
+excepciones admin-only), aislamiento de tenant, los 3 códigos `ERRCODE`
+custom (`P0002`/`PS001`/`PS002`/`PS003`) mapeados a HTTP, cálculo de
+disponibilidad (excepción vs. horario semanal, exclusión de slots
+ocupados, borde de ventana), y la función pura `calcularSlotsDisponibles`
+tanto con casos concretos como con una propiedad `fast-check` (`PROP-05`:
+ningún slot generado excede la ventana).
+
+---
+
+## 17. Fase 3 — Alcance excluido explícitamente (NO implementado)
+
+Cada ítem tiene preguntas de producto propias sin resolver, listadas para
+que quede claro qué falta decidir antes de poder diseñarlo con el mismo
+nivel de detalle que Fase 1/2:
+
+- **Notificaciones/recordatorios** de citas (creación, cancelación,
+  recordatorio previo) — falta decidir canal (email vía Resend, WhatsApp
+  vía la integración ya existente, ambos), y con qué anticipación.
+- **Multi-profesional** — asignar qué miembro del staff atiende cada cita,
+  con su propio horario individual (¿hereda `servicio_horarios` o tiene uno
+  propio por profesional?). No hay ni un campo `profesional_id` en Fase 2.
+- **Buffer time** entre citas (tiempo de limpieza/preparación) — hoy los
+  slots son contiguos sin espacio (§13). Requiere decidir si el buffer es
+  global, por servicio, o configurable por profesional (si se agrega esta
+  fase).
+- **Integración con POS** — cobrar el servicio al completar la cita
+  (¿genera una `venta` automáticamente? ¿de qué `metodo_pago`?) — y con
+  **canales externos** (reserva vía Instagram/WhatsApp bot, análogo a
+  `canal_ordenes`).
+- **Vista de calendario/agenda visual** para el staff (hoy Fase 2 solo
+  ofrece un listado filtrable, no una grilla de calendario).
+- **Autoservicio del cliente** — reserva pública sin login de staff (ver
+  §9a). Requiere: verificación de identidad sin Clerk (¿por teléfono?
+  ¿email con código?), rate limiting, protección anti-spam, y – si se
+  habilita – recién ahí tiene sentido una **política de anticipación mínima
+  para cancelar** (§9f, hoy sin restricción porque solo cancela el staff).
+- **Detección automática de no-show** — hoy `no_show` es una transición
+  manual del staff (§9e); automatizarla (ej. marcar automáticamente tras N
+  minutos sin check-in) es una decisión de producto separada.
+- **Reagendar atómico** preservando el mismo `id` de cita (§9g, hoy es
+  cancelar + crear nueva sin vínculo explícito entre ambas).
 
 ---
 
@@ -533,6 +853,51 @@ describe("PROP-04: servicio_horarios — invariante hora_inicio < hora_fin", () 
   decidida explícitamente con el usuario — el repo real usa matching por
   mensaje en `anular_venta_tx`, pero para este RPC nuevo se adoptó
   `ERRCODE` a propósito por ser más robusto.
-- Nada de este documento fue aplicado: no se creó la migración 063 en el
-  filesystem, no se tocó `src/types/index.ts`, `src/lib/validation.ts` ni
-  ninguna ruta API. Es únicamente el plan.
+- **Actualización tras implementación de Fase 1:** la migración 063 fue
+  implementada, revisada línea por línea contra el código real, corregida
+  (`duracion_minutos` pasó de rango libre 5-480 a enum cerrado `{30,60,90}`
+  — fidelidad al requisito literal del usuario, no una decisión de diseño
+  nueva) y aplicada a `wnxrdbnvreofrrmhcybc`. Durante la verificación
+  post-aplicación con `get_advisors` se encontró que `replace_servicio_horarios`
+  (`SECURITY DEFINER`) era ejecutable directamente por `anon`/`authenticated`
+  vía `/rest/v1/rpc/`, saltándose Clerk y `requireStoreAdmin` — cerrado con
+  las migraciones `064`/`065` (`REVOKE EXECUTE`). El mismo patrón preexiste
+  en 7 funciones RPC del proyecto (`crear_venta_tx`, `anular_venta_tx`,
+  etc.) — no se tocaron, quedan como hallazgo de seguridad pendiente fuera
+  de este alcance.
+- **Verificación de Fase 2 (migración 066):** revisada archivo por archivo
+  contra el diseño de §9-§17 y contra los patrones ya establecidos en Fase
+  1 — sin desviaciones de fidelidad como la de `duracion_minutos`. El
+  autor de la implementación generalizó proactivamente el hallazgo de
+  seguridad de Fase 1: `crear_cita_tx` y `cancelar_cita_tx` incluyeron
+  `REVOKE EXECUTE ... FROM PUBLIC` y `FROM anon, authenticated` en la misma
+  migración 066, sin esperar a que `get_advisors` lo marcara después.
+  Verificado tras aplicar: `pg_proc.proacl` de ambas funciones solo lista
+  `postgres`/`service_role`; `get_advisors` no las incluye en los
+  hallazgos de `anon`/`authenticated_security_definer_function_executable`
+  (solo persisten las mismas 7 funciones preexistentes, sin cambios).
+  `npm run typecheck`, `npm run lint`, `npm test` (1864/1864) y
+  `npm run build` verificados en verde antes de aplicar la migración.
+- Ambas migraciones (063 y 066, más 064/065 de seguridad) están aplicadas
+  en el único proyecto Supabase real. Las tablas `servicios`,
+  `servicio_horarios`, `servicio_excepciones` y `citas` existen y están
+  vacías (sin datos existentes afectados por este cambio).
+
+---
+
+## 18. Estado final
+
+**Fase 1 y Fase 2: implementadas, revisadas y aplicadas.** Alcance
+construido: catálogo de servicios con duración fija `{30,60,90}` min,
+horario semanal por día, excepciones/feriados puntuales, citas de clientes
+con cálculo de disponibilidad y prevención de conflictos bajo concurrencia
+(`pg_advisory_xact_lock`), cancelaciones con trazabilidad, y estados
+`confirmada`/`cancelada`/`completada`/`no_show`. Fase 3 (§17) — notificaciones,
+multi-profesional, buffer time, integración POS/canales, calendario visual,
+autoservicio del cliente — queda explícitamente sin diseñar ni implementar.
+
+**Riesgo pendiente conocido, fuera de este alcance:** el patrón de RPCs
+`SECURITY DEFINER` ejecutables por `anon`/`authenticated` en 7 funciones
+preexistentes del proyecto (ventas, notas de crédito, saldos a favor) no se
+corrigió — es una superficie de seguridad real que amerita una revisión
+dedicada, separada de este cambio.

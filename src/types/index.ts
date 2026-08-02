@@ -131,3 +131,49 @@ export interface ServicioHorario {
 export interface ServicioConHorarios extends Servicio {
   servicio_horarios: ServicioHorario[];
 }
+
+// ─── Citas de clientes (Fase 2) ──────────────────────────────────────────
+// Ver docs/plan_servicios.md §9-§17. Decisiones §9 aprobadas por el usuario
+// el 2026-08-02.
+
+export type CitaEstado = "confirmada" | "cancelada" | "completada" | "no_show";
+
+export interface Cita {
+  id: string;
+  store_id: string;
+  servicio_id: string;
+  cliente_id: string;
+  mascota_id?: string | null;
+  fecha: string;         // "YYYY-MM-DD"
+  hora_inicio: string;   // "HH:MM:SS" tal como lo serializa Postgres TIME al leer
+  hora_fin: string;
+  duracion_minutos: number;
+  estado: CitaEstado;
+  notas?: string | null;
+  motivo_cancelacion?: string | null;
+  cancelado_at?: string | null;
+  cancelado_por?: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  cliente?: Pick<Cliente, "nombre" | "telefono">;
+  mascota?: Pick<Mascota, "nombre">;
+  servicio?: Pick<Servicio, "nombre">;
+}
+
+export interface ServicioExcepcion {
+  id: string;
+  store_id: string;
+  servicio_id: string;
+  fecha: string;
+  cerrado: boolean;
+  hora_inicio?: string | null;
+  hora_fin?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SlotDisponible {
+  hora_inicio: string; // "HH:MM"
+  hora_fin: string;
+}
