@@ -32,7 +32,13 @@ jest.mock("@/lib/supabase", () => ({
 
 jest.mock("@/lib/audit", () => ({
   logAudit: jest.fn().mockResolvedValue(undefined),
-  getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
+  // getRequestMetadata NO es async en la implementación real (src/lib/audit.ts:
+  // `export function getRequestMetadata(req) { return {...} }`) — mockReturnValue,
+  // no mockResolvedValue. Con mockResolvedValue, un caller que ya no hace
+  // `await getRequestMetadata(...)` (patrón correcto en el resto del código)
+  // desestructura un Promise en vez del objeto, y ipAddress/userAgent quedan
+  // undefined en logAudit sin que ningún test lo note si no se afirma el valor.
+  getRequestMetadata: jest.fn().mockReturnValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
 
 import { GET, POST } from "@/app/api/lotes/route";
@@ -274,5 +280,52 @@ describe("POST /api/lotes", () => {
 
     await POST(req);
     expect(logAudit).toHaveBeenCalled();
+  });
+
+  // I-472 — MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): mismo defecto
+  // reportado para "lotes_producto" en ordenes-compra/[id]/route.ts —
+  // changeDescription ausente. Este endpoint (creación manual de lote) tenía
+  // el mismo defecto (llamador similar del mismo logAudit/getRequestMetadata).
+  it("I-472: audit log de creación manual de lote incluye changeDescription con nombre y cantidad, e IP/userAgent", async () => {
+    const createdLote = {
+      id: "lote-audit-2",
+      store_id: STORE_ID,
+      producto_id: PRODUCTO_ID,
+      cantidad_inicial: 12,
+      cantidad_actual: 12,
+      fecha_vencimiento: "2026-12-01",
+      fecha_ingreso: new Date().toISOString().split("T")[0],
+    };
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID, nombre: "Alimento Gato Whiskas 1kg" }, error: null }) };
+      }
+      if (table === "lotes_producto") {
+        return {
+          insert: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: createdLote, error: null }),
+        };
+      }
+      return {};
+    });
+
+    const { logAudit } = await import("@/lib/audit");
+    const req = makePostRequest({
+      producto_id: PRODUCTO_ID,
+      cantidad_inicial: 12,
+      fecha_vencimiento: "2026-12-01",
+    });
+
+    await POST(req);
+
+    expect(logAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeDescription: "Lote creado manualmente: Alimento Gato Whiskas 1kg × 12 unidades",
+        ipAddress: "127.0.0.1",
+        userAgent: "test",
+      })
+    );
   });
 });

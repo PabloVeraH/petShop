@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, getChangedFields } from "@/lib/audit";
 import { LoteUpdateSchema } from "@/lib/validation";
 
 async function requireAdmin() {
@@ -55,6 +55,10 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): mismo defecto reportado
+  // para "lotes_producto" — changeDescription ausente. getChangedFields ya
+  // existe en @/lib/audit para este propósito exacto (comparar old/new).
+  const { ipAddress, userAgent } = getRequestMetadata(req);
   await logAudit({
     storeId,
     userId: userId || "unknown",
@@ -63,8 +67,9 @@ export async function PATCH(
     entityId: id,
     oldValues: existing,
     newValues: updated,
-    ipAddress: (await getRequestMetadata(req)).ipAddress,
-    userAgent: (await getRequestMetadata(req)).userAgent,
+    changeDescription: `Lote "${existing.numero_lote ?? id}" editado: ${getChangedFields(existing, updated)}`,
+    ipAddress,
+    userAgent,
     result: "success",
   });
 
@@ -104,6 +109,7 @@ export async function DELETE(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const { ipAddress, userAgent } = getRequestMetadata(req);
   await logAudit({
     storeId,
     userId: userId || "unknown",
@@ -111,8 +117,9 @@ export async function DELETE(
     entityType: "lote_producto",
     entityId: id,
     oldValues: existing,
-    ipAddress: (await getRequestMetadata(req)).ipAddress,
-    userAgent: (await getRequestMetadata(req)).userAgent,
+    changeDescription: `Lote "${existing.numero_lote ?? id}" desactivado`,
+    ipAddress,
+    userAgent,
     result: "success",
   });
 

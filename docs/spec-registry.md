@@ -351,6 +351,10 @@ I-406/I-407/I-408.
 | I-468 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas internas con menos de 5 caracteres → 400 | POST /api/ventas | integration |
 | I-469 | MEJORA: notas internas con exactamente 5 caracteres → aceptado | POST /api/ventas | integration |
 | I-470 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas de OC con menos de 5 caracteres → 400 | POST /api/ordenes-compra | integration |
+| I-471 | MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): crea lote al recibir OC y el audit log de "lotes_producto" incluye changeDescription (producto × cantidad — n° OC) e IP/userAgent | PATCH /api/ordenes-compra/[id] | integration |
+| I-472 | MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): audit log de creación manual de lote incluye changeDescription (nombre × cantidad) e IP/userAgent | POST /api/lotes | integration |
+| I-473 | MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): audit log de edición de lote incluye changeDescription con los campos cambiados (getChangedFields) | PATCH /api/lotes/[id] | integration |
+| I-474 | MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): audit log de desactivación de lote incluye changeDescription con el número de lote | DELETE /api/lotes/[id] | integration |
 | C-41 | REGRESIÓN: CreateUserForm ("+ Crear usuario") — email tiene autoComplete="off" y password tiene autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas del propio admin logueado al crear la cuenta de otra persona | UsuariosCard | component |
 
 ## Seguridad (SEC-01 a SEC-10)

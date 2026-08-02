@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const { data: prod } = await supabase
     .from("productos")
-    .select("id")
+    .select("id, nombre")
     .eq("id", d.producto_id)
     .eq("store_id", storeId)
     .single();
@@ -72,6 +72,10 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): mismo defecto reportado
+  // para "lotes_producto" en ordenes-compra/[id]/route.ts — changeDescription
+  // ausente. Se corrige aquí también (llamador similar del mismo logAudit).
+  const { ipAddress, userAgent } = getRequestMetadata(req);
   await logAudit({
     storeId,
     userId: userId || "unknown",
@@ -79,8 +83,9 @@ export async function POST(req: NextRequest) {
     entityType: "lote_producto",
     entityId: lote.id,
     newValues: lote,
-    ipAddress: (await getRequestMetadata(req)).ipAddress,
-    userAgent: (await getRequestMetadata(req)).userAgent,
+    changeDescription: `Lote creado manualmente: ${prod.nombre} × ${lote.cantidad_inicial} unidades`,
+    ipAddress,
+    userAgent,
     result: "success",
   });
 

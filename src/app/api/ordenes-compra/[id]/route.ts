@@ -67,6 +67,11 @@ export async function PATCH(
     }
 
     let totalNeto = 0;
+    // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el log de auditoría de
+    // "lotes_producto" quedaba con changeDescription/ipAddress vacíos —
+    // calculado una vez para toda la request, igual que en el flujo
+    // "edit_items" de este mismo archivo (línea ~330).
+    const { ipAddress, userAgent } = getRequestMetadata(req);
 
     for (const item of items) {
       // Math.round: precio_unitario acepta decimales (Zod solo exige
@@ -94,6 +99,10 @@ export async function PATCH(
 
       // Resolver producto_id: existente o crear nuevo
       let productoId = item.producto_id ?? null;
+      // nombre_nuevo cubre el caso "producto creado en esta recepción"; para
+      // un producto ya existente el payload no trae su nombre (ver
+      // OrdenCompraReceiveItemSchema), se resuelve más abajo con un SELECT.
+      let nombreProducto: string | null = item.nombre_nuevo ?? null;
 
       if (!productoId && item.nombre_nuevo) {
         const skuAuto = "PROD-" + crypto.randomUUID().slice(0, 8).toUpperCase();
@@ -132,6 +141,17 @@ export async function PATCH(
       if (!productoId) continue;
 
       if (item.fecha_vencimiento) {
+        // Solo se necesita el nombre para el changeDescription del lote que
+        // se crea en esta rama — evita el SELECT extra en la rama sin lote.
+        if (!nombreProducto) {
+          const { data: prodExistente } = await supabase
+            .from("productos")
+            .select("nombre")
+            .eq("id", productoId)
+            .single();
+          nombreProducto = prodExistente?.nombre ?? null;
+        }
+
         // Auto-generate numero_lote if not provided: LOTE-{count of existing lotes}
         let numeroLote = item.numero_lote ?? null;
         if (!numeroLote) {
@@ -181,6 +201,9 @@ export async function PATCH(
           entityType: "lotes_producto",
           entityId: lote.id,
           newValues: lote,
+          changeDescription: `Recepción de lote: ${nombreProducto ?? "Producto"} × ${item.cantidad_recibida} unidades — ${ordenBase.numero}`,
+          ipAddress,
+          userAgent,
         });
 
         await supabase.from("stock_movements").insert({

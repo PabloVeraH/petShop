@@ -263,7 +263,9 @@ describe("Órdenes de Compra API", () => {
   });
 
   describe("PATCH /api/ordenes-compra/[id] — recibir con lotes", () => {
-    it("crea lote cuando se proporciona lotes[]", async () => {
+    // I-471 — MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el audit log
+    // de "lotes_producto" quedaba con changeDescription/ipAddress vacíos.
+    it("I-471: crea lote cuando se proporciona lotes[] y el audit log queda con descripción e IP", async () => {
       const itemsLoteInsert: any[] = [];
 
       const ordenChain = {
@@ -304,7 +306,8 @@ describe("Órdenes de Compra API", () => {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
             update: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            single: jest.fn().mockReturnThis(),
+            then: function(resolve: any) { return resolve({ data: { nombre: "Alimento Gato Whiskas 1kg" }, error: null }); },
           };
         }
         if (table === "stock_movements") {
@@ -352,6 +355,18 @@ describe("Órdenes de Compra API", () => {
         numero_lote: "LOTE-A",
         fecha_vencimiento: "2026-12-31",
       });
+
+      // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el audit log de
+      // "lotes_producto" debe traer descripción legible e IP — antes
+      // quedaban ambos campos vacíos.
+      expect(auditModule.logAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: "lotes_producto",
+          changeDescription: "Recepción de lote: Alimento Gato Whiskas 1kg × 20 unidades — OC-20260424-ABC123",
+          ipAddress: "127.0.0.1",
+          userAgent: "test",
+        })
+      );
     });
 
     it("omite lote cuando cantidad_recibida = 0", async () => {
@@ -448,6 +463,13 @@ describe("Órdenes de Compra API", () => {
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
             then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+          };
+        }
+        if (table === "productos") {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({ data: { nombre: "Producto X" }, error: null }),
           };
         }
         if (table === "lotes_producto") {
