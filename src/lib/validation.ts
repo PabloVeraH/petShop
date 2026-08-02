@@ -5,3 +5,4 @@ export * from "./validation/inventario";
 export * from "./validation/ventas";
 export * from "./validation/supply-chain";
 export * from "./validation/admin";
+export * from "./validation/servicios";

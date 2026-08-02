@@ -12,6 +12,7 @@ const navItems = [
   { href: "/dashboard", label: "Analitica", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/servicios", label: "Servicios", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/suppliers", label: "Proveedores", roles: ["storeAdmin", "systemAdmin"] },

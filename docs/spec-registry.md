@@ -954,5 +954,72 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 - `I-NCC-NN` — test unitario de lineasNotaCreditoCOGS (lib/contabilidad/generador-asientos)
 - `I-NCC-INT-NN` — test de integración del reverso de COGS en POST /api/notas-credito
 - `I-NCC-BF-NN` — test de integración del reverso de COGS en el backfill de NC
+- `I-SRV-NN` — test de integración de las rutas /api/servicios y /api/servicios/[id]/horarios
+- `U-SRV-NN` — test unitario de los schemas Zod de servicios (src/lib/validation/servicios.ts)
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.
+
+## Servicios (I-SRV-01 a I-SRV-29, U-SRV-01 a U-SRV-15, PROP-04)
+
+Servicios agendables (peluquería y similares) — Fase 1 de configuración
+administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
+
+### Integración — /api/servicios
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-SRV-01 | Sin sesión → 401 | GET /api/servicios | integration |
+| I-SRV-02 | Autenticado sin rol admin → 200 con array | GET /api/servicios | integration |
+| I-SRV-03 | Filtra por store_id y activo=true | GET /api/servicios | integration |
+| I-SRV-04 | Error de DB → 500 | GET /api/servicios | integration |
+| I-SRV-05 | Sin sesión → 401 | POST /api/servicios | integration |
+| I-SRV-06 | Rol worker (sin admin) → 403 | POST /api/servicios | integration |
+| I-SRV-07 | duracion_minutos: 0 → 400 | POST /api/servicios | integration |
+| I-SRV-29 | duracion_minutos: 45 (entero fuera del enum 30/60/90) → 400 | POST /api/servicios | integration |
+| I-SRV-08 | Body con store_id de otra tienda → se ignora, persiste con store_id del contexto → 201 | POST /api/servicios | integration |
+| I-SRV-09 | Nombre duplicado → 409 | POST /api/servicios | integration |
+| I-SRV-10 | Payload válido → 201 | POST /api/servicios | integration |
+| I-SRV-11 | Servicio de otra tienda (PGRST116) → 404 | GET /api/servicios/[id] | integration |
+| I-SRV-12 | Servicio existente → 200 con servicio_horarios anidado y ordenado por dia_semana | GET /api/servicios/[id] | integration |
+| I-SRV-13 | Sin sesión → 401 | PATCH /api/servicios/[id] | integration |
+| I-SRV-14 | Rol worker → 403 | PATCH /api/servicios/[id] | integration |
+| I-SRV-15 | Servicio de otra tienda → 404 | PATCH /api/servicios/[id] | integration |
+| I-SRV-16 | PATCH sin descripcion no la modifica (solo cambia activo) | PATCH /api/servicios/[id] | integration |
+| I-SRV-17 | duracion_minutos inválida → 400 | PATCH /api/servicios/[id] | integration |
+| I-SRV-18 | Soft delete — assert update({activo:false}), nunca .delete() | DELETE /api/servicios/[id] | integration |
+| I-SRV-19 | Servicio de otra tienda → 404 | DELETE /api/servicios/[id] | integration |
+| I-SRV-20 | Servicio de otra tienda → 404 | GET /api/servicios/[id]/horarios | integration |
+| I-SRV-21 | Servicio sin horarios configurados → 200 array vacío | GET /api/servicios/[id]/horarios | integration |
+| I-SRV-22 | Sin sesión → 401 | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-23 | Rol worker → 403 | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-24 | Algún día con hora_inicio >= hora_fin → 400 | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-25 | Día repetido en el array → 400 | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-26 | Payload válido (7 días) → 200, respuesta ordenada, RPC con p_store_id del contexto | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-27 | Servicio de otra tienda → 404 (RPC error.code P0002) | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-28 | Array vacío → 200 (limpia el horario completo) | PUT /api/servicios/[id]/horarios | integration |
+
+### Unit Zod — schemas de servicios
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-SRV-01 | Payload válido → success | ServicioCreateSchema | unit |
+| U-SRV-02 | Nombre 1 carácter → fail | ServicioCreateSchema | unit |
+| U-SRV-03 | duracion_minutos: 0 → fail | ServicioCreateSchema | unit |
+| U-SRV-04 | duracion_minutos: 481 → fail | ServicioCreateSchema | unit |
+| U-SRV-05 | duracion_minutos: 45.5 → fail (no está en {30,60,90}) | ServicioCreateSchema | unit |
+| U-SRV-13 | duracion_minutos: 45 (entero válido pero fuera del enum) → fail | ServicioCreateSchema | unit |
+| U-SRV-14 | duracion_minutos: 60 → success | ServicioCreateSchema | unit |
+| U-SRV-15 | duracion_minutos: 90 → success | ServicioCreateSchema | unit |
+| U-SRV-06 | 09:00 → 18:00 → success | ServicioHorarioItemSchema | unit |
+| U-SRV-07 | 18:00 → 09:00 (invertido) → fail | ServicioHorarioItemSchema | unit |
+| U-SRV-08 | Formatos inválidos (9:00, 25:00, 09:60) → fail | ServicioHorarioItemSchema | unit |
+| U-SRV-09 | dia_semana 0 y 8 → fail | ServicioHorarioItemSchema | unit |
+| U-SRV-10 | Día repetido → fail | ServicioHorariosReplaceSchema | unit |
+| U-SRV-11 | Array de 8 elementos → fail | ServicioHorariosReplaceSchema | unit |
+| U-SRV-12 | Array vacío → success | ServicioHorariosReplaceSchema | unit |
+
+### Property — PROP-04
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| PROP-04 | servicio_horarios: invariante hora_inicio < hora_fin (aceptado iff true) | ServicioHorarioItemSchema / property-invariants.test.ts | property |

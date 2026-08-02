@@ -98,3 +98,36 @@ export interface DeduccionFIFOResultado {
   cantidad_deducida: number;
   fecha_ingreso: string;
 }
+
+// ─── Servicios agendables (Fase 1) ───────────────────────────────────────
+// Ver docs/plan_servicios.md. Fase 1 = solo catálogo + horario semanal;
+// sin citas, disponibilidad ni excepciones.
+
+export interface Servicio {
+  id: string;
+  store_id: string;
+  nombre: string;
+  descripcion?: string | null;
+  duracion_minutos: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// 1=Lunes ... 7=Domingo (ISO 8601) — NO usar la convención EXTRACT(DOW) de Postgres
+export type DiaSemana = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export interface ServicioHorario {
+  id: string;
+  store_id: string;
+  servicio_id: string;
+  dia_semana: DiaSemana;
+  hora_inicio: string; // "HH:MM:SS" tal como lo serializa Postgres TIME al leer
+  hora_fin: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServicioConHorarios extends Servicio {
+  servicio_horarios: ServicioHorario[];
+}

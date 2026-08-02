@@ -6,6 +6,9 @@ import {
   CategoriaCreateSchema,
   CategoriaUpdateSchema,
   ProductoCreateSchema,
+  ServicioCreateSchema,
+  ServicioHorarioItemSchema,
+  ServicioHorariosReplaceSchema,
 } from "@/lib/validation";
 
 const VALID_UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -246,5 +249,100 @@ describe("ProductoCreateSchema con codigo_barra", () => {
 
   it("U-CB-05: rechaza codigo_barra > 100 caracteres", () => {
     expect(ProductoCreateSchema.safeParse({ ...BASE, codigo_barra: "x".repeat(101) }).success).toBe(false);
+  });
+});
+
+// ─── Servicios agendables (U-SRV-01 a U-SRV-12) ──────────────────────────────
+
+describe("ServicioCreateSchema", () => {
+  it("U-SRV-01: payload válido → success", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30 });
+    expect(r.success).toBe(true);
+  });
+
+  it("U-SRV-02: nombre 1 carácter → fail", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "A", duracion_minutos: 30 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-03: duracion_minutos: 0 → fail", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 0 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-04: duracion_minutos: 481 → fail", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 481 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-05: duracion_minutos: 45.5 → fail (no está en {30,60,90})", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 45.5 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-13: duracion_minutos: 45 (entero válido pero fuera del enum) → fail", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 45 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-14: duracion_minutos: 60 → success", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 60 });
+    expect(r.success).toBe(true);
+  });
+
+  it("U-SRV-15: duracion_minutos: 90 → success", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 90 });
+    expect(r.success).toBe(true);
+  });
+});
+
+describe("ServicioHorarioItemSchema", () => {
+  it("U-SRV-06: 09:00→18:00 → success", () => {
+    const r = ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: "09:00", hora_fin: "18:00" });
+    expect(r.success).toBe(true);
+  });
+
+  it("U-SRV-07: 18:00→09:00 (invertido) → fail", () => {
+    const r = ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: "18:00", hora_fin: "09:00" });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-08: formatos inválidos (9:00, 25:00, 09:60) → fail", () => {
+    expect(ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: "9:00", hora_fin: "10:00" }).success).toBe(false);
+    expect(ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: "25:00", hora_fin: "26:00" }).success).toBe(false);
+    expect(ServicioHorarioItemSchema.safeParse({ dia_semana: 1, hora_inicio: "09:60", hora_fin: "10:00" }).success).toBe(false);
+  });
+
+  it("U-SRV-09: dia_semana 0 y 8 → fail", () => {
+    expect(ServicioHorarioItemSchema.safeParse({ dia_semana: 0, hora_inicio: "09:00", hora_fin: "10:00" }).success).toBe(false);
+    expect(ServicioHorarioItemSchema.safeParse({ dia_semana: 8, hora_inicio: "09:00", hora_fin: "10:00" }).success).toBe(false);
+  });
+});
+
+describe("ServicioHorariosReplaceSchema", () => {
+  it("U-SRV-10: día repetido → fail", () => {
+    const r = ServicioHorariosReplaceSchema.safeParse({
+      horarios: [
+        { dia_semana: 1, hora_inicio: "09:00", hora_fin: "12:00" },
+        { dia_semana: 1, hora_inicio: "14:00", hora_fin: "18:00" },
+      ],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-11: array de 8 elementos → fail", () => {
+    const r = ServicioHorariosReplaceSchema.safeParse({
+      horarios: Array.from({ length: 8 }, (_, i) => ({
+        dia_semana: (i % 7) + 1,
+        hora_inicio: "09:00",
+        hora_fin: "18:00",
+      })),
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-12: array vacío → success", () => {
+    const r = ServicioHorariosReplaceSchema.safeParse({ horarios: [] });
+    expect(r.success).toBe(true);
   });
 });
