@@ -1026,7 +1026,7 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 |----|-------------|-------|------|
 | PROP-04 | servicio_horarios: invariante hora_inicio < hora_fin (aceptado iff true) | ServicioHorarioItemSchema / property-invariants.test.ts | property |
 
-## Citas — Fase 2 (I-CITA-01 a I-CITA-45, U-CITA-01 a U-CITA-18, PROP-05)
+## Citas — Fase 2 (I-CITA-01 a I-CITA-45, U-CITA-01 a U-CITA-26, PROP-05)
 
 Citas de clientes contra servicios configurados en Fase 1. Migración
 `066_citas.sql`. Decisiones §9 del plan aprobadas por el usuario
@@ -1120,6 +1120,14 @@ excepciones son admin-only.
 | U-CITA-16 | cerrado:true con horas → fail | ServicioExcepcionCreateSchema | unit |
 | U-CITA-17 | cerrado:false sin horas → fail | ServicioExcepcionCreateSchema | unit |
 | U-CITA-18 | cerrado:false, hora_inicio >= hora_fin → fail | ServicioExcepcionCreateSchema | unit |
+| U-CITA-19 | autoFormatRUT: 1-2 dígitos sin formato | app/(app)/citas/components/rut-format | unit |
+| U-CITA-20 | autoFormatRUT: 3° dígito agrega punto entre 2° y 3° (ancla del usuario) | app/(app)/citas/components/rut-format | unit |
+| U-CITA-21 | autoFormatRUT: 4-5 dígitos completan 2° grupo sin 2° punto | app/(app)/citas/components/rut-format | unit |
+| U-CITA-22 | autoFormatRUT: 6° dígito agrega punto entre 5° y 6° (ancla del usuario) | app/(app)/citas/components/rut-format | unit |
+| U-CITA-23 | autoFormatRUT: 7-8 dígitos del cuerpo sin guion | app/(app)/citas/components/rut-format | unit |
+| U-CITA-24 | autoFormatRUT: 9 car. (8 cuerpo + DV) separa DV con guion | app/(app)/citas/components/rut-format | unit |
+| U-CITA-25 | autoFormatRUT: ruido y max 9 car. | app/(app)/citas/components/rut-format | unit |
+| U-CITA-26 | formatRUTMiles: 1-3 sin formato, 4-8 miles, 9 con guion DV | app/(app)/citas/components/rut-format | unit |
 
 ### Property — PROP-05
 

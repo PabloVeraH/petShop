@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Cliente, Mascota, Servicio, SlotDisponible } from "@/types";
+import { autoFormatRUT, formatRUTMiles, pareceRUT } from "./rut-format";
 
 interface ClientesResponse {
   data: Cliente[];
@@ -22,9 +23,18 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
   const [notas, setNotas] = useState("");
   const [error, setError] = useState("");
 
+  // searchCliente es lo que SE MUESTRA (formato RUT left-to-right propio de
+  // /citas). apiSearch es lo que se ENVÍA a /api/clientes — en formato
+  // miles-from-right si pareceRUT, para matchear el stored `rut` persistido
+  // con formatRUT; texto plano en caso contrario (búsqueda por nombre).
+  const apiSearch = useMemo(
+    () => (pareceRUT(searchCliente) ? formatRUTMiles(searchCliente) : searchCliente),
+    [searchCliente]
+  );
+
   const { data: clientesData } = useQuery<ClientesResponse>({
-    queryKey: ["clientes-cita", searchCliente],
-    queryFn: () => fetch(`/api/clientes?search=${encodeURIComponent(searchCliente)}`).then((r) => r.json()),
+    queryKey: ["clientes-cita", apiSearch],
+    queryFn: () => fetch(`/api/clientes?search=${encodeURIComponent(apiSearch)}`).then((r) => r.json()),
   });
   const clientes = clientesData?.data ?? [];
 
@@ -92,7 +102,10 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
               <Input
                 placeholder="Buscar por nombre o RUT..."
                 value={searchCliente}
-                onChange={(e) => setSearchCliente(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchCliente(pareceRUT(v) ? autoFormatRUT(v) : v);
+                }}
               />
               <div className="mt-1 max-h-32 overflow-y-auto border border-gray-100 rounded">
                 {clientes.map((c) => (
