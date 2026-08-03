@@ -260,15 +260,20 @@ describe("GET /api/citas/[id]", () => {
 
   // I-CITA-18
   it("I-CITA-18: cita existente → 200 con joins de cliente/mascota/servicio", async () => {
+    // Claves en singular: el select real usa alias (cliente:clientes(...), etc.)
+    // para que coincida con el tipo Cita y con CitasTab.tsx — sin el alias,
+    // Supabase embebe bajo el nombre de tabla en plural (clientes/mascotas/
+    // servicios), lo que dejaba c.cliente/c.mascota/c.servicio siempre
+    // undefined en la UI (bug real, reportado por el usuario en /citas).
     mockSingle.mockResolvedValue({
       data: {
         id: CITA_ID,
         ...citaBody,
         hora_fin: "10:30:00",
         estado: "confirmada",
-        clientes: { nombre: "María", telefono: "555-1234" },
-        mascotas: { nombre: "Firulais" },
-        servicios: { nombre: "Corte básico" },
+        cliente: { nombre: "María", telefono: "555-1234" },
+        mascota: { nombre: "Firulais" },
+        servicio: { nombre: "Corte básico" },
       },
       error: null,
     });
@@ -276,9 +281,9 @@ describe("GET /api/citas/[id]", () => {
     const res = await GET(req(`/api/citas/${CITA_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.clientes.nombre).toBe("María");
-    expect(body.mascotas.nombre).toBe("Firulais");
-    expect(body.servicios.nombre).toBe("Corte básico");
+    expect(body.cliente.nombre).toBe("María");
+    expect(body.mascota.nombre).toBe("Firulais");
+    expect(body.servicio.nombre).toBe("Corte básico");
   });
 });
 

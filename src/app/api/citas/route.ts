@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   let query = supabase
     .from("citas")
-    .select("*, clientes(nombre, telefono), mascotas(nombre), servicios(nombre)")
+    .select("*, cliente:clientes(nombre, telefono), mascota:mascotas(nombre), servicio:servicios(nombre)")
     .eq("store_id", ctx.storeId);
 
   if (parsed.data.fecha) query = query.eq("fecha", parsed.data.fecha);
