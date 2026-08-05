@@ -17,7 +17,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("citas")
-    .select("*, cliente:clientes(nombre, telefono), mascota:mascotas(nombre), servicio:servicios(nombre)")
+    .select("*, cliente:clientes(nombre, telefono), mascota:mascotas(nombre), servicio:servicios(nombre), encargado:encargados(nombre)")
     .eq("id", id)
     .eq("store_id", ctx.storeId)
     .single();

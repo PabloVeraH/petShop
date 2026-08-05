@@ -19,12 +19,13 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   let query = supabase
     .from("citas")
-    .select("*, cliente:clientes(nombre, telefono), mascota:mascotas(nombre), servicio:servicios(nombre)")
+    .select("*, cliente:clientes(nombre, telefono), mascota:mascotas(nombre), servicio:servicios(nombre), encargado:encargados(nombre)")
     .eq("store_id", ctx.storeId);
 
   if (parsed.data.fecha) query = query.eq("fecha", parsed.data.fecha);
   if (parsed.data.servicio_id) query = query.eq("servicio_id", parsed.data.servicio_id);
   if (parsed.data.cliente_id) query = query.eq("cliente_id", parsed.data.cliente_id);
+  if (parsed.data.encargado_id) query = query.eq("encargado_id", parsed.data.encargado_id);
   if (parsed.data.estado) query = query.eq("estado", parsed.data.estado);
 
   const { data, error } = await query.order("fecha").order("hora_inicio");
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     p_servicio_id: parsed.data.servicio_id,
     p_cliente_id: parsed.data.cliente_id,
     p_mascota_id: parsed.data.mascota_id ?? null,
+    p_encargado_id: parsed.data.encargado_id,
     p_fecha: parsed.data.fecha,
     p_hora_inicio: parsed.data.hora_inicio,
     p_notas: parsed.data.notas ?? null,
@@ -67,6 +69,9 @@ export async function POST(req: NextRequest) {
     }
     if (error.code === "PS002") {
       return NextResponse.json({ error: "El horario solicitado ya está reservado" }, { status: 409 });
+    }
+    if (error.code === "PS004") {
+      return NextResponse.json({ error: "El encargado ya tiene otra cita en ese horario" }, { status: 409 });
     }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
