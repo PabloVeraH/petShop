@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { NuevaCitaForm } from "./NuevaCitaForm";
-import type { Cita, CitaEstado, Servicio } from "@/types";
+import { hoyLocal } from "./date-utils";
+import type { Cita, CitaEstado, Encargado, Servicio } from "@/types";
 
 const ESTADOS: { value: CitaEstado | ""; label: string }[] = [
   { value: "", label: "Todos" },
@@ -23,16 +24,11 @@ const COLOR_ESTADO: Record<CitaEstado, string> = {
   no_show: "bg-orange-100 text-orange-700",
 };
 
-function hoyLocal(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 export function CitasTab() {
   const queryClient = useQueryClient();
   const [fecha, setFecha] = useState(hoyLocal());
   const [servicioId, setServicioId] = useState("");
+  const [encargadoId, setEncargadoId] = useState("");
   const [estado, setEstado] = useState<CitaEstado | "">("");
   const [nuevaAbierta, setNuevaAbierta] = useState(false);
   const [cancelandoId, setCancelandoId] = useState<string | null>(null);
@@ -44,13 +40,19 @@ export function CitasTab() {
     queryFn: () => fetch("/api/servicios").then((r) => r.json()),
   });
 
+  const { data: encargados = [] } = useQuery<Encargado[]>({
+    queryKey: ["encargados"],
+    queryFn: () => fetch("/api/encargados").then((r) => r.json()),
+  });
+
   const queryParams = new URLSearchParams();
   if (fecha) queryParams.set("fecha", fecha);
   if (servicioId) queryParams.set("servicio_id", servicioId);
+  if (encargadoId) queryParams.set("encargado_id", encargadoId);
   if (estado) queryParams.set("estado", estado);
 
   const { data: citas = [], isLoading } = useQuery<Cita[]>({
-    queryKey: ["citas", fecha, servicioId, estado],
+    queryKey: ["citas", fecha, servicioId, encargadoId, estado],
     queryFn: () => fetch(`/api/citas?${queryParams.toString()}`).then((r) => r.json()),
   });
 
@@ -95,6 +97,19 @@ export function CitasTab() {
           </select>
         </div>
         <div>
+          <label className="text-xs text-gray-500 block mb-1">Encargado</label>
+          <select
+            value={encargadoId}
+            onChange={(e) => setEncargadoId(e.target.value)}
+            className="text-sm border border-gray-300 rounded px-3 py-2 w-48"
+          >
+            <option value="">Todos</option>
+            {encargados.map((enc) => (
+              <option key={enc.id} value={enc.id}>{enc.nombre}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="text-xs text-gray-500 block mb-1">Estado</label>
           <select
             value={estado}
@@ -131,6 +146,7 @@ export function CitasTab() {
               </p>
               <p className="text-xs text-gray-400">
                 {c.servicio?.nombre ?? "—"} · {c.duracion_minutos} min
+                {c.encargado?.nombre ? ` · ${c.encargado.nombre}` : " · Sin asignar"}
                 {c.cliente?.telefono ? ` · ${c.cliente.telefono}` : ""}
               </p>
               {c.notas && <p className="text-xs text-gray-400 italic">{c.notas}</p>}
@@ -168,7 +184,7 @@ export function CitasTab() {
 
       {nuevaAbierta && (
         <ModalOverlay open onClose={() => setNuevaAbierta(false)}>
-          <NuevaCitaForm onClose={() => setNuevaAbierta(false)} />
+          <NuevaCitaForm onClose={() => setNuevaAbierta(false)} fechaInicial={fecha} />
         </ModalOverlay>
       )}
 

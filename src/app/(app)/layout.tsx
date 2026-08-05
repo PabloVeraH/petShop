@@ -13,6 +13,7 @@ const navItems = [
   { href: "/customers", label: "Clientes", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/inventory", label: "Inventario", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/servicios", label: "Servicios", roles: ["storeAdmin", "systemAdmin"] },
+  { href: "/encargados", label: "Encargados", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/citas", label: "Citas", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
   { href: "/sales", label: "Ventas", roles: ["storeAdmin", "systemAdmin"] },
   { href: "/vendedores", label: "Vendedores", roles: ["storeAdmin", "systemAdmin"] },

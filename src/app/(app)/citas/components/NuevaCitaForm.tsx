@@ -4,21 +4,28 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Cliente, Mascota, Servicio, SlotDisponible } from "@/types";
+import type { Cliente, Encargado, Mascota, Servicio, SlotDisponible } from "@/types";
 import { autoFormatRUT, formatRUTMiles, pareceRUT } from "./rut-format";
+import { hoyLocal } from "./date-utils";
 
 interface ClientesResponse {
   data: Cliente[];
   count: number;
 }
 
-export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
+export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; fechaInicial?: string }) {
   const queryClient = useQueryClient();
+  const hoy = hoyLocal();
+  // Toma la fecha del filtro del listado (fechaInicial), salvo que apunte a
+  // un día pasado (ej. el listado se dejó filtrando historial) — en ese caso
+  // no se prellena con un valor que igual sería rechazado al agendar.
+  const fechaInicialValida = fechaInicial && fechaInicial >= hoy ? fechaInicial : hoy;
   const [searchCliente, setSearchCliente] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [mascotaId, setMascotaId] = useState("");
   const [servicioId, setServicioId] = useState("");
-  const [fecha, setFecha] = useState("");
+  const [encargadoId, setEncargadoId] = useState("");
+  const [fecha, setFecha] = useState(fechaInicialValida);
   const [slotSel, setSlotSel] = useState<string>("");
   const [notas, setNotas] = useState("");
   const [error, setError] = useState("");
@@ -49,17 +56,22 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
     queryFn: () => fetch("/api/servicios").then((r) => r.json()),
   });
 
+  const { data: encargados = [] } = useQuery<Encargado[]>({
+    queryKey: ["encargados"],
+    queryFn: () => fetch("/api/encargados").then((r) => r.json()),
+  });
+
   const { data: slots = [], isFetching: cargandoSlots } = useQuery<SlotDisponible[]>({
-    queryKey: ["disponibilidad", servicioId, fecha],
+    queryKey: ["disponibilidad", servicioId, encargadoId, fecha],
     queryFn: () =>
-      fetch(`/api/servicios/${servicioId}/disponibilidad?fecha=${fecha}`).then(async (r) => {
+      fetch(`/api/servicios/${servicioId}/disponibilidad?fecha=${fecha}&encargado_id=${encargadoId}`).then(async (r) => {
         if (!r.ok) {
           const d = await r.json();
           throw new Error(d.error ?? "Error consultando disponibilidad");
         }
         return r.json();
       }),
-    enabled: !!servicioId && !!fecha,
+    enabled: !!servicioId && !!encargadoId && !!fecha,
   });
 
   const { mutate: crear, isPending } = useMutation({
@@ -70,6 +82,7 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({
           servicio_id: servicioId,
           cliente_id: clienteId,
+          encargado_id: encargadoId,
           mascota_id: mascotaId || undefined,
           fecha,
           hora_inicio: slotSel,
@@ -88,7 +101,7 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
     onError: (e: Error) => setError(e.message),
   });
 
-  const puedeConfirmar = clienteId && servicioId && fecha && slotSel && !isPending;
+  const puedeConfirmar = clienteId && servicioId && encargadoId && fecha && slotSel && !isPending;
 
   return (
     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
@@ -171,15 +184,30 @@ export function NuevaCitaForm({ onClose }: { onClose: () => void }) {
         </div>
 
         <div>
+          <label className="text-xs text-gray-500 block mb-1">Encargado *</label>
+          <select
+            value={encargadoId}
+            onChange={(e) => { setEncargadoId(e.target.value); setSlotSel(""); }}
+            className="w-full text-sm border border-gray-300 rounded px-3 py-2"
+          >
+            <option value="">Seleccionar encargado...</option>
+            {encargados.map((enc) => (
+              <option key={enc.id} value={enc.id}>{enc.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className="text-xs text-gray-500 block mb-1">Fecha *</label>
           <Input
             type="date"
+            min={hoy}
             value={fecha}
             onChange={(e) => { setFecha(e.target.value); setSlotSel(""); }}
           />
         </div>
 
-        {servicioId && fecha && (
+        {servicioId && encargadoId && fecha && (
           <div>
             <label className="text-xs text-gray-500 block mb-1">Horario disponible *</label>
             {cargandoSlots && <p className="text-xs text-gray-400 py-2">Consultando disponibilidad...</p>}
