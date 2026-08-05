@@ -132,6 +132,21 @@ export interface ServicioConHorarios extends Servicio {
   servicio_horarios: ServicioHorario[];
 }
 
+// ─── Encargados de servicio (Fase 3) ───────────────────────────────────────
+// Ver docs/plan_sirvientes.md. Entidad independiente (no reutiliza
+// clerk_users/workers). CRUD simple, baja lógica, sin cuenta de sistema.
+
+export interface Encargado {
+  id: string;
+  store_id: string;
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+  citas_totales?: number;      // solo presente en GET /api/encargados (agregado)
+  citas_completadas?: number;  // idem
+}
+
 // ─── Citas de clientes (Fase 2) ──────────────────────────────────────────
 // Ver docs/plan_servicios.md §9-§17. Decisiones §9 aprobadas por el usuario
 // el 2026-08-02.
@@ -144,6 +159,7 @@ export interface Cita {
   servicio_id: string;
   cliente_id: string;
   mascota_id?: string | null;
+  encargado_id?: string | null;
   fecha: string;         // "YYYY-MM-DD"
   hora_inicio: string;   // "HH:MM:SS" tal como lo serializa Postgres TIME al leer
   hora_fin: string;
@@ -159,6 +175,7 @@ export interface Cita {
   cliente?: Pick<Cliente, "nombre" | "telefono">;
   mascota?: Pick<Mascota, "nombre">;
   servicio?: Pick<Servicio, "nombre">;
+  encargado?: Pick<Encargado, "nombre">;
 }
 
 export interface ServicioExcepcion {
