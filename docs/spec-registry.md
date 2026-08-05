@@ -1026,7 +1026,7 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 |----|-------------|-------|------|
 | PROP-04 | servicio_horarios: invariante hora_inicio < hora_fin (aceptado iff true) | ServicioHorarioItemSchema / property-invariants.test.ts | property |
 
-## Citas — Fase 2 (I-CITA-01 a I-CITA-45, U-CITA-01 a U-CITA-26, PROP-05)
+## Citas — Fase 2/3 (I-CITA-01 a I-CITA-56, U-CITA-01 a U-CITA-28, PROP-05)
 
 Citas de clientes contra servicios configurados en Fase 1. Migración
 `066_citas.sql`. Decisiones §9 del plan aprobadas por el usuario
@@ -1066,6 +1066,15 @@ excepciones son admin-only.
 | I-CITA-27 | completar sobre cita ya cancelada → 409 | PATCH /api/citas/[id] | integration |
 | I-CITA-28 | accion no reconocida → 400 (Zod) | PATCH /api/citas/[id] | integration |
 | I-CITA-29 | Cita de otra tienda con completar → 404 | PATCH /api/citas/[id] | integration |
+| I-CITA-46 | POST sin encargado_id → 400 (ahora obligatorio, Fase 3) | POST /api/citas | integration |
+| I-CITA-47 | POST encargado_id de otra tienda (RPC P0002) → 404 | POST /api/citas | integration |
+| I-CITA-48 | POST encargado_id inactivo (RPC P0002) → 404 | POST /api/citas | integration |
+| I-CITA-49 | POST mismo encargado, horarios traslapados (RPC PS004) → 409 | POST /api/citas | integration |
+| I-CITA-50 | POST mismo encargado, mismo horario, distinto servicio (RPC PS004) → 409 | POST /api/citas | integration |
+| I-CITA-51 | POST dos encargados distintos, mismo servicio, mismo horario (RPC PS002) → 409 por límite de servicio_id (diseño confirmado, sin paralelismo) | POST /api/citas | integration |
+| I-CITA-52 | GET detalle incluye encargado.nombre vía join | GET /api/citas/[id] | integration |
+| I-CITA-53 | GET lista filtra por encargado_id | GET /api/citas | integration |
+| I-CITA-56 | POST fecha anterior a hoy → 400 (Zod), no invoca el RPC | POST /api/citas | integration |
 
 ### Integración — /api/servicios/[id]/disponibilidad
 
@@ -1078,6 +1087,8 @@ excepciones son admin-only.
 | I-CITA-34 | Excepción cerrado=false → usa la ventana de la excepción, no la semanal | GET /api/servicios/[id]/disponibilidad | integration |
 | I-CITA-35 | Slots solapados con cita existente no aparecen | GET /api/servicios/[id]/disponibilidad | integration |
 | I-CITA-36 | El último slot generado respeta la duración completa dentro de la ventana | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-54 | Slots donde el encargado ya tiene otra cita (de cualquier servicio) ese día se excluyen | GET /api/servicios/[id]/disponibilidad | integration |
+| I-CITA-55 | Sin encargado_id en query → 400 (ahora obligatorio) | GET /api/servicios/[id]/disponibilidad | integration |
 
 ### Integración — /api/servicios/[id]/excepciones
 
@@ -1112,6 +1123,8 @@ excepciones son admin-only.
 | U-CITA-08 | Payload válido → success | CitaCreateSchema | unit |
 | U-CITA-09 | mascota_id ausente → success (opcional) | CitaCreateSchema | unit |
 | U-CITA-10 | fecha formato inválido → fail | CitaCreateSchema | unit |
+| U-CITA-27 | fecha anterior a hoy → fail | CitaCreateSchema | unit |
+| U-CITA-28 | fecha == hoy → success (límite inclusivo) | CitaCreateSchema | unit |
 | U-CITA-11 | {accion:"cancelar", motivo} → success | CitaAccionSchema | unit |
 | U-CITA-12 | {accion:"cancelar"} sin motivo → fail | CitaAccionSchema | unit |
 | U-CITA-13 | {accion:"completar"}/{accion:"no_show"} → success | CitaAccionSchema | unit |
@@ -1134,3 +1147,35 @@ excepciones son admin-only.
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
 | PROP-05 | calcularSlotsDisponibles: ningún slot generado excede la ventana | lib/disponibilidad / property-invariants.test.ts | property |
+
+## Encargados — Fase 3 (I-ENC-01 a I-ENC-10, U-ENC-01 a U-ENC-04)
+
+Encargados de servicio asignados a cada cita. Migración `067_encargados.sql`.
+Plan `docs/plan_sirvientes.md`. CRUD solo storeAdmin/systemAdmin (§8); GET
+abierto a cualquier staff autenticado. `citas.encargado_id` NULLABLE en BD
+(5 citas históricas quedan "Sin asignar"), obligatorio a nivel de schema de
+aplicación.
+
+### Integración — /api/encargados
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-ENC-01 | POST crea encargado (storeAdmin) → 201; store_id del contexto, no del body | POST /api/encargados | integration |
+| I-ENC-02 | POST sin sesión → 401 | POST /api/encargados | integration |
+| I-ENC-03 | POST rol insuficiente (storeWorker) → 403 | POST /api/encargados | integration |
+| I-ENC-04 | POST nombre duplicado en la misma tienda → 409 | POST /api/encargados | integration |
+| I-ENC-05 | GET lista solo encargados activos de la tienda propia (aislamiento tenant) | GET /api/encargados | integration |
+| I-ENC-06 | GET incluye citas_totales/citas_completadas correctos | GET /api/encargados | integration |
+| I-ENC-07 | PATCH actualiza nombre/activo (storeAdmin) → 200 | PATCH /api/encargados/[id] | integration |
+| I-ENC-08 | PATCH encargado de otra tienda → 404 (IDOR) | PATCH /api/encargados/[id] | integration |
+| I-ENC-09 | DELETE hace soft delete (activo=false), nunca .delete() → 204 | DELETE /api/encargados/[id] | integration |
+| I-ENC-10 | DELETE id inexistente → 404 | DELETE /api/encargados/[id] | integration |
+
+### Unit Zod — schemas de encargados
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-ENC-01 | EncargadoCreateSchema: nombre < 2 chars → fail | lib/validation/encargados | unit |
+| U-ENC-02 | EncargadoCreateSchema: nombre válido → pass | lib/validation/encargados | unit |
+| U-ENC-03 | EncargadoUpdateSchema: todos los campos opcionales → {} pasa | lib/validation/encargados | unit |
+| U-ENC-04 | CitaCreateSchema: sin encargado_id → fail (regresión del cambio a obligatorio) | lib/validation/citas | unit |

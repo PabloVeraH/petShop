@@ -10,6 +10,7 @@ const SERVICIO_ID = "123e4567-e89b-12d3-a456-426614174100";
 const CLIENTE_ID = "123e4567-e89b-12d3-a456-426614174200";
 const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174300";
 const CITA_ID = "123e4567-e89b-12d3-a456-426614174400";
+const ENCARGADO_ID = "123e4567-e89b-12d3-a456-426614174500";
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
@@ -46,12 +47,25 @@ function req(url: string, method = "GET", body?: object) {
 const citaBody = {
   servicio_id: SERVICIO_ID,
   cliente_id: CLIENTE_ID,
+  encargado_id: ENCARGADO_ID,
   mascota_id: MASCOTA_ID,
   fecha: "2026-08-10",
   hora_inicio: "10:00",
 };
 
 const idParams = Promise.resolve({ id: CITA_ID });
+
+// citaBody.fecha ("2026-08-10") es una fecha fija de fixture, no relativa a
+// "hoy" — CitaCreateSchema ahora rechaza fechas pasadas (Zod, no solo el
+// min= del date picker). Se fija el reloj ANTES de esa fecha en todo el
+// archivo para que estos tests no se vuelvan frágiles cuando el calendario
+// real la sobrepase (no hay otro uso de Date en este archivo — verificado).
+beforeAll(() => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-08-01T12:00:00Z"));
+});
+afterAll(() => {
+  jest.useRealTimers();
+});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // POST /api/citas
@@ -142,6 +156,7 @@ describe("POST /api/citas", () => {
       p_servicio_id: SERVICIO_ID,
       p_cliente_id: CLIENTE_ID,
       p_mascota_id: MASCOTA_ID,
+      p_encargado_id: ENCARGADO_ID,
       p_fecha: "2026-08-10",
       p_hora_inicio: "10:00",
       p_notas: null,
@@ -173,12 +188,69 @@ describe("POST /api/citas", () => {
     const sinMascota = {
       servicio_id: citaBody.servicio_id,
       cliente_id: citaBody.cliente_id,
+      encargado_id: citaBody.encargado_id,
       fecha: citaBody.fecha,
       hora_inicio: citaBody.hora_inicio,
     };
     const res = await POST(req("/api/citas", "POST", sinMascota));
     expect(res.status).toBe(201);
     expect(mockRpc).toHaveBeenCalledWith("crear_cita_tx", expect.objectContaining({ p_mascota_id: null }));
+  });
+
+  // I-CITA-46
+  it("I-CITA-46: POST sin encargado_id → 400 (ahora obligatorio, Fase 3)", async () => {
+    const { POST } = await import("@/app/api/citas/route");
+    const sinEncargado = { ...citaBody, encargado_id: undefined };
+    const res = await POST(req("/api/citas", "POST", sinEncargado));
+    expect(res.status).toBe(400);
+  });
+
+  // I-CITA-47
+  it("I-CITA-47: POST encargado_id de otra tienda (RPC P0002) → 404", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: "P0002", message: "Encargado no encontrado o inactivo" } });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", citaBody));
+    expect(res.status).toBe(404);
+  });
+
+  // I-CITA-48
+  it("I-CITA-48: POST encargado_id inactivo (RPC P0002) → 404", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: "P0002", message: "Encargado no encontrado o inactivo" } });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", citaBody));
+    expect(res.status).toBe(404);
+  });
+
+  // I-CITA-49
+  it("I-CITA-49: mismo encargado, horarios traslapados (RPC PS004) → 409", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS004", message: "El encargado ya tiene otra cita en ese horario" } });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", citaBody));
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-50
+  it("I-CITA-50: mismo encargado, mismo horario, DISTINTO servicio (RPC PS004) → 409", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS004", message: "El encargado ya tiene otra cita en ese horario" } });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", { ...citaBody, servicio_id: "223e4567-e89b-12d3-a456-426614174100" }));
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-51
+  it("I-CITA-51: dos encargados distintos, mismo servicio, mismo horario (RPC PS002) → 409 por el límite de servicio_id (diseño confirmado)", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS002", message: "El horario solicitado ya está reservado" } });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", citaBody));
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-56
+  it("I-CITA-56: fecha anterior a hoy → 400 (Zod, no llega a invocar el RPC)", async () => {
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", { ...citaBody, fecha: "2026-07-31" }));
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 
@@ -229,6 +301,19 @@ describe("GET /api/citas", () => {
     expect(eqCalls.find((x) => x.col === "servicio_id")?.val).toBe(SERVICIO_ID);
     expect(eqCalls.find((x) => x.col === "cliente_id")?.val).toBe(CLIENTE_ID);
     expect(eqCalls.find((x) => x.col === "estado")?.val).toBe("confirmada");
+  });
+
+  // I-CITA-53
+  it("I-CITA-53: GET filtra por encargado_id", async () => {
+    const eqCalls: Array<{ col: string; val: unknown }> = [];
+    const c = chain();
+    c.eq = jest.fn().mockImplementation((col: string, val: unknown) => { eqCalls.push({ col, val }); return c; });
+    c.order = jest.fn().mockReturnValue(c);
+    mockFrom.mockReturnValue(c);
+
+    const { GET } = await import("@/app/api/citas/route");
+    await GET(req(`/api/citas?encargado_id=${ENCARGADO_ID}`));
+    expect(eqCalls.find((x) => x.col === "encargado_id")?.val).toBe(ENCARGADO_ID);
   });
 
   // I-CITA-16
@@ -284,6 +369,25 @@ describe("GET /api/citas/[id]", () => {
     expect(body.cliente.nombre).toBe("María");
     expect(body.mascota.nombre).toBe("Firulais");
     expect(body.servicio.nombre).toBe("Corte básico");
+  });
+
+  // I-CITA-52
+  it("I-CITA-52: GET lista incluye encargado.nombre vía join", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: CITA_ID,
+        ...citaBody,
+        hora_fin: "10:30:00",
+        estado: "confirmada",
+        encargado: { nombre: "Juan Pérez" },
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/citas/[id]/route");
+    const res = await GET(req(`/api/citas/${CITA_ID}`), { params: idParams });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.encargado.nombre).toBe("Juan Pérez");
   });
 });
 

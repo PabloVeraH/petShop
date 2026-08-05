@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const SERVICIO_ID = "123e4567-e89b-12d3-a456-426614174100";
+const ENCARGADO_ID = "123e4567-e89b-12d3-a456-426614174500";
 
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
@@ -25,13 +26,17 @@ function req(url: string) {
 // Construye el mock de from() por tabla. Cada tabla recibe un chain con los
 // métodos que el endpoint usa, terminando en el resultado configurado.
 interface Tablas {
-  servicio?: { data: unknown; error: unknown };   // .single()
-  excepcion?: { data: unknown; error: unknown };  // .maybeSingle()
-  horario?: { data: unknown; error: unknown };    // .maybeSingle()
-  citas?: { data: unknown; error: unknown };      // .neq() → promise
+  servicio?: { data: unknown; error: unknown };       // .single()
+  excepcion?: { data: unknown; error: unknown };      // .maybeSingle()
+  horario?: { data: unknown; error: unknown };        // .maybeSingle()
+  citas?: { data: unknown; error: unknown };          // por servicio (1ª consulta .neq())
+  citasEncargado?: { data: unknown; error: unknown }; // por encargado (2ª consulta .neq())
 }
 
 function mockTablas(t: Tablas) {
+  // La ruta consulta citas DOS veces (por servicio y por encargado); el
+  // endpoint devuelve para la 1ª t.citas y para la 2ª t.citasEncargado.
+  let citasCalls = 0;
   mockFrom.mockImplementation((tabla: string) => {
     if (tabla === "servicios") {
       return {
@@ -55,7 +60,10 @@ function mockTablas(t: Tablas) {
     if (tabla === "citas") {
       return {
         select: () => ({
-          eq: () => ({ eq: () => ({ eq: () => ({ neq: () => Promise.resolve(t.citas) }) }) }),
+          eq: () => ({ eq: () => ({ eq: () => ({ neq: () => {
+            citasCalls++;
+            return Promise.resolve(citasCalls === 1 ? t.citas : (t.citasEncargado ?? t.citas));
+          } }) }) }),
         }),
       };
     }
@@ -78,7 +86,7 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
   it("I-CITA-30: servicio de otra tienda → 404", async () => {
     mockTablas({ servicio: { data: null, error: null } });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(404);
   });
 
@@ -99,7 +107,7 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
       horario: { data: null, error: null },
     });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -111,7 +119,7 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
       excepcion: { data: { cerrado: true, hora_inicio: null, hora_fin: null }, error: null },
     });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([]);
   });
@@ -124,7 +132,7 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
       citas: { data: [], error: null },
     });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     const body = await res.json();
     // Ventana 14:00-16:00 con slots de 30min: 14:00, 14:30, 15:00, 15:30
@@ -142,7 +150,7 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
       citas: { data: [{ hora_inicio: "09:30:00", hora_fin: "10:00:00" }], error: null },
     });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     const body = await res.json();
     // Ventana 09:00-11:00 con slots de 30min: 09:00, 09:30(ocupado), 10:00, 10:30
@@ -159,12 +167,38 @@ describe("GET /api/servicios/[id]/disponibilidad", () => {
       citas: { data: [], error: null },
     });
     const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
-    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
     expect(res.status).toBe(200);
     const body = await res.json();
     // Ventana 09:00-10:30 con duración 60min: solo cabe 09:00-10:00.
     // El siguiente slot sería 10:00-11:00 que excede 10:30 → no se genera.
     expect(body).toHaveLength(1);
     expect(body[0]).toEqual({ hora_inicio: "09:00", hora_fin: "10:00" });
+  });
+
+  // I-CITA-54
+  it("I-CITA-54: slots donde el encargado ya tiene otra cita (de cualquier servicio) ese día se excluyen", async () => {
+    // El servicio NO tiene citas (citas=[]), pero el encargado está ocupado
+    // 09:30-10:00 en otro servicio → el slot 09:30 desaparece igualmente.
+    mockTablas({
+      servicio: SERVICIO_OK,
+      excepcion: { data: null, error: null },
+      horario: { data: { hora_inicio: "09:00:00", hora_fin: "11:00:00" }, error: null },
+      citas: { data: [], error: null },
+      citasEncargado: { data: [{ hora_inicio: "09:30:00", hora_fin: "10:00:00" }], error: null },
+    });
+    const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}&encargado_id=${ENCARGADO_ID}`), { params: idParams });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Ventana 09:00-11:00, 30min: 09:00, 09:30(ocupado por encargado), 10:00, 10:30
+    expect(body.map((s: { hora_inicio: string }) => s.hora_inicio)).toEqual(["09:00", "10:00", "10:30"]);
+  });
+
+  // I-CITA-55
+  it("I-CITA-55: sin encargado_id en query → 400 (ahora obligatorio)", async () => {
+    const { GET } = await import("@/app/api/servicios/[id]/disponibilidad/route");
+    const res = await GET(req(`/api/servicios/${SERVICIO_ID}/disponibilidad?fecha=${LUNES}`), { params: idParams });
+    expect(res.status).toBe(400);
   });
 });

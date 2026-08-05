@@ -12,6 +12,8 @@ import {
   CitaCreateSchema,
   CitaAccionSchema,
   ServicioExcepcionCreateSchema,
+  EncargadoCreateSchema,
+  EncargadoUpdateSchema,
 } from "@/lib/validation";
 
 const VALID_UUID = "123e4567-e89b-12d3-a456-426614174000";
@@ -355,11 +357,23 @@ describe("ServicioHorariosReplaceSchema", () => {
 const CITA_BASE = {
   servicio_id: "123e4567-e89b-12d3-a456-426614174100",
   cliente_id: "123e4567-e89b-12d3-a456-426614174200",
+  encargado_id: "123e4567-e89b-12d3-a456-426614174500",
   fecha: "2026-08-10",
   hora_inicio: "10:00",
 };
 
 describe("CitaCreateSchema", () => {
+  // CITA_BASE.fecha ("2026-08-10") es una fecha fija de fixture, no relativa
+  // a "hoy" — el schema ahora rechaza fechas pasadas (ver CitaCreateSchema en
+  // lib/validation/citas.ts), así que estos tests fijan el reloj ANTES de esa
+  // fecha para no volverse frágiles cuando el calendario real la sobrepase.
+  beforeAll(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-08-01T12:00:00Z"));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   it("U-CITA-08: payload válido → success", () => {
     expect(CitaCreateSchema.safeParse(CITA_BASE).success).toBe(true);
   });
@@ -372,6 +386,16 @@ describe("CitaCreateSchema", () => {
   it("U-CITA-10: fecha formato inválido → fail", () => {
     expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "10-08-2026" }).success).toBe(false);
     expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "2026/08/10" }).success).toBe(false);
+  });
+
+  // U-CITA-27
+  it("U-CITA-27: fecha anterior a hoy → fail", () => {
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "2026-07-31" }).success).toBe(false);
+  });
+
+  // U-CITA-28
+  it("U-CITA-28: fecha == hoy → success (mismo día permitido, límite inclusivo)", () => {
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, fecha: "2026-08-01" }).success).toBe(true);
   });
 });
 
@@ -423,5 +447,37 @@ describe("ServicioExcepcionCreateSchema", () => {
         hora_fin: "09:00",
       }).success
     ).toBe(false);
+  });
+});
+
+// ─── Encargados (U-ENC-01 a U-ENC-04) ────────────────────────────────────────
+
+describe("EncargadoCreateSchema", () => {
+  // U-ENC-01
+  it("U-ENC-01: nombre con menos de 2 caracteres → fail", () => {
+    expect(EncargadoCreateSchema.safeParse({ nombre: "A" }).success).toBe(false);
+    expect(EncargadoCreateSchema.safeParse({ nombre: "" }).success).toBe(false);
+  });
+
+  // U-ENC-02
+  it("U-ENC-02: nombre válido → pass", () => {
+    expect(EncargadoCreateSchema.safeParse({ nombre: "Juan Pérez" }).success).toBe(true);
+    expect(EncargadoCreateSchema.safeParse({ nombre: "María" }).success).toBe(true);
+  });
+});
+
+describe("EncargadoUpdateSchema", () => {
+  // U-ENC-03
+  it("U-ENC-03: todos los campos opcionales → {} pasa", () => {
+    expect(EncargadoUpdateSchema.safeParse({}).success).toBe(true);
+    expect(EncargadoUpdateSchema.safeParse({ nombre: "Juan" }).success).toBe(true);
+    expect(EncargadoUpdateSchema.safeParse({ activo: false }).success).toBe(true);
+  });
+});
+
+describe("CitaCreateSchema — encargado_id obligatorio", () => {
+  // U-ENC-04
+  it("U-ENC-04: sin encargado_id → fail (regresión del cambio a obligatorio)", () => {
+    expect(CitaCreateSchema.safeParse({ ...CITA_BASE, encargado_id: undefined }).success).toBe(false);
   });
 });
