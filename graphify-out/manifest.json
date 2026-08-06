@@ -725,7 +725,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
-    "mtime": 1785964777.0166404,
+    "mtime": 1785968773.369783,
     "ast_hash": "335be6561c5563d28b875a0a737d3f56",
     "semantic_hash": ""
   },
@@ -1675,7 +1675,7 @@
     "semantic_hash": "5a6fd53fdcf2be529e9cc0b718fde352"
   },
   "src/lib/validation.ts": {
-    "mtime": 1785964687.7183886,
+    "mtime": 1785968773.370022,
     "ast_hash": "7d5142a8dc7d5c82713f975bb95e19bb",
     "semantic_hash": ""
   },
@@ -1735,7 +1735,7 @@
     "semantic_hash": ""
   },
   "src/types/index.ts": {
-    "mtime": 1785964669.1279197,
+    "mtime": 1785968773.370022,
     "ast_hash": "c78fc9da9e880371252d23f853b94b89",
     "semantic_hash": ""
   },
@@ -2455,7 +2455,7 @@
     "semantic_hash": "d226f12e6dd29c65ef300f77f7902828"
   },
   "tests/unit/lib/validation.test.ts": {
-    "mtime": 1785968117.2782736,
+    "mtime": 1785968773.370022,
     "ast_hash": "476afc433ad5625ec23785b2d069bc80",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1785968196.2384505,
-    "ast_hash": "f8366e6f5510babcb468b03d659a57ac",
+    "mtime": 1786027544.5096283,
+    "ast_hash": "42a1ce0e3994e05d8a0b18946557a032",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4045,27 +4045,27 @@
     "semantic_hash": ""
   },
   "migrations/067_encargados.sql": {
-    "mtime": 1785966900.857119,
+    "mtime": 1785968773.368525,
     "ast_hash": "d5f1a25d3b38cf665c6b62cca70e595b",
     "semantic_hash": ""
   },
   "scripts/reset-demo-data.sql": {
-    "mtime": 1785963323.9162254,
+    "mtime": 1785968773.368525,
     "ast_hash": "6b87c7ba21f2ad8a03fac4e425d293af",
     "semantic_hash": ""
   },
   "scripts/reset-servicios-citas.sql": {
-    "mtime": 1785964076.944027,
+    "mtime": 1785968773.3695517,
     "ast_hash": "b0598744f87e324331e8d66dc86ed9a4",
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/CitasTab.tsx": {
-    "mtime": 1785968020.6990252,
+    "mtime": 1785968773.3695517,
     "ast_hash": "19b3a7225989f375c42d1458c5736d77",
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/NuevaCitaForm.tsx": {
-    "mtime": 1785968049.7801,
+    "mtime": 1785968773.3695517,
     "ast_hash": "2e3a0f56e25303ad0e855ca1bfc9a3cb",
     "semantic_hash": ""
   },
@@ -4080,12 +4080,12 @@
     "semantic_hash": ""
   },
   "src/app/(app)/encargados/components/EncargadosTab.tsx": {
-    "mtime": 1785964763.1012895,
+    "mtime": 1785968773.369783,
     "ast_hash": "1c5fb90b88e0d043d49c81d734a1168e",
     "semantic_hash": ""
   },
   "src/app/(app)/encargados/page.tsx": {
-    "mtime": 1785964768.8334339,
+    "mtime": 1785968773.369783,
     "ast_hash": "2320d0b499b1ee5e0a4f619373b535a4",
     "semantic_hash": ""
   },
@@ -4110,27 +4110,27 @@
     "semantic_hash": ""
   },
   "src/app/api/citas/[id]/route.ts": {
-    "mtime": 1785964724.3863132,
+    "mtime": 1785968773.369783,
     "ast_hash": "975f24457f78f784ff961ebd47eb986e",
     "semantic_hash": ""
   },
   "src/app/api/citas/route.ts": {
-    "mtime": 1785964719.0501785,
+    "mtime": 1785968773.369783,
     "ast_hash": "54f950a26921e2481694342879a3f9f1",
     "semantic_hash": ""
   },
   "src/app/api/encargados/[id]/route.ts": {
-    "mtime": 1785964707.3768842,
+    "mtime": 1785968773.370022,
     "ast_hash": "558d38d4f2bbcf2ed73249cfd9687b9a",
     "semantic_hash": ""
   },
   "src/app/api/encargados/route.ts": {
-    "mtime": 1785964696.9936223,
+    "mtime": 1785968773.370022,
     "ast_hash": "0e2c67fa79b75a77d628f2f6a85c3c40",
     "semantic_hash": ""
   },
   "src/app/api/servicios/[id]/disponibilidad/route.ts": {
-    "mtime": 1785964738.5186696,
+    "mtime": 1785968773.370022,
     "ast_hash": "3ba7276c0525bcb20538a8e5a4e8136f",
     "semantic_hash": ""
   },
@@ -4165,12 +4165,12 @@
     "semantic_hash": ""
   },
   "src/lib/validation/citas.ts": {
-    "mtime": 1785968229.0715117,
+    "mtime": 1785968773.370022,
     "ast_hash": "11e2b380e939ec412cd3e8640ec82c4d",
     "semantic_hash": ""
   },
   "src/lib/validation/encargados.ts": {
-    "mtime": 1785964674.2030478,
+    "mtime": 1785968773.370022,
     "ast_hash": "968ed3a72c1cbb1bd52d4767a578c655",
     "semantic_hash": ""
   },
@@ -4180,17 +4180,17 @@
     "semantic_hash": ""
   },
   "tests/integration/api/citas.test.ts": {
-    "mtime": 1785968166.9943962,
+    "mtime": 1785968773.370022,
     "ast_hash": "bf68e3e7747a7c3058ef57e4b1fc5e3a",
     "semantic_hash": ""
   },
   "tests/integration/api/encargados.test.ts": {
-    "mtime": 1785964872.3655944,
+    "mtime": 1785968773.370022,
     "ast_hash": "1aef86749a10d73745fa2d0aff06b2a7",
     "semantic_hash": ""
   },
   "tests/integration/api/servicios-disponibilidad.test.ts": {
-    "mtime": 1785964960.4427617,
+    "mtime": 1785968773.370022,
     "ast_hash": "92354bdc8a87f6fc8f403a5d0f2e4a8d",
     "semantic_hash": ""
   },
@@ -4220,13 +4220,28 @@
     "semantic_hash": ""
   },
   "docs/plan_sirvientes.md": {
-    "mtime": 1785964092.011939,
+    "mtime": 1785968773.355525,
     "ast_hash": "d29217ca7f3667bcddadf0bea8fce124",
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/date-utils.ts": {
-    "mtime": 1785968000.1279724,
+    "mtime": 1785968773.3695517,
     "ast_hash": "dd84f578337436bce020200465a836d8",
+    "semantic_hash": ""
+  },
+  "tests/components/CitasTab.test.tsx": {
+    "mtime": 1786027433.1576304,
+    "ast_hash": "e99b73991486f755c114e0917ebb58e9",
+    "semantic_hash": ""
+  },
+  "tests/components/EncargadosTab.test.tsx": {
+    "mtime": 1786027433.1919298,
+    "ast_hash": "b062b6a1311c02951dc509774420c96a",
+    "semantic_hash": ""
+  },
+  "tests/components/NuevaCitaForm.test.tsx": {
+    "mtime": 1786027433.1197958,
+    "ast_hash": "302d6dd1ba5e064280945147075c1419",
     "semantic_hash": ""
   }
 }
