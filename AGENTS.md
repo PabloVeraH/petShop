@@ -117,11 +117,19 @@ alguno:
    — porque el registry puede estar desincronizado del código. Registra el ID
    nuevo en el registry en el mismo commit.
 4. **Suite** (cambios de código): `npm run build && npm test` en verde (o
-   fallos preexistentes demostrados como tales, ver §19.2), `npm run typecheck`
+   fallos preexistentes demostrados como tales, ver §19.3), `npm run typecheck`
    y `npm run lint` sin errores nuevos introducidos por el cambio.
 5. **Diff**: revisa el diff completo — sin logs de depuración, código
    temporal, imports muertos, secretos ni cambios de formato ajenos.
-6. **Cierre**: emite el formato de §22. No es opcional ni implícito.
+6. **Test de funcionamiento y seguridad de funcionalidad nueva**: si el
+   cambio agrega o modifica un endpoint, RPC, migración con lógica, store,
+   hook o componente de UI con estado/fetch propio, existen tests que
+   prueban **tanto que funciona como que es seguro** — en **backend y
+   frontend**, nunca solo uno de los dos. Detalle exacto de qué cubrir en
+   cada capa: §19.1. Que `typecheck`/`lint`/`build` pasen **no** es evidencia
+   de que el módulo está probado — ninguno de los tres ejecuta el código ni
+   renderiza un componente.
+7. **Cierre**: emite el formato de §22. No es opcional ni implícito.
 
 ## 3. Jerarquía de fuentes
 
@@ -664,14 +672,86 @@ IDs de test — los principales: `I-NNN` integración, `SEC-NN` seguridad,
 
 Tests de propiedades en `tests/unit/lib/property-invariants.test.ts`.
 
-### 19.1 Estrategia de ejecución
+### 19.1 Test obligatorios para funcionalidad nueva: funcionamiento y seguridad, backend y frontend
+
+Toda funcionalidad **nueva o modificada con comportamiento propio** (endpoint,
+Route Handler, función RPC/SQL con lógica, store, hook, componente de UI con
+estado o fetch) se entrega con tests automatizados que prueben dos cosas
+**por separado**, no una sola: que **funciona** (camino feliz + variantes
+principales del dominio) y que **es segura** (todo acceso no autorizado o
+fuera de límite falla de la forma correcta). Ninguna de las dos se puede dar
+por sentada a partir de que el build compila, `typecheck`/`lint` pasan, o el
+código "se ve correcto" en revisión — ninguna de esas tres señales ejecuta
+una sola línea del código nuevo.
+
+**No declares una funcionalidad "testeada" cubriendo solo el backend.**
+Regresión real de este proyecto: un módulo construido en varias fases
+(servicios agendables → citas → encargados) acumuló endpoints y funciones RPC
+con tests de integración sólidos — auth, roles, aislamiento de tenant, IDOR —
+mientras sus componentes de UI correspondientes quedaron en **0% de
+cobertura real**: ningún test los renderizaba ni ejercitaba una sola
+interacción. El build, el typecheck y el lint pasaron en verde durante todo
+ese tiempo; ninguno de los tres detecta un componente sin test — hizo falta
+una auditoría explícita para encontrarlo. Antes de dar por cerrada una
+funcionalidad que toca UI, corre `npm run test:coverage` y confirma
+explícitamente que los archivos nuevos o modificados bajo `src/app/**` con
+lógica propia aparecen con cobertura mayor a 0% — no infieras "componente
+probado" a partir de "typecheck limpio".
+
+**Backend — mínimo por endpoint/RPC/función SQL nueva o modificada:**
+
+- Camino feliz: el caso de uso principal produce el resultado esperado.
+- 401 sin sesión; 403 con rol insuficiente, cuando el endpoint lo exija.
+- Aislamiento de tenant: un recurso de otra tienda no es visible ni editable
+  (IDOR) — responde 404, nunca datos ajenos ni un 403 que confirme que el
+  recurso existe.
+- Entrada maliciosa o inesperada: campos de autoridad enviados desde el
+  cliente (`store_id`, roles, IDs de propietario) se ignoran o se rechazan
+  explícitamente — nunca se persisten tal cual (§6.2); la validación Zod
+  rechaza tipos, formatos y rangos inválidos en el límite de confianza (§8).
+- Casos límite del dominio: entidad inexistente, inactiva, duplicada, o en un
+  estado que no admite la operación solicitada. Usa §6.5 (pruebas negativas
+  de datos tenant-scoped) y §21 (matriz de verificaciones condicionales por
+  área) como checklist adicional según lo que el cambio toque.
+
+**Frontend — mínimo por componente nuevo o modificado con estado o fetch
+propio** (no aplica a componentes puramente presentacionales sin estado
+propio ni llamadas a red):
+
+- Se renderiza sin errores con datos representativos, incluyendo el caso
+  vacío/sin datos y el caso de carga.
+- Cada control que dispara una mutación (crear, editar, borrar, confirmar)
+  se prueba disparando el evento real y verificando la llamada real a la
+  API — URL, método y body — no basta con que el botón exista en el markup;
+  eso no prueba que hace lo correcto al presionarlo.
+- Si el componente aplica un gate de rol/permiso en la UI (mostrar u ocultar
+  algo según admin/worker), ese gate se prueba — y se documenta en el test
+  que es una conveniencia de UX, nunca el control de seguridad real (que
+  vive en el servidor, ver §5); un gate de cliente sin su contraparte server
+  autorizada en el endpoint no es un control de seguridad, es una sugerencia.
+- Los estados de error de red o de la API se reflejan en la UI de forma
+  verificable — un test los provoca (mock de fetch con `ok: false`) y
+  confirma que el mensaje llega a pantalla, no se silencia.
+
+**Cuando la misma regla vive en dos capas** (ejemplo: un `min` de fecha en un
+`<input type="date">` del cliente y un `.refine()` equivalente en el schema
+del servidor), el test del servidor es el que realmente prueba la regla de
+negocio — el del cliente prueba únicamente la experiencia de usuario. No
+sustituyas uno por el otro: el chequeo de UI es trivialmente evadible con un
+request directo a la API, con curl, o con las herramientas de desarrollador
+del navegador.
+
+Aplica el gate §2.3 (grep de las dos fuentes de IDs) al nombrar estos tests
+nuevos, y regístralos en `docs/spec-registry.md` en el mismo commit.
+
+### 19.2 Estrategia de ejecución
 
 Durante el desarrollo: primero el test de regresión específico, luego la suite
 del módulo, `typecheck`/`lint` cuando corresponda. Al finalizar, como mínimo
 `npm run build && npm test`. Si no puedes ejecutar algo por límites del
 entorno, márcalo **pendiente** y reporta qué sí ejecutaste.
 
-### 19.2 Fallos preexistentes
+### 19.3 Fallos preexistentes
 
 No declares un fallo como preexistente solo porque parece no relacionado.
 Evidencia aceptable: se reproduce sin tu cambio (ej. con `git stash`), afecta
