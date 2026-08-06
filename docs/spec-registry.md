@@ -1026,7 +1026,7 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 |----|-------------|-------|------|
 | PROP-04 | servicio_horarios: invariante hora_inicio < hora_fin (aceptado iff true) | ServicioHorarioItemSchema / property-invariants.test.ts | property |
 
-## Citas — Fase 2/3 (I-CITA-01 a I-CITA-56, U-CITA-01 a U-CITA-28, PROP-05)
+## Citas — Fase 2/3 (I-CITA-01 a I-CITA-56, U-CITA-01 a U-CITA-28, NCF-01 a NCF-07, CTB-01 a CTB-04, PROP-05)
 
 Citas de clientes contra servicios configurados en Fase 1. Migración
 `066_citas.sql`. Decisiones §9 del plan aprobadas por el usuario
@@ -1142,13 +1142,32 @@ excepciones son admin-only.
 | U-CITA-25 | autoFormatRUT: ruido y max 9 car. | app/(app)/citas/components/rut-format | unit |
 | U-CITA-26 | formatRUTMiles: 1-3 sin formato, 4-8 miles, 9 con guion DV | app/(app)/citas/components/rut-format | unit |
 
+### Componentes — NuevaCitaForm y CitasTab
+
+Cerrado el vacío de cobertura frontend detectado en revisión (0% en
+`CitasTab.tsx`/`NuevaCitaForm.tsx` hasta esta fecha).
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| NCF-01 | Sin fechaInicial, el campo Fecha se precarga con hoy | NuevaCitaForm | component |
+| NCF-02 | Con fechaInicial futura, el campo Fecha se precarga con ese valor | NuevaCitaForm | component |
+| NCF-03 | Con fechaInicial pasada, el campo Fecha se precarga con hoy (clamp), no con la fecha pasada | NuevaCitaForm | component |
+| NCF-04 | El input de fecha tiene min=hoy (bloquea fechas pasadas en el date picker) | NuevaCitaForm | component |
+| NCF-05 | No consulta disponibilidad hasta tener servicio + encargado + fecha (no solo servicio+fecha) | NuevaCitaForm | component |
+| NCF-06 | 'Agendar cita' permanece deshabilitado sin encargado, aunque haya cliente/servicio/fecha | NuevaCitaForm | component |
+| NCF-07 | Al agendar, el body de POST /api/citas incluye encargado_id | NuevaCitaForm | component |
+| CTB-01 | Fila con encargado asignado muestra su nombre | CitasTab | component |
+| CTB-02 | Fila sin encargado (encargado_id NULL) muestra 'Sin asignar' | CitasTab | component |
+| CTB-03 | Cambiar el filtro Encargado agrega encargado_id a la URL de /api/citas | CitasTab | component |
+| CTB-04 | '+ Nueva cita' pasa la fecha del filtro del listado como fechaInicial al formulario | CitasTab | component |
+
 ### Property — PROP-05
 
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
 | PROP-05 | calcularSlotsDisponibles: ningún slot generado excede la ventana | lib/disponibilidad / property-invariants.test.ts | property |
 
-## Encargados — Fase 3 (I-ENC-01 a I-ENC-10, U-ENC-01 a U-ENC-04)
+## Encargados — Fase 3 (I-ENC-01 a I-ENC-10, U-ENC-01 a U-ENC-04, ENC-01 a ENC-06)
 
 Encargados de servicio asignados a cada cita. Migración `067_encargados.sql`.
 Plan `docs/plan_sirvientes.md`. CRUD solo storeAdmin/systemAdmin (§8); GET
@@ -1179,3 +1198,19 @@ aplicación.
 | U-ENC-02 | EncargadoCreateSchema: nombre válido → pass | lib/validation/encargados | unit |
 | U-ENC-03 | EncargadoUpdateSchema: todos los campos opcionales → {} pasa | lib/validation/encargados | unit |
 | U-ENC-04 | CitaCreateSchema: sin encargado_id → fail (regresión del cambio a obligatorio) | lib/validation/citas | unit |
+
+### Componentes — EncargadosTab
+
+Cerrado el vacío de cobertura frontend detectado en revisión (0% en
+`CitasTab.tsx`, `NuevaCitaForm.tsx`, `EncargadosTab.tsx`, `date-utils.ts` —
+patrón preexistente compartido con `ServiciosTab.tsx` de Fase 1, nunca
+cerrado hasta ahora).
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| ENC-01 | Usuario sin rol admin no ve el formulario CRUD, solo el mensaje | EncargadosTab | component |
+| ENC-02 | Usuario admin ve la lista con citas_totales/citas_completadas | EncargadosTab | component |
+| ENC-03 | Crear encargado llama a POST /api/encargados con el nombre ingresado | EncargadosTab | component |
+| ENC-04 | 'Editar' precarga el formulario; 'Guardar cambios' llama a PATCH /api/encargados/[id] | EncargadosTab | component |
+| ENC-05 | 'Desactivar' pide confirmación; confirmar llama a DELETE /api/encargados/[id] | EncargadosTab | component |
+| ENC-06 | 'Cancelar' en el modal de confirmación NO llama a DELETE | EncargadosTab | component |
