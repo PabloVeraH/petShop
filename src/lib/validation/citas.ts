@@ -34,7 +34,29 @@ export const CitaAccionSchema = z.discriminatedUnion("accion", [
     accion: z.literal("cancelar"),
     motivo: z.string().min(5, "El motivo debe tener al menos 5 caracteres").max(500),
   }),
-  z.object({ accion: z.literal("completar") }),
+  // Rama "completar" (Fase 4): metodoPago/numeroTransaccion/pagoNc quedan
+  // opcionales a nivel de schema porque la misma acción sirve para citas
+  // legado sin precio (§3g), donde no se envía nada de esto. La ruta API
+  // decide en runtime si son obligatorios según si la cita tiene precio —
+  // Zod valida forma, no la regla de negocio condicional al registro.
+  z.object({
+    accion: z.literal("completar"),
+    metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia"]).optional(),
+    numeroTransaccion: z.string().optional(),
+    pagoNc: z.object({
+      nota_credito_id: UUIDSchema,
+      numero_nc: z.string(),
+      monto: z.number().positive(),
+    }).optional(),
+  }).superRefine((val, ctx) => {
+    if (["debito", "credito", "transferencia"].includes(val.metodoPago ?? "") && !val.numeroTransaccion?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
+        path: ["numeroTransaccion"],
+      });
+    }
+  }),
   z.object({ accion: z.literal("no_show") }),
 ]);
 

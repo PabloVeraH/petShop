@@ -25,7 +25,7 @@ export async function GET(
       id, store_id, numero_comprobante, total, subtotal, descuento, impuesto,
       created_at, estado, worker_clerk_id,
       clientes(id, nombre, telefono, email, rut),
-      venta_items(cantidad, precio_unitario, subtotal, productos(nombre, sku))
+      venta_items(cantidad, precio_unitario, subtotal, productos(nombre, sku), servicios(nombre))
     `
     )
     .eq("id", ventaId)
@@ -112,6 +112,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
   const itemsDetalle = items
     .map((item: any) => {
       const prod = item.productos as any;
+      const serv = item.servicios as { nombre?: string } | null;
       const cantidad = item.cantidad;
       const precio = Number(item.precio_unitario);
       const subtotal = Number(item.subtotal);
@@ -122,7 +123,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
         : `${cantidad} x $${precio.toLocaleString("es-CL")}`;
 
       return `      <tr>
-        <td>${prod?.nombre ?? "Producto"}${item.es_granel ? " (Granel)" : ""}</td>
+        <td>${prod?.nombre ?? serv?.nombre ?? "Producto"}${item.es_granel ? " (Granel)" : ""}</td>
         <td style="text-align: center">${cantidadDisplay}</td>
         <td style="text-align: right">$${precio.toLocaleString("es-CL")}</td>
         <td style="text-align: right">$${subtotal.toLocaleString("es-CL")}</td>

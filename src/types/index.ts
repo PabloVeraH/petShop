@@ -39,7 +39,10 @@ export interface Mascota {
 export interface VentaItem {
   id: string;
   venta_id: string;
-  producto_id: string;
+  // XOR en la BD (migración 068): exactamente uno de producto_id/servicio_id
+  // por línea. Las líneas de servicio dejan producto_id en null.
+  producto_id: string | null;
+  servicio_id?: string | null;
   mascota_id?: string;
   cantidad: number;
   precio_unitario: number;
@@ -109,6 +112,9 @@ export interface Servicio {
   nombre: string;
   descripcion?: string | null;
   duracion_minutos: number;
+  // Precio bruto (IVA incluido), AGENTS.md §0.8. NULL para servicios creados
+  // antes de la migración 068 — la obligatoriedad es de aplicación (Fase 4).
+  precio: number | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -164,6 +170,12 @@ export interface Cita {
   hora_inicio: string;   // "HH:MM:SS" tal como lo serializa Postgres TIME al leer
   hora_fin: string;
   duracion_minutos: number;
+  // Snapshot de servicios.precio al crear la cita (Fase 4); NULL para citas
+  // legado creadas antes de la migración 068.
+  precio: number | null;
+  // Se llena al completar la cita con pago (completar_cita_tx); queda NULL
+  // para citas legado y citas completadas por el camino sin cobro.
+  venta_id?: string | null;
   estado: CitaEstado;
   notas?: string | null;
   motivo_cancelacion?: string | null;

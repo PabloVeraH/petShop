@@ -70,6 +70,7 @@ export async function PATCH(
   if (parsed.data.nombre !== undefined) updates.nombre = parsed.data.nombre.trim();
   if (parsed.data.descripcion !== undefined) updates.descripcion = parsed.data.descripcion?.trim() || null;
   if (parsed.data.duracion_minutos !== undefined) updates.duracion_minutos = parsed.data.duracion_minutos;
+  if (parsed.data.precio !== undefined) updates.precio = parsed.data.precio;
   if (parsed.data.activo !== undefined) updates.activo = parsed.data.activo;
 
   if (Object.keys(updates).length === 0) {

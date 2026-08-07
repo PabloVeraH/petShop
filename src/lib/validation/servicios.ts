@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PriceSchema } from "./primitives";
 
 // Regex local (no en primitives.ts): mismo precedente que el regex de fecha
 // en inventario.ts, tampoco centralizado — nada más lo usa hoy (YAGNI).
@@ -17,12 +18,16 @@ export const ServicioCreateSchema = z.object({
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   descripcion: z.string().max(500).optional(),
   duracion_minutos: DuracionMinutosSchema,
+  // Precio bruto (IVA incluido) obligatorio para servicios NUEVOS (Fase 4).
+  precio: PriceSchema,
 });
 
 export const ServicioUpdateSchema = z.object({
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   descripcion: z.string().max(500).optional(),
   duracion_minutos: DuracionMinutosSchema.optional(),
+  // Opcional: permite completar el precio de servicios existentes sin precio.
+  precio: PriceSchema.optional(),
   activo: z.boolean().optional(),
 });
 

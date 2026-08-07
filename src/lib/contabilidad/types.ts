@@ -84,6 +84,9 @@ export const CUENTAS = {
   IVA_PAGAR: { codigo: '210501', nombre: 'IVA por Pagar', tipo: 'PASIVO' as TipoCuenta },
   VENTAS: { codigo: '410101', nombre: 'Venta de Productos', tipo: 'INGRESO' as TipoCuenta },
   DEVOLUCIONES: { codigo: '410102', nombre: 'Devoluciones en Ventas', tipo: 'INGRESO' as TipoCuenta },
+  // Línea de negocio separada en el Estado de Resultado (Fase 4 — cobro de
+  // citas de servicios). Siguiente código libre de la serie de ingresos.
+  VENTAS_SERVICIOS: { codigo: '410103', nombre: 'Venta de Servicios', tipo: 'INGRESO' as TipoCuenta },
   COGS: { codigo: '510101', nombre: 'Costo de Bienes Vendidos', tipo: 'GASTO' as TipoCuenta },
   // Cuentas por cobrar por canal
   CXC_RAPPI: { codigo: '110401', nombre: 'CxC Rappi', tipo: 'ACTIVO' as TipoCuenta },

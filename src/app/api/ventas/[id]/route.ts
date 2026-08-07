@@ -35,7 +35,7 @@ export async function GET(
 
   const { data: items } = await supabase
     .from("venta_items")
-    .select("id, cantidad, precio_unitario, subtotal, productos(nombre, sku)")
+    .select("id, cantidad, precio_unitario, subtotal, productos(nombre, sku), servicios(nombre)")
     .eq("venta_id", id);
 
   const { data: pagos } = await supabase

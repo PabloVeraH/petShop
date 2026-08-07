@@ -322,6 +322,99 @@ export function lineasVentaConNc(params: {
   return lineas;
 }
 
+// Asiento de ingreso del cobro de una cita completada (servicio). Espejo de
+// lineasVenta pero acreditando VENTAS_SERVICIOS (410103) en vez de VENTAS —
+// separa la línea de negocio de servicios en el Estado de Resultado (Fase 4).
+export function lineasVentaServicio(params: {
+  metodoPago: string;
+  montoNeto: number;
+  iva: number;
+  total: number;
+}): LineaAsiento[] {
+  const cuentaCaja = params.metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+
+  return [
+    {
+      cuentaCodigo: cuentaCaja.codigo,
+      cuentaNombre: cuentaCaja.nombre,
+      cuentaTipo: cuentaCaja.tipo,
+      debito: params.total,
+      credito: 0,
+      descripcionLinea: "Cobro cita (servicio)",
+    },
+    {
+      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      debito: 0,
+      credito: params.iva,
+      descripcionLinea: "IVA 19%",
+    },
+    {
+      cuentaCodigo: CUENTAS.VENTAS_SERVICIOS.codigo,
+      cuentaNombre: CUENTAS.VENTAS_SERVICIOS.nombre,
+      cuentaTipo: CUENTAS.VENTAS_SERVICIOS.tipo,
+      debito: 0,
+      credito: params.montoNeto,
+      descripcionLinea: "Ingreso por servicio",
+    },
+  ];
+}
+
+// Asiento del cobro de cita pagada total o parcialmente con nota de crédito.
+// Espejo de lineasVentaConNc acreditando VENTAS_SERVICIOS (410103).
+export function lineasVentaServicioConNc(params: {
+  montoNeto: number;
+  iva: number;
+  total: number;
+  montoNc: number;
+  montoResto: number;
+  metodoPagoResto?: string;
+}): LineaAsiento[] {
+  const lineas: LineaAsiento[] = [];
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
+    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
+    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
+    debito: params.montoNc,
+    credito: 0,
+    descripcionLinea: "Pago con Nota de Crédito",
+  });
+
+  if (params.montoResto > 0) {
+    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+    lineas.push({
+      cuentaCodigo: cuentaCaja.codigo,
+      cuentaNombre: cuentaCaja.nombre,
+      cuentaTipo: cuentaCaja.tipo,
+      debito: params.montoResto,
+      credito: 0,
+      descripcionLinea: "Cobro diferencia cita",
+    });
+  }
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+    debito: 0,
+    credito: params.iva,
+    descripcionLinea: "IVA 19%",
+  });
+
+  lineas.push({
+    cuentaCodigo: CUENTAS.VENTAS_SERVICIOS.codigo,
+    cuentaNombre: CUENTAS.VENTAS_SERVICIOS.nombre,
+    cuentaTipo: CUENTAS.VENTAS_SERVICIOS.tipo,
+    debito: 0,
+    credito: params.montoNeto,
+    descripcionLinea: "Ingreso por servicio",
+  });
+
+  return lineas;
+}
+
 export function lineasNotaCredito(params: {
   monto: number;         // total con IVA incluido
   tipoReembolso: string;

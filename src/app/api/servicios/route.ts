@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("servicios")
-    .select("id, nombre, descripcion, duracion_minutos, activo")
+    .select("id, nombre, descripcion, duracion_minutos, precio, activo")
     .eq("store_id", ctx.storeId)
     .eq("activo", true)
     .order("nombre");
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       nombre: parsed.data.nombre.trim(),
       descripcion: parsed.data.descripcion?.trim() || null,
       duracion_minutos: parsed.data.duracion_minutos,
+      precio: parsed.data.precio,
     })
     .select()
     .single();
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     action: "CREATE",
     entityType: "servicio",
     entityId: data.id,
-    newValues: { nombre: parsed.data.nombre, descripcion: parsed.data.descripcion, duracion_minutos: parsed.data.duracion_minutos },
+    newValues: { nombre: parsed.data.nombre, descripcion: parsed.data.descripcion, duracion_minutos: parsed.data.duracion_minutos, precio: parsed.data.precio },
     changeDescription: `Servicio "${parsed.data.nombre}" creado`,
     ipAddress,
     userAgent,
