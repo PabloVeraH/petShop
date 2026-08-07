@@ -334,6 +334,43 @@ describe("GET /api/citas", () => {
     const res = await GET(req("/api/citas?fecha=no-es-fecha"));
     expect(res.status).toBe(400);
   });
+
+  // I-CITA-73 — ticket 6a7160fe621dcf1dba95b92f: el listado debe traer los
+  // campos de cancelación (el select usa `*`, no una lista cerrada) y pasarlos
+  // intactos al cliente — la UI los muestra en la tarjeta y el detalle.
+  it("I-CITA-73: listado incluye cancelado_at/motivo_cancelacion de citas canceladas", async () => {
+    const cancelada = {
+      id: CITA_ID,
+      estado: "cancelada",
+      motivo_cancelacion: "Cliente no puede asistir",
+      cancelado_at: "2026-08-04T03:47:13.243579+00:00",
+      cancelado_por: "u1",
+      cliente: null,
+      mascota: null,
+      servicio: { nombre: "Consulta" },
+      encargado: null,
+    };
+    const c = chain();
+    // order("fecha") devuelve la query; order("hora_inicio") es el await final.
+    c.order = jest.fn()
+      .mockReturnValueOnce(c)
+      .mockReturnValueOnce(Promise.resolve({ data: [cancelada], error: null }));
+    mockFrom.mockReturnValue(c);
+
+    const { GET } = await import("@/app/api/citas/route");
+    const res = await GET(req("/api/citas"));
+    expect(res.status).toBe(200);
+
+    // El select debe traer TODAS las columnas (`*`), no una lista cerrada que
+    // deje fuera cancelado_at/motivo_cancelacion.
+    const selectArg = c.select.mock.calls[0][0] as string;
+    expect(selectArg.startsWith("*")).toBe(true);
+
+    const body = await res.json();
+    expect(body[0].motivo_cancelacion).toBe("Cliente no puede asistir");
+    expect(body[0].cancelado_at).toBe("2026-08-04T03:47:13.243579+00:00");
+    expect(body[0].cancelado_por).toBe("u1");
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -400,6 +437,36 @@ describe("GET /api/citas/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.encargado.nombre).toBe("Juan Pérez");
+  });
+
+  // I-CITA-74 — ticket 6a7160fe621dcf1dba95b92f: el detalle de una cita
+  // cancelada debe devolver motivo y fecha de cancelación (el modal
+  // DetalleCita los muestra; antes ninguna vista los exponía).
+  it("I-CITA-74: detalle de cita cancelada devuelve motivo_cancelacion y cancelado_at", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: CITA_ID,
+        ...citaBody,
+        hora_fin: "10:30:00",
+        estado: "cancelada",
+        motivo_cancelacion: "Cliente no puede asistir",
+        cancelado_at: "2026-08-04T03:47:13.243579+00:00",
+        cancelado_por: "u1",
+        cliente: { nombre: "María", telefono: "555-1234" },
+        mascota: null,
+        servicio: { nombre: "Consulta" },
+        encargado: null,
+      },
+      error: null,
+    });
+    const { GET } = await import("@/app/api/citas/[id]/route");
+    const res = await GET(req(`/api/citas/${CITA_ID}`), { params: idParams });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.estado).toBe("cancelada");
+    expect(body.motivo_cancelacion).toBe("Cliente no puede asistir");
+    expect(body.cancelado_at).toBe("2026-08-04T03:47:13.243579+00:00");
+    expect(body.cancelado_por).toBe("u1");
   });
 });
 

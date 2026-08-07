@@ -39,9 +39,15 @@ import { CitasTab } from "@/app/(app)/citas/components/CitasTab";
 const HOY = "2026-08-15";
 const ENCARGADO_ID = "enc-1";
 
+// ISO de una fecha/hora dada en hora local → deterministico en cualquier huso.
+function isoLocal(y: number, m: number, d: number, hh: number, mm: number): string {
+  return new Date(y, m - 1, d, hh, mm).toISOString();
+}
+
 const CITAS_MOCK = [
   {
     id: "cita-1",
+    fecha: "2026-08-15",
     hora_inicio: "10:00:00",
     hora_fin: "10:30:00",
     duracion_minutos: 30,
@@ -54,6 +60,7 @@ const CITAS_MOCK = [
   },
   {
     id: "cita-2",
+    fecha: "2026-08-15",
     hora_inicio: "11:00:00",
     hora_fin: "11:30:00",
     duracion_minutos: 30,
@@ -63,6 +70,21 @@ const CITAS_MOCK = [
     servicio: { nombre: "Baño" },
     encargado: null,
     precio: null,
+  },
+  {
+    id: "cita-3",
+    fecha: "2026-08-04",
+    hora_inicio: "09:00:00",
+    hora_fin: "09:30:00",
+    duracion_minutos: 30,
+    estado: "cancelada",
+    cliente: { nombre: "Roberto Díaz", telefono: "955112233" },
+    mascota: null,
+    servicio: { nombre: "Consulta" },
+    encargado: { nombre: "Ana Gómez" },
+    precio: 10000,
+    motivo_cancelacion: "Cliente no puede asistir",
+    cancelado_at: isoLocal(2026, 8, 4, 3, 47),
   },
 ];
 
@@ -173,5 +195,32 @@ describe("CitasTab (CTB-XX)", () => {
         })
       );
     });
+  });
+
+  // CTB-06 — ticket 6a7160fe621dcf1dba95b92f: el listado no ofrecía ninguna
+  // vista de detalle. "Ver detalle" debe abrir el modal DetalleCita y "Cerrar"
+  // debe cerrarlo.
+  it("CTB-06: click en 'Ver detalle' abre el modal DetalleCita y Cerrar lo cierra", async () => {
+    render(<CitasTab />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Carlos Rojas")).toBeInTheDocument());
+
+    const botonVer = screen.getAllByText("Ver detalle")[0] as HTMLButtonElement;
+    fireEvent.click(botonVer);
+
+    expect(screen.getByText("Detalle de cita")).toBeInTheDocument();
+    expect(screen.getByText("Cerrar")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Cerrar"));
+    expect(screen.queryByText("Detalle de cita")).not.toBeInTheDocument();
+  });
+
+  // CTB-07 — ticket 6a7160fe621dcf1dba95b92f: cancelado_at (fecha de
+  // cancelación) se guardaba en el backend pero nunca se mostraba en la UI.
+  it("CTB-07: cita cancelada muestra motivo y fecha de cancelación en la tarjeta", async () => {
+    render(<CitasTab />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Roberto Díaz")).toBeInTheDocument());
+
+    expect(screen.getByText("Motivo: Cliente no puede asistir")).toBeInTheDocument();
+    expect(screen.getByText("Cancelada el 04/08/2026 03:47")).toBeInTheDocument();
   });
 });

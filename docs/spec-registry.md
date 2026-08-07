@@ -1357,3 +1357,45 @@ I-SRV-24 se reforzó para afirmar el mensaje exacto que la UI despliega.
 | HSR-02 | hora_fin antes de hora_inicio → PUT 400 y el error del backend se muestra en el modal (queda abierto) | HorarioSemanalEditor | component |
 | HSR-03 | Guardado exitoso → PUT 200 con la grilla y se cierra el modal | HorarioSemanalEditor | component |
 | HSR-04 | Servicio sin horarios → todos los días desmarcados | HorarioSemanalEditor | component |
+
+## Detalle de cita y fecha de cancelación — ticket 6a7160fe621dcf1dba95b92f (I-CITA-73/74, U-CITA-34 a U-CITA-37, CTB-06/07, DET-01 a DET-04)
+
+Bug reportado el 2026-08-04: `/citas` no ofrecía ninguna vista de detalle de la
+cita (click en la tarjeta no hacía nada) y `cancelado_at` (fecha de
+cancelación) — que el backend sí guarda — nunca se desplegaba en la UI; la
+tarjeta de una cita cancelada solo mostraba `motivo_cancelacion`.
+
+Fix: nuevo componente `DetalleCita` (modal con estado, fecha/hora, cliente,
+mascota, servicio, encargado, precio, venta, notas y — para canceladas —
+motivo + fecha de cancelación); `CitasTab` agrega el botón "Ver detalle" por
+fila y muestra "Cancelada el …" en la tarjeta. Nuevo helper `formatFechaHora`
+(DD/MM/YYYY HH:MM determinista, sin depender del locale/ICU del runtime).
+El backend (GET lista y detalle) ya devolvía los campos vía `select("*", …)`;
+I-CITA-73/74 fijan ese contrato.
+
+### Integración — GET /api/citas y GET /api/citas/[id]
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-73 | Listado incluye cancelado_at/motivo_cancelacion de citas canceladas (select con `*`) | GET /api/citas | integration |
+| I-CITA-74 | Detalle de cita cancelada devuelve motivo_cancelacion y cancelado_at | GET /api/citas/[id] | integration |
+
+### Unit — formatFechaHora
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-CITA-34 | Timestamp ISO → DD/MM/YYYY HH:MM en zona local | formatFechaHora | unit |
+| U-CITA-35 | null/undefined/vacío → cadena vacía | formatFechaHora | unit |
+| U-CITA-36 | ISO inválido → cadena vacía (no 'Invalid Date') | formatFechaHora | unit |
+| U-CITA-37 | hoyLocal devuelve la fecha local en YYYY-MM-DD | hoyLocal | unit |
+
+### Componentes — CitasTab y DetalleCita
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CTB-06 | Click en 'Ver detalle' abre el modal DetalleCita y Cerrar lo cierra | CitasTab | component |
+| CTB-07 | Cita cancelada muestra motivo y fecha de cancelación en la tarjeta | CitasTab | component |
+| DET-01 | Cita confirmada muestra el detalle completo (cliente, mascota, servicio, encargado, precio) | DetalleCita | component |
+| DET-02 | Cita cancelada muestra motivo y fecha de cancelación | DetalleCita | component |
+| DET-03 | Cita sin encargado ni precio muestra 'Sin asignar' y omite la fila de precio | DetalleCita | component |
+| DET-04 | Click en Cerrar llama a onClose | DetalleCita | component |
