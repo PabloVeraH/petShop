@@ -29,8 +29,10 @@ export function ServiciosTab() {
   const queryClient = useQueryClient();
 
   const { data: servicios = [], isLoading } = useQuery<Servicio[]>({
+    // incluir_inactivos=true exige admin (403 si no) y es lo que permite
+    // reactivar desde aquí un servicio desactivado.
     queryKey: ["servicios"],
-    queryFn: () => fetch("/api/servicios").then((r) => r.json()),
+    queryFn: () => fetch("/api/servicios?incluir_inactivos=true").then((r) => r.json()),
   });
 
   const { mutate: crearServicio, isPending: creando } = useMutation({
@@ -81,14 +83,27 @@ export function ServiciosTab() {
     onError: (e: Error) => setError(e.message),
   });
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDesactivarId, setConfirmDesactivarId] = useState<string | null>(null);
 
-  const { mutate: eliminarServicio } = useMutation({
-    mutationFn: (id: string) => fetch(`/api/servicios/${id}`, { method: "DELETE" }),
+  // Toggle activo/inactivo vía PATCH (el DELETE soft queda como API para
+  // compatibilidad, la UI desactiva/reactiva con activo).
+  const { mutate: cambiarActivo } = useMutation({
+    mutationFn: ({ id, activo }: { id: string; activo: boolean }) =>
+      fetch(`/api/servicios/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo }),
+      }).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? "Error al actualizar");
+        return d;
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["servicios"] });
-      setConfirmDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ["servicios"], refetchType: "all" });
+      setConfirmDesactivarId(null);
+      setError("");
     },
+    onError: (e: Error) => setError(e.message),
   });
 
   function abrirEditar(s: Servicio) {
@@ -176,7 +191,14 @@ export function ServiciosTab() {
         {servicios.map((s) => (
           <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b last:border-0">
             <div>
-              <p className="text-sm font-medium text-gray-800">{s.nombre}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-800">{s.nombre}</p>
+                {s.activo ? (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
+                ) : (
+                  <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">Inactivo</span>
+                )}
+              </div>
               <div className="flex gap-2 items-center">
                 {s.descripcion && <p className="text-xs text-gray-400">{s.descripcion}</p>}
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
@@ -203,26 +225,32 @@ export function ServiciosTab() {
               <button onClick={() => abrirEditar(s)} className="text-xs text-blue-500 hover:underline">
                 Editar
               </button>
-              <button onClick={() => setConfirmDeleteId(s.id)} className="text-xs text-red-400 hover:underline">
-                Eliminar
-              </button>
+              {s.activo ? (
+                <button onClick={() => setConfirmDesactivarId(s.id)} className="text-xs text-red-400 hover:underline">
+                  Desactivar
+                </button>
+              ) : (
+                <button onClick={() => cambiarActivo({ id: s.id, activo: true })} className="text-xs text-green-600 hover:underline">
+                  Activar
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {confirmDeleteId && (
-        <ModalOverlay open onClose={() => setConfirmDeleteId(null)}>
+      {confirmDesactivarId && (
+        <ModalOverlay open onClose={() => setConfirmDesactivarId(null)}>
         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
           <h3 className="text-base font-semibold text-gray-800 mb-2">¿Desactivar servicio?</h3>
           <p className="text-sm text-gray-500 mb-4">
-            El servicio se desactivará y dejará de aparecer en el catálogo.
+            El servicio se desactivará y dejará de aparecer en el catálogo. Podrás reactivarlo después desde esta misma pantalla.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setConfirmDeleteId(null)} className="flex-1">
+            <Button variant="outline" onClick={() => setConfirmDesactivarId(null)} className="flex-1">
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={() => eliminarServicio(confirmDeleteId!)} className="flex-1">
+            <Button variant="destructive" onClick={() => cambiarActivo({ id: confirmDesactivarId, activo: false })} className="flex-1">
               Desactivar
             </Button>
           </div>

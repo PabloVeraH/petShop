@@ -8,17 +8,35 @@ import { logAudit, getRequestMetadata } from "@/lib/audit";
 
 // GET /api/servicios — catálogo de servicios activos de la tienda.
 // Lectura abierta a cualquier usuario autenticado de la tienda (sin admin-check).
-export async function GET() {
+// Query param `incluir_inactivos=true`: lista también los inactivos (para
+// reactivarlos desde el panel admin). Exige storeAdmin/systemAdmin para que
+// el catálogo de agendamiento (workers) siga viendo solo activos.
+export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  const incluirInactivos = new URL(req.url).searchParams.get("incluir_inactivos") === "true";
+
+  if (incluirInactivos) {
+    const { sessionClaims, userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const admin = getAdminStatus(sessionClaims);
+    try {
+      requireStoreAdmin(admin, ctx.storeId);
+    } catch {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  let query = supabase
     .from("servicios")
     .select("id, nombre, descripcion, duracion_minutos, precio, activo")
-    .eq("store_id", ctx.storeId)
-    .eq("activo", true)
-    .order("nombre");
+    .eq("store_id", ctx.storeId);
+
+  if (!incluirInactivos) query = query.eq("activo", true);
+
+  const { data, error } = await query.order("nombre");
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
