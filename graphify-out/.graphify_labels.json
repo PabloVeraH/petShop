@@ -292,6 +292,8 @@
   "290": "UltimasVentas.tsx",
   "291": "@clerk/localizations",
   "292": "069_revoke_security_definer_grants.sql",
+  "293": "Estado activo/inactivo de servicios — ticket 6a715e6005cad9d6e925659b (I-SRV-66/67, SRVC-05 a SRVC-07)",
+  "294": "ventas-granel.test.ts",
   "304": "Cambios en la Estructura de BD — Impacto en Ventas",
   "321": "petShop — Instrucciones para agentes",
   "390": "FASE 1: Hub de Canales Externos + Adaptador Rappi",
