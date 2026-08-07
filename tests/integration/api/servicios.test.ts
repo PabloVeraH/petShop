@@ -525,7 +525,7 @@ describe("PUT /api/servicios/[id]/horarios", () => {
   });
 
   // I-SRV-24
-  it("I-SRV-24: algún día con hora_inicio >= hora_fin → 400", async () => {
+  it("I-SRV-24: algún día con hora_inicio >= hora_fin → 400 con mensaje claro", async () => {
     const { PUT } = await import("@/app/api/servicios/[id]/horarios/route");
     const res = await PUT(
       req(`/api/servicios/${SERVICIO_ID}/horarios`, "PUT", {
@@ -534,6 +534,9 @@ describe("PUT /api/servicios/[id]/horarios", () => {
       { params: idParams },
     );
     expect(res.status).toBe(400);
+    // El mensaje exacto es el contrato que la UI muestra al usuario (HSR-02).
+    const body = await res.json();
+    expect(body.error).toBe("La hora de inicio debe ser anterior a la hora de fin");
   });
 
   // I-SRV-25

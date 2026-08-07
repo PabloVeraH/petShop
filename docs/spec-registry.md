@@ -1332,3 +1332,28 @@ compatibilidad. Verificado: `crear_cita_tx` (066) y disponibilidad ya validan
 | SRVC-05 | Servicio inactivo muestra badge 'Inactivo' y botón 'Activar' | ServiciosTab | component |
 | SRVC-06 | Click en 'Activar' → PATCH activo:true | ServiciosTab | component |
 | SRVC-07 | 'Desactivar' exige confirmación y envía activo:false | ServiciosTab | component |
+
+## Error de validación de horario no visible — ticket 6a715eb4198366506a54cb9f (HSR-01 a HSR-04, I-SRV-24)
+
+Bug reportado el 2026-08-04: al guardar el horario semanal de un servicio con
+`hora_inicio >= hora_fin`, el backend respondía 400 con 'La hora de inicio debe
+ser anterior a la hora de fin' pero la UI no daba feedback del fallo.
+
+Verificación a fondo: el mensaje sí se mostraba vía `alert()` nativo
+(`onError: (e) => alert(e.message)`) — el repro literal no era reproducible en
+`develop`. Pero `alert()` es frágil (puede bloquearse por el navegador, iframes,
+móvil) e inconsistente con el patrón del resto del módulo (error inline rojo en
+`ServiciosTab`/`ExcepcionesEditor`), y la ruta tenía 0 tests de componente.
+
+Fix: el modal renderiza el mensaje del backend inline (`setError` + `<p
+class="text-red-500">`), el modal permanece abierto para corregir los valores.
+I-SRV-24 se reforzó para afirmar el mensaje exacto que la UI despliega.
+
+### Componentes — HorarioSemanalEditor
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| HSR-01 | Carga los horarios existentes del servicio (Lunes 10:00 a 18:00) | HorarioSemanalEditor | component |
+| HSR-02 | hora_fin antes de hora_inicio → PUT 400 y el error del backend se muestra en el modal (queda abierto) | HorarioSemanalEditor | component |
+| HSR-03 | Guardado exitoso → PUT 200 con la grilla y se cierra el modal | HorarioSemanalEditor | component |
+| HSR-04 | Servicio sin horarios → todos los días desmarcados | HorarioSemanalEditor | component |
