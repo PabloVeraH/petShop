@@ -12,6 +12,10 @@ interface DevolucionItem {
   precio_unitario: number;
   subtotal: number;
   productos: { nombre: string } | null;
+  // XOR con productos (migración 068): una línea de servicio trae productos
+  // en null y servicios con su nombre — sin este campo, un ítem de servicio
+  // se mostraba como "Producto" genérico en vez de su nombre real.
+  servicios?: { nombre: string } | null;
 }
 
 interface DevolucionModalProps {
@@ -183,6 +187,7 @@ export function DevolucionModal({
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {items.map((item) => {
                   const prod = item.productos as unknown as { nombre: string } | null;
+                  const serv = item.servicios as unknown as { nombre: string } | null;
                   const selected = (selectedItems[item.id]?.cantidad ?? 0) > 0;
 
                   return (
@@ -203,7 +208,7 @@ export function DevolucionModal({
                           }}
                         />
                         <div className="flex-1">
-                          <p className="font-medium text-sm">{prod?.nombre ?? "Producto"}</p>
+                          <p className="font-medium text-sm">{prod?.nombre ?? serv?.nombre ?? "Producto"}</p>
                           <p className="text-xs text-gray-500">
                             {descuento > 0 ? (
                               <>

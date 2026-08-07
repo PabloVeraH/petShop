@@ -44,8 +44,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Top productos
+  // Excluye líneas de servicio (producto_id NULL desde migración 068 — una
+  // cita pagada también genera venta_items, pero con servicio_id en vez de
+  // producto_id). Sin este filtro, todas las líneas de servicio colapsaban
+  // en una sola entrada falsa bajo la clave "null" con nombre genérico
+  // "Producto" y el revenue de servicios distintos sumado junto — un reporte
+  // "Top Servicios" separado es trabajo futuro (plan_valorServicio.md §12),
+  // no algo que este reporte de productos deba absorber mal etiquetado.
   const prodCounts: Record<string, { nombre: string; cantidad: number; revenue: number }> = {};
   for (const item of ventaItems ?? []) {
+    if (!item.producto_id) continue;
     const prod = item.productos as unknown as { nombre: string } | null;
     if (!prodCounts[item.producto_id]) {
       prodCounts[item.producto_id] = { nombre: prod?.nombre ?? "Producto", cantidad: 0, revenue: 0 };
