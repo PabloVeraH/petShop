@@ -41,6 +41,7 @@ interface FormProps {
 function FranjasEditor({ servicio, horarios, onClose }: FormProps) {
   const queryClient = useQueryClient();
   const [slots, setSlots] = useState<SlotMap>(() => inicializarSlots(horarios));
+  const [error, setError] = useState("");
 
   const { mutate: guardar, isPending } = useMutation({
     mutationFn: () => {
@@ -66,9 +67,10 @@ function FranjasEditor({ servicio, horarios, onClose }: FormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["servicios"] });
       queryClient.invalidateQueries({ queryKey: ["servicios", servicio.id] });
+      setError("");
       onClose();
     },
-    onError: (e: Error) => alert(e.message),
+    onError: (e: Error) => setError(e.message),
   });
 
   function toggleDia(dia: DiaSemana) {
@@ -136,6 +138,8 @@ function FranjasEditor({ servicio, horarios, onClose }: FormProps) {
           );
         })}
       </div>
+
+      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
       <div className="flex gap-2">
         <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
