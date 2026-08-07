@@ -16,10 +16,22 @@ const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
 const mockRpc = jest.fn();
+const mockCrearAsiento = jest.fn();
+const mockLineasVentaServicio = jest.fn();
+const mockLineasVentaServicioConNc = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })),
+}));
+// Asiento de contabilidad del cobro de cita: se mockea para capturar el
+// payload (descripción, líneas, referencia) sin insertar en BD. Las funciones
+// de líneas devuelven objetos mínimos — su exactitud contable está cubierta
+// por los unit tests de lib/contabilidad/generador-asientos.
+jest.mock("@/lib/contabilidad/generador-asientos", () => ({
+  crearAsiento: (...args: unknown[]) => mockCrearAsiento(...args),
+  lineasVentaServicio: (...args: unknown[]) => mockLineasVentaServicio(...args),
+  lineasVentaServicioConNc: (...args: unknown[]) => mockLineasVentaServicioConNc(...args),
 }));
 
 function chain() {
@@ -517,3 +529,329 @@ describe("PATCH /api/citas/[id]", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PATCH /api/citas/[id] — completar con cobro (Fase 4, plan_valorServicio)
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
+  const CITA_CON_PRECIO = { id: CITA_ID, estado: "confirmada", precio: 15000 };
+  const NC_ID = "123e4567-e89b-12d3-a456-426614174600";
+  const VENTA_RESULT = {
+    cita: { id: CITA_ID, estado: "completada", venta_id: "venta-1" },
+    venta: { id: "venta-1", numero_comprobante: "V-0001", created_at: "2026-08-10T12:00:00Z" },
+  };
+  const DEFAULT_NIVELES = [
+    { monto: 50000, descuento: 5 },
+    { monto: 150000, descuento: 10 },
+    { monto: 300000, descuento: 20 },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+    mockCrearAsiento.mockResolvedValue({ id: "asiento-1" });
+    mockLineasVentaServicio.mockReturnValue([{ cuentaCodigo: "x", debito: 0, credito: 0 }]);
+    mockLineasVentaServicioConNc.mockReturnValue([{ cuentaCodigo: "x", debito: 0, credito: 0 }]);
+  });
+
+  // I-CITA-57
+  it("I-CITA-57: cita con precio completada SIN metodoPago → 400 (el cobro es obligatorio)", async () => {
+    mockSingle.mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar" }), { params: idParams });
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
+  });
+
+  // I-CITA-58
+  it("I-CITA-58: cita con precio + efectivo → 200, RPC con impuesto extraído y asiento VENTA_SERVICIOS", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })       // SELECT cita
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null }); // SELECT stores
+    mockRpc.mockResolvedValue({ data: VENTA_RESULT, error: null });
+
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
+    expect(res.status).toBe(200);
+
+    expect(mockRpc).toHaveBeenCalledWith("completar_cita_tx", {
+      p_cita_id: CITA_ID,
+      p_store_id: STORE_ID,
+      p_metodo_pago: "efectivo",
+      p_numero_transaccion: null,
+      p_impuesto: 2395, // extraerIva(15000) — fórmula única de tax.ts, §23.3
+      p_pago_nc: null,
+      p_fidelizacion_niveles: DEFAULT_NIVELES,
+      p_completado_por: "u1",
+    });
+
+    // mockCrearAsiento se invoca sincronamente durante el PATCH (la IIFE del
+    // asiento corre hasta su primer await antes de responder).
+    const arg = mockCrearAsiento.mock.calls[0][0];
+    expect(arg.tipoMovimiento).toBe("VENTA");
+    expect(arg.canal).toBe("pos");
+    expect(arg.referenciaId).toBe("venta-1");
+    expect(arg.descripcion).toBe("Cobro cita (servicio) efectivo");
+    expect(arg.lineas).toBe(mockLineasVentaServicio.mock.results[0].value);
+  });
+
+  // I-CITA-59
+  it("I-CITA-59: pagoNc de una NC inexistente → 404 antes de abrir la transacción", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })       // SELECT cita
+      .mockResolvedValueOnce({ data: null, error: null });                  // SELECT notas_credito
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 5000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(404);
+    expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
+  });
+
+  // I-CITA-60
+  it("I-CITA-60: pagoNc de NC usada/inactiva → 409", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: null, estado: "usada" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 5000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-61
+  it("I-CITA-61: pagoNc de NC vencida → 410", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: "2026-01-01", estado: "activa" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 5000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(410);
+  });
+
+  // I-CITA-62
+  it("I-CITA-62: pagoNc.monto mayor al monto_total de la NC → 400", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 3000, fecha_vencimiento: null, estado: "activa" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 5000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(400);
+  });
+
+  // I-CITA-63
+  it("I-CITA-63: NC que cubre TODO el total → RPC recibe p_pago_nc, asiento ConNc sin resto", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: null, estado: "activa" }, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: VENTA_RESULT, error: null });
+
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 15000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("completar_cita_tx", expect.objectContaining({
+      p_pago_nc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 15000 },
+    }));
+
+    // mockCrearAsiento se invoca sincronamente durante el PATCH (la IIFE del
+    // asiento corre hasta su primer await antes de responder).
+    const arg = mockCrearAsiento.mock.calls[0][0];
+    expect(arg.descripcion).toBe("Cobro cita (servicio)"); // NC total: sin sufijo de método
+    expect(mockLineasVentaServicioConNc).toHaveBeenCalledWith({
+      montoNeto: 12605, // 15000 - 2395
+      iva: 2395,
+      total: 15000,
+      montoNc: 15000,
+      montoResto: 0,
+      metodoPagoResto: "efectivo",
+    });
+  });
+
+  // I-CITA-64
+  it("I-CITA-64: NC parcial (mixto) → asiento ConNc con montoResto > 0", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: null, estado: "activa" }, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: VENTA_RESULT, error: null });
+
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 6000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(200);
+
+    // mockCrearAsiento se invoca sincronamente durante el PATCH (la IIFE del
+    // asiento corre hasta su primer await antes de responder).
+    const arg = mockCrearAsiento.mock.calls[0][0];
+    expect(arg.descripcion).toBe("Cobro cita (servicio)"); // mixto: sin sufijo de método (igual que nota_credito)
+    expect(mockLineasVentaServicioConNc).toHaveBeenCalledWith({
+      montoNeto: 12605,
+      iva: 2395,
+      total: 15000,
+      montoNc: 6000,
+      montoResto: 9000,
+      metodoPagoResto: "efectivo",
+    });
+  });
+
+  // I-CITA-65
+  it("I-CITA-65: completar sobre cita ya completada (RPC PS003) → 409", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS003", message: "La cita ya fue completada" } });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-66
+  it("I-CITA-66: cita borrada entre el SELECT y el RPC (RPC P0002) → 404", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { code: "P0002", message: "Cita no encontrada" } });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
+    expect(res.status).toBe(404);
+  });
+
+  // I-CITA-67
+  it("I-CITA-67: RPC PS005 (cita legado con precio) → 400 defensivo", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS005", message: "La cita no tiene precio configurado" } });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
+    expect(res.status).toBe(400);
+  });
+
+  // I-CITA-68
+  it("I-CITA-68: completar con débito SIN numeroTransaccion → 400 (Zod superRefine)", async () => {
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "debito" }), { params: idParams });
+    expect(res.status).toBe(400);
+    expect(mockFrom).not.toHaveBeenCalledWith("citas");
+  });
+
+  // I-CITA-69 — REGRESIÓN: una cita legado (precio NULL) enviada con un body
+  // de pago NO debe cobrarse ni fallar; sigue el camino legado sin cobro.
+  it("I-CITA-69: cita legado (precio null) con body de pago → 200, UPDATE simple, sin RPC", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: CITA_ID, estado: "confirmada", precio: null }, error: null })
+      .mockResolvedValueOnce({ data: { id: CITA_ID, estado: "completada" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(200);
+    expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
+    expect(mockCrearAsiento).not.toHaveBeenCalled();
+  });
+
+  // I-CITA-70 — REGRESIÓN (mejora sobre completar_cita_tx, hallazgo de
+  // revisión posterior al plan): pagoNc.monto no puede exceder el total de
+  // la cita, no solo el monto_total de la propia NC — evita consumir
+  // crédito de más. Se rechaza ANTES de abrir la transacción.
+  it("I-CITA-70: pagoNc.monto mayor al total de la cita (aunque no exceda la NC) → 400 sin llamar al RPC", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 50000, fecha_vencimiento: null, estado: "activa" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 20000 }, // > 15000 (precio), <= 50000 (NC)
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
+  });
+
+  // I-CITA-71 — REGRESIÓN: reclamo atómico de la NC en completar_cita_tx.
+  // Si el RPC devuelve PS006 (otra operación concurrente ya la usó entre la
+  // pre-validación y la transacción), la ruta responde 409, no 500.
+  it("I-CITA-71: RPC PS006 (NC reclamada por otra operación concurrente) → 409", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: null, estado: "activa" }, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS006", message: "La nota de crédito ya no está disponible (fue usada por otra operación)" } });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 15000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(409);
+  });
+
+  // I-CITA-72 — defensa en profundidad: si PS007 llega desde el RPC (no
+  // debería, la ruta ya lo filtra en I-CITA-70), se mapea a 400, no 500.
+  it("I-CITA-72: RPC PS007 (defensa en profundidad, monto NC excede el total) → 400", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, monto_total: 15000, fecha_vencimiento: null, estado: "activa" }, error: null })
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PS007", message: "El monto de la nota de crédito no puede exceder el total a cobrar" } });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", {
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-001", monto: 15000 },
+      }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(400);
+  });
+});
+

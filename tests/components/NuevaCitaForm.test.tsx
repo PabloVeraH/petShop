@@ -38,7 +38,7 @@ const SERVICIO_ID = "srv-1";
 const ENCARGADO_ID = "enc-1";
 
 const CLIENTES_MOCK = { data: [{ id: CLIENTE_ID, nombre: "Carlos Rojas", rut: "11.111.111-1" }], count: 1 };
-const SERVICIOS_MOCK = [{ id: SERVICIO_ID, nombre: "Peluquería", duracion_minutos: 60 }];
+const SERVICIOS_MOCK = [{ id: SERVICIO_ID, nombre: "Peluquería", duracion_minutos: 60, precio: 15000 }];
 const ENCARGADOS_MOCK = [{ id: ENCARGADO_ID, nombre: "Peluquero 1", activo: true }];
 const SLOTS_MOCK = [{ hora_inicio: "10:00", hora_fin: "11:00" }];
 
@@ -147,7 +147,7 @@ describe("NuevaCitaForm (NCF-XX)", () => {
   it("NCF-05: no consulta disponibilidad hasta tener servicio + encargado + fecha (no solo servicio+fecha)", async () => {
     render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
 
-    await seleccionarServicio(SERVICIO_ID, "Peluquería (60 min)");
+    await seleccionarServicio(SERVICIO_ID, /Peluquería \(60 min\)/);
 
     // Fecha ya está precargada (hoy) y el servicio ya se eligió, pero SIN
     // encargado — la query de disponibilidad no debe dispararse todavía.
@@ -172,7 +172,7 @@ describe("NuevaCitaForm (NCF-XX)", () => {
     fireEvent.click(screen.getByText("Carlos Rojas"));
 
     // Selecciona servicio (sin encargado)
-    await seleccionarServicio(SERVICIO_ID, "Peluquería (60 min)");
+    await seleccionarServicio(SERVICIO_ID, /Peluquería \(60 min\)/);
 
     const botonAgendar = screen.getByText("Agendar cita") as HTMLButtonElement;
     expect(botonAgendar.disabled).toBe(true);
@@ -188,7 +188,7 @@ describe("NuevaCitaForm (NCF-XX)", () => {
     await waitFor(() => expect(screen.getByText("Carlos Rojas")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Carlos Rojas"));
 
-    await seleccionarServicio(SERVICIO_ID, "Peluquería (60 min)");
+    await seleccionarServicio(SERVICIO_ID, /Peluquería \(60 min\)/);
     await seleccionarEncargado(ENCARGADO_ID, "Peluquero 1");
 
     await waitFor(() => expect(screen.getByText("10:00")).toBeInTheDocument());
@@ -207,5 +207,35 @@ describe("NuevaCitaForm (NCF-XX)", () => {
         })
       );
     });
+  });
+
+  // NCF-08 — Fase 4: un servicio sin precio no se puede agendar (crear_cita_tx
+  // los rechaza), así que "Agendar cita" queda deshabilitado.
+  it("NCF-08: servicio sin precio deshabilita 'Agendar cita'", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/servicios") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ id: SERVICIO_ID, nombre: "Peluquería", duracion_minutos: 60, precio: null }],
+        });
+      }
+      if (url === "/api/encargados") return Promise.resolve({ ok: true, json: async () => ENCARGADOS_MOCK });
+      if (url.startsWith("/api/clientes")) return Promise.resolve({ ok: true, json: async () => CLIENTES_MOCK });
+      if (url.includes("/disponibilidad")) return Promise.resolve({ ok: true, json: async () => SLOTS_MOCK });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+    render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Carlos Rojas")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Carlos Rojas"));
+
+    await seleccionarServicio(SERVICIO_ID, /Peluquería \(60 min\)/);
+    await seleccionarEncargado(ENCARGADO_ID, "Peluquero 1");
+
+    await waitFor(() => expect(screen.getByText("10:00")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("10:00"));
+
+    expect(screen.getByText("Este servicio no tiene precio configurado — no se puede agendar.")).toBeInTheDocument();
+    expect(screen.getByText("Agendar cita") as HTMLButtonElement).toBeDisabled();
   });
 });

@@ -11,6 +11,8 @@ const {
   lineasNotaCreditoCOGS,
   lineasVentaConNc,
   lineasAporteCapital,
+  lineasVentaServicio,
+  lineasVentaServicioConNc,
 } = require("@/lib/contabilidad/generador-asientos");
 
 const { CUENTAS } = require("@/lib/contabilidad/types");
@@ -665,5 +667,78 @@ describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
       expect(lineaReverso.debito).toBe(lineaOriginal.credito);
       expect(lineaReverso.credito).toBe(lineaOriginal.debito);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// lineasVentaServicio / lineasVentaServicioConNc — asiento del cobro de una
+// cita completada (servicio). Acredita VENTAS_SERVICIOS (410103), NO toca COGS
+// (un servicio no consume inventario), y usa Caja/Banco según el método.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("lineasVentaServicio — cobro de cita (servicio)", () => {
+  it("I-SRV-59: asiento balanceado (débito = crédito = total)", () => {
+    const lineas = lineasVentaServicio({ metodoPago: "efectivo", montoNeto: 10000, iva: 1900, total: 11900 });
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(11900);
+    expect(totalCre).toBe(11900);
+  });
+
+  it("I-SRV-60: acredita VENTAS_SERVICIOS (410103), no VENTAS (4101xx) ni COGS", () => {
+    const lineas = lineasVentaServicio({ metodoPago: "efectivo", montoNeto: 10000, iva: 1900, total: 11900 });
+
+    const servicio = lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS_SERVICIOS.codigo);
+    expect(servicio).toBeDefined();
+    expect(servicio.credito).toBe(10000);
+    expect(servicio.debito).toBe(0);
+
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo)).toBeUndefined();
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo)).toBeUndefined();
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo)).toBeUndefined();
+  });
+
+  it("I-SRV-61: debita Caja para efectivo, Banco para débito", () => {
+    const caja = lineasVentaServicio({ metodoPago: "efectivo", montoNeto: 10000, iva: 1900, total: 11900 })
+      .find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+    expect(caja?.debito).toBe(11900);
+
+    const banco = lineasVentaServicio({ metodoPago: "debito", montoNeto: 10000, iva: 1900, total: 11900 })
+      .find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
+    expect(banco?.debito).toBe(11900);
+  });
+
+  it("I-SRV-62: no incluye líneas de Saldos a Favor (sin NC)", () => {
+    const lineas = lineasVentaServicio({ metodoPago: "efectivo", montoNeto: 10000, iva: 1900, total: 11900 });
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo)).toBeUndefined();
+  });
+});
+
+describe("lineasVentaServicioConNc — cobro de cita con nota de crédito", () => {
+  it("I-SRV-63: NC total — debita Saldos a Favor, NO toca Caja ni Banco, balanceado", () => {
+    const lineas = lineasVentaServicioConNc({ montoNeto: 8403, iva: 1597, total: 10000, montoNc: 10000, montoResto: 0 });
+    const totalDeb = lineas.reduce((s, l) => s + l.debito, 0);
+    const totalCre = lineas.reduce((s, l) => s + l.credito, 0);
+    expect(totalDeb).toBe(10000);
+    expect(totalCre).toBe(10000);
+
+    const sf = lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo);
+    expect(sf?.debito).toBe(10000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)).toBeUndefined();
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)).toBeUndefined();
+  });
+
+  it("I-SRV-64: mixto NC + efectivo — Saldos a Favor por la NC, Caja por el resto", () => {
+    const lineas = lineasVentaServicioConNc({ montoNeto: 8403, iva: 1597, total: 10000, montoNc: 6000, montoResto: 4000, metodoPagoResto: "efectivo" });
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo)?.debito).toBe(6000);
+    const caja = lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
+    expect(caja?.debito).toBe(4000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)).toBeUndefined();
+  });
+
+  it("I-SRV-65: acredita VENTAS_SERVICIOS y el IVA, sin COGS", () => {
+    const lineas = lineasVentaServicioConNc({ montoNeto: 8403, iva: 1597, total: 10000, montoNc: 6000, montoResto: 4000, metodoPagoResto: "debito" });
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS_SERVICIOS.codigo)?.credito).toBe(8403);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo)?.credito).toBe(1597);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo)).toBeUndefined();
   });
 });

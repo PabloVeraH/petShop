@@ -60,6 +60,35 @@ describe("GET /api/reports", () => {
     const res = await GET(new NextRequest("http://localhost/api/reports"));
     expect(res.status).toBe(401);
   });
+
+  // I-475 — REGRESIÓN: una venta de servicio (migración 068, venta_items con
+  // servicio_id en vez de producto_id) NO debe colapsar en una entrada falsa
+  // "Producto" dentro de topProductos, mezclando el revenue de servicios
+  // distintos bajo una sola clave "null". El item de servicio se excluye del
+  // todo — un reporte "Top Servicios" separado es trabajo futuro.
+  it("I-475: venta_items con servicio_id (sin producto_id) se excluyen de topProductos", async () => {
+    mockFrom.mockImplementation((tabla: string) => {
+      if (tabla === "ventas") {
+        return chain([{ id: "venta-1", total: 15000, subtotal: 15000, descuento: 0, created_at: "2026-08-01T10:00:00Z", metodo_pago: "efectivo", canal: "pos", procedencia: "presencial", clientes: null }]);
+      }
+      if (tabla === "venta_items") {
+        return chain([
+          { producto_id: "prod-1", cantidad: 2, subtotal: 8000, productos: { nombre: "Shampoo" } },
+          { producto_id: null, servicio_id: "srv-1", cantidad: 1, subtotal: 15000, productos: null },
+        ]);
+      }
+      return chain([]);
+    });
+
+    const { GET } = await import("@/app/api/reports/route");
+    const res = await GET(new NextRequest("http://localhost/api/reports"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.topProductos).toHaveLength(1);
+    expect(body.topProductos[0]).toMatchObject({ nombre: "Shampoo", cantidad: 2, revenue: 8000 });
+    expect(body.topProductos.find((p: { nombre: string }) => p.nombre === "Producto")).toBeUndefined();
+  });
 });
 
 describe("GET /api/reports — predicción (I-433 a I-435)", () => {

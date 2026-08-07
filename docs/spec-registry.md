@@ -159,6 +159,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-433 | REGRESIÓN (ticket Trello 6a5e96c9b7ce6c36cc926e1b): Predicción 7 días usa promedio del período COMPLETO (incluye días sin ventas), no solo días CON ventas — ventas esporádicas inflaban la proyección ~3-6x | GET /api/reports | integration |
 | I-434 | Predicción 7 días con ventas en todos los días del período calcula correctamente (regresión: caso normal no se rompe) | GET /api/reports | integration |
 | I-435 | Predicción retorna null cuando hay menos de 10 transacciones (umbral mínimo) | GET /api/reports | integration |
+| I-475 | REGRESIÓN (revisión plan_valorServicio.md): venta_items de servicio (producto_id NULL, migración 068) se excluyen de topProductos — sin el filtro, todas las líneas de servicio colapsaban en una entrada falsa "Producto" mezclando revenue de servicios distintos | GET /api/reports | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
@@ -958,10 +959,12 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 - `U-SRV-NN` — test unitario de los schemas Zod de servicios (src/lib/validation/servicios.ts)
 - `I-CITA-NN` — test de integración de /api/citas, /api/servicios/[id]/disponibilidad y /api/servicios/[id]/excepciones
 - `U-CITA-NN` — test unitario de lib/disponibilidad y de los schemas Zod de citas (src/lib/validation/citas.ts)
+- `COB-NN` — test de componente de ModalCobroCita (cobro de cita, Fase 4)
+- `SRVC-NN` — test de componente de ServiciosTab (campo/badge de precio, Fase 4)
 
 Al agregar un test nuevo, asignar el próximo ID disponible en la categoría correspondiente y registrarlo aquí antes de hacer commit.
 
-## Servicios (I-SRV-01 a I-SRV-29, U-SRV-01 a U-SRV-15, PROP-04)
+## Servicios (I-SRV-01 a I-SRV-29 y I-SRV-57 a I-SRV-65, U-SRV-01 a U-SRV-17, PROP-04)
 
 Servicios agendables (peluquería y similares) — Fase 1 de configuración
 administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
@@ -999,6 +1002,8 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 | I-SRV-26 | Payload válido (7 días) → 200, respuesta ordenada, RPC con p_store_id del contexto | PUT /api/servicios/[id]/horarios | integration |
 | I-SRV-27 | Servicio de otra tienda → 404 (RPC error.code P0002) | PUT /api/servicios/[id]/horarios | integration |
 | I-SRV-28 | Array vacío → 200 (limpia el horario completo) | PUT /api/servicios/[id]/horarios | integration |
+| I-SRV-57 | Precio ausente → 400 (obligatorio desde Fase 4) | POST /api/servicios | integration |
+| I-SRV-58 | Precio <= 0 → 400 | POST /api/servicios | integration |
 
 ### Unit Zod — schemas de servicios
 
@@ -1012,6 +1017,8 @@ administrativa (catálogo + horario semanal). Ver `docs/plan_servicios.md`.
 | U-SRV-13 | duracion_minutos: 45 (entero válido pero fuera del enum) → fail | ServicioCreateSchema | unit |
 | U-SRV-14 | duracion_minutos: 60 → success | ServicioCreateSchema | unit |
 | U-SRV-15 | duracion_minutos: 90 → success | ServicioCreateSchema | unit |
+| U-SRV-16 | Precio ausente → fail (obligatorio desde Fase 4) | ServicioCreateSchema | unit |
+| U-SRV-17 | Precio 0 o negativo → fail | ServicioCreateSchema | unit |
 | U-SRV-06 | 09:00 → 18:00 → success | ServicioHorarioItemSchema | unit |
 | U-SRV-07 | 18:00 → 09:00 (invertido) → fail | ServicioHorarioItemSchema | unit |
 | U-SRV-08 | Formatos inválidos (9:00, 25:00, 09:60) → fail | ServicioHorarioItemSchema | unit |
@@ -1214,3 +1221,82 @@ cerrado hasta ahora).
 | ENC-04 | 'Editar' precarga el formulario; 'Guardar cambios' llama a PATCH /api/encargados/[id] | EncargadosTab | component |
 | ENC-05 | 'Desactivar' pide confirmación; confirmar llama a DELETE /api/encargados/[id] | EncargadosTab | component |
 | ENC-06 | 'Cancelar' en el modal de confirmación NO llama a DELETE | EncargadosTab | component |
+
+## Valor de servicios — Fase 4 (I-CITA-57 a I-CITA-72, U-CITA-29 a U-CITA-33, I-SRV-57 a I-SRV-65, U-SRV-16/17, I-475, COB-01 a COB-08, CTB-05, NCF-08, SRVC-01 a SRVC-04)
+
+Precio en `servicios`, cobro al completar la cita (crea `ventas`), pago
+mixto/NC, asiento contable que acredita `VENTAS_SERVICIOS` (410103) y reverso
+con NC. Migración `068_valor_servicio.sql` (NO aplicada; §11.1/§11.2).
+Plan `docs/plan_valorServicio.md`. RPC `completar_cita_tx`. Los precios son
+brutos (IVA incluido) — `extraerIva`/`netoDesdeBruto` de `src/lib/tax.ts`.
+
+### Integración — completar con cobro (PATCH /api/citas/[id])
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-57 | Cita con precio completada SIN metodoPago → 400 (el cobro es obligatorio) | PATCH /api/citas/[id] | integration |
+| I-CITA-58 | Cita con precio + efectivo → 200, RPC con impuesto extraído y asiento VENTA_SERVICIOS | PATCH /api/citas/[id] | integration |
+| I-CITA-59 | pagoNc de NC inexistente → 404 antes de abrir la transacción | PATCH /api/citas/[id] | integration |
+| I-CITA-60 | pagoNc de NC usada/inactiva → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-61 | pagoNc de NC vencida → 410 | PATCH /api/citas/[id] | integration |
+| I-CITA-62 | pagoNc.monto mayor al monto_total de la NC → 400 | PATCH /api/citas/[id] | integration |
+| I-CITA-63 | NC que cubre TODO el total → RPC recibe p_pago_nc, asiento ConNc sin resto | PATCH /api/citas/[id] | integration |
+| I-CITA-64 | NC parcial (mixto) → asiento ConNc con montoResto > 0 | PATCH /api/citas/[id] | integration |
+| I-CITA-65 | completar sobre cita ya completada (RPC PS003) → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-66 | Cita borrada entre el SELECT y el RPC (RPC P0002) → 404 | PATCH /api/citas/[id] | integration |
+| I-CITA-67 | RPC PS005 (cita legado con precio) → 400 defensivo | PATCH /api/citas/[id] | integration |
+| I-CITA-68 | completar con débito SIN numeroTransaccion → 400 (Zod superRefine) | PATCH /api/citas/[id] | integration |
+| I-CITA-69 | Cita legado (precio NULL) con body de pago → 200, UPDATE simple, sin RPC | PATCH /api/citas/[id] | integration |
+| I-CITA-70 | REGRESIÓN (revisión completar_cita_tx): pagoNc.monto mayor al TOTAL de la cita (aunque no exceda la NC) → 400 sin llamar al RPC | PATCH /api/citas/[id] | integration |
+| I-CITA-71 | REGRESIÓN: RPC PS006 (NC reclamada por otra operación concurrente — reclamo atómico) → 409 | PATCH /api/citas/[id] | integration |
+| I-CITA-72 | RPC PS007 (defensa en profundidad, monto NC excede el total) → 400 | PATCH /api/citas/[id] | integration |
+
+### Integración — precio de servicios (POST /api/servicios)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-SRV-57 | Precio ausente → 400 (obligatorio desde Fase 4) | POST /api/servicios | integration |
+| I-SRV-58 | Precio <= 0 → 400 | POST /api/servicios | integration |
+
+### Unit Zod — schemas de servicios y citas (precio/cobro)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-SRV-16 | Precio ausente → fail (obligatorio) | ServicioCreateSchema | unit |
+| U-SRV-17 | Precio 0 o negativo → fail | ServicioCreateSchema | unit |
+| U-CITA-29 | completar con metodoPago efectivo → success | CitaAccionSchema | unit |
+| U-CITA-30 | completar con débito/crédito/transferencia SIN numeroTransaccion → fail | CitaAccionSchema | unit |
+| U-CITA-31 | completar con débito + numeroTransaccion → success | CitaAccionSchema | unit |
+| U-CITA-32 | completar con pagoNc válido → success | CitaAccionSchema | unit |
+| U-CITA-33 | completar con pagoNc.monto <= 0 → fail | CitaAccionSchema | unit |
+
+### Unit — asiento contable del cobro de cita
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| I-SRV-59 | lineasVentaServicio: asiento balanceado (débito = crédito = total) | lib/contabilidad/generador-asientos | unit |
+| I-SRV-60 | lineasVentaServicio acredita VENTAS_SERVICIOS (410103), no VENTAS ni COGS | lib/contabilidad/generador-asientos | unit |
+| I-SRV-61 | lineasVentaServicio: Caja para efectivo, Banco para débito | lib/contabilidad/generador-asientos | unit |
+| I-SRV-62 | lineasVentaServicio no incluye Saldos a Favor (sin NC) | lib/contabilidad/generador-asientos | unit |
+| I-SRV-63 | lineasVentaServicioConNc NC total: debita Saldos a Favor, sin Caja/Banco, balanceado | lib/contabilidad/generador-asientos | unit |
+| I-SRV-64 | lineasVentaServicioConNc mixto NC + efectivo: Saldos a Favor por la NC, Caja por el resto | lib/contabilidad/generador-asientos | unit |
+| I-SRV-65 | lineasVentaServicioConNc acredita VENTAS_SERVICIOS e IVA, sin COGS | lib/contabilidad/generador-asientos | unit |
+
+### Componentes — cobro de cita y precio de servicio
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| COB-01 | Muestra el desglose neto/IVA/total derivado del precio bruto | ModalCobroCita | component |
+| COB-02 | Con efectivo (default) 'Cobrar' dispara PATCH completar con metodoPago efectivo | ModalCobroCita | component |
+| COB-03 | Débito SIN número de transacción mantiene 'Cobrar' deshabilitado | ModalCobroCita | component |
+| COB-04 | Al validar una NC se consulta GET /api/notas-credito?numero_nc y el monto aplicado es min(monto_total, total) | ModalCobroCita | component |
+| COB-05 | NC que cubre el total → PATCH incluye pagoNc completo y metodoPago nota_credito | ModalCobroCita | component |
+| COB-06 | NC con monto menor al total → muestra la diferencia y exige método para el resto | ModalCobroCita | component |
+| COB-07 | NC inexistente → mensaje de error y no deja cobrar | ModalCobroCita | component |
+| COB-08 | Fallo del PATCH → muestra el error de la API en pantalla y no llama onSuccess | ModalCobroCita | component |
+| CTB-05 | Cita con precio muestra 'Completar y cobrar'; sin precio muestra 'Completar' (y el clic hace el PATCH correcto) | CitasTab | component |
+| NCF-08 | Servicio sin precio deshabilita 'Agendar cita' | NuevaCitaForm | component |
+| SRVC-01 | Servicio con precio muestra badge con el monto; sin precio muestra 'Sin precio' | ServiciosTab | component |
+| SRVC-02 | Crear servicio sin precio → botón deshabilitado (precio obligatorio) | ServiciosTab | component |
+| SRVC-03 | Crear servicio con precio → POST /api/servicios incluye precio bruto | ServiciosTab | component |
+| SRVC-04 | Editar servicio legado sin precio permite guardar sin precio, y enviar precio lo completa | ServiciosTab | component |

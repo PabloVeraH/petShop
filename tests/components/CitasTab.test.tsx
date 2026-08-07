@@ -50,6 +50,7 @@ const CITAS_MOCK = [
     mascota: null,
     servicio: { nombre: "Peluquería" },
     encargado: { nombre: "Juan Pérez" },
+    precio: 15000,
   },
   {
     id: "cita-2",
@@ -61,6 +62,7 @@ const CITAS_MOCK = [
     mascota: null,
     servicio: { nombre: "Baño" },
     encargado: null,
+    precio: null,
   },
 ];
 
@@ -104,7 +106,7 @@ describe("CitasTab (CTB-XX)", () => {
   it("CTB-01: fila con encargado asignado muestra su nombre", async () => {
     render(<CitasTab />, { wrapper: makeWrapper() });
     await waitFor(() => expect(screen.getByText("Carlos Rojas")).toBeInTheDocument());
-    expect(screen.getByText((_, el) => el?.textContent === "Peluquería · 30 min · Juan Pérez · 912345678")).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.textContent === "Peluquería · 30 min · $15.000 · Juan Pérez · 912345678")).toBeInTheDocument();
   });
 
   // CTB-02 — REGRESIÓN: citas sin encargado (ej. históricas, encargado_id
@@ -147,5 +149,29 @@ describe("CitasTab (CTB-XX)", () => {
 
     const form = screen.getByTestId("nueva-cita-form");
     expect(form.getAttribute("data-fecha-inicial")).toBe("2026-08-20");
+  });
+
+  // CTB-05 — Fase 4: una cita confirmada CON precio muestra el botón
+  // "Completar y cobrar"; una cita legado SIN precio muestra "Completar".
+  it("CTB-05: cita con precio muestra 'Completar y cobrar'; sin precio muestra 'Completar'", async () => {
+    render(<CitasTab />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Carlos Rojas")).toBeInTheDocument());
+
+    expect(screen.getByText("Completar y cobrar")).toBeInTheDocument();
+    expect(screen.getByText("Completar")).toBeInTheDocument();
+
+    // cita-1 (con precio) no ofrece completar simple; cita-2 (legado) sí.
+    const botonCompletar = screen.getByText("Completar") as HTMLButtonElement;
+    fireEvent.click(botonCompletar);
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/citas/cita-2",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ accion: "completar" }),
+        })
+      );
+    });
   });
 });

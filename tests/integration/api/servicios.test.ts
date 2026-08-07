@@ -173,38 +173,57 @@ describe("POST /api/servicios", () => {
   // I-SRV-08
   it("I-SRV-08: body con store_id de otra tienda → se ignora, persiste con store_id del contexto → 201", async () => {
     mockSingle.mockResolvedValue({
-      data: { id: SERVICIO_ID, store_id: STORE_ID, nombre: "Corte básico", descripcion: null, duracion_minutos: 30, activo: true },
+      data: { id: SERVICIO_ID, store_id: STORE_ID, nombre: "Corte básico", descripcion: null, duracion_minutos: 30, precio: 15000, activo: true },
       error: null,
     });
     const { POST } = await import("@/app/api/servicios/route");
     const res = await POST(req("/api/servicios", "POST", {
       nombre: "Corte básico",
       duracion_minutos: 30,
+      precio: 15000,
       store_id: "malicious-store-id",
     }));
     expect(res.status).toBe(201);
+    // El insert NO lleva store_id del body; lo asigna el contexto.
+    expect(mockFrom).toHaveBeenCalledWith("servicios");
   });
 
   // I-SRV-09
   it("I-SRV-09: nombre duplicado → 409", async () => {
     mockSingle.mockResolvedValue({ data: null, error: { code: "23505" } });
     const { POST } = await import("@/app/api/servicios/route");
-    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30 }));
+    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30, precio: 15000 }));
     expect(res.status).toBe(409);
   });
 
   // I-SRV-10
-  it("I-SRV-10: payload válido → 201", async () => {
+  it("I-SRV-10: payload válido → 201, precio bruto persiste", async () => {
     mockSingle.mockResolvedValue({
-      data: { id: SERVICIO_ID, store_id: STORE_ID, nombre: "Corte básico", descripcion: null, duracion_minutos: 30, activo: true },
+      data: { id: SERVICIO_ID, store_id: STORE_ID, nombre: "Corte básico", descripcion: null, duracion_minutos: 30, precio: 15000, activo: true },
       error: null,
     });
     const { POST } = await import("@/app/api/servicios/route");
-    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30 }));
+    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30, precio: 15000 }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.nombre).toBe("Corte básico");
     expect(body.duracion_minutos).toBe(30);
+    expect(body.precio).toBe(15000);
+  });
+
+  // I-SRV-57
+  it("I-SRV-57: precio ausente → 400 (obligatorio desde Fase 4)", async () => {
+    const { POST } = await import("@/app/api/servicios/route");
+    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30 }));
+    expect(res.status).toBe(400);
+    expect(mockFrom).not.toHaveBeenCalledWith("servicios");
+  });
+
+  // I-SRV-58
+  it("I-SRV-58: precio <= 0 → 400 (debe ser bruto > 0)", async () => {
+    const { POST } = await import("@/app/api/servicios/route");
+    const res = await POST(req("/api/servicios", "POST", { nombre: "Corte básico", duracion_minutos: 30, precio: 0 }));
+    expect(res.status).toBe(400);
   });
 });
 

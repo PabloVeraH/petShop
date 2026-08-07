@@ -261,8 +261,18 @@ describe("ProductoCreateSchema con codigo_barra", () => {
 
 describe("ServicioCreateSchema", () => {
   it("U-SRV-01: payload válido → success", () => {
-    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30 });
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30, precio: 15000 });
     expect(r.success).toBe(true);
+  });
+
+  it("U-SRV-16: precio ausente → fail (obligatorio desde Fase 4)", () => {
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30 });
+    expect(r.success).toBe(false);
+  });
+
+  it("U-SRV-17: precio 0 o negativo → fail", () => {
+    expect(ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30, precio: 0 }).success).toBe(false);
+    expect(ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 30, precio: -1 }).success).toBe(false);
   });
 
   it("U-SRV-02: nombre 1 carácter → fail", () => {
@@ -291,12 +301,12 @@ describe("ServicioCreateSchema", () => {
   });
 
   it("U-SRV-14: duracion_minutos: 60 → success", () => {
-    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 60 });
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 60, precio: 15000 });
     expect(r.success).toBe(true);
   });
 
   it("U-SRV-15: duracion_minutos: 90 → success", () => {
-    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 90 });
+    const r = ServicioCreateSchema.safeParse({ nombre: "Corte básico", duracion_minutos: 90, precio: 15000 });
     expect(r.success).toBe(true);
   });
 });
@@ -415,6 +425,40 @@ describe("CitaAccionSchema", () => {
 
   it("U-CITA-14: {accion:'invalida'} → fail", () => {
     expect(CitaAccionSchema.safeParse({ accion: "borrar" }).success).toBe(false);
+  });
+
+  it("U-CITA-29: completar con metodoPago efectivo → success", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "efectivo" }).success).toBe(true);
+  });
+
+  it("U-CITA-30: completar con débito/crédito/transferencia SIN numeroTransaccion → fail", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "debito" }).success).toBe(false);
+    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "credito" }).success).toBe(false);
+    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "transferencia" }).success).toBe(false);
+  });
+
+  it("U-CITA-31: completar con débito + numeroTransaccion → success", () => {
+    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "debito", numeroTransaccion: "TRX-1" }).success).toBe(true);
+  });
+
+  it("U-CITA-32: completar con pagoNc válido → success", () => {
+    expect(
+      CitaAccionSchema.safeParse({
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: "123e4567-e89b-12d3-a456-426614174600", numero_nc: "NC-001", monto: 5000 },
+      }).success
+    ).toBe(true);
+  });
+
+  it("U-CITA-33: completar con pagoNc.monto <= 0 → fail", () => {
+    expect(
+      CitaAccionSchema.safeParse({
+        accion: "completar",
+        metodoPago: "efectivo",
+        pagoNc: { nota_credito_id: "123e4567-e89b-12d3-a456-426614174600", numero_nc: "NC-001", monto: 0 },
+      }).success
+    ).toBe(false);
   });
 });
 
