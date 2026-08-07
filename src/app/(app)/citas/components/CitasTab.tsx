@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { NuevaCitaForm } from "./NuevaCitaForm";
 import ModalCobroCita from "./ModalCobroCita";
-import { hoyLocal } from "./date-utils";
+import { DetalleCita } from "./DetalleCita";
+import { hoyLocal, formatFechaHora } from "./date-utils";
 import type { Cita, CitaEstado, Encargado, Servicio } from "@/types";
 
 const ESTADOS: { value: CitaEstado | ""; label: string }[] = [
@@ -35,6 +36,7 @@ export function CitasTab() {
   const [cancelandoId, setCancelandoId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
   const [cobrando, setCobrando] = useState<Cita | null>(null);
+  const [detalleCita, setDetalleCita] = useState<Cita | null>(null);
   const [error, setError] = useState("");
 
   const { data: servicios = [] } = useQuery<Servicio[]>({
@@ -153,12 +155,26 @@ export function CitasTab() {
                 {c.cliente?.telefono ? ` · ${c.cliente.telefono}` : ""}
               </p>
               {c.notas && <p className="text-xs text-gray-400 italic">{c.notas}</p>}
-              {c.estado === "cancelada" && c.motivo_cancelacion && (
-                <p className="text-xs text-red-400">Motivo: {c.motivo_cancelacion}</p>
+              {c.estado === "cancelada" && (
+                <>
+                  {c.motivo_cancelacion && (
+                    <p className="text-xs text-red-400">Motivo: {c.motivo_cancelacion}</p>
+                  )}
+                  {c.cancelado_at && (
+                    <p className="text-xs text-gray-400">Cancelada el {formatFechaHora(c.cancelado_at)}</p>
+                  )}
+                </>
               )}
             </div>
-            {c.estado === "confirmada" && (
-              <div className="flex gap-2 shrink-0">
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => setDetalleCita(c)}
+                className="text-xs text-blue-500 hover:underline"
+              >
+                Ver detalle
+              </button>
+              {c.estado === "confirmada" && (
+                <>
                 {c.precio != null ? (
                   <button
                     onClick={() => setCobrando(c)}
@@ -189,8 +205,9 @@ export function CitasTab() {
                 >
                   Cancelar
                 </button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -235,6 +252,12 @@ export function CitasTab() {
             queryClient.invalidateQueries({ queryKey: ["citas"] });
           }}
         />
+      )}
+
+      {detalleCita && (
+        <ModalOverlay open onClose={() => setDetalleCita(null)}>
+          <DetalleCita cita={detalleCita} onClose={() => setDetalleCita(null)} />
+        </ModalOverlay>
       )}
     </div>
   );
