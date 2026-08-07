@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786143798.27428,
-    "ast_hash": "fb5b2ddc6c560c7a204ca160f0bf5bf2",
+    "mtime": 1786145178.810999,
+    "ast_hash": "963e97a41c3ab3f09dd808694aea76d9",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4095,8 +4095,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/servicios/components/HorarioSemanalEditor.tsx": {
-    "mtime": 1785780317.8868935,
-    "ast_hash": "01871218d00e95968d6dd43346c70336",
+    "mtime": 1786145178.8111646,
+    "ast_hash": "fce670d1ca840743fb4680f530a3513f",
     "semantic_hash": ""
   },
   "src/app/(app)/servicios/components/ServiciosTab.tsx": {
@@ -4200,8 +4200,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/servicios.test.ts": {
-    "mtime": 1786143798.274642,
-    "ast_hash": "5e2bf22544ff39a026bfc70eb2e6acb4",
+    "mtime": 1786145178.8113892,
+    "ast_hash": "fcd364d5bfc5a1bc3ab672471dcbdf22",
     "semantic_hash": ""
   },
   "tests/unit/citas/rut-format.test.ts": {
@@ -4272,6 +4272,11 @@
   "migrations/069_revoke_security_definer_grants.sql": {
     "mtime": 1786112086.6793911,
     "ast_hash": "5c454b62fe4a33424cc24657312e4f6f",
+    "semantic_hash": ""
+  },
+  "tests/components/HorarioSemanalEditor.test.tsx": {
+    "mtime": 1786145088.0931008,
+    "ast_hash": "0ed091ef13028808cf41cf0e204504f2",
     "semantic_hash": ""
   }
 }
