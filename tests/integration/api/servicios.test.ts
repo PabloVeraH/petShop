@@ -1,6 +1,9 @@
 /**
- * Tests I-SRV-01 a I-SRV-29: GET, POST, PATCH, DELETE /api/servicios
- * y GET/PUT /api/servicios/[id]/horarios.
+ * Tests I-SRV-01 a I-SRV-29, I-SRV-57/58, I-SRV-66/67: GET, POST, PATCH,
+ * DELETE /api/servicios y GET/PUT /api/servicios/[id]/horarios.
+ *
+ * I-SRV-66/67 (ticket 6a715e6005cad9d6e925659b): GET con
+ * `?incluir_inactivos=true` lista inactivos para reactivar (admin-only).
  *
  * Servicios solo administrados por storeAdmin y systemAdmin.
  * Horarios usan RPC atomico replace_servicio_horarios con ERRCODE=P0002.
@@ -66,7 +69,7 @@ describe("GET /api/servicios", () => {
   it("I-SRV-01: sin sesión → 401", async () => {
     mockGetStoreId.mockResolvedValue(null);
     const { GET } = await import("@/app/api/servicios/route");
-    const res = await GET();
+    const res = await GET(req("/api/servicios"));
     expect(res.status).toBe(401);
   });
 
@@ -81,7 +84,7 @@ describe("GET /api/servicios", () => {
     mockFrom.mockReturnValue(c);
 
     const { GET } = await import("@/app/api/servicios/route");
-    const res = await GET();
+    const res = await GET(req("/api/servicios"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
@@ -100,7 +103,7 @@ describe("GET /api/servicios", () => {
     mockFrom.mockReturnValue(c);
 
     const { GET } = await import("@/app/api/servicios/route");
-    const res = await GET();
+    const res = await GET(req("/api/servicios"));
     expect(res.status).toBe(200);
 
     // La primera eq es store_id, la segunda activo
@@ -118,8 +121,55 @@ describe("GET /api/servicios", () => {
     mockFrom.mockReturnValue(c);
 
     const { GET } = await import("@/app/api/servicios/route");
-    const res = await GET();
+    const res = await GET(req("/api/servicios"));
     expect(res.status).toBe(500);
+  });
+
+  // I-SRV-66
+  it("I-SRV-66: incluir_inactivos=true con admin → 200, sin filtro activo (lista inactivos para reactivar)", async () => {
+    const eqCalls: Array<{ col: string; val: unknown }> = [];
+    const c = chain();
+    c.eq = jest.fn().mockImplementation((col: string, val: unknown) => { eqCalls.push({ col, val }); return c; });
+    c.order = jest.fn().mockResolvedValue({
+      data: [
+        { id: SERVICIO_ID, nombre: "Baño", descripcion: null, duracion_minutos: 60, activo: true },
+        { id: "123e4567-e89b-12d3-a456-426614174200", nombre: "Baño retirado", descripcion: null, duracion_minutos: 30, activo: false },
+      ],
+      error: null,
+    });
+    mockFrom.mockReturnValue(c);
+    mockAuth.mockResolvedValue({
+      userId: "u1",
+      sessionClaims: { publicMetadata: { storeId: STORE_ID, storeAdmin: true } },
+    });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: true, storeId: STORE_ID, userId: "u1" });
+    mockRequireStoreAdmin.mockImplementation(() => {});
+
+    const { GET } = await import("@/app/api/servicios/route");
+    const res = await GET(req("/api/servicios?incluir_inactivos=true"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.length).toBe(2);
+
+    // Solo store_id se filtra — NO hay eq("activo", ...).
+    expect(eqCalls.some((c) => c.col === "store_id")).toBe(true);
+    expect(eqCalls.some((c) => c.col === "activo")).toBe(false);
+  });
+
+  // I-SRV-67
+  it("I-SRV-67: incluir_inactivos=true sin admin → 403", async () => {
+    mockAuth.mockResolvedValue({
+      userId: "u1",
+      sessionClaims: { publicMetadata: { storeId: STORE_ID } },
+    });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: false, storeId: STORE_ID, userId: "u1" });
+    mockRequireStoreAdmin.mockImplementation(() => { throw new Error("Store admin required"); });
+    mockFrom.mockReturnValue(chain());
+
+    const { GET } = await import("@/app/api/servicios/route");
+    const res = await GET(req("/api/servicios?incluir_inactivos=true"));
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
 

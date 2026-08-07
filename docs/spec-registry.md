@@ -1300,3 +1300,35 @@ brutos (IVA incluido) — `extraerIva`/`netoDesdeBruto` de `src/lib/tax.ts`.
 | SRVC-02 | Crear servicio sin precio → botón deshabilitado (precio obligatorio) | ServiciosTab | component |
 | SRVC-03 | Crear servicio con precio → POST /api/servicios incluye precio bruto | ServiciosTab | component |
 | SRVC-04 | Editar servicio legado sin precio permite guardar sin precio, y enviar precio lo completa | ServiciosTab | component |
+| SRVC-05 | Servicio inactivo muestra badge 'Inactivo' y botón 'Activar' (reactivable desde la UI) | ServiciosTab | component |
+| SRVC-06 | Click en 'Activar' → PATCH /api/servicios/:id con activo:true (reactiva) | ServiciosTab | component |
+| SRVC-07 | 'Desactivar' exige confirmación y envía activo:false; 'Cancelar' no envía nada | ServiciosTab | component |
+
+## Estado activo/inactivo de servicios — ticket 6a715e6005cad9d6e925659b (I-SRV-66/67, SRVC-05 a SRVC-07)
+
+Bug reportado el 2026-08-04: no existía campo de precio ni control para desactivar
+un servicio desde la UI. La parte de precio ya quedó resuelta por la Fase 4
+(precio en servicios, cobro al completar la cita); el defecto pendiente era que
+un servicio desactivado (`activo=false`) desaparecía del listado (`GET /api/servicios`
+filtra `activo=true`) sin forma de reactivarlo desde la UI — trampa de una vía.
+
+Fix: `GET /api/servicios?incluir_inactivos=true` (admin-only) lista inactivos para
+reactivar; `ServiciosTab` usa el param, muestra badge de estado y toggle
+Desactivar/Activar vía PATCH `{activo}`. El DELETE soft queda como API de
+compatibilidad. Verificado: `crear_cita_tx` (066) y disponibilidad ya validan
+`activo=true` — un servicio inactivo no se agendable ni cobrable.
+
+### Integración — GET /api/servicios con incluir_inactivos
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-SRV-66 | incluir_inactivos=true con admin → 200, sin filtro activo (lista inactivos para reactivar) | GET /api/servicios | integration |
+| I-SRV-67 | incluir_inactivos=true sin admin → 403 | GET /api/servicios | integration |
+
+### Componentes — toggle activo/inactivo
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| SRVC-05 | Servicio inactivo muestra badge 'Inactivo' y botón 'Activar' | ServiciosTab | component |
+| SRVC-06 | Click en 'Activar' → PATCH activo:true | ServiciosTab | component |
+| SRVC-07 | 'Desactivar' exige confirmación y envía activo:false | ServiciosTab | component |
