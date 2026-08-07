@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { NuevaCitaForm } from "./NuevaCitaForm";
+import ModalCobroCita from "./ModalCobroCita";
 import { hoyLocal } from "./date-utils";
 import type { Cita, CitaEstado, Encargado, Servicio } from "@/types";
 
@@ -33,6 +34,7 @@ export function CitasTab() {
   const [nuevaAbierta, setNuevaAbierta] = useState(false);
   const [cancelandoId, setCancelandoId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [cobrando, setCobrando] = useState<Cita | null>(null);
   const [error, setError] = useState("");
 
   const { data: servicios = [] } = useQuery<Servicio[]>({
@@ -146,6 +148,7 @@ export function CitasTab() {
               </p>
               <p className="text-xs text-gray-400">
                 {c.servicio?.nombre ?? "—"} · {c.duracion_minutos} min
+                {c.precio != null ? ` · $${Number(c.precio).toLocaleString("es-CL")}` : ""}
                 {c.encargado?.nombre ? ` · ${c.encargado.nombre}` : " · Sin asignar"}
                 {c.cliente?.telefono ? ` · ${c.cliente.telefono}` : ""}
               </p>
@@ -156,13 +159,23 @@ export function CitasTab() {
             </div>
             {c.estado === "confirmada" && (
               <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => accion({ id: c.id, body: { accion: "completar" } })}
-                  disabled={isPending}
-                  className="text-xs text-blue-500 hover:underline"
-                >
-                  Completar
-                </button>
+                {c.precio != null ? (
+                  <button
+                    onClick={() => setCobrando(c)}
+                    disabled={isPending}
+                    className="text-xs text-green-600 hover:underline font-medium"
+                  >
+                    Completar y cobrar
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => accion({ id: c.id, body: { accion: "completar" } })}
+                    disabled={isPending}
+                    className="text-xs text-blue-500 hover:underline"
+                  >
+                    Completar
+                  </button>
+                )}
                 <button
                   onClick={() => accion({ id: c.id, body: { accion: "no_show" } })}
                   disabled={isPending}
@@ -211,6 +224,17 @@ export function CitasTab() {
             </div>
           </div>
         </ModalOverlay>
+      )}
+
+      {cobrando && (
+        <ModalCobroCita
+          cita={cobrando}
+          onClose={() => setCobrando(null)}
+          onSuccess={() => {
+            setCobrando(null);
+            queryClient.invalidateQueries({ queryKey: ["citas"] });
+          }}
+        />
       )}
     </div>
   );

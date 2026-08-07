@@ -20,6 +20,8 @@ export function ServiciosTab() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [duracionMinutos, setDuracionMinutos] = useState<30 | 60 | 90>(30);
+  // Texto para permitir campo vacío al editar un servicio legado sin precio.
+  const [precio, setPrecio] = useState("");
   const [editando, setEditando] = useState<Servicio | null>(null);
   const [error, setError] = useState("");
   const [horarioAbierto, setHorarioAbierto] = useState<Servicio | null>(null);
@@ -40,6 +42,7 @@ export function ServiciosTab() {
           nombre,
           descripcion: descripcion || undefined,
           duracion_minutos: duracionMinutos,
+          precio: Number(precio),
         }),
       }).then(async (r) => {
         const d = await r.json();
@@ -48,7 +51,7 @@ export function ServiciosTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["servicios"] });
-      setNombre(""); setDescripcion(""); setDuracionMinutos(30); setError("");
+      setNombre(""); setDescripcion(""); setDuracionMinutos(30); setPrecio(""); setError("");
     },
     onError: (e: Error) => setError(e.message),
   });
@@ -62,6 +65,9 @@ export function ServiciosTab() {
           nombre,
           descripcion: descripcion || undefined,
           duracion_minutos: duracionMinutos,
+          // Solo se envía si hay contenido — permite completar el precio de un
+          // servicio legado sin forzar a hacerlo.
+          ...(precio.trim() !== "" ? { precio: Number(precio) } : {}),
         }),
       }).then(async (r) => {
         const d = await r.json();
@@ -70,7 +76,7 @@ export function ServiciosTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["servicios"], refetchType: "all" });
-      setEditando(null); setNombre(""); setDescripcion(""); setDuracionMinutos(30); setError("");
+      setEditando(null); setNombre(""); setDescripcion(""); setDuracionMinutos(30); setPrecio(""); setError("");
     },
     onError: (e: Error) => setError(e.message),
   });
@@ -91,11 +97,12 @@ export function ServiciosTab() {
     setDescripcion(s.descripcion ?? "");
     // duracion_minutos viene de la BD (CHECK IN (30,60,90)) — solo puede ser uno de esos valores.
     setDuracionMinutos(s.duracion_minutos as 30 | 60 | 90);
+    setPrecio(s.precio != null ? String(s.precio) : "");
     setError("");
   }
 
   function cancelar() {
-    setEditando(null); setNombre(""); setDescripcion(""); setDuracionMinutos(30); setError("");
+    setEditando(null); setNombre(""); setDescripcion(""); setDuracionMinutos(30); setPrecio(""); setError("");
   }
 
   if (!isAdmin) {
@@ -135,6 +142,14 @@ export function ServiciosTab() {
               ))}
             </select>
           </div>
+          <Input
+            type="number"
+            min="0"
+            step="any"
+            placeholder="Precio * (IVA incluido)"
+            value={precio}
+            onChange={(e) => setPrecio(e.target.value)}
+          />
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <div className="flex gap-2">
@@ -143,7 +158,7 @@ export function ServiciosTab() {
           )}
           <Button
             onClick={() => editando ? actualizarServicio() : crearServicio()}
-            disabled={!nombre.trim() || creando || actualizando}
+            disabled={!nombre.trim() || (!editando && !(Number(precio) > 0)) || creando || actualizando}
             className="flex-1"
           >
             {creando || actualizando ? "Guardando..." : editando ? "Guardar cambios" : "Crear servicio"}
@@ -167,6 +182,15 @@ export function ServiciosTab() {
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                   {s.duracion_minutos} min
                 </span>
+                {s.precio != null ? (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                    ${Number(s.precio).toLocaleString("es-CL")}
+                  </span>
+                ) : (
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded" title="Sin precio — no se puede agendar ni cobrar">
+                    Sin precio
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">

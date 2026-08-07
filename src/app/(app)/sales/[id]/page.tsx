@@ -23,7 +23,9 @@ type VentaDetalle = {
     cantidad: number;
     precio_unitario: number;
     subtotal: number;
+    // XOR por línea (migración 068): producto o servicio, nunca ambos.
     productos: { nombre: string; sku: string } | null;
+    servicios?: { nombre: string } | null;
   }>;
   pagos?: Array<{
     id: string;
@@ -168,7 +170,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     `\n*Productos:*\n` +
     (data.items.map((i) => {
       const prod = i.productos as unknown as { nombre: string } | null;
-      return `• ${prod?.nombre ?? "Producto"} x${i.cantidad} = $${Math.round(i.subtotal).toLocaleString("es-CL")}`;
+      const serv = i.servicios as unknown as { nombre: string } | null;
+      return `• ${prod?.nombre ?? serv?.nombre ?? "Producto"} x${i.cantidad} = $${Math.round(i.subtotal).toLocaleString("es-CL")}`;
     }).join("\n")) +
     `\n\nSubtotal: $${Math.round(subtotalNeto).toLocaleString("es-CL")}` +
     (Number(data.descuento) > 0 ? `\nDescuento (${Number(data.descuento)}%): -$${Math.round(Number(data.subtotal) * Number(data.descuento) / 100).toLocaleString("es-CL")}` : "") +
@@ -288,11 +291,12 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="space-y-1">
           {data.items.map((item) => {
             const prod = item.productos as unknown as { nombre: string; sku: string } | null;
+            const serv = item.servicios as unknown as { nombre: string } | null;
             const devuelto = cantidadesDevueltas[item.id] ?? 0;
             return (
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="flex-1 mr-2">
-                  {prod?.nombre ?? "Producto"}
+                  {prod?.nombre ?? serv?.nombre ?? "Producto"}
                   <span className="text-gray-400 text-xs ml-1">×{item.cantidad}</span>
                   {devuelto > 0 && (
                     <span className="text-amber-600 text-xs ml-1">(Dev. {devuelto})</span>

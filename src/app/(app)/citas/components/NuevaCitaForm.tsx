@@ -101,7 +101,12 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
     onError: (e: Error) => setError(e.message),
   });
 
-  const puedeConfirmar = clienteId && servicioId && encargadoId && fecha && slotSel && !isPending;
+  // Servicio seleccionado — para mostrar el precio a cobrar y bloquear el
+  // agendamiento de servicios sin precio (crear_cita_tx los rechaza, §3c).
+  const servicioSeleccionado = servicios.find((s) => s.id === servicioId);
+  const servicioSinPrecio = !!servicioSeleccionado && servicioSeleccionado.precio == null;
+
+  const puedeConfirmar = clienteId && servicioId && encargadoId && fecha && slotSel && !servicioSinPrecio && !isPending;
 
   return (
     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
@@ -177,10 +182,17 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
             <option value="">Seleccionar servicio...</option>
             {servicios.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.nombre} ({s.duracion_minutos} min)
+                {s.nombre} ({s.duracion_minutos} min){s.precio != null ? ` — $${Number(s.precio).toLocaleString("es-CL")}` : ""}
               </option>
             ))}
           </select>
+          {servicioId && (
+            <p className={`text-xs mt-1 ${servicioSeleccionado?.precio != null ? "text-gray-500" : "text-amber-600"}`}>
+              {servicioSeleccionado?.precio != null
+                ? `Se cobrará $${Number(servicioSeleccionado.precio).toLocaleString("es-CL")} (IVA incluido) al completar la cita.`
+                : "Este servicio no tiene precio configurado — no se puede agendar."}
+            </p>
+          )}
         </div>
 
         <div>
