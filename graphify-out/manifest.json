@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786145178.810999,
-    "ast_hash": "963e97a41c3ab3f09dd808694aea76d9",
+    "mtime": 1786146860.2550008,
+    "ast_hash": "057caa32c5846c932386913ef05b348b",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4060,8 +4060,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/CitasTab.tsx": {
-    "mtime": 1786112086.680391,
-    "ast_hash": "63b78f1e7e3c00f7cddec3711f46f57d",
+    "mtime": 1786146874.8419254,
+    "ast_hash": "707487d955a5acbfb9510b1a6a882411",
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/NuevaCitaForm.tsx": {
@@ -4180,8 +4180,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/citas.test.ts": {
-    "mtime": 1786112086.682522,
-    "ast_hash": "fa26ec1c735c1ab7cecb2aa513fd9015",
+    "mtime": 1786146790.9124482,
+    "ast_hash": "52019a541ab26dbc796d96c05db4bf4f",
     "semantic_hash": ""
   },
   "tests/integration/api/encargados.test.ts": {
@@ -4225,13 +4225,13 @@
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/date-utils.ts": {
-    "mtime": 1785968773.3695517,
-    "ast_hash": "dd84f578337436bce020200465a836d8",
+    "mtime": 1786145854.594604,
+    "ast_hash": "cf5bca203365c1d3bfe79b35bc833ed9",
     "semantic_hash": ""
   },
   "tests/components/CitasTab.test.tsx": {
-    "mtime": 1786112086.681391,
-    "ast_hash": "3df86d78eadbdb907a8dfffdf7e15174",
+    "mtime": 1786146047.1993716,
+    "ast_hash": "8191ab163d3b43ca1e786df5187c5035",
     "semantic_hash": ""
   },
   "tests/components/EncargadosTab.test.tsx": {
@@ -4277,6 +4277,21 @@
   "tests/components/HorarioSemanalEditor.test.tsx": {
     "mtime": 1786145088.0931008,
     "ast_hash": "0ed091ef13028808cf41cf0e204504f2",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/citas/components/DetalleCita.tsx": {
+    "mtime": 1786145863.8395927,
+    "ast_hash": "4971c5cf233ae3cc93ce38501d29e37d",
+    "semantic_hash": ""
+  },
+  "tests/components/DetalleCita.test.tsx": {
+    "mtime": 1786145976.0834572,
+    "ast_hash": "6f62ad58eecfaced882800356fe07418",
+    "semantic_hash": ""
+  },
+  "tests/unit/citas/date-utils.test.ts": {
+    "mtime": 1786145956.9604805,
+    "ast_hash": "1661ba71d86fc6136ced81d6a0d19026",
     "semantic_hash": ""
   }
 }
