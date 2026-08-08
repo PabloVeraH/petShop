@@ -1512,7 +1512,7 @@ schema + de las pruebas de Fase 4 ya aplicadas.
 Regresión para evitar recaer: el contrato observable "completar generó
 venta" se afirma en dos superficies — el body del PATCH con venta_id
 (I-CITA-77) y la fila 'Venta #…' visible en el detalle (DET-05); DET-06
-cubye el negativo (sin venta_id no se falsear la frecuencia).
+cubre el negativo (sin venta_id no se falsea que la cita generó una venta).
 
 ### Integración — PATCH /api/citas/[id] completar
 
