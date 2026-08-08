@@ -46,6 +46,7 @@ export function DevolucionModal({
   const [motivo, setMotivo] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [numeroNc, setNumeroNc] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const { mutate: crearNC, isPending } = useMutation({
     mutationFn: async () => {
@@ -97,6 +98,9 @@ export function DevolucionModal({
         resetForm();
       }, 2000);
     },
+    onError: (error: Error) => {
+      setErrorMsg(error.message || "Error creando devolución");
+    },
   });
 
   const resetForm = () => {
@@ -107,6 +111,7 @@ export function DevolucionModal({
     setMotivo("");
     setShowSuccess(false);
     setNumeroNc("");
+    setErrorMsg("");
     onClose();
   };
 
@@ -377,6 +382,15 @@ export function DevolucionModal({
                   {isPending ? "Procesando..." : "Confirmar devolución"}
                 </Button>
               </div>
+
+              {errorMsg && (
+                <div
+                  role="alert"
+                  className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700"
+                >
+                  {errorMsg}
+                </div>
+              )}
             </>
           )}
         </div>

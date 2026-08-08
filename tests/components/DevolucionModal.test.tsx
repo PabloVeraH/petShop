@@ -385,4 +385,29 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
     expect((global.fetch as jest.Mock).mock.calls.length).toBe(fetchCallsAntes);
   });
+
+  // DV-19: REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43) — si el POST a
+  // /api/notas-credito falla (ej. 500 del RPC crear_nota_credito_tx), el modal
+  // debe mostrar el mensaje de error al usuario en vez de quedarse abierto en
+  // silencio. El ticket reportaba "el modal permanece abierto sin feedback".
+  it("DV-19: error del API muestra el mensaje en el modal (no queda en silencio)", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Error creando nota de crédito: record "v_item" has no field "item"' }),
+    });
+    setup();
+    selectItemAndAdvance();
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        'Error creando nota de crédito: record "v_item" has no field "item"'
+      );
+    });
+    // El modal sigue abierto (el usuario puede corregir y reintentar), no se muestra éxito
+    expect(screen.queryByText(/Devolución registrada/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Paso 2/i)).toBeInTheDocument();
+    expect(BASE_PROPS.onClose).not.toHaveBeenCalled();
+  });
 });
