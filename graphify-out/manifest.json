@@ -850,7 +850,7 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1786194030.415892,
+    "mtime": 1786200303.4061072,
     "ast_hash": "a9939fd0a3164d1289c46decac09c94c",
     "semantic_hash": ""
   },
@@ -1390,8 +1390,8 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1786112086.681391,
-    "ast_hash": "f2b9bccd2d1fb4b203f96d35070fcd07",
+    "mtime": 1786201121.6410172,
+    "ast_hash": "f472855cfd17f3d1747d2938fd96b2fa",
     "semantic_hash": ""
   },
   "src/components/ui/badge.tsx": {
@@ -1805,8 +1805,8 @@
     "semantic_hash": ""
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1785623338.25623,
-    "ast_hash": "dbc3ae5b6162c3a61509c13e054e0d3d",
+    "mtime": 1786201121.6412508,
+    "ast_hash": "573355b6b88af004cef7c53718f69d50",
     "semantic_hash": ""
   },
   "tests/components/EditOrderItemsDialog.test.tsx": {
@@ -2155,8 +2155,8 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1785623338.2570965,
-    "ast_hash": "b36171dd5b8d2c4247a61c3625753511",
+    "mtime": 1786201121.6417274,
+    "ast_hash": "94ea33a1edff8c4890b86fc146d2c8f1",
     "semantic_hash": ""
   },
   "tests/integration/api/onboarding.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786194044.2687569,
-    "ast_hash": "010173f02c4af29508111353c63c9665",
+    "mtime": 1786201121.64054,
+    "ast_hash": "d357996513ce95925f9a69b868bd94b0",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4300,8 +4300,13 @@
     "semantic_hash": ""
   },
   "tests/integration/api/admin-users-create.test.ts": {
-    "mtime": 1786194000.1249413,
+    "mtime": 1786200303.4062276,
     "ast_hash": "c94ceb0146f92fd8b154956fbda8eca4",
+    "semantic_hash": ""
+  },
+  "migrations/070_crear_nota_credito_tx_fix_restitucion.sql": {
+    "mtime": 1786200803.371025,
+    "ast_hash": "42a5eeca448badde7ce98b837943b041",
     "semantic_hash": ""
   }
 }
