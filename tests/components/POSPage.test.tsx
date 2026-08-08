@@ -213,6 +213,12 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     const mockOpen = jest.fn().mockReturnValue(null);
     const originalOpen = window.open;
     window.open = mockOpen as unknown as typeof window.open;
+    // Con noopener window.open SIEMPRE retorna null (no solo cuando el
+    // navegador bloquea el pop-up) — la vieja detección "if (!popup)
+    // console.warn(...)" ya no puede distinguir ambos casos y se eliminó del
+    // componente. Verificamos que efectivamente no quedó ningún console.warn
+    // colgando de esa rama muerta.
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const store = makeMockStore();
       mockUsePOSStore.mockReturnValue(store);
@@ -226,9 +232,10 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
         "_blank",
         expect.stringContaining("noopener")
       );
-      expect(mockOpen.mock.calls[0][2]).not.toContain("popup bloqueado");
+      expect(warnSpy).not.toHaveBeenCalled();
     } finally {
       window.open = originalOpen;
+      warnSpy.mockRestore();
     }
   });
 });
