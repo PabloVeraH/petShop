@@ -1,7 +1,7 @@
 # Graph Report - app  (2026-08-08)
 
 ## Corpus Check
-- 558 files · ~418,431 words
+- 558 files · ~418,884 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1ac049a2`
+- Built from commit: `665065c2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -198,6 +198,7 @@
 - pos-fidelizacion-descuento-e2e.test.tsx
 - VendedoresPage.test.tsx
 - package.json
+- shadcn
 - tailwind-merge
 - Ejecución de Tests
 - renderPage
@@ -285,7 +286,6 @@
 - VendedoresPage.test.tsx
 - pos-store.test.ts
 - Cambios en la Estructura de BD — Impacto en Ventas
-- tw-animate-css
 - petShop — Instrucciones para agentes
 - FASE 1: Hub de Canales Externos + Adaptador Rappi
 - 20. Protocolo para cerrar un bug fix
@@ -385,11 +385,11 @@ Nodes (11): Carrito(), ModalPago(), calcularImpuestoCarrito(), calcularSubtotalC
 
 ### Community 1 - "User Authentication Management"
 Cohesion: 0.08
-Nodes (47): PATCH(), GET(), PATCH(), GET(), POST(), GET(), ClerkApiError, createClerkUser() (+39 more)
+Nodes (45): PATCH(), GET(), PATCH(), GET(), POST(), ClerkApiError, createClerkUser(), isClerkApiError() (+37 more)
 
 ### Community 2 - "POS Metadata and Audit"
 Cohesion: 0.08
-Nodes (51): POST(), POST(), POST(), rejectSchema, DELETE(), PATCH(), requireAdmin(), GET() (+43 more)
+Nodes (50): GET(), analizarConReintentoSiTimeout(), GET(), POST(), POST(), POST(), POST(), rejectSchema (+42 more)
 
 ### Community 3 - "Admin Dashboard Layout"
 Cohesion: 0.16
@@ -428,8 +428,8 @@ Cohesion: 0.09
 Nodes (6): InstagramChannel, PosChannel, CanalConfig, CanalOrden, CanalProducto, UberEatsChannel
 
 ### Community 12 - "Client and Pet API"
-Cohesion: 0.04
-Nodes (69): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+61 more)
+Cohesion: 0.05
+Nodes (68): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+60 more)
 
 ### Community 13 - "Inventory Batch Management"
 Cohesion: 0.12
@@ -595,8 +595,8 @@ Cohesion: 0.18
 Nodes (6): navItems, LicenseProvider(), LicenseWarningBanner(), LicenseWarningBannerProps, mockReplace, mockSearchParamsMap
 
 ### Community 52 - "AI Recommendation UI"
-Cohesion: 0.12
-Nodes (22): analizarConReintentoSiTimeout(), GET(), POST(), DELETE(), GET(), PATCH(), GET(), POST() (+14 more)
+Cohesion: 0.18
+Nodes (13): GET(), PATCH(), DELETE(), PATCH(), GET(), POST(), syncProductsToHub(), InventarioUpdateSchema (+5 more)
 
 ### Community 53 - "Supplier Hub Page"
 Cohesion: 0.21
@@ -671,8 +671,8 @@ Cohesion: 0.09
 Nodes (21): ExcepcionesEditor(), Props, DIAS, formatHora(), FormProps, FranjasEditor(), HorarioSemanalEditor(), inicializarSlots() (+13 more)
 
 ### Community 72 - "Receipt and Tax Logic"
-Cohesion: 0.47
-Nodes (5): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POSRecomendadorRequestSchema
+Cohesion: 0.24
+Nodes (10): buildResult(), ContextoPOS, POST(), RecomendacionPOS, DELETE(), PATCH(), requireAdmin(), getChangedFields() (+2 more)
 
 ### Community 73 - "Weather Context Service"
 Cohesion: 0.29
@@ -827,8 +827,8 @@ Cohesion: 0.40
 Nodes (5): 17.1 Cuándo usar cuál, 17.2 graphify (CLI — cualquier agente con shell), 17.3 codebase-memory-mcp (MCP o CLI), 17.4 Prioridad de los grafos en la jerarquía de fuentes, 17. Grafos de conocimiento (graphify y codebase-memory-mcp)
 
 ### Community 124 - "Database Refactor Roadmap"
-Cohesion: 0.38
-Nodes (4): GET(), ReportsQuerySchema, mockCreateServiceClient, mockGetStoreId
+Cohesion: 0.14
+Nodes (12): GET(), GET(), DashboardQuerySchema, FidelizacionQuerySchema, FidelizacionSchema, ReciboGetSchema, RecomprasSchema, ReportsQuerySchema (+4 more)
 
 ### Community 125 - "Jest Test Configuration"
 Cohesion: 0.40
@@ -1000,7 +1000,7 @@ Nodes (9): citaBody, idParams, mockCrearAsiento, mockFrom, mockGetStoreId, mockL
 
 ### Community 233 - "property-invariants.test.ts"
 Cohesion: 0.06
-Nodes (42): GET(), POST(), DELETE(), GET(), PATCH(), GET(), POST(), GET() (+34 more)
+Nodes (42): GET(), POST(), GET(), POST(), DELETE(), GET(), PATCH(), GET() (+34 more)
 
 ### Community 234 - "VentasPorProcedencia.tsx"
 Cohesion: 0.22
@@ -1240,15 +1240,15 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `createServiceClient()` connect `Client and Pet API` to `User Authentication Management`, `POS Metadata and Audit`, `Inventory Import and KPI`, `vencimiento-helpers.test.ts`, `Rappi Integration`, `Security and Licensing`, `Excel Report Generation`, `UberEats Integration`, `Supply Chain Accounting`, `Accounting Ledger UI`, `contabilidad-aporte-capital.test.ts`, `PedidosYa Integration`, `Webhook Security Encryption`, `ordenes-compra.test.ts`, `Customer Detail UI`, `AI Recommendation UI`, `Profit and Loss API`, `Product Search UI`, `2. BACKEND — APIs Hub`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `rateLimit.ts`, `email-alerts.ts`, `Monthly Closing Tests`, `route.ts`, `property-invariants.test.ts`, `Vendedores API Security`, `Financial Results HTML`, `POSPage.test.tsx`, `Database Refactor Roadmap`?**
   _High betweenness centrality (0.113) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `Frontend Dependencies` to `@clerk/localizations`, `SugerenciasRecompra.tsx`, `UltimasVentas.tsx`, `react-leaflet`, `Development Dependencies`, `ADR Compliance Checker`, `svix`, `@tanstack/react-query`, `@types/leaflet`, `zustand`, `@supabase/supabase-js`, `tw-animate-css`, `Barcode Scanner Tests`, `Returns Modal Tests`, `tailwind-merge`, `Supply Chain Accounting`, `Accounting Ledger UI`, `Auto-Commit Scripts`?**
+- **Why does `dependencies` connect `Frontend Dependencies` to `@clerk/localizations`, `SugerenciasRecompra.tsx`, `UltimasVentas.tsx`, `react-leaflet`, `Development Dependencies`, `ADR Compliance Checker`, `svix`, `@tanstack/react-query`, `@types/leaflet`, `zustand`, `@supabase/supabase-js`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `Accounting Ledger UI`, `Auto-Commit Scripts`?**
   _High betweenness centrality (0.047) - this node is a cross-community bridge._
 - **Why does `xlsx` connect `Accounting Ledger UI` to `FakeJsPDF`, `Supply Chain Accounting`, `Frontend Dependencies`?**
   _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **What connects `codebase-memory-mcp`, `npx`, `@claude-flow/cli` to the rest of the system?**
   _1457 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.07629288274449565 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07909604519774012 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.07672634271099744 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08033362598770852 - nodes in this community are weakly interconnected._
 - **Should `Development Dependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.041666666666666664 - nodes in this community are weakly interconnected._

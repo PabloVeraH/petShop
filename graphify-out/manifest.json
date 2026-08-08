@@ -780,8 +780,8 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1784839124.5361154,
-    "ast_hash": "5402ed7a9251d5282fdee70bf7670646",
+    "mtime": 1786203100.149941,
+    "ast_hash": "36a426fba2e409cedec724200b010a68",
     "semantic_hash": ""
   },
   "src/app/(app)/purchases/page.tsx": {
@@ -1390,8 +1390,8 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1786201121.6410172,
-    "ast_hash": "f472855cfd17f3d1747d2938fd96b2fa",
+    "mtime": 1786203100.150155,
+    "ast_hash": "7601535f48c163cc803edfb4b904a69a",
     "semantic_hash": ""
   },
   "src/components/ui/badge.tsx": {
@@ -1805,8 +1805,8 @@
     "semantic_hash": ""
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1786201121.6412508,
-    "ast_hash": "573355b6b88af004cef7c53718f69d50",
+    "mtime": 1786203074.9354417,
+    "ast_hash": "1c57fb295a67289d772ed845ea5aae74",
     "semantic_hash": ""
   },
   "tests/components/EditOrderItemsDialog.test.tsx": {
@@ -1855,8 +1855,8 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1784839124.536407,
-    "ast_hash": "82c2b2006d43be3af02276fd7d9e2182",
+    "mtime": 1786203153.192234,
+    "ast_hash": "46133ad49ec3c111394ecb9a537b1525",
     "semantic_hash": ""
   },
   "tests/components/POSPageCache.test.tsx": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786201121.64054,
-    "ast_hash": "d357996513ce95925f9a69b868bd94b0",
+    "mtime": 1786203136.4543014,
+    "ast_hash": "bf333d168334f4390d76d0f75c1aad46",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
