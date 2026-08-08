@@ -91,7 +91,11 @@ export function DevolucionModal({
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       if (tipoReembolso === "saldo_a_favor" && data.notaCreditoId) {
-        window.open(`/nota-credito/${data.notaCreditoId}?autoPrint=1`, "_blank", "width=500,height=700");
+        // noopener: misma razón que el POS (ticket Trello 6a76cba663fe913460f537d0) —
+        // la popup de la NC ejecuta window.print() (autoPrint) y sin noopener compartía
+        // proceso renderer con la pestaña que la abrió, congelándola mientras el diálogo
+        // de impresión estuviera abierto.
+        window.open(`/nota-credito/${data.notaCreditoId}?autoPrint=1`, "_blank", "noopener,width=500,height=700");
       }
       setTimeout(() => {
         onSuccess();

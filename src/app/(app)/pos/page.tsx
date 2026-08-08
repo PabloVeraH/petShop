@@ -95,8 +95,15 @@ export default function POSPage() {
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {
-        const popup = window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "width=620,height=820");
-        if (!popup) console.warn("Pop-up bloqueado — abre manualmente la venta");
+        // noopener: la popup del recibo ejecuta window.print() tras cargar (autoPrint).
+        // Sin noopener, una popup same-origin comparte el proceso renderer con el POS:
+        // el diálogo de impresión bloquea el hilo del renderer y congelaba la pestaña
+        // entera hasta cerrarlo (ticket Trello 6a76cba663fe913460f537d0 — freeze de
+        // 10s a >60s tras el cobro, con la venta ya registrada). Con noopener la popup
+        // se aísla en su propio proceso: solo la popup se bloquea mientras imprime.
+        // Efecto colateral: window.open retorna null con noopener, así que la detección
+        // de "pop-up bloqueado" vía retorno deja de ser posible — se elimina.
+        window.open(`/sales/${data.id}?autoPrint=1`, "_blank", "noopener,width=620,height=820");
       }
     },
     onError: (e: Error) => {
