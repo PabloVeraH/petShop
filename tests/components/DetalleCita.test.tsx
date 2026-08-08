@@ -89,7 +89,7 @@ describe("DetalleCita (DET-XX)", () => {
   });
 
   // DET-03
-  it("DET-03: cita sin encargado ni precio no muestra 'Sin asignar' ni fila de precio", () => {
+  it("DET-03: cita sin encargado ni precio muestra 'Sin asignar' y omite la fila de precio", () => {
     render(<DetalleCita cita={citaBase({ encargado: null, precio: null })} onClose={() => {}} />);
 
     expect(screen.getByText("Sin asignar")).toBeInTheDocument();
