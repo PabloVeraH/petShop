@@ -169,6 +169,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-482 | systemAdmin crea usuario para una tienda arbitraria (storeId del body honrado — a diferencia de storeAdmin) → 200 | POST /api/admin/users/create | integration |
 | I-483 | Aislamiento de tenant: storeAdmin con storeId de otra tienda en el body → se ignora, el usuario se crea en la tienda del admin autenticado (no IDOR) | POST /api/admin/users/create | integration |
 | I-484 | systemAdmin crea rol de tienda sin storeId → 400 "storeId requerido para roles de tienda", nunca llega a Clerk | POST /api/admin/users/create | integration |
+| I-485 | REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43): fallo del RPC crear_nota_credito_tx por restitución de stock (SQLSTATE 42703 "record "v_item" has no field "item"", corregido en migración 070) → 500 con el mensaje del RPC propagado al frontend para que el modal lo muestre | POST /api/notas-credito | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
@@ -774,6 +775,7 @@ llamar `focus()` tras un cambio de estado — el mecanismo exacto del bug.
 | DV-16 | REGRESIÓN: motivo vacío se envía como null en el body | DevolucionModal | component |
 | DV-17 | REGRESIÓN: escribir en Motivo no vuelve a robar el foco del ModalOverlay real | DevolucionModal | component |
 | DV-18 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres muestra error y bloquea "Confirmar devolución" sin llamar al API | DevolucionModal | component |
+| DV-19 | REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43): el POST a /api/notas-credito falla (ej. 500 del RPC crear_nota_credito_tx) → el modal muestra el mensaje de error vía role="alert" y permanece abierto para reintentar (antes quedaba en silencio sin feedback) | DevolucionModal | component |
 
 ## LotesPanel — formulario de Lote, Notas (LP-01 a LP-03)
 
