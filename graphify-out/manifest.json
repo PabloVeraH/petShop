@@ -850,8 +850,8 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1786219447.7917202,
-    "ast_hash": "c04dbd4e1b30a72f270d65431ba045f9",
+    "mtime": 1786223217.8529277,
+    "ast_hash": "2247260de53c28e92c206617dfa3d8f7",
     "semantic_hash": ""
   },
   "src/app/api/admin/users/route.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786219367.2020211,
-    "ast_hash": "14395a3a6ae0195d47193186fbae1bc0",
+    "mtime": 1786223230.0691977,
+    "ast_hash": "8db12f42bca1e2d516e3d74ad2e89804",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4300,8 +4300,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/admin-users-create.test.ts": {
-    "mtime": 1786219447.791898,
-    "ast_hash": "573406003bb50f248459b1058bff73a3",
+    "mtime": 1786223195.9666116,
+    "ast_hash": "96f3675f2be09f6ddce26369037f4ece",
     "semantic_hash": ""
   },
   "migrations/070_crear_nota_credito_tx_fix_restitucion.sql": {
