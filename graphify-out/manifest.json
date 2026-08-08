@@ -4305,8 +4305,8 @@
     "semantic_hash": ""
   },
   "migrations/070_crear_nota_credito_tx_fix_restitucion.sql": {
-    "mtime": 1786200803.371025,
-    "ast_hash": "42a5eeca448badde7ce98b837943b041",
+    "mtime": 1786201582.9050665,
+    "ast_hash": "29c73cc507aa1783f39156f5dfb7f5ec",
     "semantic_hash": ""
   }
 }
