@@ -4285,8 +4285,8 @@
     "semantic_hash": ""
   },
   "tests/components/DetalleCita.test.tsx": {
-    "mtime": 1786145976.0834572,
-    "ast_hash": "6f62ad58eecfaced882800356fe07418",
+    "mtime": 1786147131.61425,
+    "ast_hash": "1a0cc99f6dcb168b8359bcb0f2ce5a05",
     "semantic_hash": ""
   },
   "tests/unit/citas/date-utils.test.ts": {
