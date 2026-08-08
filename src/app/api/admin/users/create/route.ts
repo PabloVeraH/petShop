@@ -3,6 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { AdminUserCreateFullSchema } from "@/lib/validation";
+import { logError } from "@/lib/audit";
 
 type ClerkApiError = {
   errors: { code?: string; longMessage?: string; message?: string }[];
@@ -31,6 +32,7 @@ async function createClerkUser(
   lastName: string,
   nombre: string,
   storeId: string | undefined,
+  userId: string,
   role: string,
   rut: string | undefined,
   meta_ventas: number | undefined,
@@ -49,10 +51,22 @@ async function createClerkUser(
     if (isClerkApiError(createErr) && isEmailTakenError(createErr)) {
       const existing = await client.users.getUserList({ emailAddress: [email] });
       if (!existing.data.length) {
-        return NextResponse.json(
-          { error: "El email ya existe en Clerk pero no se pudo recuperar el usuario" },
-          { status: 409 }
-        );
+        // El email existe en Clerk pero no se pudo recuperar un usuario asociado:
+        // típico cuando el usuario fue borrado en Clerk (el email queda reservado)
+        // o hay un desface entre Clerk y la BD local. No es un error recuperable
+        // del usuario final: el email no está disponible para crear una cuenta.
+        // Se devuelve un mensaje claro al usuario y se loguea el detalle técnico
+        // para revisión (ticket Trello 6a76c861779de90209ed8ba3).
+        logError({
+          storeId,
+          userId,
+          errorCode: "CLERK_EMAIL_TAKEN_UNRESOLVABLE",
+          errorMessage: `Email "${email}" reportado como existente en Clerk pero sin usuario recuperable`,
+          context: { email, storeId, role },
+          severity: "WARNING",
+          endpoint: "POST /api/admin/users/create",
+        }).catch(() => {});
+        return NextResponse.json({ error: "Ya existe un usuario con este email" }, { status: 409 });
       }
       clerkUser = existing.data[0] as typeof clerkUser;
     } else {
@@ -138,7 +152,7 @@ export async function POST(req: NextRequest) {
     const nombre = `${firstName} ${lastName}`.trim();
 
     try {
-      return await createClerkUser(email, password, firstName, lastName, nombre, storeId, role, rut, meta_ventas);
+      return await createClerkUser(email, password, firstName, lastName, nombre, storeId, admin!.userId, role, rut, meta_ventas);
     } catch (error: unknown) {
       if (isClerkApiError(error) && error.errors.length > 0) {
         const clerkError = error.errors[0];
@@ -173,7 +187,7 @@ export async function POST(req: NextRequest) {
   const nombre = `${firstName} ${lastName}`.trim();
 
   try {
-    return await createClerkUser(email, password, firstName, lastName, nombre, storeId, role, rut, meta_ventas);
+    return await createClerkUser(email, password, firstName, lastName, nombre, storeId, admin!.userId, role, rut, meta_ventas);
   } catch (error: unknown) {
     if (isClerkApiError(error) && error.errors.length > 0) {
       const clerkError = error.errors[0];
