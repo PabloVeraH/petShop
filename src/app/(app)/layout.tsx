@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LicenseProvider } from "@/components/LicenseProvider";
+import HoverPrefetchLink from "@/components/ui/HoverPrefetchLink";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
@@ -82,7 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
         {visibleNav.map((item) => (
-          <Link
+          <HoverPrefetchLink
             key={item.href}
             href={item.href}
             onClick={() => setSidebarOpen(false)}
@@ -93,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             }`}
           >
             {item.label}
-          </Link>
+          </HoverPrefetchLink>
         ))}
       </nav>
       <div className="px-4 py-4 border-t border-gray-100">

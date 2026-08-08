@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import HoverPrefetchLink from "@/components/ui/HoverPrefetchLink";
 import {
   Table,
   TableBody,
@@ -216,9 +216,9 @@ export default function SalesPage() {
                       ${Math.round(Number(v.total)).toLocaleString("es-CL")}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/sales/${v.id}`} className="text-xs text-blue-500 hover:underline">
+                      <HoverPrefetchLink href={`/sales/${v.id}`} className="text-xs text-blue-500 hover:underline">
                         Ver ticket
-                      </Link>
+                      </HoverPrefetchLink>
                     </TableCell>
                   </TableRow>
                 );

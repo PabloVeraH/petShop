@@ -1,4 +1,4 @@
-import Link from "next/link";
+import HoverPrefetchLink from "@/components/ui/HoverPrefetchLink";
 
 type VentaResumen = {
   id: string;
@@ -40,9 +40,9 @@ export default function UltimasVentas({ data }: { data: VentaResumen[] }) {
               <span className={`font-medium ${anulada ? "text-gray-400 line-through" : "text-green-700"}`}>
                 ${Math.round(Number(v.total)).toLocaleString("es-CL")}
               </span>
-              <Link href={`/sales/${v.id}`} className="text-xs text-blue-400 hover:underline">
+              <HoverPrefetchLink href={`/sales/${v.id}`} className="text-xs text-blue-400 hover:underline">
                 →
-              </Link>
+              </HoverPrefetchLink>
             </div>
           </div>
         );
