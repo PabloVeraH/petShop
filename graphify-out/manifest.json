@@ -780,7 +780,7 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1786203100.149941,
+    "mtime": 1786218291.0386984,
     "ast_hash": "36a426fba2e409cedec724200b010a68",
     "semantic_hash": ""
   },
@@ -1855,8 +1855,8 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1786203153.192234,
-    "ast_hash": "46133ad49ec3c111394ecb9a537b1525",
+    "mtime": 1786218257.4940374,
+    "ast_hash": "2fcc952b8e7b992653cb2fe7bdcfe135",
     "semantic_hash": ""
   },
   "tests/components/POSPageCache.test.tsx": {
