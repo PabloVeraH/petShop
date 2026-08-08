@@ -720,6 +720,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-14 | REGRESIÓN: Procesar venta invalida ["inventario"], ["productos"] y ["lotes"] con refetchType "all" (stock descontado debe reflejarse en inventario/lotes sin recargar) | POSPage | component |
 | PP-15 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): dos intentos de "Cobrar" sin reabrir el modal envían la misma idempotencyKey | POSPage | component |
 | PP-16 | reabrir el modal de cobro genera una idempotencyKey distinta a la anterior | POSPage | component |
+| PP-17 | REGRESIÓN (ticket Trello 6a76cba663fe913460f537d0): la popup del recibo tras el cobro se abre con "noopener" para que window.print() no bloquee el renderer del POS (freeze 10-60s) | POSPage | component |
 
 ## POS Carrito — footer tras rehidratación (PC-05 a PC-15)
 
@@ -776,6 +777,7 @@ llamar `focus()` tras un cambio de estado — el mecanismo exacto del bug.
 | DV-17 | REGRESIÓN: escribir en Motivo no vuelve a robar el foco del ModalOverlay real | DevolucionModal | component |
 | DV-18 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres muestra error y bloquea "Confirmar devolución" sin llamar al API | DevolucionModal | component |
 | DV-19 | REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43): el POST a /api/notas-credito falla (ej. 500 del RPC crear_nota_credito_tx) → el modal muestra el mensaje de error vía role="alert" y permanece abierto para reintentar (antes quedaba en silencio sin feedback) | DevolucionModal | component |
+| DV-20 | REGRESIÓN (ticket Trello 6a76cba663fe913460f537d0): la popup de la NC se abre con "noopener" para que window.print() no bloquee el renderer de la pestaña origen | DevolucionModal | component |
 
 ## LotesPanel — formulario de Lote, Notas (LP-01 a LP-03)
 
