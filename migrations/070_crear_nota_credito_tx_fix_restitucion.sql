@@ -11,24 +11,33 @@
 --       v_restituir := (v_item.item->>'restituir_stock')::BOOLEAN;
 --       ...
 --
--- jsonb_array_elements() retorna SETOF jsonb (tipo base). Según la
--- documentación de PostgreSQL §7.2.1.4, para una función que retorna un tipo
--- base, la columna resultante se llama como la FUNCIÓN (jsonb_array_elements),
--- no como el alias de tabla `item`. Por lo tanto el record v_item tiene un
--- campo `jsonb_array_elements`, NO un campo `item`, y acceder a
--- v_item.item lanza:
+-- jsonb_array_elements(jsonb) tiene un parámetro de salida (OUT) nombrado
+-- explícitamente `value` (verificado: SELECT proargnames FROM pg_proc WHERE
+-- proname='jsonb_array_elements' → {from_json,value}). Por eso
+-- `SELECT * FROM jsonb_array_elements(...) AS item` produce una columna
+-- llamada `value` — NI el alias de tabla `item` NI el nombre de la función
+-- jsonb_array_elements, como podría asumirse por analogía con funciones que
+-- retornan un tipo base sin OUT nombrado. El record v_item NO tiene campo
+-- `item`, y acceder a v_item.item lanza:
 --
 --     record "v_item" has no field "item"   (SQLSTATE 42703)
+--
+-- (verificado con un DO block aislado contra el proyecto real, sin tocar
+-- datos: mismo mensaje exacto; v_item.value sí funciona).
 --
 -- El primer loop de la misma función (jsonb_to_recordset con lista de columnas
 -- tipadas AS x(...)) sí funciona porque ahí SÍ se nombran las columnas. Este
 -- loop copiaba el defecto de la 061 y la 068 lo heredó al redefinir la función
 -- para líneas de servicio.
 --
--- Síntoma en producción: toda devolución parcial con restituir_stock=true
--- (el default en la UI) falla con 500; el error ya estaba registrado en
--- audit_logs (04-08 y 08-08-2026, acción CREATE, resultado failure). La nota
--- de crédito nunca se crea y el frontend no mostraba error.
+-- Alcance real del fallo: la línea que revienta (v_restituir := ...) es la
+-- PRIMERA instrucción del loop, ANTES de cualquier chequeo de
+-- restituir_stock o producto_id. Falla en la primera iteración sin importar
+-- el valor de esos campos — es decir, TODA devolución con al menos un ítem
+-- falla (no solo las que tienen restituir_stock=true; ese es simplemente el
+-- valor por defecto de la UI, y por eso es el caso que se observó en QA).
+-- Confirmado en audit_logs (04-08 y 08-08-2026, acción CREATE, resultado
+-- failure): la nota de crédito nunca se crea y el frontend no mostraba error.
 --
 -- ─── Verificación contra el sistema real (no destructiva, ROLLBACK) ──────
 -- Reproducido llamando el RPC desplegado con una venta real + su item y
@@ -201,10 +210,12 @@ BEGIN
   -- 5. Restituir stock y registrar movimientos
   --    FIX (migración 070): jsonb_to_recordset con columnas tipadas. El
   --    SELECT * sobre jsonb_array_elements(...) AS item nombraba la columna
-  --    como la función (jsonb_array_elements), no como `item`, y v_item.item
-  --    lanzaba "record "v_item" has no field "item"" (SQLSTATE 42703) — toda
-  --    devolución con restituir_stock=true fallaba con 500. Las líneas de
-  --    servicio (producto_id NULL) se saltan completo (cambio 3f.2 de 068).
+  --    `value` (OUT param de la función, no el alias `item`), y v_item.item
+  --    lanzaba "record "v_item" has no field "item"" (SQLSTATE 42703) en la
+  --    primera línea del loop, antes de leer restituir_stock — toda
+  --    devolución con al menos un ítem fallaba con 500, no solo las de
+  --    restituir_stock=true. Las líneas de servicio (producto_id NULL) se
+  --    saltan completo (cambio 3f.2 de 068).
   FOR v_item IN SELECT * FROM jsonb_to_recordset(v_nc_items) AS x(
     venta_item_id UUID,
     producto_id UUID,
