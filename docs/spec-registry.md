@@ -93,6 +93,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | C-52 | ClerkDevWarning con publishableKey vacío NO muestra advertencia | ClerkDevWarning | component |
 | C-53 | ClerkDevWarning con clave test_ (legacy) muestra advertencia de modo desarrollo | ClerkDevWarning | component |
 | C-54 | REGRESIÓN (ticket 6a76c861779de90209ed8ba3): crear usuario con email duplicado muestra el mensaje claro del backend ("Ya existe un usuario con este email") en pantalla, sin exponer "Clerk" — la UI no silencia ni transforma el error de la API | UsuariosCard | component |
+| C-55 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): el dropdown de eventos de Sesiones de usuarios NO ofrece session.ended (evento que nunca se registra; el sign-out real llega como session.removed) — solo session.created y session.removed | AuditoriaCard | component |
 
 ## Notas de Crédito (I-100 a I-115)
 
@@ -173,6 +174,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-485 | REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43): fallo del RPC crear_nota_credito_tx por restitución de stock (SQLSTATE 42703 "record "v_item" has no field "item"", corregido en migración 070) → 500 con el mensaje del RPC propagado al frontend para que el modal lo muestre | POST /api/notas-credito | integration |
 | I-486 | REGRESIÓN (ticket 6a76c861779de90209ed8ba3): email existente en Clerk sin usuario recuperable → además del 409 claro, se loguea vía logError (errorCode CLERK_EMAIL_TAKEN_UNRESOLVABLE, severity WARNING, email en contexto) para revisión técnica del desface | POST /api/admin/users/create | integration |
 | I-487 | REGRESIÓN (revisión del ticket 6a76c861779de90209ed8ba3, mismo defecto en otro punto del archivo): error de Clerk sin longMessage ni message (fallback defensivo) → 422 con mensaje genérico "Error al crear el usuario", sin nombrar Clerk | POST /api/admin/users/create | integration |
+| I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
+| I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
