@@ -267,6 +267,62 @@ describe("POST /api/citas", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// POST /api/citas — "hoy" local vs UTC (ticket 6a7161b4c5a35c889231c8a0)
+// ──────────────────────────────────────────────────────────────────────────────
+// En husos negativos (Chile UTC-4), entre las 20:00 y 23:59 locales el día
+// UTC ya cambió: con hoyISO()=toISOString().split("T")[0] agendar para HOY
+// local era rechazado (400) como "fecha pasada". El fix calcula "hoy" con
+// getters locales (getFullYear/getMonth/getDate). TZ se fija a
+// America/Santiago para que la divergencia local/UTC exista también en una
+// CI corriendo en UTC; el reloj se restaura al del archivo al salir.
+describe("POST /api/citas — hoy local vs UTC (ticket 6a7161b4c5a35c889231c8a0)", () => {
+  const ORIGINAL_TZ = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = "America/Santiago";
+    // 01:00 UTC del 2 de agosto = 21:00 del 1 de agosto en Santiago.
+    // hoy local = "2026-08-01"; hoy UTC = "2026-08-02".
+    jest.setSystemTime(new Date("2026-08-02T01:00:00Z"));
+  });
+  afterAll(() => {
+    jest.setSystemTime(new Date("2026-08-01T12:00:00Z")); // reloj original del archivo
+    if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+    else process.env.TZ = ORIGINAL_TZ;
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // I-CITA-75 — REGRESIÓN: sin el fix este request recibía 400 espurio.
+  it("I-CITA-75: agendar para hoy local en franja nocturna (UTC ya es mañana) → 201, no 400", async () => {
+    mockRpc.mockResolvedValue({
+      data: { id: CITA_ID, ...citaBody, fecha: "2026-08-01", hora_fin: "10:30:00", estado: "confirmada", created_by: "u1" },
+      error: null,
+    });
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", { ...citaBody, fecha: "2026-08-01" }));
+    expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith(
+      "crear_cita_tx",
+      expect.objectContaining({ p_fecha: "2026-08-01", p_store_id: STORE_ID })
+    );
+  });
+
+  // I-CITA-76 — la invariante del ticket original se mantiene en la misma
+  // franja horaria: ayer local sigue rechazándose antes de tocar la BD.
+  it("I-CITA-76: ayer local en la misma franja nocturna → 400 (validación sigue activa)", async () => {
+    const { POST } = await import("@/app/api/citas/route");
+    const res = await POST(req("/api/citas", "POST", { ...citaBody, fecha: "2026-07-31" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("No se pueden agendar citas en fechas pasadas");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // GET /api/citas
 // ──────────────────────────────────────────────────────────────────────────────
 

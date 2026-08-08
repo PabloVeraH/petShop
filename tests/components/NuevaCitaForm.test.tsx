@@ -238,4 +238,37 @@ describe("NuevaCitaForm (NCF-XX)", () => {
     expect(screen.getByText("Este servicio no tiene precio configurado — no se puede agendar.")).toBeInTheDocument();
     expect(screen.getByText("Agendar cita") as HTMLButtonElement).toBeDisabled();
   });
+
+  // NCF-09 — REGRESIÓN (ticket 6a7161b4c5a35c889231c8a0): el min del date
+  // picker y la precarga usan hoyLocal() (fecha local del navegador). Si
+  // alguien lo "refactoriza" a `toISOString().split("T")[0]` (UTC), en la
+  // franja 20:00-23:59 de Chile el min quedaría en MAÑANA y no dejaría
+  // agendar para hoy. TZ se fija a America/Santiago para que la divergencia
+  // local/UTC exista también en una CI en UTC.
+  describe("NCF-09 — min en franja nocturna local", () => {
+    const ORIGINAL_TZ = process.env.TZ;
+
+    beforeAll(() => {
+      process.env.TZ = "America/Santiago";
+      // 01:00 UTC del 2 de agosto = 21:00 del 1 de agosto en Santiago.
+      // hoy local = "2026-08-01"; hoy UTC = "2026-08-02".
+      jest.setSystemTime(new Date("2026-08-02T01:00:00Z"));
+    });
+    afterAll(() => {
+      jest.setSystemTime(new Date(`${HOY}T12:00:00Z`)); // reloj original del archivo
+      if (ORIGINAL_TZ === undefined) delete process.env.TZ;
+      else process.env.TZ = ORIGINAL_TZ;
+    });
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockFetch.mockImplementation(mockFetchDefaultImpl);
+    });
+
+    it("NCF-09: min y precarga usan la fecha local aunque UTC ya sea el día siguiente", () => {
+      render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+      const fechaInput = campoTrasLabel("Fecha *") as HTMLInputElement;
+      expect(fechaInput.min).toBe("2026-08-01");
+      expect(fechaInput.value).toBe("2026-08-01");
+    });
+  });
 });

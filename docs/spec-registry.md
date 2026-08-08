@@ -1399,3 +1399,43 @@ I-CITA-73/74 fijan ese contrato.
 | DET-02 | Cita cancelada muestra motivo y fecha de cancelación | DetalleCita | component |
 | DET-03 | Cita sin encargado ni precio muestra 'Sin asignar' y omite la fila de precio | DetalleCita | component |
 | DET-04 | Click en Cerrar llama a onClose | DetalleCita | component |
+
+## "Hoy" UTC vs local al rechazar fechas pasadas — ticket 6a7161b4c5a35c889231c8a0 (I-CITA-75/76, U-CITA-38/39, NCF-09)
+
+Ticket reportado el 2026-08-04: POST /api/citas permitía agendar citas en
+fechas pasadas (ej. '2020-01-06'). El bug literal ya estaba resuelto en HEAD:
+el commit a9bcd33 (2026-08-05) añadió `.refine((d) => d.fecha >= hoyISO())` a
+CitaCreateSchema con tests U-CITA-27/28 e I-CITA-56 — un repro dirigido
+confirma que '2020-01-06' es rechazada.
+
+Pero la validación tenía un defecto propio: `hoyISO()` usaba
+`new Date().toISOString().split("T")[0]` (UTC). En husos negativos (Chile
+UTC-4), entre las 20:00 y 23:59 locales UTC ya cambió de día, así que
+agendar para HOY era rechazado como "fecha pasada" (falso rechazo nocturno).
+Fix: `hoyISO()` usa getters locales (getFullYear/getMonth/getDate), mismo
+criterio que `hoyLocal()` del frontend. Regresión demostrada con git stash:
+U-CITA-38 e I-CITA-75 fallan sin el fix.
+
+Mismo patrón UTC queda vigente (impacto cosmético, no bloqueante — decisión
+de alcance aparte) en: Carrito.tsx `isVencido`, dashboard/vencimientos,
+reports (vencimientos).
+
+### Unit — CitaCreateSchema (TZ fijado a America/Santiago)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-CITA-38 | Agendar para hoy local en franja 20:00-23:59 (UTC ya es mañana) → success | CitaCreateSchema | unit |
+| U-CITA-39 | Ayer local → fail con mensaje de fecha pasada (validación sigue activa) | CitaCreateSchema | unit |
+
+### Integración — POST /api/citas (TZ fijado a America/Santiago)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-75 | Agendar para hoy local en franja nocturna (UTC ya es mañana) → 201, no 400 | POST /api/citas | integration |
+| I-CITA-76 | Ayer local en la misma franja → 400 'No se pueden agendar citas en fechas pasadas', sin RPC | POST /api/citas | integration |
+
+### Componentes — NuevaCitaForm
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| NCF-09 | min y precarga del date picker usan la fecha local aunque UTC ya sea el día siguiente (guardia: el frontend ya era correcto) | NuevaCitaForm | component |
