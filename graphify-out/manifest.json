@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786149951.776436,
-    "ast_hash": "11549e802ebd7a0a60d043c712cc8571",
+    "mtime": 1786162062.9970887,
+    "ast_hash": "8267b3a276ede736f319e7273970b99e",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4165,8 +4165,8 @@
     "semantic_hash": ""
   },
   "src/lib/validation/citas.ts": {
-    "mtime": 1786149913.4223826,
-    "ast_hash": "e16bf9e522e0271ae3f1c0643f5755a4",
+    "mtime": 1786150937.7863624,
+    "ast_hash": "1a09977c15e94153446ffc6677b94f2f",
     "semantic_hash": ""
   },
   "src/lib/validation/encargados.ts": {
@@ -4180,8 +4180,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/citas.test.ts": {
-    "mtime": 1786149840.0802803,
-    "ast_hash": "f611fa901451a13a8dfbda4ecd3dd05a",
+    "mtime": 1786151033.6365225,
+    "ast_hash": "199dbb66c4662b6c7fe65fc96d6b458b",
     "semantic_hash": ""
   },
   "tests/integration/api/encargados.test.ts": {
@@ -4295,8 +4295,8 @@
     "semantic_hash": ""
   },
   "tests/unit/citas/cita-fecha-timezone.test.ts": {
-    "mtime": 1786149807.045234,
-    "ast_hash": "fa8687b04fd4ab396020cd772214f6b3",
+    "mtime": 1786150998.5145314,
+    "ast_hash": "0f8a6a61dfc5e64cbb3f98b472fdd396",
     "semantic_hash": ""
   }
 }
