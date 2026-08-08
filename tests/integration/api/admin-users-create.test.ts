@@ -1,5 +1,5 @@
 /**
- * Tests I-476 a I-484: POST /api/admin/users/create
+ * Tests I-476 a I-486: POST /api/admin/users/create
  * Creación de usuario administrador/worker vía Clerk.
  *
  * REGRESIÓN (ticket 6a76c8c5946f3e4288a6176d): Clerk rechaza con
@@ -8,6 +8,15 @@
  * engañoso "El email ya existe en Clerk pero no se pudo recuperar el usuario"
  * para emails nuevos — cualquier contraseña comprometida fallaba siempre,
  * sin importar el email.
+ *
+ * REGRESIÓN (ticket 6a76c861779de90209ed8ba3, I-478/I-486): el mismo mensaje
+ * "El email ya existe en Clerk pero no se pudo recuperar el usuario" se
+ * devolvía al usuario final en el caso irrecuperable genuino (email existente
+ * en Clerk, típicamente reservado por un usuario borrado, sin usuario
+ * recuperable vía getUserList). Exponía el proveedor interno (Clerk) y
+ * sugería una desincronización. Ahora el usuario final ve "Ya existe un
+ * usuario con este email" (mensaje de negocio) y el detalle técnico se
+ * loguea vía logError para revisión técnica.
  *
  * I-482 a I-484 (revisión posterior, mismo archivo/endpoint): la rama
  * systemAdmin de la ruta (requireSystemAdminConsistent + storeId del body)
@@ -30,6 +39,8 @@ jest.mock("@clerk/nextjs/server", () => ({
   clerkClient: mockClerkClient,
 }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+const mockLogError = jest.fn().mockResolvedValue(undefined);
+jest.mock("@/lib/audit", () => ({ logError: mockLogError }));
 
 function upsertChain() {
   return {
@@ -143,8 +154,12 @@ describe("POST /api/admin/users/create (storeAdmin)", () => {
     expect(mockUpdateUserMetadata).toHaveBeenCalled();
   });
 
-  // I-478: email tomado pero irrecuperable → 409 legítimo con el mensaje de no recuperación
-  it("I-478: form_identifier_exists sin usuario recuperable → 409", async () => {
+  // I-478: email tomado pero irrecuperable → 409 con mensaje claro orientado al usuario
+  // (ticket 6a76c861779de90209ed8ba3): antes se devolvía "El email ya existe en Clerk
+  // pero no se pudo recuperar el usuario", que exponía el proveedor interno (Clerk) y
+  // sugería una desincronización. Ahora el usuario final ve un mensaje de negocio limpio
+  // y el detalle técnico (email existe pero sin usuario recuperable) va a error_logs.
+  it("I-478: form_identifier_exists sin usuario recuperable → 409 con mensaje claro, sin exponer Clerk", async () => {
     mockClerkClient.mockResolvedValue({
       users: {
         createUser: jest.fn().mockRejectedValue({
@@ -164,7 +179,40 @@ describe("POST /api/admin/users/create (storeAdmin)", () => {
 
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.error).toBe("El email ya existe en Clerk pero no se pudo recuperar el usuario");
+    expect(body.error).toBe("Ya existe un usuario con este email");
+    expect(body.error).not.toContain("Clerk");
+  });
+
+  // I-486: el caso irrecuperable se loguea para revisión técnica (§20.5 — detección):
+  // el usuario final no debe ver el detalle interno, pero el desface Clerk↔BD (email
+  // reservado por usuario borrado, o inconsistencia) queda registrado en error_logs
+  // con el email en contexto para diagnóstico.
+  it("I-486: email existente sin usuario recuperable → se loguea con logError (detección técnica)", async () => {
+    mockClerkClient.mockResolvedValue({
+      users: {
+        createUser: jest.fn().mockRejectedValue({
+          errors: [{ code: "form_identifier_exists", message: "Email already exists" }],
+          status: 400,
+        }),
+        getUserList: jest.fn().mockResolvedValue({ data: [] }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ email: "duplicado@store.com" }),
+    }));
+
+    expect(res.status).toBe(409);
+    expect(mockLogError).toHaveBeenCalledWith(expect.objectContaining({
+      errorCode: "CLERK_EMAIL_TAKEN_UNRESOLVABLE",
+      errorMessage: expect.stringContaining("duplicado@store.com"),
+      severity: "WARNING",
+      endpoint: "POST /api/admin/users/create",
+      context: expect.objectContaining({ email: "duplicado@store.com" }),
+    }));
   });
 
   // I-479: happy path — usuario creado correctamente

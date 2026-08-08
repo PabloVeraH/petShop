@@ -92,4 +92,49 @@ describe("UsuariosCard — autoComplete en formularios (C-41, C-44)", () => {
     const nombreInput = screen.getByPlaceholderText("Nombre completo");
     expect(nombreInput).toHaveAttribute("autocomplete", "off");
   });
+
+  // C-54 — REGRESIÓN (ticket 6a76c861779de90209ed8ba3): el backend devolvía un
+  // 409 con el mensaje técnico "El email ya existe en Clerk pero no se pudo
+  // recuperar el usuario" y el formulario lo mostraba tal cual — exponiendo el
+  // proveedor interno (Clerk) al usuario final. Ahora el backend responde con un
+  // mensaje de negocio ("Ya existe un usuario con este email"); este test
+  // verifica que ese mensaje del servidor llega a pantalla (la UI no lo silencia
+  // ni lo transforma en un detalle técnico).
+  it("C-54: REGRESIÓN — crear usuario con email duplicado muestra el mensaje claro del backend (no el técnico)", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/admin/users?storeId=")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(DEFAULT_USERS) });
+      }
+      if (url.includes("/api/admin/users/create")) {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: "Ya existe un usuario con este email" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<UsuariosCard store={{ id: "store-1" }} role="storeAdmin" />, {
+      wrapper: makeWrapper(),
+    });
+
+    fireEvent.click(screen.getByText("+ Crear usuario"));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "admin@test.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Contraseña"), { target: { value: "ClaveSegura123!" } });
+    fireEvent.change(screen.getByPlaceholderText("Nombre"), { target: { value: "Admin" } });
+    fireEvent.change(screen.getByPlaceholderText("Apellido"), { target: { value: "Test" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Ya existe un usuario con este email")).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Clerk/i)).not.toBeInTheDocument();
+  });
 });
