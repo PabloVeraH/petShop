@@ -4,11 +4,22 @@ import { UUIDSchema } from "./primitives";
 const HORA_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/; // mismo regex que servicios.ts — no se centraliza, mismo precedente de inventario.ts/servicios.ts
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-// "Hoy" en formato YYYY-MM-DD según el reloj del servidor — mismo patrón que
-// el resto del proyecto (ver p.ej. src/app/api/dashboard/vencimientos/route.ts,
-// src/app/api/reports/route.ts: new Date().toISOString().split("T")[0]).
-// Comparación lexicográfica de strings "YYYY-MM-DD" == comparación cronológica.
-const hoyISO = () => new Date().toISOString().split("T")[0];
+// "Hoy" en formato YYYY-MM-DD según el reloj LOCAL del servidor. Usar los
+// getters locales (getFullYear/Month/Date) en vez de `toISOString().split("T")[0]`:
+// toISOString() convierte a UTC primero, lo que adelanta un día tras la
+// medianoche de UTC (en husos negativos como Chile UTC-3/4 eso ocurre a las
+// 20:00/21:00 locales) y provoca rechazos espurios de "fecha pasada" para una
+// cita de HOY agendada en la franja nocturna local. Mismo criterio que
+// hoyLocal() en el frontend (src/app/(app)/citas/components/date-utils.ts) — ver
+// su comentario. Comparación lexicográfica de strings "YYYY-MM-DD" == cronológica.
+// FIX del ticket 6a7161b4c5a35c889231c8a0: el bug literal (permitir fechas
+// pasadas) ya estaba resuelto por la existencia del refine (commit a9bcd33),
+// pero el cálculo de "hoy" era incorrecto en husos negativos.
+const hoyISO = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 export const CitaCreateSchema = z
   .object({
