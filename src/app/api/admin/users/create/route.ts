@@ -18,10 +18,10 @@ function isClerkApiError(err: unknown): err is ClerkApiError {
   );
 }
 
+// form_password_pwned (contraseña en HIBP) NO es "email ya existe":
+// agruparlo aquí producía un 409 engañoso para emails nuevos (ticket 6a76c8c5946f3e4288a6176d).
 function isEmailTakenError(err: ClerkApiError): boolean {
-  return err.errors.some(
-    (e) => e.code === "form_identifier_exists" || e.code === "form_password_pwned"
-  );
+  return err.errors.some((e) => e.code === "form_identifier_exists");
 }
 
 async function createClerkUser(
