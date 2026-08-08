@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786162062.9970887,
-    "ast_hash": "8267b3a276ede736f319e7273970b99e",
+    "mtime": 1786164850.2003403,
+    "ast_hash": "8d6c5726a416a3af7fb7968d25363606",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4060,7 +4060,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/CitasTab.tsx": {
-    "mtime": 1786146874.8419254,
+    "mtime": 1786162333.945117,
     "ast_hash": "707487d955a5acbfb9510b1a6a882411",
     "semantic_hash": ""
   },
@@ -4095,12 +4095,12 @@
     "semantic_hash": ""
   },
   "src/app/(app)/servicios/components/HorarioSemanalEditor.tsx": {
-    "mtime": 1786145178.8111646,
+    "mtime": 1786162333.9452925,
     "ast_hash": "fce670d1ca840743fb4680f530a3513f",
     "semantic_hash": ""
   },
   "src/app/(app)/servicios/components/ServiciosTab.tsx": {
-    "mtime": 1786143798.2743971,
+    "mtime": 1786162333.9453716,
     "ast_hash": "956c66234a85e7c6a029b6d6e498bbf4",
     "semantic_hash": ""
   },
@@ -4155,7 +4155,7 @@
     "semantic_hash": ""
   },
   "src/app/api/servicios/route.ts": {
-    "mtime": 1786143798.2744694,
+    "mtime": 1786162333.9454343,
     "ast_hash": "db867a8b08fecf0daefb1778285e0770",
     "semantic_hash": ""
   },
@@ -4165,7 +4165,7 @@
     "semantic_hash": ""
   },
   "src/lib/validation/citas.ts": {
-    "mtime": 1786150937.7863624,
+    "mtime": 1786162333.9455128,
     "ast_hash": "1a09977c15e94153446ffc6677b94f2f",
     "semantic_hash": ""
   },
@@ -4180,8 +4180,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/citas.test.ts": {
-    "mtime": 1786151033.6365225,
-    "ast_hash": "199dbb66c4662b6c7fe65fc96d6b458b",
+    "mtime": 1786164037.2335396,
+    "ast_hash": "e02df2eb78448129512b8cb917d6b93c",
     "semantic_hash": ""
   },
   "tests/integration/api/encargados.test.ts": {
@@ -4200,7 +4200,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/servicios.test.ts": {
-    "mtime": 1786145178.8113892,
+    "mtime": 1786162333.946278,
     "ast_hash": "fcd364d5bfc5a1bc3ab672471dcbdf22",
     "semantic_hash": ""
   },
@@ -4225,12 +4225,12 @@
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/date-utils.ts": {
-    "mtime": 1786145854.594604,
+    "mtime": 1786162333.9452138,
     "ast_hash": "cf5bca203365c1d3bfe79b35bc833ed9",
     "semantic_hash": ""
   },
   "tests/components/CitasTab.test.tsx": {
-    "mtime": 1786146047.1993716,
+    "mtime": 1786162333.9455948,
     "ast_hash": "8191ab163d3b43ca1e786df5187c5035",
     "semantic_hash": ""
   },
@@ -4240,7 +4240,7 @@
     "semantic_hash": ""
   },
   "tests/components/NuevaCitaForm.test.tsx": {
-    "mtime": 1786149876.2453308,
+    "mtime": 1786162333.945799,
     "ast_hash": "8680d2d11fc36ab1c5ecfcf78bdd99c9",
     "semantic_hash": ""
   },
@@ -4260,7 +4260,7 @@
     "semantic_hash": ""
   },
   "tests/components/ServiciosTab.test.tsx": {
-    "mtime": 1786143798.2745569,
+    "mtime": 1786162333.9458885,
     "ast_hash": "2e27df3cb4f2bc602c672765701163d7",
     "semantic_hash": ""
   },
@@ -4275,27 +4275,27 @@
     "semantic_hash": ""
   },
   "tests/components/HorarioSemanalEditor.test.tsx": {
-    "mtime": 1786145088.0931008,
+    "mtime": 1786162333.9457028,
     "ast_hash": "0ed091ef13028808cf41cf0e204504f2",
     "semantic_hash": ""
   },
   "src/app/(app)/citas/components/DetalleCita.tsx": {
-    "mtime": 1786145863.8395927,
+    "mtime": 1786162333.9451666,
     "ast_hash": "4971c5cf233ae3cc93ce38501d29e37d",
     "semantic_hash": ""
   },
   "tests/components/DetalleCita.test.tsx": {
-    "mtime": 1786147131.61425,
-    "ast_hash": "1a0cc99f6dcb168b8359bcb0f2ce5a05",
+    "mtime": 1786164619.140418,
+    "ast_hash": "c326ec45e3a54013f75823e27bebc896",
     "semantic_hash": ""
   },
   "tests/unit/citas/date-utils.test.ts": {
-    "mtime": 1786145956.9604805,
+    "mtime": 1786162333.9463851,
     "ast_hash": "1661ba71d86fc6136ced81d6a0d19026",
     "semantic_hash": ""
   },
   "tests/unit/citas/cita-fecha-timezone.test.ts": {
-    "mtime": 1786150998.5145314,
+    "mtime": 1786162333.9463472,
     "ast_hash": "0f8a6a61dfc5e64cbb3f98b472fdd396",
     "semantic_hash": ""
   }
