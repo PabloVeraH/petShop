@@ -850,7 +850,7 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1786171974.117122,
+    "mtime": 1786194030.415892,
     "ast_hash": "a9939fd0a3164d1289c46decac09c94c",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786172059.841901,
-    "ast_hash": "f9dc0951cbddc057be9730d0d13bf5e1",
+    "mtime": 1786194044.2687569,
+    "ast_hash": "010173f02c4af29508111353c63c9665",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4300,8 +4300,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/admin-users-create.test.ts": {
-    "mtime": 1786171948.2752037,
-    "ast_hash": "016ddb2d1b8244a65a5ed629cbed3810",
+    "mtime": 1786194000.1249413,
+    "ast_hash": "c94ceb0146f92fd8b154956fbda8eca4",
     "semantic_hash": ""
   }
 }
