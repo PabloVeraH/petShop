@@ -97,4 +97,34 @@ describe("GET /api/user-sessions", () => {
 
     expect(chain.eq).toHaveBeenCalledWith("store_id", externalStoreId);
   });
+
+  // I-488
+  it("I-488: filtro event_type=session.removed es un evento real y funciona", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    const chain = makeChain([], 0);
+    mockFrom.mockReturnValue(chain);
+
+    const { GET } = await import("@/app/api/user-sessions/route");
+    const res = await GET(new NextRequest("http://localhost/api/user-sessions?event_type=session.removed"));
+
+    expect(res.status).toBe(200);
+    expect(chain.eq).toHaveBeenCalledWith("event_type", "session.removed");
+  });
+
+  // I-489
+  it("I-489: REGRESIÓN (ticket 6a76c9994e8b17f267f71641) — event_type=session.ended se rechaza con 400", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { systemAdmin: true } },
+    });
+    mockFrom.mockReturnValue(makeChain());
+
+    const { GET } = await import("@/app/api/user-sessions/route");
+    const res = await GET(new NextRequest("http://localhost/api/user-sessions?event_type=session.ended"));
+
+    expect(res.status).toBe(400);
+  });
 });

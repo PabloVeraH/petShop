@@ -403,4 +403,29 @@ describe("AuditoriaCard — extended tabs", () => {
       expect(resolveCall[1]?.method).toBe("PATCH");
     });
   });
+
+  // C-55
+  it("C-55: REGRESIÓN (ticket 6a76c9994e8b17f267f71641) — dropdown de eventos NO ofrece session.ended", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("user-sessions")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: mockSessions, count: 1 }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: [], count: 0 }) });
+    });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.click(screen.getByText("Sesiones de usuarios"));
+
+    await waitFor(() => {
+      const options = screen
+        .getAllByRole("option")
+        .map((o) => (o as HTMLOptionElement).value);
+      expect(options).toContain("session.created");
+      expect(options).toContain("session.removed");
+      expect(options).not.toContain("session.ended");
+    });
+  });
 });
