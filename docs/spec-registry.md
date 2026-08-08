@@ -160,6 +160,12 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-434 | Predicción 7 días con ventas en todos los días del período calcula correctamente (regresión: caso normal no se rompe) | GET /api/reports | integration |
 | I-435 | Predicción retorna null cuando hay menos de 10 transacciones (umbral mínimo) | GET /api/reports | integration |
 | I-475 | REGRESIÓN (revisión plan_valorServicio.md): venta_items de servicio (producto_id NULL, migración 068) se excluyen de topProductos — sin el filtro, todas las líneas de servicio colapsaban en una entrada falsa "Producto" mezclando revenue de servicios distintos | GET /api/reports | integration |
+| I-476 | REGRESIÓN (ticket 6a76c8c5946f3e4288a6176d): contraseña comprometida (form_password_pwned, HIBP) NO se trata como "email ya existe" — devuelve 422 con el mensaje real de Clerk, no un 409 engañoso de email duplicado | POST /api/admin/users/create | integration |
+| I-477 | form_identifier_exists con usuario recuperado de Clerk → prosigue actualizando metadata del usuario existente (200 ok:true) | POST /api/admin/users/create | integration |
+| I-478 | form_identifier_exists sin usuario recuperable → 409 "El email ya existe en Clerk pero no se pudo recuperar el usuario" (caso legítimo del mensaje) | POST /api/admin/users/create | integration |
+| I-479 | Creación de usuario exitosa → 200 ok:true con metadata de storeWorker y store_id de la tienda del admin | POST /api/admin/users/create | integration |
+| I-480 | No autenticado → 403 | POST /api/admin/users/create | integration |
+| I-481 | storeAdmin intentando crear systemAdmin → 403 | POST /api/admin/users/create | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
