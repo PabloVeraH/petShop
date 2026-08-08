@@ -425,7 +425,6 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
           >
             <option value="">Todos los eventos</option>
             <option value="session.created">session.created</option>
-            <option value="session.ended">session.ended</option>
             <option value="session.removed">session.removed</option>
           </select>
           <input

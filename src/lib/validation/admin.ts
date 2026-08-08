@@ -95,7 +95,7 @@ export const ErrorLogsQuerySchema = z.object({
 export const UserSessionsQuerySchema = z.object({
   store_id: UUIDSchema.optional(),
   user_id: z.string().optional(),
-  event_type: z.enum(["session.created", "session.ended", "session.removed"]).optional(),
+  event_type: z.enum(["session.created", "session.removed"]).optional(),
   desde: z.string().datetime().optional(),
   hasta: z.string().datetime().optional(),
   offset: z.coerce.number().int().min(0).default(0),
