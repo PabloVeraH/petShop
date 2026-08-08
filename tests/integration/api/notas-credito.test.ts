@@ -688,6 +688,35 @@ describe("POST /api/notas-credito", () => {
       p_venta_id: VENTA_ID,
     }));
   });
+
+  // I-485: REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43) — el error del
+  // RPC por fallo de restitución de stock (SQLSTATE 42703 "record "v_item" has
+  // no field "item"") debe llegar al cliente con el mensaje del RPC, no
+  // perderse. El fix de la causa raíz es la migración 070 (jsonb_to_recordset
+  // en el loop de restitución); este test protege el contrato de propagación
+  // del error 500 + mensaje al frontend para que el modal lo muestre.
+  it("I-485: fallo del RPC por restitución de stock → 500 con el mensaje del RPC", async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: 'record "v_item" has no field "item"' },
+    });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: NC_ID, cantidadDevuelta: 1, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toContain('record "v_item" has no field "item"');
+  });
 });
 
 describe("GET /api/notas-credito", () => {
