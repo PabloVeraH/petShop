@@ -1487,3 +1487,42 @@ reports (vencimientos).
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
 | NCF-09 | min y precarga del date picker usan la fecha local aunque UTC ya sea el día siguiente (guardia: el frontend ya era correcto; test frágil bajo TZ=UTC real — ver nota arriba) | NuevaCitaForm | component |
+
+## Completar cita → venta generada (verificación + regresión) — ticket 6a716208e49a7be4739d1c73 (I-CITA-77, DET-05, DET-06)
+
+Hallazgo reportado el 2026-08-04: completar una cita (PATCH /api/citas/{id}
+accion:'completar') no generaba ninguna venta en /sales. La Fase 4
+(migración 068 + completar_cita_tx, commits 7750fba/8de87fe/f750e84, tres
+días después del reporte) lo resolvió: completar una cita CON precio exige
+metodoPago y llama al RPC completar_cita_tx, que atómicamente crea la venta
++ venta_items (servicio_id) + pagos y hace UPDATE citas SET venta_id. Las
+citas legacy (precio NULL, pre-068) completan sin venta por decisión del
+plan §3g (inventar un precio retroactivamente no sería correcto); y
+crear_cita_tx v3 rechaza (P0002) agendar un servicio sin precio, así que
+toda cita nueva lleva snapshot de precio y al completar genera venta.
+
+Verificación contra infraestructura real (read-only, §11.4): las columnas
+citas.precio, citas.venta_id y servicios.precio existen en el proyecto real
+(PostgREST, select limit 0 → 200 incl. esas columnas) y la función
+completar_cita_tx está presente en el schema cache (PGRST202 "sin
+parámetros" = existe firmada). El cuerpo funcional de la función no se
+ejecutó (sería escritura en el DB real de producción, §7.2) — inferido del
+schema + de las pruebas de Fase 4 ya aplicadas.
+
+Regresión para evitar recaer: el contrato observable "completar generó
+venta" se afirma en dos superficies — el body del PATCH con venta_id
+(I-CITA-77) y la fila 'Venta #…' visible en el detalle (DET-05); DET-06
+cubye el negativo (sin venta_id no se falsear la frecuencia).
+
+### Integración — PATCH /api/citas/[id] completar
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-CITA-77 | Cita con precio + efectivo → 200, body devuelve estado 'completada' y venta_id no nulo (vínculo cita→venta) | PATCH /api/citas/[id] | integration |
+
+### Componentes — DetalleCita
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| DET-05 | Cita completada con venta_id muestra la fila 'Venta #…' (vínculo con la venta generada) | DetalleCita | component |
+| DET-06 | Cita sin venta_id no muestra la fila 'Venta' (negativo: no falsear 'generó venta') | DetalleCita | component |

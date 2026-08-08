@@ -725,6 +725,28 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
     expect(arg.lineas).toBe(mockLineasVentaServicio.mock.results[0].value);
   });
 
+  // I-CITA-77 — ticket 6a716208e49a7be4739d1c73: el contrato observable de
+  // "completar una cita genera una venta" es que la respuesta del PATCH lleva
+  // la cita en estado 'completada' y con venta_id NO nulo apuntando a la venta
+  // creada por completar_cita_tx. Sin este vínculo, /sales no muestraría nada
+  // asociado a la cita (síntoma del ticket). Regresión del hallazgo original.
+  it("I-CITA-77: cita con precio + efectivo → 200, body devuelve estado completada y venta_id no nulo", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })       // SELECT cita
+      .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null }); // SELECT stores
+    mockRpc.mockResolvedValue({
+      data: { cita: { id: CITA_ID, estado: "completada", venta_id: "venta-1" }, venta: { id: "venta-1", numero_comprobante: "V-0001", created_at: "2026-08-10T12:00:00Z" } },
+      error: null,
+    });
+
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.estado).toBe("completada");
+    expect(body.venta_id).toBe("venta-1");
+  });
+
   // I-CITA-59
   it("I-CITA-59: pagoNc de una NC inexistente → 404 antes de abrir la transacción", async () => {
     mockSingle

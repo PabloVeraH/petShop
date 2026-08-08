@@ -104,4 +104,28 @@ describe("DetalleCita (DET-XX)", () => {
     fireEvent.click(screen.getByText("Cerrar"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // DET-05 — ticket 6a716208e49a7be4739d1c73: completar una cita con precio
+  // genera una venta (completar_cita_tx); el detalle de la cita debe mostrar
+  // la referencia a esa venta (fila "Venta #…"). Sin ella, el usuario no ve
+  // ningún vínculo entre la cita completada y la venta que /sales lista — el
+  // síntoma del ticket. Regresión de la integración completar→venta.
+  it("DET-05: cita completada con venta_id muestra la fila 'Venta #…' (vínculo con la venta generada)", () => {
+    render(
+      <DetalleCita
+        cita={citaBase({ estado: "completada", venta_id: "11111111-2222-3333-4444-555555555555" })}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Completada")).toBeInTheDocument();
+    expect(screen.getByText("#11111111\u2026")).toBeInTheDocument();
+  });
+
+  // DET-06 — complemento: una cita sin venta_id (confirmada legado o recién
+  // creada) NO muestra la fila de Venta — evita falsear "generó venta".
+  it("DET-06: cita sin venta_id no muestra la fila 'Venta'", () => {
+    render(<DetalleCita cita={citaBase()} onClose={() => {}} />);
+    expect(screen.queryByText("Venta")).not.toBeInTheDocument();
+  });
 });
