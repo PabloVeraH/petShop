@@ -4,22 +4,42 @@ import { UUIDSchema } from "./primitives";
 const HORA_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/; // mismo regex que servicios.ts — no se centraliza, mismo precedente de inventario.ts/servicios.ts
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-// "Hoy" en formato YYYY-MM-DD según el reloj LOCAL del servidor. Usar los
-// getters locales (getFullYear/Month/Date) en vez de `toISOString().split("T")[0]`:
-// toISOString() convierte a UTC primero, lo que adelanta un día tras la
-// medianoche de UTC (en husos negativos como Chile UTC-3/4 eso ocurre a las
-// 20:00/21:00 locales) y provoca rechazos espurios de "fecha pasada" para una
-// cita de HOY agendada en la franja nocturna local. Mismo criterio que
-// hoyLocal() en el frontend (src/app/(app)/citas/components/date-utils.ts) — ver
-// su comentario. Comparación lexicográfica de strings "YYYY-MM-DD" == cronológica.
-// FIX del ticket 6a7161b4c5a35c889231c8a0: el bug literal (permitir fechas
-// pasadas) ya estaba resuelto por la existencia del refine (commit a9bcd33),
-// pero el cálculo de "hoy" era incorrecto en husos negativos.
-const hoyISO = () => {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+// Huso horario del negocio (single-tenant Chile — ver es-CL/RUT/IVA en todo
+// el proyecto; no hay columna de timezone por tienda en `stores`). Ver
+// justificación completa en el comentario de hoyISO() más abajo.
+const BUSINESS_TZ = "America/Santiago";
+
+// "Hoy" en formato YYYY-MM-DD según el huso del negocio (BUSINESS_TZ), NO
+// según el huso del proceso Node — son cosas distintas y aquí es donde
+// falló el intento de fix anterior de este mismo ticket.
+//
+// `TZ` es una variable de entorno RESERVADA en Vercel (no configurable desde
+// project settings: https://vercel.com/docs/environment-variables/reserved-environment-variables)
+// y las Vercel Functions heredan el default de AWS Lambda, que es UTC — sin
+// excepción, sin importar la región del deployment. Por eso
+// `new Date().getFullYear()/getMonth()/getDate()` ("hora local del proceso")
+// devuelve exactamente lo mismo que `toISOString().split("T")[0]` en
+// producción: ambos son UTC. Un fix anterior de este ticket cambió
+// `toISOString()` por esos getters locales asumiendo que reflejarían la hora
+// de Chile — verificado que NO es así (simulación con TZ=UTC, como corre
+// Vercel realmente: ambas variantes devuelven el mismo valor, un día
+// adelantado respecto al "hoy" de Chile durante la franja ~20:00-23:59
+// hora local, cuando UTC ya cruzó la medianoche). El bug seguía presente.
+//
+// Fix real: `Intl.DateTimeFormat` con `timeZone` explícito ignora el TZ del
+// proceso — calcula la fecha en BUSINESS_TZ sin importar dónde ni con qué
+// huso corra el servidor. formato "en-CA" da directamente YYYY-MM-DD.
+// Mismo criterio de negocio que hoyLocal() del frontend
+// (src/app/(app)/citas/components/date-utils.ts), que sí es correcto porque
+// corre en el navegador del usuario chileno. Comparación lexicográfica de
+// strings "YYYY-MM-DD" == comparación cronológica.
+const hoyISO = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
 export const CitaCreateSchema = z
   .object({

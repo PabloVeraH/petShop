@@ -1400,7 +1400,7 @@ I-CITA-73/74 fijan ese contrato.
 | DET-03 | Cita sin encargado ni precio muestra 'Sin asignar' y omite la fila de precio | DetalleCita | component |
 | DET-04 | Click en Cerrar llama a onClose | DetalleCita | component |
 
-## "Hoy" UTC vs local al rechazar fechas pasadas — ticket 6a7161b4c5a35c889231c8a0 (I-CITA-75/76, U-CITA-38/39, NCF-09)
+## "Hoy" del negocio (Chile) vs UTC al rechazar fechas pasadas — ticket 6a7161b4c5a35c889231c8a0 (I-CITA-75/76, U-CITA-38/39, NCF-09)
 
 Ticket reportado el 2026-08-04: POST /api/citas permitía agendar citas en
 fechas pasadas (ej. '2020-01-06'). El bug literal ya estaba resuelto en HEAD:
@@ -1408,34 +1408,82 @@ el commit a9bcd33 (2026-08-05) añadió `.refine((d) => d.fecha >= hoyISO())` a
 CitaCreateSchema con tests U-CITA-27/28 e I-CITA-56 — un repro dirigido
 confirma que '2020-01-06' es rechazada.
 
-Pero la validación tenía un defecto propio: `hoyISO()` usaba
-`new Date().toISOString().split("T")[0]` (UTC). En husos negativos (Chile
-UTC-4), entre las 20:00 y 23:59 locales UTC ya cambió de día, así que
-agendar para HOY era rechazado como "fecha pasada" (falso rechazo nocturno).
-Fix: `hoyISO()` usa getters locales (getFullYear/getMonth/getDate), mismo
-criterio que `hoyLocal()` del frontend. Regresión demostrada con git stash:
-U-CITA-38 e I-CITA-75 fallan sin el fix.
+**Corrección de un fix previo de este mismo ticket (revisión posterior):**
+un primer intento cambió `hoyISO()` de `toISOString().split("T")[0]` (UTC) a
+getters "locales" del proceso (`getFullYear/getMonth/getDate`), asumiendo que
+reflejarían la hora de Chile — con tests que fijaban `process.env.TZ =
+"America/Santiago"` en tiempo de ejecución para demostrarlo. Esa premisa es
+**incorrecta en producción**: las Vercel Functions corren siempre con
+`TZ=UTC` — `TZ` es una variable de entorno **reservada** por Vercel, no
+configurable desde project settings
+(https://vercel.com/docs/environment-variables/reserved-environment-variables),
+heredada de AWS Lambda (infraestructura subyacente), sin excepción sin
+importar la región del deployment. "Hora local del proceso" == UTC en el
+deploy real, así que ese primer fix no cambiaba absolutamente nada: el
+rechazo espurio de "hoy" (Chile) durante la franja nocturna seguía ocurriendo
+en producción — verificado empíricamente simulando el proceso con `TZ=UTC`
+real (`TZ=UTC npx jest ...`), que es el único mecanismo confiable para esa
+simulación (ver hallazgo siguiente).
+
+**Fix real:** `hoyISO()` usa `Intl.DateTimeFormat` con `timeZone` fijo
+(`America/Santiago`, huso del negocio — single-tenant Chile, sin columna de
+timezone por tienda en `stores`), que ignora `process.env.TZ` por completo y
+calcula la fecha correcta sin importar dónde ni con qué huso corra el
+servidor. Mismo criterio de negocio que `hoyLocal()` del frontend (que sí es
+correcto porque corre en el navegador del usuario chileno).
+
+**Hallazgo adicional — `process.env.TZ` reasignado en tiempo de ejecución no
+es confiable:** V8/ICU cachea el offset de zona horaria tras la primera
+operación `Date` del proceso; reasignar `process.env.TZ` a mitad de un
+proceso ya iniciado no garantiza que los getters "locales" reflejen el nuevo
+valor (confirmado empíricamente: el mismo test bajo `TZ=UTC` fijado al
+arrancar Node falla con el código anterior y pasa con el fix; el mismo test
+reasignando `process.env.TZ` dentro de `beforeAll` da resultados
+inconsistentes según qué TZ tenía el proceso al arrancar). Por eso los tests
+de este fix ya NO manipulan `process.env.TZ` — no lo necesitan, porque
+`Intl.DateTimeFormat` con `timeZone` explícito no lo consulta.
+
+**NCF-09 (NuevaCitaForm, frontend) — fragilidad conocida, no corregida en
+este pase:** ese test todavía reasigna `process.env.TZ` dentro de `beforeAll`
+para simular la franja nocturna en el date picker. Confirmado que **falla en
+aislamiento bajo `TZ=UTC` real** (`TZ=UTC npx jest ... -t NCF-09`), por el
+mismo problema de caché de V8/ICU — pasa en este entorno solo porque la
+máquina de desarrollo ya está en huso America/Santiago. El código de
+producción que prueba (`hoyLocal()` en el date picker, vía getters locales
+del **navegador** del usuario) es correcto y no requiere cambios: el
+problema es exclusivamente la técnica de simulación del test, que no tiene
+un equivalente confiable a `Intl.DateTimeFormat` con `timeZone` explícito
+para "simular el huso de un navegador" dentro de Jest/jsdom sin introducir
+mocking de `Date.prototype` (fuera de alcance de este cambio — no hay CI
+configurado en el repo que lo habría atrapado; queda como riesgo residual
+documentado, no como regresión oculta).
+
+**Hallazgo separado — mismo patrón, módulo distinto:** `tests/integration/api/license-control.test.ts`
+(`LC-05`, cálculo de vencimiento de licencia) también depende de fechas
+"locales" del servidor y falla bajo `TZ=UTC` real. No forma parte de este
+ticket (módulo de licencias, no de citas) y no se modificó — requiere su
+propia revisión y decisión de alcance.
 
 Mismo patrón UTC queda vigente (impacto cosmético, no bloqueante — decisión
 de alcance aparte) en: Carrito.tsx `isVencido`, dashboard/vencimientos,
 reports (vencimientos).
 
-### Unit — CitaCreateSchema (TZ fijado a America/Santiago)
+### Unit — CitaCreateSchema
 
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
-| U-CITA-38 | Agendar para hoy local en franja 20:00-23:59 (UTC ya es mañana) → success | CitaCreateSchema | unit |
-| U-CITA-39 | Ayer local → fail con mensaje de fecha pasada (validación sigue activa) | CitaCreateSchema | unit |
+| U-CITA-38 | Agendar para hoy de Chile en franja nocturna (UTC ya cruzó la medianoche) → success | CitaCreateSchema | unit |
+| U-CITA-39 | Ayer de Chile → fail con mensaje de fecha pasada (validación sigue activa) | CitaCreateSchema | unit |
 
-### Integración — POST /api/citas (TZ fijado a America/Santiago)
+### Integración — POST /api/citas
 
 | ID | Descripción | Ruta | Tipo |
 |----|-------------|------|------|
-| I-CITA-75 | Agendar para hoy local en franja nocturna (UTC ya es mañana) → 201, no 400 | POST /api/citas | integration |
-| I-CITA-76 | Ayer local en la misma franja → 400 'No se pueden agendar citas en fechas pasadas', sin RPC | POST /api/citas | integration |
+| I-CITA-75 | Agendar para hoy de Chile en franja nocturna (UTC ya cruzó la medianoche) → 201, no 400 | POST /api/citas | integration |
+| I-CITA-76 | Ayer de Chile en la misma franja → 400 'No se pueden agendar citas en fechas pasadas', sin RPC | POST /api/citas | integration |
 
 ### Componentes — NuevaCitaForm
 
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
-| NCF-09 | min y precarga del date picker usan la fecha local aunque UTC ya sea el día siguiente (guardia: el frontend ya era correcto) | NuevaCitaForm | component |
+| NCF-09 | min y precarga del date picker usan la fecha local aunque UTC ya sea el día siguiente (guardia: el frontend ya era correcto; test frágil bajo TZ=UTC real — ver nota arriba) | NuevaCitaForm | component |

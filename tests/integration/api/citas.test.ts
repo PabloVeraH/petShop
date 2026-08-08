@@ -267,27 +267,30 @@ describe("POST /api/citas", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// POST /api/citas — "hoy" local vs UTC (ticket 6a7161b4c5a35c889231c8a0)
+// POST /api/citas — "hoy" del negocio (Chile) vs UTC (ticket 6a7161b4c5a35c889231c8a0)
 // ──────────────────────────────────────────────────────────────────────────────
-// En husos negativos (Chile UTC-4), entre las 20:00 y 23:59 locales el día
-// UTC ya cambió: con hoyISO()=toISOString().split("T")[0] agendar para HOY
-// local era rechazado (400) como "fecha pasada". El fix calcula "hoy" con
-// getters locales (getFullYear/getMonth/getDate). TZ se fija a
-// America/Santiago para que la divergencia local/UTC exista también en una
-// CI corriendo en UTC; el reloj se restaura al del archivo al salir.
-describe("POST /api/citas — hoy local vs UTC (ticket 6a7161b4c5a35c889231c8a0)", () => {
-  const ORIGINAL_TZ = process.env.TZ;
-
+// Entre las 20:00 y 23:59 hora Chile el día UTC ya cambió: con
+// hoyISO()=toISOString().split("T")[0] agendar para HOY (Chile) era
+// rechazado (400) como "fecha pasada". El fix calcula "hoy" con
+// Intl.DateTimeFormat y timeZone="America/Santiago" fijo — NO con getters
+// "locales" del proceso: en Vercel el proceso SIEMPRE corre en TZ=UTC (TZ es
+// variable reservada, no configurable desde project settings — ver
+// comentario de hoyISO() en src/lib/validation/citas.ts), así que "local del
+// proceso" == UTC en producción. El test NO manipula process.env.TZ: V8/ICU
+// cachea el offset tras la primera operación Date del proceso, así que
+// reasignarlo a mitad de proceso no es confiable (ver detalle en
+// tests/unit/citas/cita-fecha-timezone.test.ts, que también prueba esta
+// invariante a nivel de schema). Como el fix ignora process.env.TZ por
+// completo, el resultado es correcto sin importar el TZ real del proceso —
+// el test no necesita simularlo.
+describe("POST /api/citas — hoy del negocio (Chile) vs UTC del proceso (ticket 6a7161b4c5a35c889231c8a0)", () => {
   beforeAll(() => {
-    process.env.TZ = "America/Santiago";
-    // 01:00 UTC del 2 de agosto = 21:00 del 1 de agosto en Santiago.
-    // hoy local = "2026-08-01"; hoy UTC = "2026-08-02".
+    // 01:00 UTC del 2 de agosto = 21:00 del 1 de agosto en Santiago (Chile).
+    // "hoy" para el negocio (Chile) = "2026-08-01"; "hoy" en UTC = "2026-08-02".
     jest.setSystemTime(new Date("2026-08-02T01:00:00Z"));
   });
   afterAll(() => {
     jest.setSystemTime(new Date("2026-08-01T12:00:00Z")); // reloj original del archivo
-    if (ORIGINAL_TZ === undefined) delete process.env.TZ;
-    else process.env.TZ = ORIGINAL_TZ;
   });
   beforeEach(() => {
     jest.clearAllMocks();
@@ -295,8 +298,10 @@ describe("POST /api/citas — hoy local vs UTC (ticket 6a7161b4c5a35c889231c8a0)
     mockFrom.mockReturnValue(chain());
   });
 
-  // I-CITA-75 — REGRESIÓN: sin el fix este request recibía 400 espurio.
-  it("I-CITA-75: agendar para hoy local en franja nocturna (UTC ya es mañana) → 201, no 400", async () => {
+  // I-CITA-75 — REGRESIÓN: sin el fix (o con el primer intento de fix, que
+  // seguía dependiendo del TZ del proceso) este request recibía 400 espurio
+  // en producción, porque el proceso corre en TZ=UTC.
+  it("I-CITA-75: agendar para hoy de Chile en franja nocturna (UTC ya cruzó la medianoche) → 201, no 400", async () => {
     mockRpc.mockResolvedValue({
       data: { id: CITA_ID, ...citaBody, fecha: "2026-08-01", hora_fin: "10:30:00", estado: "confirmada", created_by: "u1" },
       error: null,
@@ -311,8 +316,8 @@ describe("POST /api/citas — hoy local vs UTC (ticket 6a7161b4c5a35c889231c8a0)
   });
 
   // I-CITA-76 — la invariante del ticket original se mantiene en la misma
-  // franja horaria: ayer local sigue rechazándose antes de tocar la BD.
-  it("I-CITA-76: ayer local en la misma franja nocturna → 400 (validación sigue activa)", async () => {
+  // franja horaria: ayer de Chile sigue rechazándose antes de tocar la BD.
+  it("I-CITA-76: ayer de Chile en la misma franja nocturna → 400 (validación sigue activa)", async () => {
     const { POST } = await import("@/app/api/citas/route");
     const res = await POST(req("/api/citas", "POST", { ...citaBody, fecha: "2026-07-31" }));
     expect(res.status).toBe(400);
