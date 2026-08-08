@@ -780,7 +780,7 @@
     "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
   },
   "src/app/(app)/pos/page.tsx": {
-    "mtime": 1786218291.0386984,
+    "mtime": 1786218481.030664,
     "ast_hash": "36a426fba2e409cedec724200b010a68",
     "semantic_hash": ""
   },
@@ -850,8 +850,8 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1786200303.4061072,
-    "ast_hash": "a9939fd0a3164d1289c46decac09c94c",
+    "mtime": 1786219447.7917202,
+    "ast_hash": "c04dbd4e1b30a72f270d65431ba045f9",
     "semantic_hash": ""
   },
   "src/app/api/admin/users/route.ts": {
@@ -1390,7 +1390,7 @@
     "semantic_hash": "af4f3dbd0ebb9b2960bcada5bbbe0fb9"
   },
   "src/components/sales/DevolucionModal.tsx": {
-    "mtime": 1786203100.150155,
+    "mtime": 1786218481.0307772,
     "ast_hash": "7601535f48c163cc803edfb4b904a69a",
     "semantic_hash": ""
   },
@@ -1805,7 +1805,7 @@
     "semantic_hash": ""
   },
   "tests/components/DevolucionModal.test.tsx": {
-    "mtime": 1786203074.9354417,
+    "mtime": 1786218481.0309103,
     "ast_hash": "1c57fb295a67289d772ed845ea5aae74",
     "semantic_hash": ""
   },
@@ -1855,7 +1855,7 @@
     "semantic_hash": "d16aec38ce828987884247f713bd01f7"
   },
   "tests/components/POSPage.test.tsx": {
-    "mtime": 1786218257.4940374,
+    "mtime": 1786218481.0310059,
     "ast_hash": "2fcc952b8e7b992653cb2fe7bdcfe135",
     "semantic_hash": ""
   },
@@ -2155,7 +2155,7 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1786201121.6417274,
+    "mtime": 1786218481.031153,
     "ast_hash": "94ea33a1edff8c4890b86fc146d2c8f1",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786203136.4543014,
-    "ast_hash": "bf333d168334f4390d76d0f75c1aad46",
+    "mtime": 1786219367.2020211,
+    "ast_hash": "14395a3a6ae0195d47193186fbae1bc0",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3865,8 +3865,8 @@
     "semantic_hash": ""
   },
   "tests/components/UsuariosCard.test.tsx": {
-    "mtime": 1784355766.5277429,
-    "ast_hash": "ebd4c8e2fce6cb30c25b8605fa714410",
+    "mtime": 1786219447.7918024,
+    "ast_hash": "faf9df683dfeb3a31055a078a56f359e",
     "semantic_hash": ""
   },
   "tests/unit/lib/pdf-generator-boleta.test.ts": {
@@ -4300,12 +4300,12 @@
     "semantic_hash": ""
   },
   "tests/integration/api/admin-users-create.test.ts": {
-    "mtime": 1786200303.4062276,
-    "ast_hash": "c94ceb0146f92fd8b154956fbda8eca4",
+    "mtime": 1786219447.791898,
+    "ast_hash": "573406003bb50f248459b1058bff73a3",
     "semantic_hash": ""
   },
   "migrations/070_crear_nota_credito_tx_fix_restitucion.sql": {
-    "mtime": 1786201582.9050665,
+    "mtime": 1786218481.0305448,
     "ast_hash": "29c73cc507aa1783f39156f5dfb7f5ec",
     "semantic_hash": ""
   }
