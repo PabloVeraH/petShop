@@ -1,5 +1,5 @@
 /**
- * Tests I-476 a I-481: POST /api/admin/users/create
+ * Tests I-476 a I-484: POST /api/admin/users/create
  * Creación de usuario administrador/worker vía Clerk.
  *
  * REGRESIÓN (ticket 6a76c8c5946f3e4288a6176d): Clerk rechaza con
@@ -8,6 +8,13 @@
  * engañoso "El email ya existe en Clerk pero no se pudo recuperar el usuario"
  * para emails nuevos — cualquier contraseña comprometida fallaba siempre,
  * sin importar el email.
+ *
+ * I-482 a I-484 (revisión posterior, mismo archivo/endpoint): la rama
+ * systemAdmin de la ruta (requireSystemAdminConsistent + storeId del body)
+ * no tenía ningún test, y tampoco existía una prueba explícita de que
+ * storeAdmin ignora un storeId ajeno enviado en el body (§6.2/§19.1 —
+ * aislamiento de tenant en una mutación privilegiada). El código ya era
+ * correcto en ambos casos; se cierra el hueco de cobertura.
  */
 import { NextRequest } from "next/server";
 
@@ -38,6 +45,33 @@ function storeAdminAuth() {
       publicMetadata: { storeAdmin: true, storeId: STORE_ID },
     },
   });
+}
+
+const SYSADMIN_ID = "user_clerk_sysadmin";
+
+function systemAdminAuth() {
+  mockAuth.mockResolvedValue({
+    userId: SYSADMIN_ID,
+    sessionClaims: {
+      sub: SYSADMIN_ID,
+      publicMetadata: { systemAdmin: true },
+    },
+  });
+}
+
+// requireSystemAdminConsistent (admin-check.ts) cruza el JWT contra
+// clerk_users.system_admin en BD — a diferencia de upsertChain() (solo
+// upsert), esta cadena también sirve select().eq().single() para ese check.
+function systemAdminChain() {
+  const c: Record<string, jest.Mock> = {
+    select: jest.fn(),
+    eq: jest.fn(),
+    single: jest.fn().mockResolvedValue({ data: { system_admin: true }, error: null }),
+    upsert: jest.fn().mockResolvedValue({ data: null, error: null }),
+  };
+  c.select.mockReturnValue(c);
+  c.eq.mockReturnValue(c);
+  return c;
 }
 
 function validBody(overrides: Record<string, unknown> = {}) {
@@ -195,5 +229,92 @@ describe("POST /api/admin/users/create (seguridad)", () => {
     }));
 
     expect(res.status).toBe(403);
+  });
+
+  // I-483 — aislamiento de tenant (§6.2/§19.1): storeAdmin nunca lee storeId
+  // del body (createClerkUser ni siquiera lo recibe en esa rama) — un
+  // storeId de otra tienda en el payload se ignora, el usuario se crea
+  // siempre en la tienda del admin autenticado.
+  it("I-483: storeAdmin con storeId de otra tienda en el body → se ignora, usa la tienda del admin (no IDOR)", async () => {
+    const OTRA_TIENDA = "999e4567-e89b-12d3-a456-426614179999";
+    storeAdminAuth();
+    mockFrom.mockReturnValue(upsertChain());
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: {
+        createUser: jest.fn().mockResolvedValue({ id: "clerk_nuevo" }),
+        updateUserMetadata: mockUpdateUserMetadata,
+      },
+    });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ storeId: OTRA_TIENDA }),
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("clerk_nuevo", expect.objectContaining({
+      publicMetadata: expect.objectContaining({ storeId: STORE_ID }),
+    }));
+  });
+});
+
+describe("POST /api/admin/users/create (systemAdmin)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // I-482 — la rama systemAdmin (requireSystemAdminConsistent + cross-check
+  // en BD) no tenía ningún test: a diferencia de storeAdmin, aquí storeId SÍ
+  // viene del body (systemAdmin gestiona cualquier tienda) y se usa tal cual.
+  it("I-482: systemAdmin crea usuario para una tienda arbitraria (storeId del body) → 200", async () => {
+    const OTRA_TIENDA = "999e4567-e89b-12d3-a456-426614179999";
+    systemAdminAuth();
+    mockFrom.mockReturnValue(systemAdminChain());
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: {
+        createUser: jest.fn().mockResolvedValue({ id: "clerk_por_sysadmin" }),
+        updateUserMetadata: mockUpdateUserMetadata,
+      },
+    });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ storeId: OTRA_TIENDA, role: "storeAdmin" }),
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ ok: true, clerkId: "clerk_por_sysadmin" });
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("clerk_por_sysadmin", {
+      publicMetadata: { storeId: OTRA_TIENDA, storeAdmin: true, storeWorker: false },
+    });
+  });
+
+  // I-484 — validación de negocio de la rama systemAdmin (línea 169-171 de
+  // la ruta): un rol de tienda sin storeId es un payload incompleto, nunca
+  // debe llegar a Clerk.
+  it("I-484: systemAdmin crea storeWorker sin storeId → 400, no llega a Clerk", async () => {
+    systemAdminAuth();
+    mockFrom.mockReturnValue(systemAdminChain());
+    const mockCreateUser = jest.fn();
+    mockClerkClient.mockResolvedValue({ users: { createUser: mockCreateUser } });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ role: "storeWorker" }), // sin storeId
+    }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("storeId requerido para roles de tienda");
+    expect(mockCreateUser).not.toHaveBeenCalled();
   });
 });

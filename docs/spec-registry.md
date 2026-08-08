@@ -166,6 +166,9 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-479 | Creación de usuario exitosa → 200 ok:true con metadata de storeWorker y store_id de la tienda del admin | POST /api/admin/users/create | integration |
 | I-480 | No autenticado → 403 | POST /api/admin/users/create | integration |
 | I-481 | storeAdmin intentando crear systemAdmin → 403 | POST /api/admin/users/create | integration |
+| I-482 | systemAdmin crea usuario para una tienda arbitraria (storeId del body honrado — a diferencia de storeAdmin) → 200 | POST /api/admin/users/create | integration |
+| I-483 | Aislamiento de tenant: storeAdmin con storeId de otra tienda en el body → se ignora, el usuario se crea en la tienda del admin autenticado (no IDOR) | POST /api/admin/users/create | integration |
+| I-484 | systemAdmin crea rol de tienda sin storeId → 400 "storeId requerido para roles de tienda", nunca llega a Clerk | POST /api/admin/users/create | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-02 | lineasNotaCreditoCOGS debita INVENTARIO (reincorporación al stock) | lib/contabilidad/generador-asientos | unit |
 | I-NCC-03 | lineasNotaCreditoCOGS acredita COGS (reverso del gasto) | lib/contabilidad/generador-asientos | unit |
