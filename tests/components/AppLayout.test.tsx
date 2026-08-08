@@ -1,9 +1,9 @@
 /**
- * Tests AL-01 a AL-04: AppLayout — nav por rol y banner de acceso denegado
+ * Tests AL-01 a AL-05: AppLayout — nav por rol, banner de acceso denegado y prefetch del sidebar
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -21,8 +21,30 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ href, children, className, onClick }: any) => (
-    <a href={href} className={className} onClick={onClick}>{children}</a>
+  default: ({
+    href,
+    children,
+    className,
+    onClick,
+    prefetch,
+    onMouseEnter,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+    prefetch?: boolean | null;
+    onMouseEnter?: () => void;
+  }) => (
+    <a
+      href={href}
+      className={className}
+      onClick={onClick}
+      data-prefetch={String(prefetch)}
+      onMouseEnter={onMouseEnter}
+    >
+      {children}
+    </a>
   ),
 }));
 
@@ -150,5 +172,42 @@ describe("AppLayout — sin banner de acceso denegado (AL-04)", () => {
       { wrapper: makeWrapper() }
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+// AL-05: REGRESIÓN (ticket 6a76ccfa629628db21ebbe60) — los links del sidebar NO
+// prefetchan al montar (prefetch={false}), sino solo al hacer hover. Cada `<Link>`
+// visible dispara un prefetch RSC en producción; con 14 rutas en el sidebar eso
+// genera decenas de peticiones simultáneas que saturan el servidor (503 intermitentes).
+describe("AppLayout — prefetch del sidebar solo en hover (AL-05)", () => {
+  const { useAuth } = require("@clerk/nextjs");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPathname = "/pos";
+    mockSearchParamsMap = {};
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ name: "PetShop Test" }),
+    });
+    useAuth.mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeAdmin") } });
+  });
+
+  it("AL-05: el link del sidebar nace con prefetch=false y se activa solo tras mouseEnter", () => {
+    render(
+      <AppLayout>
+        <div>Contenido</div>
+      </AppLayout>,
+      { wrapper: makeWrapper() }
+    );
+
+    const link = screen.getByText("Inventario").closest("a") as HTMLAnchorElement;
+    expect(link).toBeInTheDocument();
+    // Al montar: sin prefetch (evita la ráfaga RSC de 14 rutas en el viewport)
+    expect(link.dataset.prefetch).toBe("false");
+
+    fireEvent.mouseEnter(link);
+    // Tras hover: el prefetch pasa a null (= por defecto, se prefetcha) en el próximo render
+    expect(link.dataset.prefetch).toBe("null");
   });
 });
