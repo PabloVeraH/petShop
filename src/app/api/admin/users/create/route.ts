@@ -156,7 +156,12 @@ export async function POST(req: NextRequest) {
     } catch (error: unknown) {
       if (isClerkApiError(error) && error.errors.length > 0) {
         const clerkError = error.errors[0];
-        const message = clerkError.longMessage ?? clerkError.message ?? "Error de Clerk";
+        // longMessage/message ya vienen redactados por Clerk para mostrarse al
+        // usuario final (ej. "This password has been found..."); el fallback
+        // NO debe nombrar el proveedor (mismo defecto que el 409 de este
+        // ticket, ver isEmailTakenError arriba) — se usa cuando el error de
+        // Clerk no trae ningún mensaje utilizable, caso defensivo/raro.
+        const message = clerkError.longMessage ?? clerkError.message ?? "Error al crear el usuario";
         return NextResponse.json({ error: message }, { status: 422 });
       }
       const message = error instanceof Error ? error.message : "Error desconocido";
@@ -191,7 +196,8 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     if (isClerkApiError(error) && error.errors.length > 0) {
       const clerkError = error.errors[0];
-      const message = clerkError.longMessage ?? clerkError.message ?? "Error de Clerk";
+      // Ver comentario equivalente en la rama storeAdmin más arriba.
+      const message = clerkError.longMessage ?? clerkError.message ?? "Error al crear el usuario";
       return NextResponse.json({ error: message }, { status: 422 });
     }
     const message = error instanceof Error ? error.message : "Error desconocido";

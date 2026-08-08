@@ -215,6 +215,32 @@ describe("POST /api/admin/users/create (storeAdmin)", () => {
     }));
   });
 
+  // I-487 — mismo defecto del ticket (exponer "Clerk" al usuario final), en el
+  // fallback del catch genérico: si Clerk devuelve un error SIN longMessage ni
+  // message (forma defensiva/rara), el mensaje no debe nombrar al proveedor.
+  it("I-487: error de Clerk sin longMessage/message → 422 con mensaje genérico, sin exponer Clerk", async () => {
+    mockClerkClient.mockResolvedValue({
+      users: {
+        createUser: jest.fn().mockRejectedValue({
+          errors: [{ code: "some_other_error" }], // sin longMessage ni message
+          status: 400,
+        }),
+      },
+    });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ email: "otro-error@store.com" }),
+    }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe("Error al crear el usuario");
+    expect(body.error).not.toContain("Clerk");
+  });
+
   // I-479: happy path — usuario creado correctamente
   it("I-479: crear usuario exitoso → 200 ok:true y metadata worker", async () => {
     const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
