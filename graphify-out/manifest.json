@@ -850,7 +850,7 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1786223217.8529277,
+    "mtime": 1786223409.7862327,
     "ast_hash": "2247260de53c28e92c206617dfa3d8f7",
     "semantic_hash": ""
   },
@@ -1360,8 +1360,8 @@
     "semantic_hash": ""
   },
   "src/components/admin/AuditoriaCard.tsx": {
-    "mtime": 1784388782.3425815,
-    "ast_hash": "500e3b61d61cddd3240a653ed626da4a",
+    "mtime": 1786224043.146175,
+    "ast_hash": "b0fc0103727a66c5c0c02e8a8427766a",
     "semantic_hash": ""
   },
   "src/components/admin/IAConfigSection.tsx": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "src/lib/validation/admin.ts": {
-    "mtime": 1785623338.2557418,
-    "ast_hash": "ea78a0bf96180c167309fe67859f5243",
+    "mtime": 1786224043.1462572,
+    "ast_hash": "b406b565652207d6d59d99fc463934c4",
     "semantic_hash": ""
   },
   "src/lib/validation/clientes.ts": {
@@ -1770,8 +1770,8 @@
     "semantic_hash": "e8ae280da442e8d2e1428978063e8209"
   },
   "tests/components/AuditoriaCard.test.tsx": {
-    "mtime": 1784355766.526743,
-    "ast_hash": "a253efc5bb51dcae0de6b7597eba2fbb",
+    "mtime": 1786224078.4203072,
+    "ast_hash": "4e3164a372b9ed6d4a64426bfbe20058",
     "semantic_hash": ""
   },
   "tests/components/BarcodeScanner.test.tsx": {
@@ -2245,8 +2245,8 @@
     "semantic_hash": "8e25665b2503d16b45fee3d4c4c09101"
   },
   "tests/integration/api/user-sessions.test.ts": {
-    "mtime": 1784828125.0347605,
-    "ast_hash": "39001691ec966caaf977052632a1e26f",
+    "mtime": 1786224002.0058343,
+    "ast_hash": "d13f1e3b79d2fe03167a4211e1084543",
     "semantic_hash": ""
   },
   "tests/integration/api/vencimientos.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786223230.0691977,
-    "ast_hash": "8db12f42bca1e2d516e3d74ad2e89804",
+    "mtime": 1786224028.7407525,
+    "ast_hash": "639d85498d2705415eee2bfe6ba6638b",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3865,7 +3865,7 @@
     "semantic_hash": ""
   },
   "tests/components/UsuariosCard.test.tsx": {
-    "mtime": 1786219447.7918024,
+    "mtime": 1786223409.786323,
     "ast_hash": "faf9df683dfeb3a31055a078a56f359e",
     "semantic_hash": ""
   },
@@ -4300,7 +4300,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/admin-users-create.test.ts": {
-    "mtime": 1786223195.9666116,
+    "mtime": 1786223409.7864385,
     "ast_hash": "96f3675f2be09f6ddce26369037f4ece",
     "semantic_hash": ""
   },

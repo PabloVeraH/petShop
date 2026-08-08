@@ -1,16 +1,16 @@
 # Graph Report - app  (2026-08-08)
 
 ## Corpus Check
-- 558 files · ~419,883 words
+- 558 files · ~420,151 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3374 nodes · 5894 edges · 364 communities (254 shown, 110 thin omitted)
+- 3374 nodes · 5894 edges · 362 communities (252 shown, 110 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 28 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4902be42`
+- Built from commit: `97463f16`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -105,7 +105,6 @@
 - Returns Modal Tests
 - Customer Modal Tests
 - Audit Log Tests
-- date-fns
 - User Onboarding Tests
 - Product Management Tests
 - Store Settings Tests
@@ -201,7 +200,6 @@
 - shadcn
 - tailwind-merge
 - Ejecución de Tests
-- route.ts
 - 054_cierre_mes_backup.sql
 - resend
 - class-variance-authority
@@ -372,19 +370,19 @@
 - **Vencimientos Feature Implementation** — docs_vencimientos, src_app_api_dashboard_vencimientos_route, tests_integration_api_vencimientos_test [EXTRACTED 1.00]
 - **Delivery Platform Integrations** — public_logos_rappi, public_logos_pedidosya, public_logos_ubereats [EXTRACTED 1.00]
 
-## Communities (364 total, 110 thin omitted)
+## Communities (362 total, 110 thin omitted)
 
 ### Community 0 - "Post Management API"
 Cohesion: 0.25
 Nodes (11): Carrito(), ModalPago(), calcularImpuestoCarrito(), calcularSubtotalCarrito(), calcularSubtotalNetoCarrito(), calcularTotalCarrito(), CartItem, PagoNc (+3 more)
 
 ### Community 1 - "User Authentication Management"
-Cohesion: 0.08
-Nodes (42): PATCH(), GET(), PATCH(), GET(), POST(), GET(), DELETE(), handlePatchUser() (+34 more)
+Cohesion: 0.09
+Nodes (34): PATCH(), GET(), PATCH(), GET(), POST(), ClerkApiError, createClerkUser(), isClerkApiError() (+26 more)
 
 ### Community 2 - "POS Metadata and Audit"
-Cohesion: 0.10
-Nodes (28): analizarConReintentoSiTimeout(), GET(), POST(), DELETE(), GET(), PATCH(), GET(), POST() (+20 more)
+Cohesion: 0.09
+Nodes (37): GET(), analizarConReintentoSiTimeout(), GET(), POST(), GET(), GET(), POST(), GET() (+29 more)
 
 ### Community 3 - "Admin Dashboard Layout"
 Cohesion: 0.13
@@ -424,7 +422,7 @@ Nodes (6): InstagramChannel, PosChannel, CanalConfig, CanalOrden, CanalProducto,
 
 ### Community 12 - "Client and Pet API"
 Cohesion: 0.06
-Nodes (53): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+45 more)
+Nodes (56): DELETE(), PATCH(), updatePostSchema, createPostSchema, GET(), POST(), ALLOWED_TYPES, POST() (+48 more)
 
 ### Community 13 - "Inventory Batch Management"
 Cohesion: 0.15
@@ -591,7 +589,7 @@ Nodes (6): navItems, LicenseProvider(), LicenseWarningBanner(), LicenseWarningBa
 
 ### Community 52 - "AI Recommendation UI"
 Cohesion: 0.07
-Nodes (52): ClerkApiError, createClerkUser(), isClerkApiError(), isEmailTakenError(), POST(), buildResult(), ContextoPOS, POST() (+44 more)
+Nodes (49): buildResult(), ContextoPOS, POST(), RecomendacionPOS, POST(), GET(), liquidacionSchema, POST() (+41 more)
 
 ### Community 53 - "Supplier Hub Page"
 Cohesion: 0.38
@@ -725,10 +723,6 @@ Nodes (15): Base de Datos, ✅ Build Status, 📝 Características Implementadas
 Cohesion: 0.22
 Nodes (4): mockAuth, mockFrom, mockGetAdminStatus, mockResolveAdminContext
 
-### Community 90 - "date-fns"
-Cohesion: 0.20
-Nodes (12): PATCH(), DELETE(), PATCH(), GET(), POST(), syncProductsToHub(), InventarioUpdateSchema, LoteCreateInput (+4 more)
-
 ### Community 91 - "User Onboarding Tests"
 Cohesion: 0.25
 Nodes (4): mockAuth, mockClerkClient, mockFrom, mockSingle
@@ -827,7 +821,7 @@ Nodes (5): 17.1 Cuándo usar cuál, 17.2 graphify (CLI — cualquier agente con 
 
 ### Community 124 - "Database Refactor Roadmap"
 Cohesion: 0.07
-Nodes (19): GET(), GET(), GET(), GET(), GET(), GET(), POST(), GET() (+11 more)
+Nodes (20): GET(), GET(), GET(), GET(), GET(), GET(), GET(), POST() (+12 more)
 
 ### Community 125 - "Jest Test Configuration"
 Cohesion: 0.40
@@ -921,10 +915,6 @@ Nodes (8): idParams, mockAuth, mockFrom, mockGetAdminStatus, mockGetStoreId, moc
 Cohesion: 0.33
 Nodes (4): EXISTING_ITEMS, mockOnClose, mockOnOrderEdited, PRODUCTOS_MOCK
 
-### Community 187 - "route.ts"
-Cohesion: 0.50
-Nodes (4): DELETE(), GET(), PATCH(), ServicioUpdateSchema
-
 ### Community 190 - "resend"
 Cohesion: 0.33
 Nodes (4): mockClearCart, mockCreateVenta, mockSetWorker, mockUsePOSStore
@@ -990,8 +980,8 @@ Cohesion: 0.17
 Nodes (9): citaBody, idParams, mockCrearAsiento, mockFrom, mockGetStoreId, mockLineasVentaServicio, mockLineasVentaServicioConNc, mockRpc (+1 more)
 
 ### Community 233 - "property-invariants.test.ts"
-Cohesion: 0.60
-Nodes (4): GET(), POST(), CitaCreateSchema, CitasQuerySchema
+Cohesion: 0.12
+Nodes (18): GET(), POST(), GET(), POST(), DELETE(), GET(), PATCH(), GET() (+10 more)
 
 ### Community 234 - "VentasPorProcedencia.tsx"
 Cohesion: 0.22
@@ -1217,17 +1207,17 @@ Nodes (3): instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServiceClient()` connect `Client and Pet API` to `User Authentication Management`, `POS Metadata and Audit`, `Inventory Import and KPI`, `vencimiento-helpers.test.ts`, `Rappi Integration`, `Excel Report Generation`, `UberEats Integration`, `Supply Chain Accounting`, `Accounting Ledger UI`, `contabilidad-aporte-capital.test.ts`, `PedidosYa Integration`, `Webhook Security Encryption`, `ordenes-compra.test.ts`, `Swarm Communication Bus`, `Customer Detail UI`, `AI Recommendation UI`, `Profit and Loss API`, `Product Search UI`, `route.ts`, `petShop — Sistema de Control de Vencimientos`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `rateLimit.ts`, `email-alerts.ts`, `date-fns`, `Monthly Closing Tests`, `property-invariants.test.ts`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`, `Database Refactor Roadmap`?**
+- **Why does `createServiceClient()` connect `Client and Pet API` to `User Authentication Management`, `POS Metadata and Audit`, `Inventory Import and KPI`, `vencimiento-helpers.test.ts`, `Rappi Integration`, `Excel Report Generation`, `UberEats Integration`, `Supply Chain Accounting`, `Accounting Ledger UI`, `contabilidad-aporte-capital.test.ts`, `PedidosYa Integration`, `Webhook Security Encryption`, `ordenes-compra.test.ts`, `Swarm Communication Bus`, `Customer Detail UI`, `AI Recommendation UI`, `Profit and Loss API`, `Product Search UI`, `petShop — Sistema de Control de Vencimientos`, `Trial Balance PDF`, `Daily Ledger HTML`, `AdminLayout.tsx`, `Receipt and Tax Logic`, `rateLimit.ts`, `email-alerts.ts`, `Monthly Closing Tests`, `property-invariants.test.ts`, `Vendedores API Security`, `Financial Results HTML`, `route.ts`, `Database Refactor Roadmap`?**
   _High betweenness centrality (0.114) - this node is a cross-community bridge._
 - **Why does `dependencies` connect `Frontend Dependencies` to `@clerk/localizations`, `SugerenciasRecompra.tsx`, `UltimasVentas.tsx`, `react-leaflet`, `Development Dependencies`, `svix`, `@tanstack/react-query`, `@types/leaflet`, `zustand`, `@supabase/supabase-js`, `Barcode Scanner Tests`, `Returns Modal Tests`, `shadcn`, `tailwind-merge`, `Supply Chain Accounting`, `Accounting Ledger UI`, `Auto-Commit Scripts`, `class-variance-authority`?**
   _High betweenness centrality (0.048) - this node is a cross-community bridge._
-- **Why does `getStoreId()` connect `Client and Pet API` to `User Authentication Management`, `POS Metadata and Audit`, `vencimiento-helpers.test.ts`, `Supply Chain Accounting`, `Accounting Ledger UI`, `contabilidad-aporte-capital.test.ts`, `Agent Swarm Orchestration`, `ordenes-compra.test.ts`, `Swarm Communication Bus`, `Customer Detail UI`, `AI Recommendation UI`, `Profit and Loss API`, `Product Search UI`, `route.ts`, `petShop — Sistema de Control de Vencimientos`, `AdminLayout.tsx`, `Daily Ledger HTML`, `Trial Balance PDF`, `Receipt and Tax Logic`, `rateLimit.ts`, `email-alerts.ts`, `date-fns`, `Monthly Closing Tests`, `property-invariants.test.ts`, `Financial Results HTML`, `route.ts`, `Database Refactor Roadmap`?**
+- **Why does `getStoreId()` connect `Client and Pet API` to `POS Metadata and Audit`, `vencimiento-helpers.test.ts`, `Supply Chain Accounting`, `Accounting Ledger UI`, `contabilidad-aporte-capital.test.ts`, `Agent Swarm Orchestration`, `ordenes-compra.test.ts`, `Swarm Communication Bus`, `Customer Detail UI`, `AI Recommendation UI`, `Profit and Loss API`, `Product Search UI`, `petShop — Sistema de Control de Vencimientos`, `AdminLayout.tsx`, `Daily Ledger HTML`, `Trial Balance PDF`, `Receipt and Tax Logic`, `rateLimit.ts`, `email-alerts.ts`, `Monthly Closing Tests`, `property-invariants.test.ts`, `Financial Results HTML`, `route.ts`, `Database Refactor Roadmap`?**
   _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **What connects `codebase-memory-mcp`, `npx`, `@claude-flow/cli` to the rest of the system?**
   _1458 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `User Authentication Management` be split into smaller, more focused modules?**
-  _Cohesion score 0.08007013442431327 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08710801393728224 - nodes in this community are weakly interconnected._
 - **Should `POS Metadata and Audit` be split into smaller, more focused modules?**
-  _Cohesion score 0.10121457489878542 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09224318658280922 - nodes in this community are weakly interconnected._
 - **Should `Admin Dashboard Layout` be split into smaller, more focused modules?**
   _Cohesion score 0.12857142857142856 - nodes in this community are weakly interconnected._
