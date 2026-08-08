@@ -202,6 +202,35 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
   });
+
+  // PP-17: REGRESIÓN (ticket Trello 6a76cba663fe913460f537d0) — la popup del
+  // recibo (autoPrint → window.print()) debe abrirse con "noopener". Sin él, la
+  // popup same-origin compartía el proceso renderer con el POS y el diálogo de
+  // impresión bloqueaba el hilo principal, congelando la pestaña 10-60s tras el
+  // cobro (con la venta ya registrada). Con noopener la impresión aísla la popup
+  // y el POS queda responsivo.
+  it("PP-17: la popup del recibo tras el cobro se abre con 'noopener' (no congela el POS)", async () => {
+    const mockOpen = jest.fn().mockReturnValue(null);
+    const originalOpen = window.open;
+    window.open = mockOpen as unknown as typeof window.open;
+    try {
+      const store = makeMockStore();
+      mockUsePOSStore.mockReturnValue(store);
+
+      render(<POSPage />, { wrapper: makeWrapper() });
+
+      await mutationMutate!();
+
+      expect(mockOpen).toHaveBeenCalledWith(
+        "/sales/venta-123?autoPrint=1",
+        "_blank",
+        expect.stringContaining("noopener")
+      );
+      expect(mockOpen.mock.calls[0][2]).not.toContain("popup bloqueado");
+    } finally {
+      window.open = originalOpen;
+    }
+  });
 });
 
 // ── idempotencyKey por intento de cobro (ticket Trello 6a61a067a9350a401550e770) ──

@@ -410,4 +410,33 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     expect(screen.getByText(/Paso 2/i)).toBeInTheDocument();
     expect(BASE_PROPS.onClose).not.toHaveBeenCalled();
   });
+
+  // DV-20: REGRESIÓN (ticket Trello 6a76cba663fe913460f537d0) — la popup de la
+  // NC (autoPrint → window.print()) debe abrirse con "noopener". Sin él, la popup
+  // same-origin compartía el proceso renderer con la pestaña que la abrió y el
+  // diálogo de impresión bloqueaba el hilo principal (freeze 10-60s). Igual que
+  // PP-17 en el POS.
+  it("DV-20: la popup de la NC se abre con 'noopener' (no congela la pestaña origen)", async () => {
+    const mockOpen = jest.fn().mockReturnValue(null);
+    const originalOpen = window.open;
+    window.open = mockOpen as unknown as typeof window.open;
+    try {
+      setup();
+      selectItemAndAdvance();
+
+      fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Devolución registrada/i)).toBeInTheDocument();
+      });
+
+      expect(mockOpen).toHaveBeenCalledWith(
+        "/nota-credito/nc-id-2?autoPrint=1",
+        "_blank",
+        expect.stringContaining("noopener")
+      );
+    } finally {
+      window.open = originalOpen;
+    }
+  });
 });
