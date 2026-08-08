@@ -680,9 +680,9 @@
     "semantic_hash": "82de6ff20a825c5d1aa3c98f03f4d2a7"
   },
   "src/app/(app)/dashboard/components/UltimasVentas.tsx": {
-    "mtime": 1774753039.736336,
-    "ast_hash": "9affeaa316d4c2173335482d0fdf21ee",
-    "semantic_hash": "9affeaa316d4c2173335482d0fdf21ee"
+    "mtime": 1786228524.743466,
+    "ast_hash": "310d23ad7a559e90d74a4cb8dff124d0",
+    "semantic_hash": ""
   },
   "src/app/(app)/dashboard/components/VentasPorCanal.tsx": {
     "mtime": 1776577387.974705,
@@ -725,8 +725,8 @@
     "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
-    "mtime": 1785968773.369783,
-    "ast_hash": "335be6561c5563d28b875a0a737d3f56",
+    "mtime": 1786228589.7731037,
+    "ast_hash": "e61530f6d50848252994c3a378c28d9d",
     "semantic_hash": ""
   },
   "src/app/(app)/not-found.tsx": {
@@ -805,9 +805,9 @@
     "semantic_hash": ""
   },
   "src/app/(app)/sales/page.tsx": {
-    "mtime": 1783657049.7998877,
-    "ast_hash": "1e3fe56a8c3183331bd5854c073428d4",
-    "semantic_hash": "1e3fe56a8c3183331bd5854c073428d4"
+    "mtime": 1786228533.0484428,
+    "ast_hash": "add42d91fe2196eaafc2827ee0e03b93",
+    "semantic_hash": ""
   },
   "src/app/(app)/settings/page.tsx": {
     "mtime": 1784610606.199399,
@@ -1760,9 +1760,9 @@
     "semantic_hash": "c3080d74b5d7ba2501db0391e9bbfe3a"
   },
   "tests/components/AppLayout.test.tsx": {
-    "mtime": 1782355600.3319542,
-    "ast_hash": "d9c1f683d883964bacda3ea148c451aa",
-    "semantic_hash": "d9c1f683d883964bacda3ea148c451aa"
+    "mtime": 1786228807.1646874,
+    "ast_hash": "ea3d92dda97a23177b8dbedd25829758",
+    "semantic_hash": ""
   },
   "tests/components/AppNotFound.test.tsx": {
     "mtime": 1782492235.7008939,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786224028.7407525,
-    "ast_hash": "639d85498d2705415eee2bfe6ba6638b",
+    "mtime": 1786228717.7769337,
+    "ast_hash": "3f963d35b9e7652fe236fe3e75b54292",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4307,6 +4307,21 @@
   "migrations/070_crear_nota_credito_tx_fix_restitucion.sql": {
     "mtime": 1786218481.0305448,
     "ast_hash": "29c73cc507aa1783f39156f5dfb7f5ec",
+    "semantic_hash": ""
+  },
+  "src/components/ui/HoverPrefetchLink.tsx": {
+    "mtime": 1786228505.7075183,
+    "ast_hash": "c9662ebfb3e6321af81c1c08a8cc90fd",
+    "semantic_hash": ""
+  },
+  "tests/components/HoverPrefetchLink.test.tsx": {
+    "mtime": 1786228798.7647104,
+    "ast_hash": "a825f517578562c8cb5e1747b3de13ff",
+    "semantic_hash": ""
+  },
+  "tests/components/UltimasVentas.test.tsx": {
+    "mtime": 1786228802.6586998,
+    "ast_hash": "86b5da2917e77fdb1be8f9e38526b8c4",
     "semantic_hash": ""
   }
 }
