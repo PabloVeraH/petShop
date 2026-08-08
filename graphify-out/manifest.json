@@ -850,8 +850,8 @@
     "semantic_hash": ""
   },
   "src/app/api/admin/users/create/route.ts": {
-    "mtime": 1784828125.033976,
-    "ast_hash": "09c78c2b94394d9d5e10dc7a85237c30",
+    "mtime": 1786171974.117122,
+    "ast_hash": "a9939fd0a3164d1289c46decac09c94c",
     "semantic_hash": ""
   },
   "src/app/api/admin/users/route.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786167047.9475338,
-    "ast_hash": "8de0cccbe5b93e1e49c7ffc8b4b0e180",
+    "mtime": 1786172059.841901,
+    "ast_hash": "f9dc0951cbddc057be9730d0d13bf5e1",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4180,7 +4180,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/citas.test.ts": {
-    "mtime": 1786164037.2335396,
+    "mtime": 1786167388.335319,
     "ast_hash": "e02df2eb78448129512b8cb917d6b93c",
     "semantic_hash": ""
   },
@@ -4285,7 +4285,7 @@
     "semantic_hash": ""
   },
   "tests/components/DetalleCita.test.tsx": {
-    "mtime": 1786164619.140418,
+    "mtime": 1786167388.3351183,
     "ast_hash": "c326ec45e3a54013f75823e27bebc896",
     "semantic_hash": ""
   },
@@ -4297,6 +4297,11 @@
   "tests/unit/citas/cita-fecha-timezone.test.ts": {
     "mtime": 1786162333.9463472,
     "ast_hash": "0f8a6a61dfc5e64cbb3f98b472fdd396",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/admin-users-create.test.ts": {
+    "mtime": 1786171948.2752037,
+    "ast_hash": "016ddb2d1b8244a65a5ed629cbed3810",
     "semantic_hash": ""
   }
 }
