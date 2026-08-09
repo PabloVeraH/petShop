@@ -15,9 +15,17 @@ export interface DatosEstadoResultado {
 // de los asientos contables. Antes (commit 2439f2b) consultaba
 // venta_item_lotes.costo_unitario, columna que NO existe en el schema real
 // (venta_item_lotes solo tiene id, venta_item_id, lote_id, cantidad,
-// created_at) — la query fallaba en silencio, devolvía 0 y el reporte caía
-// siempre al fallback de journal_detail, perdiendo el COGS de asientos
-// huérfanos (journal_entries sin journal_detail, ticket Trello 6a77e779e5698ef7e7e3afda).
+// created_at; verificado contra information_schema.columns en producción) —
+// la query fallaba en silencio (el resultado desestructuraba solo `data`,
+// descartando `error`) y siempre devolvía 0, cayendo al fallback de
+// journal_detail (ticket Trello 6a77e779e5698ef7e7e3afda). Ese fallback SÍ
+// requiere que el asiento COGS tenga sus líneas de journal_detail — un
+// asiento "huérfano" (journal_entries sin journal_detail, ver crearAsiento())
+// sería invisible para él, pero esto es un riesgo teórico documentado en
+// crearAsiento(), no una causa confirmada: al revisar este ticket no se
+// encontró ningún asiento huérfano en producción (los citados en commits
+// previos de este fix, #38/#201/#209, tienen su journal_detail completo). La
+// causa raíz confirmada es únicamente la columna inexistente arriba.
 //
 // Fuente de costo: productos.costo, la misma que usa POST /api/ventas
 // (costoMap) y el backfill (calcularCostoTotalVenta). Se netea el costo de

@@ -170,12 +170,14 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
     // ignorar: si el delete falla (timeout, staleness del schema cache — las
     // mismas causas transitorias que pueden haber derribado el insert del
     // detalle), el asiento queda huérfano en journal_entries SIN filas en
-    // journal_detail. Ese huérfano es invisible para el Estado de Resultado
+    // journal_detail. Ese huérfano sería invisible para el Estado de Resultado
     // (su fallback suma solo detalles existentes) y para el backfill (busca
     // asientos faltantes por tipo_movimiento+referencia_id, y el huérfano
-    // "existe"), por lo que el COGS de la venta/NC/OC asociada se pierde
-    // silenciosamente (ticket Trello 6a77e779e5698ef7e7e3afda — asiento #209
-    // huérfano sin detalle en producción). Al menos debe quedar en el log.
+    // "existe"), por lo que el COGS de la venta/NC/OC asociada se perdería
+    // silenciosamente (riesgo identificado durante la revisión del ticket
+    // Trello 6a77e779e5698ef7e7e3afda — no se encontraron huérfanos reales en
+    // producción al momento de esa revisión; esto es una defensa preventiva,
+    // no la corrección de un caso confirmado). Al menos debe quedar en el log.
     const { error: rollbackErr } = await supabase.from("journal_entries").delete().eq("id", entry.id);
     if (rollbackErr) {
       console.error(

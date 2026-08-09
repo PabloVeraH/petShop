@@ -281,11 +281,15 @@ describe("crearAsiento", () => {
     // (await sin verificar): el asiento quedaba huérfano en journal_entries SIN
     // filas en journal_detail — invisible para el Estado de Resultado (el
     // fallback suma solo detalles existentes, perdiendo el COGS de la venta
-    // asociada) y para el backfill (que solo crea asientos FALTANTES). En
-    // producción hay 4 huérfanos así (#28, #38, #201, #209). El fix exige que
-    // el rollback no sea silencioso: si el delete falla, se loguea que el
-    // asiento quedó huérfano (observabilidad, §20.5) — sin lanzar, porque el
-    // hot path de la venta no debe romperse por contabilidad.
+    // asociada) y para el backfill (que solo crea asientos FALTANTES). Riesgo
+    // identificado durante la revisión de este ticket: verificado contra
+    // producción (LEFT JOIN journal_entries → journal_detail) que actualmente
+    // NO existen asientos huérfanos — este test cubre una defensa preventiva
+    // ante un modo de falla plausible, no la corrección de un caso confirmado
+    // en datos reales. El fix exige que el rollback no sea silencioso: si el
+    // delete falla, se loguea que el asiento quedó huérfano (observabilidad,
+    // §20.5) — sin lanzar, porque el hot path de la venta no debe romperse por
+    // contabilidad.
     it("U-145: loguea el rollback fallido que dejaría un asiento huérfano (sin lanzar)", async () => {
       const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
       const client = makeSupabaseMock({

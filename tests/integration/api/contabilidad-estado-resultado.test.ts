@@ -373,13 +373,17 @@ describe("GET /api/contabilidad/estado-resultado", () => {
   });
 
   // I-494: REGRESIÓN (ticket 6a77e779e5698ef7e7e3afda) — asiento COGS huérfano
-  // no pierde el COGS de la venta activa. Reproduce el caso real: dos ventas
+  // no pierde el COGS de la venta activa. Simula un escenario plausible (no
+  // confirmado en producción — ver revisión de este ticket): dos ventas
   // activas, pero un asiento COGS (de una de ellas) existe en journal_entries
   // SIN filas en journal_detail (huérfano). El fallback de asientos solo suma
   // $13.000 (la otra venta); el ground truth desde ventas reales recupera los
-  // $21.000 completos. Antes del fix, la query de ground truth usaba una
-  // columna inexistente (venta_item_lotes.costo_unitario), devolvía 0, y el
-  // reporte caía al fallback perdiendo los $8.000.
+  // $21.000 completos. La causa raíz CONFIRMADA del bug real era otra: la
+  // query de ground truth usaba una columna inexistente
+  // (venta_item_lotes.costo_unitario, verificada contra el schema real),
+  // devolvía 0 siempre, y el reporte caía al fallback de journal_detail — este
+  // test protege además contra el modo de falla del huérfano, que el fallback
+  // sí sería vulnerable a él si llegara a ocurrir.
   it("I-494: asiento COGS huérfano no excluye el COGS de la venta activa (ground truth)", async () => {
     const db = makeDb({
       cogsActual: 21000, // ventas reales: 8.000 + 13.000
