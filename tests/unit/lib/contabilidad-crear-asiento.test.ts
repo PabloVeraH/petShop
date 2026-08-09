@@ -14,7 +14,7 @@ interface MockOptions {
   lastNumero?: number;
   entryResult?: { data: { id: string } | null; error: { message: string } | null };
   detailResult?: { error: { message: string } | null };
-  deleteResult?: { error: null };
+  deleteResult?: { error: { message: string } | null };
   periodoAbierto?: boolean;
   skipPeriodCheck?: boolean;
 }
@@ -273,6 +273,35 @@ describe("crearAsiento", () => {
 
       const result = await crearAsiento(INPUT_BASE);
       expect(result).toBeNull();
+    });
+
+    // U-145 — REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): el rollback de
+    // journal_entries puede fallar por las mismas causas transitorias que
+    // derribaron el insert de journal_detail. Antes este resultado se ignoraba
+    // (await sin verificar): el asiento quedaba huérfano en journal_entries SIN
+    // filas en journal_detail — invisible para el Estado de Resultado (el
+    // fallback suma solo detalles existentes, perdiendo el COGS de la venta
+    // asociada) y para el backfill (que solo crea asientos FALTANTES). En
+    // producción hay 4 huérfanos así (#28, #38, #201, #209). El fix exige que
+    // el rollback no sea silencioso: si el delete falla, se loguea que el
+    // asiento quedó huérfano (observabilidad, §20.5) — sin lanzar, porque el
+    // hot path de la venta no debe romperse por contabilidad.
+    it("U-145: loguea el rollback fallido que dejaría un asiento huérfano (sin lanzar)", async () => {
+      const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+      const client = makeSupabaseMock({
+        detailResult: { error: { message: "FK violation" } },
+        deleteResult: { error: { message: "rollback timeout" } },
+      });
+      mockCreateServiceClient.mockReturnValue(client);
+
+      const result = await crearAsiento(INPUT_BASE);
+      expect(result).toBeNull();
+
+      const rollbackLogs = consoleError.mock.calls.filter((call) =>
+        call.some((arg) => typeof arg === "string" && arg.includes("huérfano"))
+      );
+      expect(rollbackLogs.length).toBeGreaterThan(0);
+      consoleError.mockRestore();
     });
   });
 
