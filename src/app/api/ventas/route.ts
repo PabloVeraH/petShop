@@ -1,5 +1,5 @@
 import { getStoreId } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { extraerIva } from "@/lib/tax";
 import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
@@ -437,54 +437,62 @@ async function postVenta(req: NextRequest) {
   const ivaCalc = extraerIva(total);
   const montoNeto = total - ivaCalc;
 
-  // Asiento contable (post-response fire-and-forget)
+  // Asiento contable (post-response): after() de next/server garantiza que la
+  // plataforma espere a que el callback termine (waitUntil) tras responder — a
+  // diferencia del fire-and-forget puro, que podía quedar congelado a mitad de
+  // ejecución en serverless y dejar la venta con asiento de ingreso pero sin
+  // COGS (ticket Trello 6a77e779358cdccca29dc3e3).
   const fechaVenta = (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
-  (async () => {
-    let clienteNombre: string | undefined;
-    if (clienteId) {
-      const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
-      clienteNombre = cli?.nombre ?? undefined;
-    }
+  after(async () => {
+    try {
+      let clienteNombre: string | undefined;
+      if (clienteId) {
+        const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
+        clienteNombre = cli?.nombre ?? undefined;
+      }
 
-    // Asiento 1: reconocimiento de ingreso
-    const asiento1 = await crearAsiento({
-      storeId: store_id,
-      fecha: fechaVenta,
-      tipoMovimiento: "VENTA",
-      canal,
-      referenciaId: venta.id as string,
-      referenciaNomero: venta.numero_comprobante as string,
-      descripcion: `Venta ${metodoPagoVenta}${clienteNombre ? ` a ${clienteNombre}` : ""}${canal !== "pos" ? ` (${canal.toUpperCase()})` : ""}`,
-      lineas: pagoNc
-        ? lineasVentaConNc({
-            montoNeto,
-            iva: ivaCalc,
-            total,
-            montoNc: pagoNc.monto,
-            montoResto: Math.round(total - pagoNc.monto),
-            metodoPagoResto: metodoPago,
-          })
-        : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
-      usuarioId: ctx.userId ?? undefined,
-    });
-    if (!asiento1) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
-
-    // Asiento 2: costo de la mercancía vendida (COGS)
-    if (costoTotal > 0) {
-      const asiento2 = await crearAsiento({
+      // Asiento 1: reconocimiento de ingreso
+      const asiento1 = await crearAsiento({
         storeId: store_id,
         fecha: fechaVenta,
         tipoMovimiento: "VENTA",
         canal,
         referenciaId: venta.id as string,
         referenciaNomero: venta.numero_comprobante as string,
-        descripcion: `COGS venta${clienteNombre ? ` a ${clienteNombre}` : ""} — costo mercancía`,
-        lineas: lineasVentaCOGS(Math.round(costoTotal)),
+        descripcion: `Venta ${metodoPagoVenta}${clienteNombre ? ` a ${clienteNombre}` : ""}${canal !== "pos" ? ` (${canal.toUpperCase()})` : ""}`,
+        lineas: pagoNc
+          ? lineasVentaConNc({
+              montoNeto,
+              iva: ivaCalc,
+              total,
+              montoNc: pagoNc.monto,
+              montoResto: Math.round(total - pagoNc.monto),
+              metodoPagoResto: metodoPago,
+            })
+          : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
         usuarioId: ctx.userId ?? undefined,
       });
-      if (!asiento2) console.error(`[contabilidad] Asiento COGS NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
+      if (!asiento1) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
+
+      // Asiento 2: costo de la mercancía vendida (COGS)
+      if (costoTotal > 0) {
+        const asiento2 = await crearAsiento({
+          storeId: store_id,
+          fecha: fechaVenta,
+          tipoMovimiento: "VENTA",
+          canal,
+          referenciaId: venta.id as string,
+          referenciaNomero: venta.numero_comprobante as string,
+          descripcion: `COGS venta${clienteNombre ? ` a ${clienteNombre}` : ""} — costo mercancía`,
+          lineas: lineasVentaCOGS(Math.round(costoTotal)),
+          usuarioId: ctx.userId ?? undefined,
+        });
+        if (!asiento2) console.error(`[contabilidad] Asiento COGS NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
+      }
+    } catch (e) {
+      console.error("[contabilidad] Error en asiento de venta:", e);
     }
-  })().catch((e) => console.error("[contabilidad] Error en asiento de venta:", e));
+  });
 
   return NextResponse.json(venta);
 }
