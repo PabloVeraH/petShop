@@ -43,6 +43,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-438 | Misma regresión, variante mixta: reverso acredita Saldos a Favor por el monto NC y Banco solo por el resto pagado con tarjeta | PATCH /api/ventas/[id] | integration |
 | I-438b | Contracara: venta sin pagos de crédito sigue usando lineasAnulacionVentaCanal (el lookup de pagos no altera el flujo normal) | PATCH /api/ventas/[id] | integration |
 | I-493 | REGRESIÓN (ticket Trello 6a77e779358cdccca29dc3e3, hallazgo extendido durante esa revisión): anulación con costo agenda el asiento (reverso ingreso + reverso COGS) con after() de next/server — mismo patrón de doble crearAsiento() secuencial que causó el ticket, ahora protegido en la anulación de venta | PATCH /api/ventas/[id] | integration |
+| I-494 | REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): asiento COGS huérfano (en journal_entries sin filas en journal_detail) NO excluye el COGS de la venta activa — el Estado de Resultado lo calcula desde ground truth (venta_items join productos.costo neteado de nota_credito_items restituir_stock=true) en vez de depender del fallback de asientos | GET /api/contabilidad/estado-resultado | integration |
+| I-495 | REGRESIÓN (mismo ticket): devolución con restitución de stock descuenta el COGS ground truth de la venta asociada (netting) | GET /api/contabilidad/estado-resultado | integration |
+| I-496 | REGRESIÓN (mismo ticket): devolución SIN restitución de stock NO descuenta el COGS ground truth | GET /api/contabilidad/estado-resultado | integration |
+| I-497 | REGRESIÓN (mismo ticket): devoluciones mayores que ventas → COGS neto negativo sin clamp a 0 (el netting correcto debe mantenerse) | GET /api/contabilidad/estado-resultado | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 
@@ -623,6 +627,7 @@ I-406/I-407/I-408.
 | U-142 | Nuevo mecanismo (ticket Trello 6a61195cfc6f97edc3c0a3b0): lineasAporteCapital crea líneas balanceadas Dr Caja / Cr Capital (PATRIMONIO) | lib/contabilidad | unit |
 | U-143 | Nuevo mecanismo: lineasAporteCapital con cuentaDestino=banco debita BANCO en vez de CAJA | lib/contabilidad | unit |
 | U-144 | Nuevo mecanismo: la cuenta CAPITAL es de tipo PATRIMONIO en el plan de cuentas | lib/contabilidad | unit |
+| U-145 | REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): crearAsiento loguea el rollback de journal_entries fallido que dejaría un asiento huérfano (sin lanzar) — el rollback ya no es silencioso, previene huérfanos como #28/#38/#201/#209 | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |
