@@ -97,6 +97,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | C-56 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): HoverPrefetchLink renderiza un link con prefetch=false al montar (no dispara prefetch RSC en viewport) y activa el prefetch (prefetch=null, comportamiento por defecto) solo tras mouseEnter — evita la ráfaga de peticiones de precarga que saturaba el servidor | HoverPrefetchLink | component |
 | C-57 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): UltimasVentas renderiza vacío/sin datos y lista de ventas, y su link a /sales/[id] nace con prefetch=false y se activa solo tras mouseEnter | UltimasVentas | component |
 | AL-05 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): los links del sidebar nacen con prefetch=false y se activan solo tras mouseEnter — cada `<Link>` visible disparaba un prefetch RSC en producción; con 14 rutas el sidebar generaba decenas de peticiones simultáneas (503 intermitentes) | AppLayout | component |
+| C-58 | REGRESIÓN (revisión del ticket 6a76ccfa629628db21ebbe60, mismo patrón sin corregir en otro widget): SugerenciasRecompra renderiza un `<Link href="/purchases">` por cada sugerencia dentro de `data.map()` — nace con prefetch=false y se activa solo tras mouseEnter | SugerenciasRecompra | component |
 
 ## Notas de Crédito (I-100 a I-115)
 

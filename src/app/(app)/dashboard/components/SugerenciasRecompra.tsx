@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import HoverPrefetchLink from "@/components/ui/HoverPrefetchLink";
 
 type Sugerencia = {
   producto_nombre: string;
@@ -40,9 +40,9 @@ export default function SugerenciasRecompra({ data }: { data: Sugerencia[] }) {
                 <span className="text-gray-400 ml-2">· Stock: {s.stock_actual}</span>
               </div>
             </div>
-            <Link href="/purchases">
+            <HoverPrefetchLink href="/purchases">
               <span className="text-xs text-blue-500 hover:underline whitespace-nowrap">+ OC</span>
-            </Link>
+            </HoverPrefetchLink>
           </div>
           {s.proveedores.length > 0 && (
             <p className="text-xs text-gray-400 mt-1">
