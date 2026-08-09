@@ -2055,8 +2055,8 @@
     "semantic_hash": "0cd4a572d866c84910ea77c6a0a759f6"
   },
   "tests/integration/api/contabilidad-cierre-mes.test.ts": {
-    "mtime": 1786248526.144146,
-    "ast_hash": "6843f43aaae3b444805b2079cdf228d8",
+    "mtime": 1786287331.2846677,
+    "ast_hash": "682735ac9955b1aae5d838832eeea92b",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-estado-resultado-pdf.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786248526.14386,
-    "ast_hash": "859d733db4b685ab1bb5e0e346a0154e",
+    "mtime": 1786288291.792326,
+    "ast_hash": "e64e94f8e6e23f033d43a5e10b63b467",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3890,8 +3890,8 @@
     "semantic_hash": ""
   },
   "src/lib/contabilidad/cierre-mes.ts": {
-    "mtime": 1786248526.1439354,
-    "ast_hash": "53838cdb03a3d0aa8a23b7de50fb2957",
+    "mtime": 1786287704.8499281,
+    "ast_hash": "5bfec94d4822c3103a0931a6b0f60d4e",
     "semantic_hash": ""
   },
   "tests/components/POSCartClear.test.tsx": {
@@ -3905,13 +3905,13 @@
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-cierre-mes-backup.test.ts": {
-    "mtime": 1786248526.1440058,
-    "ast_hash": "d8d9b6eb911ef04d02fbc131789614b9",
+    "mtime": 1786287578.3207176,
+    "ast_hash": "dd48aed5816b9e4b6fa67b57fd6d82bd",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-cierre-mes-preview.test.ts": {
-    "mtime": 1786248526.1440709,
-    "ast_hash": "96e89c621a8afd484edf69e6a063162f",
+    "mtime": 1786287655.9342148,
+    "ast_hash": "4b63c8f0e70927d0ec55ee0b838bfca9",
     "semantic_hash": ""
   },
   "tests/components/InstagramEditor.test.tsx": {
