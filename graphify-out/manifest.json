@@ -665,9 +665,9 @@
     "semantic_hash": "0bde338c89bc3c8cd82cc6ae732e0b54"
   },
   "src/app/(app)/dashboard/components/SugerenciasRecompra.tsx": {
-    "mtime": 1781891134.1859393,
-    "ast_hash": "6dbc177c4ffe6e75aee91c3fec20e5f0",
-    "semantic_hash": "6dbc177c4ffe6e75aee91c3fec20e5f0"
+    "mtime": 1786229203.1332383,
+    "ast_hash": "14b1441a414d4795a02d3935b47ba317",
+    "semantic_hash": ""
   },
   "src/app/(app)/dashboard/components/TabBar.tsx": {
     "mtime": 1779811940.0614011,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786228717.7769337,
-    "ast_hash": "3f963d35b9e7652fe236fe3e75b54292",
+    "mtime": 1786229218.654555,
+    "ast_hash": "ddafc0857e29c72df53a29b9dfabb890",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4322,6 +4322,11 @@
   "tests/components/UltimasVentas.test.tsx": {
     "mtime": 1786228802.6586998,
     "ast_hash": "86b5da2917e77fdb1be8f9e38526b8c4",
+    "semantic_hash": ""
+  },
+  "tests/components/SugerenciasRecompra.test.tsx": {
+    "mtime": 1786229182.4006531,
+    "ast_hash": "c473d1ddaa6820137a8fbb7a122004ac",
     "semantic_hash": ""
   }
 }
