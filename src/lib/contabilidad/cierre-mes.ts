@@ -1,5 +1,4 @@
 import { createServiceClient } from "@/lib/supabase";
-import { CUENTAS } from "./types";
 
 export type CierreMesPreview = {
   periodo: string;
@@ -59,24 +58,52 @@ export async function computeCierrePreview(
   let asientosCierreCount = 0;
 
   if (calcular_costo_venta) {
-    const { data: compras } = await supabase
-      .from("journal_entries")
+    // COGS real del período = costo de mercancía de las ventas ACTIVAS
+    // (no anuladas, no devueltas). Se calcula desde los datos de venta
+    // (productos.costo, misma base que el asiento COGS por venta en
+    // POST /api/ventas y que el backfill) menos el costo devuelto por
+    // notas de crédito con restituir_stock=true. Usar el costo de COMPRAS
+    // (débito a Inventario de asientos COMPRA) genera un monto erróneo:
+    // no representa lo vendido (ticket Trello 6a77ec78ad60d990e448e439).
+    const { data: ventas } = await supabase
+      .from("ventas")
       .select("id")
       .eq("store_id", storeId)
-      .eq("tipo_movimiento", "COMPRA")
-      .gte("fecha", desde)
-      .lte("fecha", hasta);
+      .neq("estado", "anulada")
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
 
-    const compraIds = (compras ?? []).map((c) => c.id);
+    const ventaIds = (ventas ?? []).map((v) => v.id);
 
-    if (compraIds.length > 0) {
-      const { data: inventarioLines } = await supabase
-        .from("journal_detail")
-        .select("debito")
-        .in("journal_entry_id", compraIds)
-        .eq("cuenta_codigo", CUENTAS.INVENTARIO.codigo);
+    if (ventaIds.length > 0) {
+      const { data: items } = await supabase
+        .from("venta_items")
+        .select("id, cantidad, productos!inner(costo)")
+        .in("venta_id", ventaIds);
 
-      cogsEstimado = (inventarioLines ?? []).reduce((s, l) => s + Number(l.debito), 0);
+      cogsEstimado = (items ?? []).reduce((s, item) => {
+        const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
+        return s + (item.cantidad * Number(costo));
+      }, 0);
+
+      const itemIds = (items ?? []).map((i) => i.id);
+
+      if (itemIds.length > 0) {
+        const { data: devoluciones } = await supabase
+          .from("nota_credito_items")
+          .select("cantidad_devuelta, restituir_stock, productos!inner(costo)")
+          .in("venta_item_id", itemIds)
+          .eq("restituir_stock", true);
+
+        const cogsDevuelto = (devoluciones ?? []).reduce((s, d) => {
+          const costo = (d.productos as unknown as { costo: number }).costo ?? 0;
+          return s + (d.cantidad_devuelta * Number(costo));
+        }, 0);
+
+        cogsEstimado = Math.max(0, cogsEstimado - cogsDevuelto);
+      }
+
+      cogsEstimado = Math.round(cogsEstimado);
       if (cogsEstimado > 0) {
         asientosCierreCount = 1;
       }
