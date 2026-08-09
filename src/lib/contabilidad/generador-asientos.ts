@@ -165,7 +165,24 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
       `[contabilidad] Error creando journal_detail (intento ${intento + 1}/${MAX_DETALLE_RETRIES}):`,
       detErr.message
     );
-    await supabase.from("journal_entries").delete().eq("id", entry.id);
+
+    // Rollback del asiento recién creado. El resultado del delete NO se puede
+    // ignorar: si el delete falla (timeout, staleness del schema cache — las
+    // mismas causas transitorias que pueden haber derribado el insert del
+    // detalle), el asiento queda huérfano en journal_entries SIN filas en
+    // journal_detail. Ese huérfano es invisible para el Estado de Resultado
+    // (su fallback suma solo detalles existentes) y para el backfill (busca
+    // asientos faltantes por tipo_movimiento+referencia_id, y el huérfano
+    // "existe"), por lo que el COGS de la venta/NC/OC asociada se pierde
+    // silenciosamente (ticket Trello 6a77e779e5698ef7e7e3afda — asiento #209
+    // huérfano sin detalle en producción). Al menos debe quedar en el log.
+    const { error: rollbackErr } = await supabase.from("journal_entries").delete().eq("id", entry.id);
+    if (rollbackErr) {
+      console.error(
+        `[contabilidad] Rollback fallido: journal_entry ${entry.id} quedó huérfano tras error de journal_detail | ${input.descripcion}`,
+        rollbackErr.message
+      );
+    }
   }
 
   console.error(`[contabilidad] No se pudo crear el detalle del asiento tras ${MAX_DETALLE_RETRIES} intentos | ${input.descripcion}`);

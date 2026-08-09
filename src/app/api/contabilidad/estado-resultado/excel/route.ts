@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generarExcelEstadoResultado } from "@/lib/contabilidad/excel-generator";
+import { calcularDatosEstadoResultado } from "@/lib/contabilidad/estado-resultado";
 
 export async function GET(req: NextRequest) {
   const ctx = await getStoreId();
@@ -33,74 +34,12 @@ export async function GET(req: NextRequest) {
     supabase.from("stores").select("name, rut").eq("id", store_id).single(),
   ]);
 
-  // Reuse the existing endpoint logic inline — fetch data for Excel
-  const COGS_CODIGOS = ["5.1.01"];
-  const INGRESOS_CODIGOS = ["4.1.01"];
-  const DEVOLUCIONES_CODIGOS = ["4.1.02"];
-
-  // COGS from actual sales
-  const { data: ventas } = await supabase
-    .from("ventas")
-    .select("id")
-    .eq("store_id", store_id)
-    .neq("estado", "anulada")
-    .gte("created_at", desde)
-    .lte("created_at", hasta);
-
-  const ventaIds = (ventas ?? []).map((v) => v.id);
-  let costoVenta = 0;
-
-  if (ventaIds.length > 0) {
-    const { data: items } = await supabase
-      .from("venta_items")
-      .select("id")
-      .in("venta_id", ventaIds);
-
-    const itemIds = (items ?? []).map((i) => i.id);
-    if (itemIds.length > 0) {
-      const { data: lotes } = await supabase
-        .from("venta_item_lotes")
-        .select("cantidad, costo_unitario")
-        .in("venta_item_id", itemIds);
-
-      costoVenta = (lotes ?? []).reduce((s, l) => s + Number(l.cantidad) * Number(l.costo_unitario), 0);
-    }
-  }
-
-  const { data: entries } = await supabase
-    .from("journal_entries")
-    .select("id")
-    .eq("store_id", store_id)
-    .gte("fecha", desde)
-    .lte("fecha", hasta);
-
-  const entryIds = (entries ?? []).map((e) => e.id);
-
-  let ventaProductos = 0;
-  let devoluciones = 0;
-
-  if (entryIds.length > 0) {
-    const { data: detalles } = await supabase
-      .from("journal_detail")
-      .select("cuenta_codigo, debito, credito")
-      .in("journal_entry_id", entryIds);
-
-    const sumCuenta = (codigos: string[], campo: "debito" | "credito") =>
-      (detalles ?? [])
-        .filter((d) => codigos.includes(d.cuenta_codigo))
-        .reduce((s, d) => s + Number(d[campo] ?? 0), 0);
-
-    const ventaCredits = sumCuenta(INGRESOS_CODIGOS, "credito");
-    const ventaDebits = sumCuenta(INGRESOS_CODIGOS, "debito");
-    ventaProductos = ventaCredits - ventaDebits;
-    devoluciones = sumCuenta(DEVOLUCIONES_CODIGOS, "debito");
-
-    if (costoVenta === 0) {
-      const cogsDebits = sumCuenta(COGS_CODIGOS, "debito");
-      const cogsCredits = sumCuenta(COGS_CODIGOS, "credito");
-      costoVenta = cogsDebits - cogsCredits;
-    }
-  }
+  const { ventaProductos, devoluciones, costoVenta } = await calcularDatosEstadoResultado(
+    supabase,
+    store_id,
+    desde,
+    hasta
+  );
 
   const totalIngresosOp = ventaProductos - devoluciones;
   const utilidadNeta = totalIngresosOp - costoVenta;
