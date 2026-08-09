@@ -42,6 +42,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-437 | REGRESIÓN (ticket Trello 6a5f9ad3fbf979e68251d40e): anular venta pagada 100% con NC usa lineasAnulacionVentaConNc — reverso acredita Saldos a Favor, NO Caja/Banco (antes acreditaba el total a Banco: activo inflado, posible saldo negativo) | PATCH /api/ventas/[id] | integration |
 | I-438 | Misma regresión, variante mixta: reverso acredita Saldos a Favor por el monto NC y Banco solo por el resto pagado con tarjeta | PATCH /api/ventas/[id] | integration |
 | I-438b | Contracara: venta sin pagos de crédito sigue usando lineasAnulacionVentaCanal (el lookup de pagos no altera el flujo normal) | PATCH /api/ventas/[id] | integration |
+| I-493 | REGRESIÓN (ticket Trello 6a77e779358cdccca29dc3e3, hallazgo extendido durante esa revisión): anulación con costo agenda el asiento (reverso ingreso + reverso COGS) con after() de next/server — mismo patrón de doble crearAsiento() secuencial que causó el ticket, ahora protegido en la anulación de venta | PATCH /api/ventas/[id] | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 
@@ -189,6 +190,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-NCC-04 | lineasNotaCreditoCOGS es el inverso exacto de lineasVentaCOGS | lib/contabilidad/generador-asientos | unit |
 | I-NCC-05 | lineasNotaCreditoCOGS con costo cero genera líneas en 0 | lib/contabilidad/generador-asientos | unit |
 | I-NCC-INT-01 | REGRESIÓN: devolución con restituirStock=true y costo definido crea también el reverso de COGS (Dr Inventario / Cr COGS por cantidad × costo) | POST /api/notas-credito | integration |
+| I-492 | REGRESIÓN (ticket Trello 6a77e779358cdccca29dc3e3, hallazgo extendido durante esa revisión): NC con costo agenda el asiento (ingreso + reverso COGS) con after() de next/server — mismo patrón de doble crearAsiento() secuencial que causó el ticket, ahora protegido en notas-credito | POST /api/notas-credito | integration |
 | I-NCC-INT-02 | Devolución con restituirStock=false NO crea reverso de COGS (solo ingreso) — mismo criterio que anular_venta_tx | POST /api/notas-credito | integration |
 | I-NCC-INT-03 | Devolución de producto sin costo definido NO crea reverso de COGS | POST /api/notas-credito | integration |
 | I-NCC-BF-01 | Backfill NC: sin ningún asiento → crea ingreso + reverso de COGS | POST /api/contabilidad/backfill | integration |
