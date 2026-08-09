@@ -5,7 +5,18 @@
  * Estos tests verifican: validaciones del route, datos enviados al RPC y side-effects
  * fire-and-forget (WhatsApp, email, hub sync, contabilidad).
  */
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
+
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope (lanza fuera de él). En tests llamamos a
+    // POST() directamente sin request scope: ejecutamos el callback en el
+    // momento, replicando el timing del código anterior.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
@@ -381,6 +392,105 @@ describe("POST /api/ventas — flujo exitoso", () => {
     expect(crearAsiento).toHaveBeenCalledTimes(1);
     const ventaCall = (crearAsiento as jest.Mock).mock.calls[0][0];
     expect(ventaCall.tipoMovimiento).toBe("VENTA");
+  });
+
+  // I-491: REGRESIÓN — venta pagada 100% con Nota de Crédito también genera el
+  // asiento COGS. Ticket Trello 6a77e779358cdccca29dc3e3: una venta NC quedó con
+  // asiento de ingreso (222) pero SIN COGS (223) durante ~11 min. Causa raíz: el
+  // bloque de asientos era un IIFE post-response fire-and-forget (sin after()/
+  // waitUntil); en serverless el proceso se congelaba entre el asiento de ingreso
+  // y el de COGS. Fix: migrar el bloque a after() de next/server, que garantiza
+  // que la plataforma espere a que ambos asientos se creen tras responder.
+  it("I-491: REGRESIÓN — venta pagada con NC genera asiento de ingreso Y asiento COGS (agendado vía after)", async () => {
+    const NC_ID = "123e4567-e89b-12d3-a456-426614174040";
+    const NC_TOTAL = 20000;
+
+    let productosCall = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        productosCall++;
+        if (productosCall === 1) {
+          // Price lookup: .select().in().eq()
+          return {
+            select: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO], error: null }),
+          };
+        }
+        // Hub sync: .select().eq().in()
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        };
+      }
+      if (table === "notas_credito") {
+        return {
+          ...mockChain,
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { id: NC_ID, monto_total: NC_TOTAL, fecha_vencimiento: null, estado: "activa" },
+            error: null,
+          }),
+        };
+      }
+      if (table === "stores") {
+        return {
+          ...mockChain,
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { name: "PetShop", whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null },
+            error: null,
+          }),
+        };
+      }
+      return {
+        ...mockChain,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
+    });
+
+    const res = await POST(makeRequest({
+      items: [VALID_ITEM],
+      metodoPago: "nota_credito",
+      pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-0001", monto: NC_TOTAL },
+    }));
+
+    expect(res.status).toBe(200);
+
+    // El trabajo contable se agenda con after() (next/server), no con un IIFE
+    // fire-and-forget que podía quedar abandonado por la plataforma a mitad de
+    // ejecución entre asiento de ingreso y asiento COGS.
+    expect(after).toHaveBeenCalledTimes(1);
+
+    // Ambos asientos se crean: ingreso (con líneas de NC) + COGS.
+    expect(crearAsiento).toHaveBeenCalledTimes(2);
+
+    const ventaCall = (crearAsiento as jest.Mock).mock.calls[0][0];
+    expect(ventaCall.tipoMovimiento).toBe("VENTA");
+    // NC paga el 100%: débito a Saldos a Favor por el monto de la NC
+    const lineaSaldos = ventaCall.lineas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo
+    );
+    expect(lineaSaldos).toBeDefined();
+    expect(lineaSaldos.debito).toBe(NC_TOTAL);
+
+    const cogsCall = (crearAsiento as jest.Mock).mock.calls[1][0];
+    const lineaCOGS = cogsCall.lineas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo
+    );
+    expect(lineaCOGS).toBeDefined();
+    expect(lineaCOGS.debito).toBe(8000); // 2 × $4,000 costo
+    const lineaInventario = cogsCall.lineas.find(
+      (l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo
+    );
+    expect(lineaInventario).toBeDefined();
+    expect(lineaInventario.credito).toBe(8000);
   });
 
   // I-282: REGRESIÓN — el RPC recibe p_numero_comprobante en formato legible (YYYYMMDD-XXXXXXXX),

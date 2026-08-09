@@ -4,6 +4,14 @@
  */
 import { NextRequest } from "next/server";
 
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
+
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
 const CLIENTE_ID = "123e4567-e89b-12d3-a456-426614174020";
