@@ -627,7 +627,7 @@ I-406/I-407/I-408.
 | U-142 | Nuevo mecanismo (ticket Trello 6a61195cfc6f97edc3c0a3b0): lineasAporteCapital crea líneas balanceadas Dr Caja / Cr Capital (PATRIMONIO) | lib/contabilidad | unit |
 | U-143 | Nuevo mecanismo: lineasAporteCapital con cuentaDestino=banco debita BANCO en vez de CAJA | lib/contabilidad | unit |
 | U-144 | Nuevo mecanismo: la cuenta CAPITAL es de tipo PATRIMONIO en el plan de cuentas | lib/contabilidad | unit |
-| U-145 | REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): crearAsiento loguea el rollback de journal_entries fallido que dejaría un asiento huérfano (sin lanzar) — el rollback ya no es silencioso, previene huérfanos como #28/#38/#201/#209 | lib/contabilidad | unit |
+| U-145 | REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): crearAsiento loguea el rollback de journal_entries fallido que dejaría un asiento huérfano (sin lanzar) — el rollback ya no es silencioso; defensa preventiva (no se confirmaron huérfanos reales en producción al revisar este ticket) | lib/contabilidad | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |
