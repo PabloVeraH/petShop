@@ -58,13 +58,23 @@ export async function computeCierrePreview(
   let asientosCierreCount = 0;
 
   if (calcular_costo_venta) {
-    // COGS real del período = costo de mercancía de las ventas ACTIVAS
-    // (no anuladas, no devueltas). Se calcula desde los datos de venta
-    // (productos.costo, misma base que el asiento COGS por venta en
-    // POST /api/ventas y que el backfill) menos el costo devuelto por
-    // notas de crédito con restituir_stock=true. Usar el costo de COMPRAS
-    // (débito a Inventario de asientos COMPRA) genera un monto erróneo:
-    // no representa lo vendido (ticket Trello 6a77ec78ad60d990e448e439).
+    // COGS a cerrar = SOLO el de ventas activas del período que TODAVÍA NO
+    // tienen su propio asiento COGS (mismo principio "solo faltantes" que
+    // POST /api/contabilidad/backfill, que ya hace este mismo chequeo antes
+    // de crear su asiento "VENTA (COGS)": journal_entries con
+    // tipo_movimiento=VENTA, referencia_id=venta.id, descripcion ILIKE
+    // 'COGS%'). El sistema es de inventario PERPETUO — cada venta ya genera
+    // su propio asiento COGS en POST /api/ventas (lineasVentaCOGS) — así que
+    // recalcular el COGS de TODO el período y sumarlo en un asiento nuevo
+    // duplica lo ya contabilizado. Verificado contra producción (ticket
+    // Trello 6a77ec78ad60d990e448439e): el asiento 230 (Cierre 2026-08,
+    // $65.000, calculado desde costo de COMPRAS) inflaba la cuenta 510101
+    // encima de $43.500 ya contabilizados por 6 asientos VENTA/COGS del
+    // mismo período — ni siquiera la fórmula "correcta" basada en ventas
+    // ($25.500) habría sido correcta como asiento nuevo: para agosto 2026,
+    // las 5 ventas activas del período YA tenían su asiento COGS, así que
+    // el gap real era $0. La cuenta 510101 se corrigió revirtiendo el
+    // asiento 230 (asiento 232, AJUSTE) — no se reemplazó con uno nuevo.
     const { data: ventas } = await supabase
       .from("ventas")
       .select("id")
@@ -76,36 +86,49 @@ export async function computeCierrePreview(
     const ventaIds = (ventas ?? []).map((v) => v.id);
 
     if (ventaIds.length > 0) {
-      const { data: items } = await supabase
-        .from("venta_items")
-        .select("id, cantidad, productos!inner(costo)")
-        .in("venta_id", ventaIds);
+      const { data: asientosCogsExistentes } = await supabase
+        .from("journal_entries")
+        .select("referencia_id")
+        .eq("store_id", storeId)
+        .eq("tipo_movimiento", "VENTA")
+        .in("referencia_id", ventaIds)
+        .ilike("descripcion", "COGS%");
 
-      cogsEstimado = (items ?? []).reduce((s, item) => {
-        const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
-        return s + (item.cantidad * Number(costo));
-      }, 0);
+      const ventasConCogs = new Set((asientosCogsExistentes ?? []).map((a) => a.referencia_id));
+      const ventaIdsSinCogs = ventaIds.filter((id) => !ventasConCogs.has(id));
 
-      const itemIds = (items ?? []).map((i) => i.id);
+      if (ventaIdsSinCogs.length > 0) {
+        const { data: items } = await supabase
+          .from("venta_items")
+          .select("id, cantidad, productos!inner(costo)")
+          .in("venta_id", ventaIdsSinCogs);
 
-      if (itemIds.length > 0) {
-        const { data: devoluciones } = await supabase
-          .from("nota_credito_items")
-          .select("cantidad_devuelta, restituir_stock, productos!inner(costo)")
-          .in("venta_item_id", itemIds)
-          .eq("restituir_stock", true);
-
-        const cogsDevuelto = (devoluciones ?? []).reduce((s, d) => {
-          const costo = (d.productos as unknown as { costo: number }).costo ?? 0;
-          return s + (d.cantidad_devuelta * Number(costo));
+        cogsEstimado = (items ?? []).reduce((s, item) => {
+          const costo = (item.productos as unknown as { costo: number }).costo ?? 0;
+          return s + (item.cantidad * Number(costo));
         }, 0);
 
-        cogsEstimado = Math.max(0, cogsEstimado - cogsDevuelto);
-      }
+        const itemIds = (items ?? []).map((i) => i.id);
 
-      cogsEstimado = Math.round(cogsEstimado);
-      if (cogsEstimado > 0) {
-        asientosCierreCount = 1;
+        if (itemIds.length > 0) {
+          const { data: devoluciones } = await supabase
+            .from("nota_credito_items")
+            .select("cantidad_devuelta, restituir_stock, productos!inner(costo)")
+            .in("venta_item_id", itemIds)
+            .eq("restituir_stock", true);
+
+          const cogsDevuelto = (devoluciones ?? []).reduce((s, d) => {
+            const costo = (d.productos as unknown as { costo: number }).costo ?? 0;
+            return s + (d.cantidad_devuelta * Number(costo));
+          }, 0);
+
+          cogsEstimado = Math.max(0, cogsEstimado - cogsDevuelto);
+        }
+
+        cogsEstimado = Math.round(cogsEstimado);
+        if (cogsEstimado > 0) {
+          asientosCierreCount = 1;
+        }
       }
     }
   }

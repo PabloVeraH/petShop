@@ -39,6 +39,7 @@ function createChain(resolveValue: object) {
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
+    ilike: jest.fn().mockReturnThis(),
     insert: jest.fn().mockReturnThis(),
     update: jest.fn().mockReturnThis(),
   };
@@ -201,7 +202,8 @@ describe("POST /api/contabilidad/cierre-mes", () => {
           if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
           if (callCount === 2) return createChain({ data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }], error: null }); // entries
           if (callCount === 3) return createChain({ data: [{ id: "v1" }, { id: "v2" }], error: null }); // ventas activas
-          if (callCount === 4) return createChain({
+          if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1,v2)
+          if (callCount === 5) return createChain({
             data: [
               { id: "i1", cantidad: 2, productos: { costo: 2500 } },
               { id: "i2", cantidad: 1, productos: { costo: 3000 } },
@@ -382,8 +384,9 @@ describe("POST /api/contabilidad/cierre-mes", () => {
           callCount++;
           if (callCount === 1 || callCount === 2) return createChain({ data: [], error: null });
           if (callCount === 3) return createChain({ data: [{ id: "v1" }], error: null }); // ventas activas
-          if (callCount === 4) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
-          if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
+          if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1)
+          if (callCount === 5) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
+          if (callCount === 6) return createChain({ data: [], error: null }); // devoluciones
           return createChain({ data: [{ id: "cierre-concurrente" }], error: null });
         }),
       });
@@ -405,8 +408,9 @@ describe("POST /api/contabilidad/cierre-mes", () => {
           callCount++;
           if (callCount === 1 || callCount === 2) return createChain({ data: [], error: null });
           if (callCount === 3) return createChain({ data: [{ id: "v1" }], error: null }); // ventas activas
-          if (callCount === 4) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
-          if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
+          if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1)
+          if (callCount === 5) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
+          if (callCount === 6) return createChain({ data: [], error: null }); // devoluciones
           return createChain({ data: [], error: null });
         }),
       });

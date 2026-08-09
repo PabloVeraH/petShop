@@ -23,6 +23,7 @@ function createChain(resolveValue: object) {
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
+    ilike: jest.fn().mockReturnThis(),
   };
   chain.then = (resolve: Function) => resolve(resolveValue);
   return chain;
@@ -192,13 +193,14 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
             data: [{ id: "v1" }, { id: "v2" }],
             error: null,
           }); // ventas activas
-          if (callCount === 4) return createChain({
+          if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (ninguna venta tiene el suyo — gap = v1,v2)
+          if (callCount === 5) return createChain({
             data: [
               { id: "i1", cantidad: 2, productos: { costo: 2500 } },
               { id: "i2", cantidad: 1, productos: { costo: 3000 } },
             ],
             error: null,
-          }); // venta_items con costo
+          }); // venta_items con costo (de las ventas sin COGS)
           return createChain({
             data: [
               { cantidad_devuelta: 1, restituir_stock: true, productos: { costo: 2500 } },
@@ -251,7 +253,8 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
             data: [{ id: "v1" }],
             error: null,
           }); // ventas activas (anulada excluida por el query .neq)
-          if (callCount === 4) return createChain({
+          if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (v1 sin COGS — gap)
+          if (callCount === 5) return createChain({
             data: [{ id: "i1", cantidad: 3, productos: { costo: 2000 } }],
             error: null,
           }); // venta_items
@@ -261,6 +264,89 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
             ],
             error: null,
           }); // devolución total restituida
+        }),
+      });
+
+      const res = await GET(makeRequest(
+        "http://localhost/api/contabilidad/cierre-mes/preview?mes=4&año=2026&calcular_costo_venta=true"
+      ));
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.cogs_estimado).toBe(0);
+      expect(body.asientos_cierre_count).toBe(0);
+    });
+
+    // I-490: REGRESIÓN — el sistema es de inventario PERPETUO (cada venta
+    // genera su propio asiento COGS en POST /api/ventas). Cierre de Mes debe
+    // excluir del cogs_estimado toda venta que YA tenga su asiento COGS,
+    // igual que /api/contabilidad/backfill — de lo contrario duplica el
+    // costo ya contabilizado (ver ticket Trello 6a77ec78ad60d990e448439e:
+    // asiento 230 dupicó $65.000 de COGS ya registrado por ventas
+    // individuales). Este test protege específicamente el caso "gap
+    // parcial": dos ventas activas, una YA tiene su asiento COGS (debe
+    // excluirse) y la otra no (debe incluirse).
+    it("I-490: REGRESIÓN — excluye del cogs_estimado las ventas que ya tienen su propio asiento COGS (gap parcial)", async () => {
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          if (callCount === 2) return createChain({
+            data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
+            error: null,
+          }); // entries
+          if (callCount === 3) return createChain({
+            data: [{ id: "v1" }, { id: "v2" }],
+            error: null,
+          }); // ventas activas: v1 (ya tiene COGS) y v2 (sin COGS)
+          if (callCount === 4) return createChain({
+            data: [{ referencia_id: "v1" }],
+            error: null,
+          }); // asientos COGS existentes → solo v1; gap = v2
+          if (callCount === 5) return createChain({
+            data: [{ id: "i2", cantidad: 1, productos: { costo: 4000 } }],
+            error: null,
+          }); // venta_items → SOLO de v2 (v1 no debe consultarse)
+          return createChain({ data: [], error: null }); // devoluciones
+        }),
+      });
+
+      const res = await GET(makeRequest(
+        "http://localhost/api/contabilidad/cierre-mes/preview?mes=4&año=2026&calcular_costo_venta=true"
+      ));
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      // Si v1 se incluyera indebidamente el resultado sería mayor a 4000
+      // (duplicando su COGS ya contabilizado); el valor correcto es SOLO
+      // el costo de v2.
+      expect(body.cogs_estimado).toBe(4000);
+      expect(body.asientos_cierre_count).toBe(1);
+    });
+
+    it("I-490: REGRESIÓN — cogs_estimado=0 cuando TODAS las ventas activas ya tienen su asiento COGS (gap nulo)", async () => {
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          if (callCount === 2) return createChain({
+            data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
+            error: null,
+          }); // entries
+          if (callCount === 3) return createChain({
+            data: [{ id: "v1" }],
+            error: null,
+          }); // ventas activas: v1 (ya tiene COGS)
+          if (callCount === 4) return createChain({
+            data: [{ referencia_id: "v1" }],
+            error: null,
+          }); // asientos COGS existentes → v1 cubierta, gap vacío
+          // No debe llegar a consultar venta_items: si lo hiciera con este
+          // mock devolvería [] igualmente, pero el aserto de abajo confirma
+          // que ninguna venta con COGS ya contabilizado aporta al total.
+          return createChain({ data: [], error: null });
         }),
       });
 

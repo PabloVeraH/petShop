@@ -24,6 +24,7 @@ function createChain(resolveValue: object) {
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
+    ilike: jest.fn().mockReturnThis(),
     insert: jest.fn().mockReturnValue({ then: (resolve: Function) => resolve({ data: null, error: null }) }),
     update: jest.fn().mockReturnThis(),
   };
@@ -67,12 +68,13 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         data: [{ id: "v1" }],
         error: null,
       }); // ventas activas
-      if (callCount === 4) return createChain({
+      if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1)
+      if (callCount === 5) return createChain({
         data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }],
         error: null,
       }); // venta_items → cogs=5000
-      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
-      if (callCount === 6) return createChain({
+      if (callCount === 6) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 7) return createChain({
         data: [{ id: "e1", total_debito: 11900, total_credito: 11900, journal_detail: [] }],
         error: null,
       }); // backup entries + detail
@@ -155,12 +157,13 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         data: [{ id: "v1" }],
         error: null,
       }); // ventas activas
-      if (callCount === 4) return createChain({
+      if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1)
+      if (callCount === 5) return createChain({
         data: [{ id: "i1", cantidad: 1, productos: { costo: 8000 } }],
         error: null,
       }); // venta_items → cogs=8000
-      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
-      if (callCount === 6) return createChain({
+      if (callCount === 6) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 7) return createChain({
         data: fakeEntries,
         error: null,
       }); // backup entries + detail
@@ -203,9 +206,10 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         error: null,
       }); // entries
       if (callCount === 3) return createChain({ data: [{ id: "v1" }], error: null }); // ventas activas
-      if (callCount === 4) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
-      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
-      if (callCount === 6) return createChain({ data: [], error: null }); // backup entries query
+      if (callCount === 4) return createChain({ data: [], error: null }); // asientos COGS existentes (gap = v1)
+      if (callCount === 5) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
+      if (callCount === 6) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 7) return createChain({ data: [], error: null }); // backup entries query
       return createChain({ data: [], error: null });
     });
 
