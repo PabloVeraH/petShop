@@ -1140,8 +1140,8 @@
     "semantic_hash": "5ebd60fcf7a104d995334bcda9f19b5b"
   },
   "src/app/api/notas-credito/route.ts": {
-    "mtime": 1784915483.3901455,
-    "ast_hash": "0bf7906eefbbc0e3dd2c0265ea33726a",
+    "mtime": 1786293115.151471,
+    "ast_hash": "173f89c773cb403d9e3f9ee3afc391f6",
     "semantic_hash": ""
   },
   "src/app/api/onboarding/complete/route.ts": {
@@ -1245,8 +1245,8 @@
     "semantic_hash": ""
   },
   "src/app/api/ventas/[id]/route.ts": {
-    "mtime": 1786112086.681391,
-    "ast_hash": "81d3c348f29446327093b90d6c99be78",
+    "mtime": 1786293115.1525567,
+    "ast_hash": "465aa36f712cb916d3cfd13a70ba9e6b",
     "semantic_hash": ""
   },
   "src/app/api/ventas/route.ts": {
@@ -1965,8 +1965,8 @@
     "semantic_hash": "7c30ed51937d8dcac5eae5b97c49d691"
   },
   "tests/integration/api/audit-coverage.test.ts": {
-    "mtime": 1784915483.3902836,
-    "ast_hash": "180f8cc5fa0b3fd66c042d360fecda9c",
+    "mtime": 1786292999.5257356,
+    "ast_hash": "2395e65986a30ed17baac167b78b00e8",
     "semantic_hash": ""
   },
   "tests/integration/api/audit-extended.test.ts": {
@@ -2155,8 +2155,8 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1786218481.031153,
-    "ast_hash": "94ea33a1edff8c4890b86fc146d2c8f1",
+    "mtime": 1786293049.366886,
+    "ast_hash": "82282ecb481ac9c1a84d66bd6a180aec",
     "semantic_hash": ""
   },
   "tests/integration/api/onboarding.test.ts": {
@@ -2255,8 +2255,8 @@
     "semantic_hash": "0590a624f9513a762b6435b91e69079b"
   },
   "tests/integration/api/ventas-detalle.test.ts": {
-    "mtime": 1784743439.4852018,
-    "ast_hash": "32d80c657ca81f42d680dafc9e92d565",
+    "mtime": 1786293079.9128563,
+    "ast_hash": "58c0a877628d908823a257d63f800f6c",
     "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786292288.619365,
-    "ast_hash": "fd9fb5935573a4e4760c2e542b18effe",
+    "mtime": 1786293164.503931,
+    "ast_hash": "c945fc50edc93eb6c137d75e062eee6c",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
