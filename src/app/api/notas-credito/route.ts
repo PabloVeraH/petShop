@@ -1,5 +1,5 @@
 import { getStoreId } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
 import { crearAsiento, lineasNotaCredito, lineasNotaCreditoCOGS } from "@/lib/contabilidad/generador-asientos";
@@ -139,44 +139,53 @@ export async function POST(req: NextRequest) {
     userAgent,
   }).catch(() => {});
 
-  // Asiento contable (post-response fire-and-forget)
-  (async () => {
-    let clienteNombre: string | undefined;
-    if (clienteId) {
-      const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
-      clienteNombre = cli?.nombre ?? undefined;
-    }
+  // Asiento contable (post-response): after() de next/server garantiza que la
+  // plataforma espere a que el callback termine (waitUntil) tras responder —
+  // a diferencia del fire-and-forget puro, que podía quedar congelado a mitad
+  // de ejecución en serverless y dejar la NC con el asiento de devolución pero
+  // sin el reverso de COGS (mismo patrón que ticket Trello
+  // 6a77e779358cdccca29dc3e3, encontrado durante esa revisión).
+  after(async () => {
+    try {
+      let clienteNombre: string | undefined;
+      if (clienteId) {
+        const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
+        clienteNombre = cli?.nombre ?? undefined;
+      }
 
-    const fechaNc = new Date().toISOString().split("T")[0];
+      const fechaNc = new Date().toISOString().split("T")[0];
 
-    const asiento = await crearAsiento({
-      storeId: store_id,
-      fecha: fechaNc,
-      tipoMovimiento: "NOTA_CREDITO",
-      canal: "pos",
-      referenciaId: ncId,
-      referenciaNomero: numero_nc,
-      descripcion: `Devolución${clienteNombre ? ` a ${clienteNombre}` : ""}${motivo ? ` — ${motivo}` : ""}`,
-      lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
-      usuarioId: ctx.userId ?? undefined,
-    });
-    if (!asiento) console.error(`[contabilidad] Asiento NC NO CREADO para ${numero_nc}`);
-
-    if (costoTotalNc > 0) {
-      const reversoCogs = await crearAsiento({
+      const asiento = await crearAsiento({
         storeId: store_id,
         fecha: fechaNc,
         tipoMovimiento: "NOTA_CREDITO",
         canal: "pos",
         referenciaId: ncId,
         referenciaNomero: numero_nc,
-        descripcion: `Reverso COGS devolución${clienteNombre ? ` a ${clienteNombre}` : ""}`,
-        lineas: lineasNotaCreditoCOGS(Math.round(costoTotalNc)),
+        descripcion: `Devolución${clienteNombre ? ` a ${clienteNombre}` : ""}${motivo ? ` — ${motivo}` : ""}`,
+        lineas: lineasNotaCredito({ monto: montoTotal, tipoReembolso, metodoReembolso: metodoReembolso ?? undefined }),
         usuarioId: ctx.userId ?? undefined,
       });
-      if (!reversoCogs) console.error(`[contabilidad] Reverso COGS NO CREADO para NC ${numero_nc}`);
+      if (!asiento) console.error(`[contabilidad] Asiento NC NO CREADO para ${numero_nc}`);
+
+      if (costoTotalNc > 0) {
+        const reversoCogs = await crearAsiento({
+          storeId: store_id,
+          fecha: fechaNc,
+          tipoMovimiento: "NOTA_CREDITO",
+          canal: "pos",
+          referenciaId: ncId,
+          referenciaNomero: numero_nc,
+          descripcion: `Reverso COGS devolución${clienteNombre ? ` a ${clienteNombre}` : ""}`,
+          lineas: lineasNotaCreditoCOGS(Math.round(costoTotalNc)),
+          usuarioId: ctx.userId ?? undefined,
+        });
+        if (!reversoCogs) console.error(`[contabilidad] Reverso COGS NO CREADO para NC ${numero_nc}`);
+      }
+    } catch (e) {
+      console.error("[contabilidad] Error en asiento NC:", e);
     }
-  })().catch((e) => console.error("[contabilidad] Error en asiento NC:", e));
+  });
 
   return NextResponse.json({
     ok: true,

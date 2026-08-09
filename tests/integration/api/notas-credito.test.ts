@@ -2,9 +2,20 @@
  * Tests: POST/GET /api/notas-credito y devoluciones
  * Cobertura: creación de notas, restitución stock, rollback fidelización, saldo_a_favor
  */
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
 import { CUENTAS } from "@/lib/contabilidad/types";
+
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope (lanza fuera de él). En tests llamamos a
+    // POST() directamente sin request scope: ejecutamos el callback en el
+    // momento, replicando el timing del código anterior.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const CLIENTE_ID = "223e4567-e89b-12d3-a456-426614174001";
@@ -525,6 +536,35 @@ describe("POST /api/notas-credito", () => {
     expect(lineaCogs.credito).toBe(1500);
     expect(lineaInv.debito).toBe(1500);
     expect(lineaInv.credito).toBe(0);
+  });
+
+  // I-492: REGRESIÓN — mismo patrón que I-491 (ticket Trello
+  // 6a77e779358cdccca29dc3e3): el asiento NC y su reverso de COGS son dos
+  // crearAsiento() secuenciales dentro del mismo callback. Antes de este fix
+  // vivían en un IIFE fire-and-forget sin after()/waitUntil, que en
+  // serverless podía quedar congelado a mitad de ejecución y dejar la NC con
+  // el asiento de devolución pero sin el reverso de COGS. Ahora el bloque se
+  // agenda con after(), que garantiza que la plataforma espere a que ambos
+  // asientos se creen tras responder.
+  it("I-492: REGRESIÓN — NC con costo agenda el asiento contable vía after() y crea ambos asientos", async () => {
+    rpcSuccess({ costo_total: 1500, venta_cliente_id: CLIENTE_ID });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: NC_ID, cantidadDevuelta: 3, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await flushPromises();
+
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(crearAsiento).toHaveBeenCalledTimes(2);
   });
 
   it("I-NCC-INT-02: costo_total = 0 del RPC (restituirStock=false) → NO crea reverso de COGS", async () => {

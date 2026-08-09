@@ -1,5 +1,5 @@
 import { GET, PATCH } from "@/app/api/ventas/[id]/route";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
@@ -9,6 +9,16 @@ jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   lineasAnulacionVentaConNc: jest.fn().mockReturnValue([]),
   lineasAnulacionCOGS: jest.fn().mockReturnValue([]),
 }));
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope (lanza fuera de él). En tests llamamos a
+    // PATCH() directamente sin request scope: ejecutamos el callback en el
+    // momento, replicando el timing del código anterior.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
 
 import * as contabilidad from "@/lib/contabilidad/generador-asientos";
 
@@ -329,6 +339,25 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       descripcion: expect.stringContaining("COGS"),
       fecha: "2026-04-17",
     }));
+  });
+
+  // I-493: REGRESIÓN — mismo patrón que I-491 (ticket Trello
+  // 6a77e779358cdccca29dc3e3): el asiento de anulación y su reverso de COGS
+  // son dos crearAsiento() secuenciales dentro del mismo callback. Antes de
+  // este fix vivían en un IIFE fire-and-forget sin after()/waitUntil, que en
+  // serverless podía quedar congelado a mitad de ejecución y dejar la
+  // anulación con el asiento de reverso de ingreso pero sin el reverso de
+  // COGS. Ahora el bloque se agenda con after(), que garantiza que la
+  // plataforma espere a que ambos asientos se creen tras responder.
+  it("I-493: REGRESIÓN — anulación con costo agenda el asiento contable vía after() y crea ambos asientos", async () => {
+    mockRpc.mockResolvedValue(mockAnularVentaTxSuccess({}, 10000));
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+
+    expect(res.status).toBe(200);
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(contabilidad.crearAsiento).toHaveBeenCalledTimes(2);
   });
 
   it("no genera reverso COGS cuando costo_total es 0 (sin stock que restaurar)", async () => {

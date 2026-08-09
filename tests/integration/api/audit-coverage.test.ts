@@ -4,6 +4,18 @@
  */
 import { NextRequest } from "next/server";
 
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope (lanza fuera de él). En tests llamamos a
+    // los handlers directamente sin request scope: ejecutamos el callback en
+    // el momento, replicando el timing del código anterior. Solo afecta al
+    // handler de notas-credito (POST) — cuentas-pagar sigue con IIFE puro.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
+
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const USER_ID = "u1";
 const VENTA_ID = "323e4567-e89b-12d3-a456-426614174002";
