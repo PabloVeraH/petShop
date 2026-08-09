@@ -990,19 +990,19 @@
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/estado-resultado/excel/route.ts": {
-    "mtime": 1783625512.6730142,
-    "ast_hash": "6821a98d01d0395ac1ec9f58418b5905",
-    "semantic_hash": "6821a98d01d0395ac1ec9f58418b5905"
+    "mtime": 1786295878.7387586,
+    "ast_hash": "9406cb1bde0bd280027f2584ed9b1da0",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/estado-resultado/pdf/route.ts": {
-    "mtime": 1783785316.8548775,
-    "ast_hash": "5761b8693fd5ea4101fcc13c2ca71b28",
-    "semantic_hash": "5761b8693fd5ea4101fcc13c2ca71b28"
+    "mtime": 1786295878.7387586,
+    "ast_hash": "9365bd8102458d9679e42db3157a46e1",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/estado-resultado/route.ts": {
-    "mtime": 1783625512.6730142,
-    "ast_hash": "9a3a6de6678e57a6831f74e8c387ecec",
-    "semantic_hash": "9a3a6de6678e57a6831f74e8c387ecec"
+    "mtime": 1786295878.7387586,
+    "ast_hash": "d14969b699e9a4d44381ab2b0e880f2a",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/libro-diario/excel/route.ts": {
     "mtime": 1776524991.5968082,
@@ -1140,7 +1140,7 @@
     "semantic_hash": "5ebd60fcf7a104d995334bcda9f19b5b"
   },
   "src/app/api/notas-credito/route.ts": {
-    "mtime": 1786293115.151471,
+    "mtime": 1786293368.553153,
     "ast_hash": "173f89c773cb403d9e3f9ee3afc391f6",
     "semantic_hash": ""
   },
@@ -1245,12 +1245,12 @@
     "semantic_hash": ""
   },
   "src/app/api/ventas/[id]/route.ts": {
-    "mtime": 1786293115.1525567,
+    "mtime": 1786293368.5533133,
     "ast_hash": "465aa36f712cb916d3cfd13a70ba9e6b",
     "semantic_hash": ""
   },
   "src/app/api/ventas/route.ts": {
-    "mtime": 1786292288.6197655,
+    "mtime": 1786293368.5535429,
     "ast_hash": "93fa21a3fd19bac58f8b086c7b451877",
     "semantic_hash": ""
   },
@@ -1580,8 +1580,8 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1786112086.681391,
-    "ast_hash": "81c76f88191407c0c243e23f39c76a6f",
+    "mtime": 1786309165.6863618,
+    "ast_hash": "1af387d08f6051408ec0afd7a15afb33",
     "semantic_hash": ""
   },
   "src/lib/contabilidad/html-balance-prueba.ts": {
@@ -1965,7 +1965,7 @@
     "semantic_hash": "7c30ed51937d8dcac5eae5b97c49d691"
   },
   "tests/integration/api/audit-coverage.test.ts": {
-    "mtime": 1786292999.5257356,
+    "mtime": 1786293368.5537133,
     "ast_hash": "2395e65986a30ed17baac167b78b00e8",
     "semantic_hash": ""
   },
@@ -2065,9 +2065,9 @@
     "semantic_hash": "277766263095e0751a8dd36ce65e2995"
   },
   "tests/integration/api/contabilidad-estado-resultado.test.ts": {
-    "mtime": 1783625512.6740143,
-    "ast_hash": "419a93519b4f11e99a925c14fa013bec",
-    "semantic_hash": "419a93519b4f11e99a925c14fa013bec"
+    "mtime": 1786309211.8187575,
+    "ast_hash": "431dae9f4a703d480c83645d1927229a",
+    "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-libro-diario.test.ts": {
     "mtime": 1783625512.6740143,
@@ -2155,7 +2155,7 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1786293049.366886,
+    "mtime": 1786293368.5539382,
     "ast_hash": "82282ecb481ac9c1a84d66bd6a180aec",
     "semantic_hash": ""
   },
@@ -2255,12 +2255,12 @@
     "semantic_hash": "0590a624f9513a762b6435b91e69079b"
   },
   "tests/integration/api/ventas-detalle.test.ts": {
-    "mtime": 1786293079.9128563,
+    "mtime": 1786293368.554151,
     "ast_hash": "58c0a877628d908823a257d63f800f6c",
     "semantic_hash": ""
   },
   "tests/integration/api/ventas-fifo.test.ts": {
-    "mtime": 1786292288.6199236,
+    "mtime": 1786293368.554289,
     "ast_hash": "2435b21a8f1d447fbaed40e0c1aa4217",
     "semantic_hash": ""
   },
@@ -2275,7 +2275,7 @@
     "semantic_hash": "c2cf63583227e767c676603657d89d25"
   },
   "tests/integration/api/ventas.post.test.ts": {
-    "mtime": 1786292288.620199,
+    "mtime": 1786293368.5546455,
     "ast_hash": "bc96ce7fabe0a62cb2d3d8c24410a33e",
     "semantic_hash": ""
   },
@@ -2300,7 +2300,7 @@
     "semantic_hash": ""
   },
   "tests/integration/hub/hub-sync.integration.test.ts": {
-    "mtime": 1786292288.6204648,
+    "mtime": 1786293368.5547926,
     "ast_hash": "3256e1993da1858088f12e8d0a8b9f59",
     "semantic_hash": ""
   },
@@ -2360,8 +2360,8 @@
     "semantic_hash": "c539d1efaa7d3334a093c6710f3e7f42"
   },
   "tests/unit/lib/contabilidad-crear-asiento.test.ts": {
-    "mtime": 1784828125.0349205,
-    "ast_hash": "5b5b48f51fd42143cd56144a8851bba0",
+    "mtime": 1786309189.001946,
+    "ast_hash": "95dbae5adea0ac862cd05603a2fd97a9",
     "semantic_hash": ""
   },
   "tests/unit/lib/contabilidad-e2e-balance.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786293164.503931,
-    "ast_hash": "c945fc50edc93eb6c137d75e062eee6c",
+    "mtime": 1786309319.1323028,
+    "ast_hash": "ab41f58fbc3f7a6a53a3cd7d0ffda8b5",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4327,6 +4327,11 @@
   "tests/components/SugerenciasRecompra.test.tsx": {
     "mtime": 1786290557.5186615,
     "ast_hash": "c473d1ddaa6820137a8fbb7a122004ac",
+    "semantic_hash": ""
+  },
+  "src/lib/contabilidad/estado-resultado.ts": {
+    "mtime": 1786309151.0592592,
+    "ast_hash": "fee1091cc2675677f661a6ba6812d51b",
     "semantic_hash": ""
   }
 }
