@@ -125,7 +125,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-340 | Preview retorna 401 sin autenticación | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-341 | Preview retorna 400 con parámetros inválidos (falta mes, falta año, mes fuera de rango) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-342 | Preview retorna datos del período sin crear asientos | GET /api/contabilidad/cierre-mes/preview | integration |
-| I-343 | Preview calcula cogs_estimado desde compras del período | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-343 | Preview calcula cogs_estimado desde las ventas activas del período (productos.costo) menos devoluciones restituidas — fix ticket Trello 6a77ec78ad60d990e448e439 (antes usaba débito a Inventario de asientos COMPRA) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-344 | Preview detecta período ya cerrado (ya_tiene_cierre=true) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-345 | Preview no produce efectos secundarios (no INSERT/UPDATE/DELETE) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-346 | POST cierre-mes crea respaldo en cierre_mes_backups antes de ejecutar (renumerado desde I-330 — ver nota en I-328 a I-336) | POST /api/contabilidad/cierre-mes | integration |
@@ -135,10 +135,11 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-350 | REGRESIÓN: POST cierre-mes retorna 403 cuando el usuario no es storeAdmin ni systemAdmin (Cierre de Mes es irreversible — faltaba requireStoreAdmin) | POST /api/contabilidad/cierre-mes | integration |
 | I-351 | REGRESIÓN: preview retorna 403 cuando el usuario no es storeAdmin ni systemAdmin | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-352 | Preview detecta período desbalanceado | GET /api/contabilidad/cierre-mes/preview | integration |
-| I-353 | Preview reporta cogs_estimado=0 cuando no hay compras en el período | GET /api/contabilidad/cierre-mes/preview | integration |
+| I-353 | Preview reporta cogs_estimado=0 cuando no hay ventas activas en el período | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-354 | Preview calcula correctamente febrero bisiesto (2024) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-355 | Preview calcula correctamente febrero no bisiesto (2026) | GET /api/contabilidad/cierre-mes/preview | integration |
 | I-356 | REGRESIÓN: si el insert del respaldo falla, POST cierre-mes aborta con 500 ANTES de crear el asiento irreversible (fail-closed, no fail-open) | POST /api/contabilidad/cierre-mes | integration |
+| I-357 | Preview excluye ventas anuladas y ventas cuya devolución cubre todo el COGS (cogs_estimado=0) — parte del fix ticket Trello 6a77ec78ad60d990e448e439 | GET /api/contabilidad/cierre-mes/preview | integration |
 | BP-PDF-01 | Balance PDF retorna 401 sin autenticación | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-02 | Balance PDF retorna HTML con título y empresa | GET /api/contabilidad/balance-prueba/pdf | integration |
 | BP-PDF-03 | Balance PDF incluye cuentas contables en HTML | GET /api/contabilidad/balance-prueba/pdf | integration |
