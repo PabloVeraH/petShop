@@ -19,6 +19,7 @@ function createChain(resolveValue: object) {
   const chain: Record<string, jest.Mock> & { then?: Function } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
@@ -167,7 +168,7 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
       });
 
       const res = await GET(makeRequest(
-        "http://localhost/api/contabilidad/cierre-mes/preview?mes=4&año=2026"
+        "http://localhost/api/contabilidad/cierre-mes/preview?mes=4&año=2026&calcular_costo_venta=false"
       ));
 
       expect(res.status).toBe(200);
@@ -177,7 +178,7 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
   });
 
   describe("preview con COGS", () => {
-    it("I-343: calcula cogs_estimado desde compras del período", async () => {
+    it("I-343: calcula cogs_estimado desde las ventas activas del período (productos.costo) menos devoluciones", async () => {
       let callCount = 0;
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
         from: jest.fn(() => {
@@ -188,13 +189,22 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
             error: null,
           }); // entries
           if (callCount === 3) return createChain({
-            data: [{ id: "compra-1" }, { id: "compra-2" }],
+            data: [{ id: "v1" }, { id: "v2" }],
             error: null,
-          }); // compras
+          }); // ventas activas
+          if (callCount === 4) return createChain({
+            data: [
+              { id: "i1", cantidad: 2, productos: { costo: 2500 } },
+              { id: "i2", cantidad: 1, productos: { costo: 3000 } },
+            ],
+            error: null,
+          }); // venta_items con costo
           return createChain({
-            data: [{ debito: 5000 }, { debito: 3000 }],
+            data: [
+              { cantidad_devuelta: 1, restituir_stock: true, productos: { costo: 2500 } },
+            ],
             error: null,
-          }); // inventory lines
+          }); // devoluciones restituidas
         }),
       });
 
@@ -204,18 +214,53 @@ describe("GET /api/contabilidad/cierre-mes/preview", () => {
 
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.cogs_estimado).toBe(8000);
+      // (2×2500 + 1×3000) − 1×2500 = 5500
+      expect(body.cogs_estimado).toBe(5500);
       expect(body.asientos_cierre_count).toBe(1);
     });
 
-    it("I-353: reporta cogs_estimado=0 cuando no hay compras en el período", async () => {
+    it("I-353: reporta cogs_estimado=0 cuando no hay ventas activas en el período", async () => {
       let callCount = 0;
       (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
         from: jest.fn(() => {
           callCount++;
           if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
           if (callCount === 2) return createChain({ data: [], error: null }); // entries
-          return createChain({ data: [], error: null }); // compras (vacío)
+          return createChain({ data: [], error: null }); // ventas (vacío)
+        }),
+      });
+
+      const res = await GET(makeRequest(
+        "http://localhost/api/contabilidad/cierre-mes/preview?mes=4&año=2026&calcular_costo_venta=true"
+      ));
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.cogs_estimado).toBe(0);
+      expect(body.asientos_cierre_count).toBe(0);
+    });
+
+    it("I-357: excluye ventas anuladas y ventas cuyas devoluciones cubren todo el COGS", async () => {
+      let callCount = 0;
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+        from: jest.fn(() => {
+          callCount++;
+          if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
+          if (callCount === 2) return createChain({ data: [], error: null }); // entries
+          if (callCount === 3) return createChain({
+            data: [{ id: "v1" }],
+            error: null,
+          }); // ventas activas (anulada excluida por el query .neq)
+          if (callCount === 4) return createChain({
+            data: [{ id: "i1", cantidad: 3, productos: { costo: 2000 } }],
+            error: null,
+          }); // venta_items
+          return createChain({
+            data: [
+              { cantidad_devuelta: 3, restituir_stock: true, productos: { costo: 2000 } },
+            ],
+            error: null,
+          }); // devolución total restituida
         }),
       });
 

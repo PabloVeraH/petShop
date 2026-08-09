@@ -20,6 +20,7 @@ function createChain(resolveValue: object) {
   const chain: Record<string, jest.Mock> & { then?: Function } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
     gte: jest.fn().mockReturnThis(),
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
@@ -63,14 +64,15 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         error: null,
       }); // entries
       if (callCount === 3) return createChain({
-        data: [{ id: "compra-1" }],
+        data: [{ id: "v1" }],
         error: null,
-      }); // compras
+      }); // ventas activas
       if (callCount === 4) return createChain({
-        data: [{ debito: 5000 }],
+        data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }],
         error: null,
-      }); // inventory → cogs=5000
-      if (callCount === 5) return createChain({
+      }); // venta_items → cogs=5000
+      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 6) return createChain({
         data: [{ id: "e1", total_debito: 11900, total_credito: 11900, journal_detail: [] }],
         error: null,
       }); // backup entries + detail
@@ -120,7 +122,7 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
       callCount++;
       if (callCount === 1) return createChain({ data: [], error: null }); // check cierre
       if (callCount === 2) return createChain({ data: [], error: null }); // entries
-      return createChain({ data: [], error: null }); // compras (vacío)
+      return createChain({ data: [], error: null }); // ventas (vacío)
     });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -150,14 +152,15 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         error: null,
       }); // entries
       if (callCount === 3) return createChain({
-        data: [{ id: "compra-1" }],
+        data: [{ id: "v1" }],
         error: null,
-      }); // compras
+      }); // ventas activas
       if (callCount === 4) return createChain({
-        data: [{ debito: 8000 }],
+        data: [{ id: "i1", cantidad: 1, productos: { costo: 8000 } }],
         error: null,
-      }); // inventory → cogs=8000
-      if (callCount === 5) return createChain({
+      }); // venta_items → cogs=8000
+      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 6) return createChain({
         data: fakeEntries,
         error: null,
       }); // backup entries + detail
@@ -199,9 +202,10 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
         data: [{ id: "e1", total_debito: 11900, total_credito: 11900 }],
         error: null,
       }); // entries
-      if (callCount === 3) return createChain({ data: [{ id: "compra-1" }], error: null }); // compras
-      if (callCount === 4) return createChain({ data: [{ debito: 5000 }], error: null }); // inventory
-      if (callCount === 5) return createChain({ data: [], error: null }); // backup entries query
+      if (callCount === 3) return createChain({ data: [{ id: "v1" }], error: null }); // ventas activas
+      if (callCount === 4) return createChain({ data: [{ id: "i1", cantidad: 1, productos: { costo: 5000 } }], error: null }); // venta_items
+      if (callCount === 5) return createChain({ data: [], error: null }); // devoluciones
+      if (callCount === 6) return createChain({ data: [], error: null }); // backup entries query
       return createChain({ data: [], error: null });
     });
 
