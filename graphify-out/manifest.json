@@ -960,9 +960,9 @@
     "semantic_hash": "1a51b59b6020916e277b8d8d84931ec9"
   },
   "src/app/api/contabilidad/asientos/route.ts": {
-    "mtime": 1776489240.3668578,
-    "ast_hash": "172c53ee944273d21889117bd571d1eb",
-    "semantic_hash": "172c53ee944273d21889117bd571d1eb"
+    "mtime": 1786371223.548414,
+    "ast_hash": "da4af7529a37b3a2e5e0916f8367d095",
+    "semantic_hash": ""
   },
   "src/app/api/contabilidad/backfill/route.ts": {
     "mtime": 1784610606.1995604,
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786334168.7769275,
-    "ast_hash": "52604f206c44228f4df2493a340e113c",
+    "mtime": 1786371223.548181,
+    "ast_hash": "805bafa469ce24e9e3128ac5a1669795",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4010,7 +4010,7 @@
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/aporte-capital/route.ts": {
-    "mtime": 1786334168.7776158,
+    "mtime": 1786334919.9580083,
     "ast_hash": "72c83fee3da6b32849f45912e557e487",
     "semantic_hash": ""
   },
@@ -4332,6 +4332,11 @@
   "src/lib/contabilidad/estado-resultado.ts": {
     "mtime": 1786334168.7779422,
     "ast_hash": "6789dfe8b06f391f21c5b9fa57d75f0f",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/contabilidad-asientos-post.test.ts": {
+    "mtime": 1786371223.5606048,
+    "ast_hash": "9f44a7b4433aea9c57c3e76c5ff21051",
     "semantic_hash": ""
   }
 }
