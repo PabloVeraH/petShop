@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "src/app/api/dashboard/route.ts": {
-    "mtime": 1784512316.350263,
-    "ast_hash": "98be1d9d8dce4d05cc0bfcee46d6b32a",
+    "mtime": 1786387419.4379551,
+    "ast_hash": "485daf945f697171b9228c9221fe55d8",
     "semantic_hash": ""
   },
   "src/app/api/dashboard/stock-alertas/route.ts": {
@@ -2095,8 +2095,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/dashboard.test.ts": {
-    "mtime": 1784512316.350263,
-    "ast_hash": "9f9ea00b93e40d4b7385dd808bd49d30",
+    "mtime": 1786387419.438114,
+    "ast_hash": "444a716d457136c6489664aaafacd2c1",
     "semantic_hash": ""
   },
   "tests/integration/api/email-send-alerts.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786386155.5724828,
-    "ast_hash": "631588b934ecd135f6bc59dfbc1b17f8",
+    "mtime": 1786387419.4376137,
+    "ast_hash": "d5c357340805e387f9f9bc6cf9f9c5f0",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4342,6 +4342,11 @@
   "migrations/071_nota_credito_decrementa_frecuencia_compras.sql": {
     "mtime": 1786386155.6050107,
     "ast_hash": "16367790570de856531831d8513f4fcb",
+    "semantic_hash": ""
+  },
+  "tests/components/AnaliticaTabKPIs.test.tsx": {
+    "mtime": 1786387489.8082566,
+    "ast_hash": "dfcab9c155166dc487aea343f798ea2d",
     "semantic_hash": ""
   }
 }
