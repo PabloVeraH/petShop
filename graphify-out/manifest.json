@@ -1790,9 +1790,9 @@
     "semantic_hash": ""
   },
   "tests/components/ClienteDetalle.test.tsx": {
-    "mtime": 1782492235.7008939,
-    "ast_hash": "9ca36e348f8a07fb09191ab692d423d4",
-    "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
+    "mtime": 1786386155.596631,
+    "ast_hash": "f8bf0d4122a205d43b5bc0c4382d3676",
+    "semantic_hash": ""
   },
   "tests/components/ContabilidadPage.test.tsx": {
     "mtime": 1786334168.7783508,
@@ -2155,8 +2155,8 @@
     "semantic_hash": "9a3b708374dead169c71571b337e2d8b"
   },
   "tests/integration/api/notas-credito.test.ts": {
-    "mtime": 1786293368.5539382,
-    "ast_hash": "82282ecb481ac9c1a84d66bd6a180aec",
+    "mtime": 1786386155.5969024,
+    "ast_hash": "3eba54c72eafce5e81283ef116170052",
     "semantic_hash": ""
   },
   "tests/integration/api/onboarding.test.ts": {
@@ -3650,8 +3650,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1786029497.7555246,
-    "ast_hash": "04d52f4bf321e9482cff773d6e8d7e60",
+    "mtime": 1786386155.5713148,
+    "ast_hash": "e554ad1111cd8c8d3999849b13ec9aca",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786371223.548181,
-    "ast_hash": "805bafa469ce24e9e3128ac5a1669795",
+    "mtime": 1786386155.5724828,
+    "ast_hash": "631588b934ecd135f6bc59dfbc1b17f8",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -4337,6 +4337,11 @@
   "tests/integration/api/contabilidad-asientos-post.test.ts": {
     "mtime": 1786371223.5606048,
     "ast_hash": "9f44a7b4433aea9c57c3e76c5ff21051",
+    "semantic_hash": ""
+  },
+  "migrations/071_nota_credito_decrementa_frecuencia_compras.sql": {
+    "mtime": 1786386155.6050107,
+    "ast_hash": "16367790570de856531831d8513f4fcb",
     "semantic_hash": ""
   }
 }
