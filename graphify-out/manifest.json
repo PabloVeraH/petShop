@@ -1085,8 +1085,8 @@
     "semantic_hash": "b91e5384e8071d439280ba32c270b9be"
   },
   "src/app/api/inventario/[id]/route.ts": {
-    "mtime": 1784743439.483966,
-    "ast_hash": "a54ae1009d22e3e71b0e953e077db987",
+    "mtime": 1786332049.3083057,
+    "ast_hash": "447a6b70cfc9075daf5ee9a53f460c18",
     "semantic_hash": ""
   },
   "src/app/api/inventario/alimento-check/route.ts": {
@@ -1815,8 +1815,8 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1785623338.2563415,
-    "ast_hash": "54bc5814eabaf4941196f915d36b9a24",
+    "mtime": 1786332172.352942,
+    "ast_hash": "32cf5bacfa901ffcea0f792482551f74",
     "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
@@ -2065,8 +2065,8 @@
     "semantic_hash": "277766263095e0751a8dd36ce65e2995"
   },
   "tests/integration/api/contabilidad-estado-resultado.test.ts": {
-    "mtime": 1786309211.8187575,
-    "ast_hash": "431dae9f4a703d480c83645d1927229a",
+    "mtime": 1786330751.5278392,
+    "ast_hash": "e7ee120ab99435842cb4f1f701d0441f",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-libro-diario.test.ts": {
@@ -2135,8 +2135,8 @@
     "semantic_hash": "019e3457d428955f462829540b83f445"
   },
   "tests/integration/api/inventario.patch.test.ts": {
-    "mtime": 1785623338.2569306,
-    "ast_hash": "98f3c1cc77c7daa4b3ddc1490d3a9967",
+    "mtime": 1786332098.6277301,
+    "ast_hash": "9b84e09ea486b07bb65cac65135098ce",
     "semantic_hash": ""
   },
   "tests/integration/api/license-control.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786309319.1323028,
-    "ast_hash": "ab41f58fbc3f7a6a53a3cd7d0ffda8b5",
+    "mtime": 1786332077.1024277,
+    "ast_hash": "b9f4b148393a4ca37759a7cd8c64f9cb",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3890,8 +3890,8 @@
     "semantic_hash": ""
   },
   "src/lib/contabilidad/cierre-mes.ts": {
-    "mtime": 1786290557.5182376,
-    "ast_hash": "5bfec94d4822c3103a0931a6b0f60d4e",
+    "mtime": 1786330751.5273147,
+    "ast_hash": "6a7f8a562c3435b96be90d2e532c0bfc",
     "semantic_hash": ""
   },
   "tests/components/POSCartClear.test.tsx": {
@@ -4330,8 +4330,8 @@
     "semantic_hash": ""
   },
   "src/lib/contabilidad/estado-resultado.ts": {
-    "mtime": 1786309151.0592592,
-    "ast_hash": "fee1091cc2675677f661a6ba6812d51b",
+    "mtime": 1786330751.5276175,
+    "ast_hash": "6789dfe8b06f391f21c5b9fa57d75f0f",
     "semantic_hash": ""
   }
 }
