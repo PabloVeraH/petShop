@@ -38,6 +38,9 @@
  * CP-34  Monto vacío o 0 muestra error y no llama al API
  * CP-35  Envío válido llama a POST /api/contabilidad/aporte-capital y muestra banner de éxito
  * CP-36  Error del API se muestra dentro del modal sin cerrarlo
+ * CP-37  El modal muestra un campo "Fecha del aporte" precargado
+ * CP-38  Envío válido incluye la fecha del aporte en el body del POST
+ * CP-39  REGRESIÓN (ticket 6a77ed665c4d8a8c726111ac) — 409 de período cerrado muestra mensaje accionable sin cerrar el modal
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -1157,6 +1160,75 @@ describe("ContabilidadPage — Aporte de Capital (CP-32 a CP-36)", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Forbidden")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Registrar Aporte de Capital/i)).toBeInTheDocument();
+  });
+
+  it("CP-37: el modal muestra un campo 'Fecha del aporte' precargado", async () => {
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    const fechaInput = screen.getByText(/Fecha del aporte/i).parentElement!.querySelector("input")!;
+    expect(fechaInput).toBeInTheDocument();
+    expect(fechaInput.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("CP-38: envío válido incluye la fecha del aporte en el body del POST", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (String(url).includes("/api/contabilidad/aporte-capital") && options?.method === "POST") {
+        capturedBody = JSON.parse(options.body as string);
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({ ok: true, asientoId: "asiento-aporte-uuid" }) });
+      }
+      return defaultFetchMock(url);
+    });
+
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    const montoInput = screen.getByText(/Monto \(\$\)/i).parentElement!.querySelector("input")!;
+    fireEvent.change(montoInput, { target: { value: "500000" } });
+
+    const fechaInput = screen.getByText(/Fecha del aporte/i).parentElement!.querySelector("input")!;
+    fireEvent.change(fechaInput, { target: { value: "2026-09-01" } });
+
+    fireEvent.click(screen.getByText("Registrar aporte"));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody).toMatchObject({ cuentaDestino: "caja", monto: 500000, fecha: "2026-09-01" });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Aporte de capital registrado/i)).toBeInTheDocument();
+    });
+  });
+
+  it("CP-39: REGRESIÓN (ticket 6a77ed665c4d8a8c726111ac) — 409 de período cerrado muestra el mensaje accionable en el modal sin cerrarlo", async () => {
+    mockAporteResponse = {
+      ok: false,
+      status: 409,
+      body: { error: "El período 2026-08 ya está cerrado. Elige una fecha dentro de un período abierto para registrar el aporte de capital." },
+    };
+    render(<ContabilidadPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Aporte de Capital/i }));
+    });
+
+    const montoInput = screen.getByText(/Monto \(\$\)/i).parentElement!.querySelector("input")!;
+    fireEvent.change(montoInput, { target: { value: "100000" } });
+
+    fireEvent.click(screen.getByText("Registrar aporte"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/El período 2026-08 ya está cerrado/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/Registrar Aporte de Capital/i)).toBeInTheDocument();
   });

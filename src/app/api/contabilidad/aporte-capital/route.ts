@@ -5,6 +5,8 @@ import { crearAsiento, lineasAporteCapital } from "@/lib/contabilidad/generador-
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { AporteCapitalSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { createServiceClient } from "@/lib/supabase";
+import { checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
 
 export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
@@ -26,6 +28,28 @@ export async function POST(req: NextRequest) {
   }
   const { cuentaDestino, monto, descripcion, fecha } = parsed.data;
   const fechaAsiento = fecha ?? new Date().toISOString().split("T")[0];
+
+  // El período contable ya puede estar cerrado. crearAsiento() rechaza
+  // asientos con fecha dentro de un período cerrado (retorna null), pero
+  // sin este chequeo explícito el motivo se pierde en el error 500 genérico
+  // "Error al registrar el aporte de capital". Causa raíz confirmada del
+  // ticket Trello 6a77ed665c4d8a8c726111ac: el formulario frontend no
+  // enviaba `fecha`, la ruta usaba la fecha de HOY, y si el período de hoy
+  // estaba cerrado (CIERRE_MES con referencia_numero = YYYY-MM), el aporte
+  // fallaba siempre con 500 — la pantalla muestra un período seleccionado,
+  // pero el asiento siempre caía en el período actual. Se devuelve 409 con
+  // mensaje accionable (elegir una fecha dentro de un período abierto).
+  const supabase = createServiceClient();
+  const periodo = fechaAsiento.substring(0, 7);
+  const cierres = await checkExistingCierre(supabase, store_id, periodo);
+  if (cierres > 0) {
+    return NextResponse.json(
+      {
+        error: `El período ${periodo} ya está cerrado. Elige una fecha dentro de un período abierto para registrar el aporte de capital.`,
+      },
+      { status: 409 }
+    );
+  }
 
   const asientoId = await crearAsiento({
     storeId: store_id,

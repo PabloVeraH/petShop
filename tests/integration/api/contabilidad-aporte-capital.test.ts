@@ -1,5 +1,5 @@
 /**
- * Tests I-458 a I-463: POST /api/contabilidad/aporte-capital
+ * Tests I-458 a I-463, I-504, I-505: POST /api/contabilidad/aporte-capital
  *
  * Mecanismo agregado para el ticket Trello 6a61195cfc6f97edc3c0a3b0: el
  * módulo contable no tenía ningún tipo_movimiento para registrar dinero
@@ -16,6 +16,11 @@
  * I-462: crea el asiento con tipoMovimiento APORTE_CAPITAL y las líneas de
  *        lineasAporteCapital para la cuenta destino solicitada
  * I-463: retorna 500 si crearAsiento falla (ej. asiento desbalanceado)
+ * I-504: REGRESIÓN (ticket Trello 6a77ed665c4d8a8c726111ac) — período de la
+ *        fecha ya cerrado (existe CIERRE_MES) → 409 con mensaje accionable,
+ *        NO 500 genérico; crearAsiento no se llama
+ * I-505: fecha dentro de un período abierto → 201 y crearAsiento recibe esa
+ *        fecha
  */
 import { NextRequest } from "next/server";
 
@@ -51,6 +56,18 @@ function genericChain() {
     insert: jest.fn().mockReturnThis(),
   };
   chain.then = (resolve) => resolve({ data: null, error: null });
+  return chain;
+}
+
+// Chain para la verificación de período cerrado: la query de CIERRE_MES
+// (checkExistingCierre) devuelve una fila → el período está cerrado.
+function cierreChain() {
+  const chain: Record<string, jest.Mock> & { then?: (resolve: (v: unknown) => unknown) => unknown } = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+  };
+  chain.then = (resolve) => resolve({ data: [{ id: "cierre-1" }], error: null });
   return chain;
 }
 
@@ -147,5 +164,56 @@ describe("POST /api/contabilidad/aporte-capital", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBeDefined();
+  });
+
+  // I-504 — REGRESIÓN: sin este chequeo, un aporte con fecha en período
+  // cerrado pasaba al crearAsiento, que rechazaba con null, y la ruta
+  // devolvía el 500 genérico "Error al registrar el aporte de capital"
+  // (causa raíz del ticket 6a77ed665c4d8a8c726111ac — el formulario no
+  // enviaba fecha y el asiento caía siempre en el período actual, cerrado).
+  it("I-504: REGRESIÓN — período de la fecha ya cerrado → 409 accionable, no 500; crearAsiento no se llama", async () => {
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue(cierreChain()),
+    });
+
+    const res = await POST(makeRequest({ cuentaDestino: "caja", monto: 5000, fecha: "2026-08-15" }));
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("2026-08");
+    expect(body.error).toContain("cerrado");
+    expect(crearAsiento).not.toHaveBeenCalled();
+  });
+
+  // I-505 — el campo fecha del body se propaga al asiento: un aporte con
+  // fecha dentro de un período abierto crea el asiento con esa fecha.
+  it("I-505: fecha dentro de un período abierto → 201 y crearAsiento recibe esa fecha", async () => {
+    const res = await POST(makeRequest({ cuentaDestino: "banco", monto: 5000, fecha: "2026-09-05" }));
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+
+    expect(crearAsiento).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipoMovimiento: "APORTE_CAPITAL",
+        fecha: "2026-09-05",
+      })
+    );
+  });
+
+  // I-505b — sin fecha en el body, la ruta usa la fecha de hoy (comportamiento
+  // preexistente documentado) y NO inyecta una fecha vacía a crearAsiento.
+  it("I-505b: sin fecha en el body, crearAsiento recibe la fecha de hoy", async () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    const res = await POST(makeRequest({ cuentaDestino: "caja", monto: 5000 }));
+
+    expect(res.status).toBe(201);
+    expect(crearAsiento).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipoMovimiento: "APORTE_CAPITAL",
+        fecha: hoy,
+      })
+    );
   });
 });

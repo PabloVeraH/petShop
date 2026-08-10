@@ -101,10 +101,11 @@ export default function ContabilidadPage() {
   const [backfillError, setBackfillError] = useState<string | null>(null);
 
   const [showAporteForm, setShowAporteForm] = useState(false);
-  const [aporteForm, setAporteForm] = useState<{ cuentaDestino: "caja" | "banco"; monto: string; descripcion: string }>({
+  const [aporteForm, setAporteForm] = useState<{ cuentaDestino: "caja" | "banco"; monto: string; descripcion: string; fecha: string }>({
     cuentaDestino: "caja",
     monto: "",
     descripcion: "",
+    fecha: `${año}-${mes}-01`,
   });
   const [aporteError, setAporteError] = useState<string | null>(null);
   const [aporteSuccess, setAporteSuccess] = useState<{ monto: number; cuentaDestino: "caja" | "banco" } | null>(null);
@@ -224,6 +225,7 @@ export default function ContabilidadPage() {
           cuentaDestino: aporteForm.cuentaDestino,
           monto: montoNum,
           descripcion: aporteForm.descripcion.trim() || undefined,
+          fecha: aporteForm.fecha,
         }),
       });
       const data = await r.json();
@@ -234,7 +236,7 @@ export default function ContabilidadPage() {
       setAporteSuccess({ monto: Number(aporteForm.monto), cuentaDestino: aporteForm.cuentaDestino });
       setAporteError(null);
       setShowAporteForm(false);
-      setAporteForm({ cuentaDestino: "caja", monto: "", descripcion: "" });
+      setAporteForm({ cuentaDestino: "caja", monto: "", descripcion: "", fecha: `${año}-${mes}-01` });
       queryClient.invalidateQueries({ queryKey: ["libro-diario"] });
       queryClient.invalidateQueries({ queryKey: ["balance-prueba"] });
     },
@@ -1037,6 +1039,16 @@ export default function ContabilidadPage() {
                   type="text"
                   value={aporteForm.descripcion}
                   onChange={(e) => setAporteForm((f) => ({ ...f, descripcion: e.target.value }))}
+                  className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Fecha del aporte</label>
+                <input
+                  type="date"
+                  value={aporteForm.fecha}
+                  onChange={(e) => setAporteForm((f) => ({ ...f, fecha: e.target.value }))}
                   className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>

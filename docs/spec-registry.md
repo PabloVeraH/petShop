@@ -380,6 +380,8 @@ I-406/I-407/I-408.
 | I-461 | Nuevo mecanismo: retorna 400 si cuentaDestino no es "caja" ni "banco" | POST /api/contabilidad/aporte-capital | integration |
 | I-462 | Nuevo mecanismo: crea el asiento con tipoMovimiento APORTE_CAPITAL y líneas balanceadas Dr cuenta destino / Cr Capital | POST /api/contabilidad/aporte-capital | integration |
 | I-463 | Nuevo mecanismo: retorna 500 si crearAsiento falla | POST /api/contabilidad/aporte-capital | integration |
+| I-504 | REGRESIÓN (ticket Trello 6a77ed665c4d8a8c726111ac): período de la fecha ya cerrado (existe CIERRE_MES) → 409 accionable ("elige una fecha dentro de un período abierto"), NO 500 genérico; crearAsiento no se llama | POST /api/contabilidad/aporte-capital | integration |
+| I-505 | Fecha dentro de un período abierto → 201 y crearAsiento recibe esa fecha | POST /api/contabilidad/aporte-capital | integration |
 | I-464 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres → 400 (sigue opcional, pero si se ingresa algo exige mínimo de trazabilidad) | POST /api/notas-credito | integration |
 | I-465 | MEJORA: motivo con exactamente 5 caracteres → aceptado | POST /api/notas-credito | integration |
 | I-466 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas (motivo del ajuste) con menos de 5 caracteres → 400 | PATCH /api/inventario/[id] | integration |
@@ -534,6 +536,9 @@ I-406/I-407/I-408.
 | CP-34 | Monto vacío o 0 muestra error "El monto debe ser mayor a 0" y no llama al API | ContabilidadPage | component |
 | CP-35 | Envío válido llama a POST /api/contabilidad/aporte-capital con cuentaDestino y monto del formulario, muestra banner de éxito y cierra el modal | ContabilidadPage | component |
 | CP-36 | Error del API se muestra dentro del modal de aporte sin cerrarlo | ContabilidadPage | component |
+| CP-37 | El modal de aporte muestra un campo "Fecha del aporte" precargado (YYYY-MM-DD) | ContabilidadPage | component |
+| CP-38 | Envío válido incluye la fecha del aporte en el body del POST | ContabilidadPage | component |
+| CP-39 | REGRESIÓN (ticket Trello 6a77ed665c4d8a8c726111ac): error 409 de período cerrado muestra el mensaje accionable en el modal sin cerrarlo | ContabilidadPage | component |
 | VS-01 | Loading state y luego tabla con datos | SalesPage | component |
 | VS-02 | Filtro desde por defecto (90 días atrás) | SalesPage | component |
 | VS-03 | Enlace 'Ver ticket' por cada venta | SalesPage | component |
