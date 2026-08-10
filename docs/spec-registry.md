@@ -296,6 +296,8 @@ no tocar código ya commiteado fuera del alcance de este bug.
 | I-426 | REGRESIÓN: recibir con cantidad_recibida>0 y precio_unitario=0 → 400 (evita OC "recibida" con subtotal/total en $0) | PATCH /api/ordenes-compra/[id] | integration |
 | I-427 | Recibir con cantidad_recibida=0 y precio_unitario=0 → 200 (item no recibido en entrega parcial no requiere precio) | PATCH /api/ordenes-compra/[id] | integration |
 | I-428 | REGRESIÓN: NC descuenta el monto devuelto de ventasHoy/ventasPorCanal/ventasPorProcedencia en el Dashboard (mismo bug que I-425, en un endpoint distinto) | GET /api/dashboard | integration |
+| I-510 | REGRESIÓN (ticket Trello 6a77edec41f13cebd89d3d1e): "Transacciones" excluye ventas 100% devueltas (neto tras NC = 0) — el mismo valor que alimenta "Ventas hoy" — y "Ticket promedio" queda consistente (escenario del ticket: 3 ventas, 2 devueltas → transacciones=1, promedio=$8.990, no 8990/3=2997); ventasPorCanal/ventasPorProcedencia aplican el mismo criterio | GET /api/dashboard | integration |
+| I-511 | Una venta PARCIALMENTE devuelta (neto > 0) sigue contando como transacción — el fix no excluye de más | GET /api/dashboard | integration |
 | I-183 | Cuenta a pagar no puede tener monto ≤ 0 | POST /api/cuentas-pagar | integration |
 
 ## Workers (I-253 a I-262, I-406 a I-410)
@@ -735,6 +737,9 @@ código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
 | DA-04 | stock=0, mínimo=0 se considera alerta | AnaliticaTab | component |
 | DA-05 | fetch de stock-alertas falla → widget vacío sin error | AnaliticaTab | component |
 | DA-06 | REGRESIÓN: con >10 alertas, el contador del badge usa `total` (conteo real) y no `items.length` (lista recortada a 10) | AnaliticaTab | component |
+| DA-07 | REGRESIÓN (ticket Trello 6a77edec41f13cebd89d3d1e): los KPICard reales muestran las métricas corregidas del endpoint — "Transacciones" neta (1) y "Ticket promedio" ($8.990) consistente con "Ventas hoy" en el escenario del ticket (3 ventas, 2 devueltas) | AnaliticaTab | component |
+| DA-08 | Con N transacciones, la tarjeta muestra el conteo y el promedio formateado según el payload del endpoint | AnaliticaTab | component |
+| DA-09 | Sin ventas (0/0/$0) la UI no muestra NaN | AnaliticaTab | component |
 
 ## POS Page Cache y auto-asignación de vendedor (PP-05 a PP-11)
 

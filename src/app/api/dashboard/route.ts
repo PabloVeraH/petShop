@@ -104,7 +104,12 @@ export async function GET() {
 
   // KPIs
   const totalVentasHoy = ventasHoy.reduce((sum, v) => sum + totalNeto(v), 0);
-  const transacciones = ventasHoy.length;
+  // Una venta 100% devuelta (neto 0) no cuenta como transacción: "Ventas hoy"
+  // descuenta su monto completo (totalNeto), así que contarla como transacción
+  // infla el divisor de Ticket promedio y lo distorsiona (ticket Trello
+  // 6a77edec41f13cebd89d3d1e). Criterio = neto > 0 — el MISMO valor que
+  // alimenta el numerador, garantizando consistencia entre ambas tarjetas.
+  const transacciones = ventasHoy.filter((v) => totalNeto(v) > 0).length;
   const ticketPromedio = transacciones > 0 ? Math.round(totalVentasHoy / transacciones) : 0;
 
   const metodoCounts: Record<string, number> = {};
@@ -117,11 +122,13 @@ export async function GET() {
   // Ventas por canal
   const canalCounts: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventasHoy) {
+    const neto = totalNeto(v);
+    if (neto <= 0) continue; // venta 100% devuelta: no aporta monto ni transacción (mismo criterio que el KPI)
     const canal = v.canal ?? "pos";
     if (!canalCounts[canal]) {
       canalCounts[canal] = { total: 0, transacciones: 0 };
     }
-    canalCounts[canal].total += totalNeto(v);
+    canalCounts[canal].total += neto;
     canalCounts[canal].transacciones += 1;
   }
   const ventasPorCanal = Object.entries(canalCounts).map(([canal, data]) => ({
@@ -133,9 +140,11 @@ export async function GET() {
   // Ventas por procedencia
   const procedenciaCounts: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventasHoy) {
+    const neto = totalNeto(v);
+    if (neto <= 0) continue; // venta 100% devuelta: no aporta monto ni transacción (mismo criterio que el KPI)
     const proc = (v as { procedencia?: string }).procedencia ?? "presencial";
     if (!procedenciaCounts[proc]) procedenciaCounts[proc] = { total: 0, transacciones: 0 };
-    procedenciaCounts[proc].total += totalNeto(v);
+    procedenciaCounts[proc].total += neto;
     procedenciaCounts[proc].transacciones += 1;
   }
   const ventasPorProcedencia = Object.entries(procedenciaCounts).map(([procedencia, data]) => ({

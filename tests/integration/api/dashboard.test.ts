@@ -154,6 +154,99 @@ describe("GET /api/dashboard", () => {
     const procPresencial = body.ventasPorProcedencia.find((p: { procedencia: string }) => p.procedencia === "presencial");
     expect(procPresencial.total).toBe(20000);
   });
+
+  // I-510: REGRESIÓN (ticket Trello 6a77edec41f13cebd89d3d1e) — "Transacciones"
+  // contaba las ventas 100% devueltas (que aportan $0 a "Ventas hoy"), inflando
+  // el divisor de "Ticket promedio" (ej. 3 ventas, 2 devueltas → 8990/3 = 2997
+  // cuando el valor real es 8990). Criterio: una venta cuenta como transacción
+  // solo si su neto tras NC es > 0 — el mismo valor que alimenta el numerador.
+  it("I-510: REGRESIÓN — 'Transacciones' excluye ventas 100% devueltas y 'Ticket promedio' queda consistente con 'Ventas hoy'", async () => {
+    const VENTAS = [
+      { id: "vA", total: 15458, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+      { id: "vB", total: 8990, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+      { id: "vC", total: 12990, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+    ];
+    const NCS = [
+      { monto_total: 15458, venta_id: "vA" }, // A devuelta al 100%
+      { monto_total: 12990, venta_id: "vC" }, // C devuelta al 100%
+    ];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ventas") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: VENTAS, error: null })
+        );
+        return c;
+      }
+      if (table === "notas_credito") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: NCS, error: null })
+        );
+        return c;
+      }
+      return chain();
+    });
+    mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
+
+    const { GET } = await import("@/app/api/dashboard/route");
+    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Neto: 0 + 8990 + 0 = 8990. Transacciones: solo vB. Ticket = 8990/1.
+    expect(body.ventasHoy).toBe(8990);
+    expect(body.transacciones).toBe(1);
+    expect(body.ticketPromedio).toBe(8990);
+
+    // Los breakdowns por canal/procedencia aplican el mismo criterio.
+    const canalPos = body.ventasPorCanal.find((c: { canal: string }) => c.canal === "pos");
+    expect(canalPos.total).toBe(8990);
+    expect(canalPos.transacciones).toBe(1);
+    const procPresencial = body.ventasPorProcedencia.find((p: { procedencia: string }) => p.procedencia === "presencial");
+    expect(procPresencial.total).toBe(8990);
+    expect(procPresencial.transacciones).toBe(1);
+  });
+
+  // I-511: una venta PARCIALMENTE devuelta sigue contando como transacción
+  // (neto > 0) — el fix no debe excluir de más.
+  it("I-511: devolución parcial no excluye la venta de Transacciones", async () => {
+    const VENTAS = [
+      { id: "v1", total: 20000, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+      { id: "v2", total: 30000, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" },
+    ];
+    const NCS = [{ monto_total: 5000, venta_id: "v1" }];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "ventas") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: VENTAS, error: null })
+        );
+        return c;
+      }
+      if (table === "notas_credito") {
+        const c = chain();
+        c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
+          resolve({ data: NCS, error: null })
+        );
+        return c;
+      }
+      return chain();
+    });
+    mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
+
+    const { GET } = await import("@/app/api/dashboard/route");
+    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Neto: (20000-5000) + 30000 = 45000. Ambas ventas siguen contando.
+    expect(body.ventasHoy).toBe(45000);
+    expect(body.transacciones).toBe(2);
+    expect(body.ticketPromedio).toBe(22500);
+  });
 });
 
 describe("GET /api/dashboard/stock-alertas", () => {
