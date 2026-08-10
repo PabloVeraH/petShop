@@ -1,5 +1,5 @@
 /**
- * Tests I-280 a I-292, I-494 a I-497: GET /api/contabilidad/estado-resultado
+ * Tests I-280 a I-292, I-494 a I-499: GET /api/contabilidad/estado-resultado
  * Verifica que el endpoint retorne COGS desde las ventas reales (ground truth:
  * venta_items × productos.costo, neteado de reversos por devoluciones con
  * restitución de stock) con fallback a journal_detail contable.
@@ -53,11 +53,17 @@ function makeDb(overrides: {
   cogsDevuelto?: number;
   /** Número de ventas activas que devuelve la query de ventas (default 1) */
   ventasActivas?: number;
+  /** Si true, la venta de la NC está anulada → la query de NCs la excluye */
+  ncVentaAnulada?: boolean;
 }) {
   let callCount = 0;
   const cogsVentas = overrides.cogsActual ?? 0;
   const cogsDevuelto = overrides.cogsDevuelto ?? 0;
   const ventasActivas = overrides.ventasActivas ?? (cogsVentas > 0 ? 1 : 0);
+  const ncVentaAnulada = overrides.ncVentaAnulada ?? false;
+
+  // Referencia viva a la cadena de notas_credito para poder verificar los filtros
+  let ncChainRef: Record<string, jest.Mock> | null = null;
 
   const mockFrom = jest.fn().mockImplementation((table: string) => {
     callCount++;
@@ -94,15 +100,28 @@ function makeDb(overrides: {
     }
 
     if (table === "notas_credito") {
-      return {
+      // Simula PostgREST con un join embebido ventas!inner: la NC de la venta
+      // anulada EXISTE en BD, pero la query la devuelve solo si NO aplica el
+      // filtro .neq("ventas.estado", "anulada") — así el test falla en el
+      // RESULTADO (costo_venta) y no solo en la construcción de la query.
+      let filtroVentaAnulada = false;
+      const chain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockResolvedValue({
-          data: cogsDevuelto > 0 ? [{ id: "nc-1" }] : [],
-          error: null,
+        neq: jest.fn().mockImplementation((col: string, val: unknown) => {
+          if (col === "ventas.estado" && val === "anulada") filtroVentaAnulada = true;
+          return chain;
         }),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            data: cogsDevuelto > 0 && (!ncVentaAnulada || !filtroVentaAnulada) ? [{ id: "nc-1" }] : [],
+            error: null,
+          })
+        ),
       };
+      ncChainRef = chain;
+      return chain;
     }
 
     if (table === "nota_credito_items") {
@@ -164,7 +183,12 @@ function makeDb(overrides: {
     };
   });
 
-  return { from: mockFrom };
+  return {
+    from: mockFrom,
+    get ncChain() {
+      return ncChainRef;
+    },
+  };
 }
 
 describe("GET /api/contabilidad/estado-resultado", () => {
@@ -459,5 +483,52 @@ describe("GET /api/contabilidad/estado-resultado", () => {
 
     const body = await res.json();
     expect(body.gastos.costo_venta).toBe(-2000); // 8.000 - 10.000
+  });
+
+  // I-498: REGRESIÓN — una NC cuya venta está anulada NO se netea del COGS
+  // ground truth. La venta anulada ya se excluye del lado ventas (neq estado
+  // anulada); sin excluir también su NC, el costo devuelto seguía restando y
+  // producía COGS negativo espurio en períodos donde la venta y su devolución
+  // coexisten pero la venta fue anulada después (el journal netea a 0 vía
+  // lineasAnulacionCOGS sobre el pendiente, así que el ground truth debe
+  // excluir ambos lados de la misma venta anulada).
+  it("I-498: NC de venta anulada no netea el COGS ground truth", async () => {
+    const db = makeDb({
+      cogsActual: 8000,   // ventas ACTIVAS del período (la anulada ya se excluye en ventas)
+      cogsDevuelto: 5000, // NC de una venta que fue anulada
+      ventasActivas: 1,
+      ncVentaAnulada: true,
+    });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
+
+    const res = await GET(makeRequest({ mes: "8", año: "2026" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    // Antes del fix: costo_venta = 8.000 - 5.000 = 3.000 (la NC de la venta
+    // anulada seguía neteando). Después: 8.000 - 0 = 8.000.
+    expect(body.gastos.costo_venta).toBe(8000);
+
+    // La query de NCs debe filtrar por ventas.estado != 'anulada'
+    expect(db.ncChain.neq).toHaveBeenCalledWith("ventas.estado", "anulada");
+  });
+
+  // I-499: REGRESIÓN — el filtro de venta anulada en NCs no rompe el netting
+  // legítimo de devoluciones de ventas ACTIVAS (I-495 sigue intacto con el
+  // filtro presente en la query).
+  it("I-499: netting legítimo de NC de venta activa sigue funcionando", async () => {
+    const db = makeDb({
+      cogsActual: 38500,
+      cogsDevuelto: 13000,
+      ventasActivas: 5,
+      ncVentaAnulada: false,
+    });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue(db);
+
+    const res = await GET(makeRequest({ mes: "8", año: "2026" }));
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.gastos.costo_venta).toBe(25500); // 38.500 - 13.000
   });
 });

@@ -47,6 +47,8 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-495 | REGRESIÓN (mismo ticket): devolución con restitución de stock descuenta el COGS ground truth de la venta asociada (netting) | GET /api/contabilidad/estado-resultado | integration |
 | I-496 | REGRESIÓN (mismo ticket): devolución SIN restitución de stock NO descuenta el COGS ground truth | GET /api/contabilidad/estado-resultado | integration |
 | I-497 | REGRESIÓN (mismo ticket): devoluciones mayores que ventas → COGS neto negativo sin clamp a 0 (el netting correcto debe mantenerse) | GET /api/contabilidad/estado-resultado | integration |
+| I-498 | REGRESIÓN (hallazgo durante revisión del fix de COGS ground truth): NC cuya VENTA está anulada NO netea el COGS ground truth — la query de NCs filtra por `ventas.estado != 'anulada'` (join), no por estado de la NC (una NC 'usada' de venta anulada quedaría 'usada'); sin el filtro, la venta anulada se excluía del COGS pero su NC seguía restando costo | GET /api/contabilidad/estado-resultado | integration |
+| I-499 | REGRESIÓN (contracara): el filtro de venta anulada en NCs no rompe el netting legítimo de devoluciones de ventas ACTIVAS (I-495 sigue verde con el filtro presente) | GET /api/contabilidad/estado-resultado | integration |
 | I-45 | Venta granel valida peso en gramos | POST /api/ventas | integration |
 | I-46 | Venta granel guarda es_granel=true en venta_item | POST /api/ventas | integration |
 

@@ -122,6 +122,11 @@ export async function computeCierrePreview(
             return s + (d.cantidad_devuelta * Number(costo));
           }, 0);
 
+          // Clamp a 0: a diferencia del Estado de Resultado (estado-resultado.ts,
+          // que deliberadamente NO clampea para reflejar COGS neto negativo real
+          // de un período), esto es un ESTIMADO del monto a contabilizar en el
+          // asiento de cierre — un asiento no puede cerrar COGS negativo (no hay
+          // contrapartida válida en el cierre), así que el gap se considera 0.
           cogsEstimado = Math.max(0, cogsEstimado - cogsDevuelto);
         }
 
