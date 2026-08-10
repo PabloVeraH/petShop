@@ -615,8 +615,8 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1785623338.2548902,
-    "ast_hash": "0992793277caf7ad8e25941cfd0e4d5f",
+    "mtime": 1786334168.7774346,
+    "ast_hash": "85b6791ab51438adb4428164ee52a849",
     "semantic_hash": ""
   },
   "src/app/(app)/customers/components/ClienteDetalle.tsx": {
@@ -1795,8 +1795,8 @@
     "semantic_hash": "9ca36e348f8a07fb09191ab692d423d4"
   },
   "tests/components/ContabilidadPage.test.tsx": {
-    "mtime": 1785623338.2560937,
-    "ast_hash": "824969c3e43ab98ab8fd594279c984f5",
+    "mtime": 1786334168.7783508,
+    "ast_hash": "76c75a252c7f77a0c213ec9430704b61",
     "semantic_hash": ""
   },
   "tests/components/CreateOrderDialog.test.tsx": {
@@ -2065,7 +2065,7 @@
     "semantic_hash": "277766263095e0751a8dd36ce65e2995"
   },
   "tests/integration/api/contabilidad-estado-resultado.test.ts": {
-    "mtime": 1786330751.5278392,
+    "mtime": 1786334168.7787967,
     "ast_hash": "e7ee120ab99435842cb4f1f701d0441f",
     "semantic_hash": ""
   },
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786332077.1024277,
-    "ast_hash": "b9f4b148393a4ca37759a7cd8c64f9cb",
+    "mtime": 1786334168.7769275,
+    "ast_hash": "52604f206c44228f4df2493a340e113c",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3890,7 +3890,7 @@
     "semantic_hash": ""
   },
   "src/lib/contabilidad/cierre-mes.ts": {
-    "mtime": 1786330751.5273147,
+    "mtime": 1786334168.7777824,
     "ast_hash": "6a7f8a562c3435b96be90d2e532c0bfc",
     "semantic_hash": ""
   },
@@ -4010,13 +4010,13 @@
     "semantic_hash": ""
   },
   "src/app/api/contabilidad/aporte-capital/route.ts": {
-    "mtime": 1785623338.2553465,
-    "ast_hash": "bcd6aafba024a9dab37f010e939d60a0",
+    "mtime": 1786334168.7776158,
+    "ast_hash": "72c83fee3da6b32849f45912e557e487",
     "semantic_hash": ""
   },
   "tests/integration/api/contabilidad-aporte-capital.test.ts": {
-    "mtime": 1785623338.2569306,
-    "ast_hash": "33cb6c4e76da8cc26aedb6a5d1733eeb",
+    "mtime": 1786334168.7785382,
+    "ast_hash": "b8058e35dae1df752c5643d957bc2ea2",
     "semantic_hash": ""
   },
   "tests/integration/api/lotes-id.test.ts": {
@@ -4330,7 +4330,7 @@
     "semantic_hash": ""
   },
   "src/lib/contabilidad/estado-resultado.ts": {
-    "mtime": 1786330751.5276175,
+    "mtime": 1786334168.7779422,
     "ast_hash": "6789dfe8b06f391f21c5b9fa57d75f0f",
     "semantic_hash": ""
   }
