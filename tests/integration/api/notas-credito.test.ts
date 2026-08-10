@@ -757,6 +757,45 @@ describe("POST /api/notas-credito", () => {
     const body = await res.json();
     expect(body.error).toContain('record "v_item" has no field "item"');
   });
+
+  // I-509: REGRESIÓN (ticket Trello 6a77e9d5cc6b547f60e1799b) — el ajuste de
+  // fidelización por devolución (total_historico Y frecuencia_compras) vive
+  // DENTRO del RPC atómico crear_nota_credito_tx, nunca en la ruta. Moverlo a
+  // JS (SELECT+UPDATE secuenciales) rompería la atomicidad: dos requests
+  // concurrentes podrían leer el mismo valor previo y duplicar/perder efectos
+  // (mismo anti-patrón documentado en AGENTS.md §23.6 para saldos_a_favor).
+  // La ruta debe seguir siendo un wrapper delgado: una sola llamada RPC y CERO
+  // consultas a la tabla fidelizacion. La lógica real de frecuencia (decrecer
+  // al completar el retorno total) se verifica contra el sistema real (migración
+  // 071), no es observable vía el mock del RPC.
+  it("I-509: la actualización de fidelización se delega al RPC — la ruta no toca la tabla fidelizacion", async () => {
+    const tablasConsultadas: string[] = [];
+    mockFrom.mockImplementation((table: string) => {
+      tablasConsultadas.push(table);
+      return makeEmptyFrom()(table);
+    });
+
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: NC_ID, cantidadDevuelta: 2, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("crear_nota_credito_tx", expect.objectContaining({
+      p_store_id: STORE_ID,
+      p_venta_id: VENTA_ID,
+    }));
+    expect(tablasConsultadas).not.toContain("fidelizacion");
+    expect(tablasConsultadas).not.toContain("notas_credito");
+  });
 });
 
 describe("GET /api/notas-credito", () => {

@@ -1,5 +1,5 @@
 /**
- * Tests CD-01 a CD-07: ClienteDetalle — formulario de edición, saldo a favor y eliminación de mascotas
+ * Tests CD-01 a CD-10: ClienteDetalle — formulario de edición, saldo a favor, eliminación de mascotas y contador de compras de fidelización
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -223,5 +223,64 @@ describe("ClienteDetalle — eliminación de mascotas", () => {
     await waitFor(() => {
       expect(deleteUrl).toBe("/api/mascotas/m1");
     });
+  });
+});
+
+describe("ClienteDetalle — contador de compras en Fidelización", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function setupFetchConFidelizacion(fidel: { total_historico: number; frecuencia_compras: number; descuento_actual: number }) {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("fidelizacion")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              ...fidel,
+              niveles: [
+                { monto: 50000, descuento: 5 },
+                { monto: 150000, descuento: 10 },
+                { monto: 300000, descuento: 20 },
+              ],
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(DETALLE_DATA) });
+    });
+  }
+
+  // CD-08: REGRESIÓN (ticket Trello 6a77e9d5cc6b547f60e1799b) — tras una
+  // compra, la ficha debe mostrar "1 compra · $X acumulados" (singular).
+  it("CD-08: muestra '1 compra · $12.990 acumulados' (singular) tras una compra", async () => {
+    setupFetchConFidelizacion({ total_historico: 12990, frecuencia_compras: 1, descuento_actual: 0 });
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+
+    expect(screen.getByText(/1 compra · \$12\.990 acumulados/)).toBeInTheDocument();
+  });
+
+  // CD-09: REGRESIÓN (ticket 6a77e9d5...) — tras devolver el 100% de una
+  // venta, frecuencia_compras vuelve a 0: el contador debe mostrar
+  // "0 compras · $0 acumulados". "1 compra · $0 acumulados" (monto 0 con
+  // contador 1) era la firma del bug: total_historico se descontaba pero
+  // frecuencia_compras no.
+  it("CD-09: tras devolución total muestra '0 compras · $0 acumulados'", async () => {
+    setupFetchConFidelizacion({ total_historico: 0, frecuencia_compras: 0, descuento_actual: 0 });
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+
+    expect(screen.getByText(/0 compras · \$0 acumulados/)).toBeInTheDocument();
+  });
+
+  // CD-10: plural con 2+ compras.
+  it("CD-10: muestra 'N compras' en plural cuando hay más de una", async () => {
+    setupFetchConFidelizacion({ total_historico: 25980, frecuencia_compras: 2, descuento_actual: 0 });
+    render(<ClienteDetalle cliente={CLIENTE} onRefresh={jest.fn()} />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Juan Pérez")).toBeInTheDocument());
+
+    expect(screen.getByText(/2 compras · \$25\.980 acumulados/)).toBeInTheDocument();
   });
 });

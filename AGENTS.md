@@ -999,6 +999,30 @@ la cuenta de pasivo Saldos a Favor por el mismo monto — usar
 Caja/Banco, que nunca recibieron ese dinero (ticket Trello
 6a5f9ad3fbf979e68251d40e).
 
+**Extensión (migración 071 — `fidelizacion.frecuencia_compras`):** hasta la
+071, `crear_nota_credito_tx` decrementaba `total_historico` al devolver pero
+nunca tocaba `frecuencia_compras`, produciendo la señal contradictoria
+"1 compra · $0 acumulados" cuando una venta se devolvía al 100% (ticket
+Trello 6a77e9d5cc6b547f60e1799b). Semántica fijada:
+`frecuencia_compras` = compras activas (ventas no anuladas y no devueltas al
+100%). Criterio de "retorno completo" — **por cantidad, no por monto** (el
+monto de NC se redondea por ítem y puede diferir en pesos del total con
+descuento + varios ítems): para cada `venta_item` de la venta, la cantidad
+devuelta acumulada (todas las NCs de esa venta, cualquier `estado`) alcanza
+la cantidad vendida.
+
+- `crear_nota_credito_tx` decrementa `frecuencia_compras` en 1 (piso en 0)
+  cuando la NC recién creada completa el retorno total.
+- `anular_venta_tx` decrementa `frecuencia_compras` en 1 al anular **solo si
+  la venta NO fue ya devuelta al 100%** — de lo contrario duplicaría el
+  decremento que la NC ya aplicó. Mismo criterio de retorno completo por
+  cantidad que la NC, evaluado con las NCs existentes antes de que
+  `anular_venta_tx` cancele ninguna.
+- Dato legado: una venta devuelta al 100% con NC creada ANTES de la 071
+  conserva su `frecuencia_compras` sin decrementar — no se backfillea
+  automáticamente (requiere autorización explícita en cada caso; el caso
+  conocido a la fecha de esta migración ya fue corregido puntualmente).
+
 ### 23.6 Mutaciones de `saldos_a_favor` son atómicas vía RPC — no leer-then-escribir en JS
 
 Las 3 mutaciones de `saldos_a_favor.saldo_disponible` usan funciones SQL
