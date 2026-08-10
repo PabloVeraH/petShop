@@ -9,9 +9,10 @@ const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
-jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/hub-sync", () => ({ syncProductsToHub: jest.fn() }));
 
 import { PATCH } from "@/app/api/inventario/[id]/route";
@@ -24,6 +25,24 @@ function chain() {
   c.insert = jest.fn().mockReturnValue(c);
   c.eq = jest.fn().mockReturnValue(c);
   c.single = mockSingle;
+  return c;
+}
+
+// Chain para el conteo de lotes_producto activos (sin .single(): la ruta
+// hace `await` directo tras los .eq() encadenados con { count, head: true }).
+// count=0 replica exactamente lo que devolvía el chain() genérico de arriba
+// para las pruebas I-50..I-431 (ninguna configuraba lotes_producto): al no
+// tener .then propio, `await` sobre el objeto plano resuelve al objeto
+// mismo, `count` queda undefined, y tieneLotes da false — mismo camino que
+// antes de este fix. Estos tests nuevos SÍ necesitan un chain con count real.
+type CountResult = { count: number; error: null };
+
+function lotesCountChain(count: number) {
+  const c: Record<string, unknown> & { then?: (resolve: (v: CountResult) => void) => void } = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+  };
+  c.then = (resolve) => resolve({ count, error: null });
   return c;
 }
 
@@ -219,5 +238,121 @@ describe("PATCH /api/inventario/[id]", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body).toEqual({ error: "Error interno del servidor" });
+  });
+
+  // I-500 a I-503 — REGRESIÓN (ticket Trello 6a77e8454f3227d6d4a42437): el
+  // ajuste manual +/- escribía productos.stock directo, ignorando
+  // lotes_producto por completo. productos.stock se mantiene AUTOMÁTICAMENTE
+  // por el trigger sync_stock_on_lote (migración 026) cuando el producto
+  // tiene lotes activos — escribirlo directo lo desincroniza de la suma real
+  // de lotes. El fix: entrada se bloquea (no hay "lote sin vencimiento" en el
+  // schema — fecha_vencimiento es NOT NULL), salida usa deducir_stock_fifo
+  // (misma función que las ventas), que mantiene lotes y stock sincronizados
+  // vía el trigger.
+  describe("con lotes activos (I-500 a I-503)", () => {
+    it("I-500: entrada bloqueada con lotes activos → 409, sin update/insert/rpc", async () => {
+      const updateMock = jest.fn();
+      const insertMock = jest.fn();
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "productos") {
+          const c = chain();
+          c.single = jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID, stock: 10 }, error: null });
+          c.update = updateMock.mockReturnValue(c);
+          return c;
+        }
+        if (table === "lotes_producto") return lotesCountChain(3);
+        if (table === "stock_movements") {
+          const c = chain();
+          c.insert = insertMock.mockReturnValue(c);
+          return c;
+        }
+        return chain();
+      });
+
+      const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+
+      expect(res.status).toBe(409);
+      const body = await res.json();
+      expect(body.error).toMatch(/lotes activos/i);
+      expect(updateMock).not.toHaveBeenCalled();
+      expect(insertMock).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("I-501: salida con lotes activos usa deducir_stock_fifo en vez de UPDATE directo a productos.stock", async () => {
+      let productosCall = 0;
+      const updateMock = jest.fn();
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "productos") {
+          productosCall++;
+          const c = chain();
+          c.update = updateMock.mockReturnValue(c);
+          c.single = jest.fn().mockResolvedValue(
+            productosCall === 1
+              ? { data: { id: PRODUCTO_ID, stock: 10 }, error: null } // lookup inicial
+              : { data: { id: PRODUCTO_ID, nombre: "X", marca: null, precio: 1000, stock: 6 }, error: null } // refetch post-FIFO
+          );
+          return c;
+        }
+        if (table === "lotes_producto") return lotesCountChain(2);
+        return chain();
+      });
+      mockRpc.mockResolvedValue({ data: [{ lote_id: "lote-1", cantidad_deducida: 4 }], error: null });
+
+      const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 4 }), { params });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.stock).toBe(6);
+      expect(mockRpc).toHaveBeenCalledWith("deducir_stock_fifo", {
+        p_producto_id: PRODUCTO_ID,
+        p_store_id: STORE_ID,
+        p_cantidad: 4,
+      });
+      // La rama con lotes NUNCA debe escribir productos.stock directo — el
+      // trigger sync_stock_on_lote es quien lo actualiza, vía el RPC de arriba.
+      expect(updateMock).not.toHaveBeenCalled();
+    });
+
+    it("I-502: salida con lotes activos y stock FIFO insuficiente → 422 con el mensaje del RPC", async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "productos") {
+          const c = chain();
+          c.single = jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID, stock: 10 }, error: null });
+          return c;
+        }
+        if (table === "lotes_producto") return lotesCountChain(1);
+        return chain();
+      });
+      mockRpc.mockResolvedValue({
+        data: null,
+        error: { message: "Stock insuficiente: disponible 2 unidades vigentes, requerido 5" },
+      });
+
+      const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 5 }), { params });
+
+      expect(res.status).toBe(422);
+      const body = await res.json();
+      expect(body.error).toBe("Stock insuficiente: disponible 2 unidades vigentes, requerido 5");
+    });
+
+    it("I-503: salida con lotes activos y error genérico del RPC → 500", async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "productos") {
+          const c = chain();
+          c.single = jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID, stock: 10 }, error: null });
+          return c;
+        }
+        if (table === "lotes_producto") return lotesCountChain(1);
+        return chain();
+      });
+      mockRpc.mockResolvedValue({ data: null, error: { message: "connection timeout" } });
+
+      const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 3 }), { params });
+
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body).toEqual({ error: "Error interno del servidor" });
+    });
   });
 });

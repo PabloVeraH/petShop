@@ -861,4 +861,36 @@ describe("InventoryPage — salida de stock limitada al disponible", () => {
     // El modal sigue abierto para que el usuario corrija
     expect(screen.getByText("Salida de stock")).toBeInTheDocument();
   });
+
+  // IV-14 — REGRESIÓN (ticket Trello 6a77e8454f3227d6d4a42437): entrada de
+  // stock en un producto con lotes activos se bloquea en el backend (409, ver
+  // I-500) para no desincronizar productos.stock de la suma de lotes_producto.
+  // El modal es genérico (renderiza ajusteError.message sin importar el status
+  // HTTP, ver IV-12) — este test confirma que el mensaje de error del backend
+  // llega a pantalla también para este caso, sin cambios de componente.
+  it("IV-14: rechazo 409 por lotes activos se muestra como error en el modal de entrada", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Snack Perro")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "+" }));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "5" } });
+
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({
+          error: "Este producto tiene lotes activos. Usa el panel \"Lotes\" para agregar stock con su fecha de vencimiento.",
+        }),
+      } as Response)
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/tiene lotes activos/i)).toBeInTheDocument()
+    );
+    // El modal sigue abierto — el usuario debe ir al panel "Lotes" a resolverlo
+    expect(screen.getByText("Entrada de stock")).toBeInTheDocument();
+  });
 });

@@ -72,6 +72,10 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | I-431 | Error en update del producto retorna 500 (ej: error de DB simulado) | PATCH /api/inventario/[id] | integration |
 | I-54 | REGRESIÓN (ticket Trello 6a5f9a8c29a2a067617111f7): salida con cantidad mayor al stock → 422, sin UPDATE ni movimiento en stock_movements (antes: stock clampeado a 0 pero movimiento registrado completo → inconsistencia historial/stock) | PATCH /api/inventario/[id] | integration |
 | I-436 | Frontera: salida con cantidad igual al stock → 200, stock queda en 0 y movimiento registra la salida completa (no sobre-bloquear) | PATCH /api/inventario/[id] | integration |
+| I-500 | REGRESIÓN (ticket Trello 6a77e8454f3227d6d4a42437): entrada bloqueada con 409 en productos con lotes activos — no existe "lote sin vencimiento" en el schema (fecha_vencimiento NOT NULL), así que no se puede generar un lote automáticamente; el error dirige al panel "Lotes" | PATCH /api/inventario/[id] | integration |
+| I-501 | REGRESIÓN (mismo ticket): salida en producto con lotes activos usa deducir_stock_fifo() (misma función que las ventas) en vez de escribir productos.stock directo — mantiene lotes_producto y productos.stock sincronizados vía el trigger sync_stock_on_lote | PATCH /api/inventario/[id] | integration |
+| I-502 | REGRESIÓN (mismo ticket): salida con lotes activos y stock FIFO vigente insuficiente → 422 con el mensaje de deducir_stock_fifo (fuente de verdad real, excluye lotes vencidos que productos.stock sí cuenta) | PATCH /api/inventario/[id] | integration |
+| I-503 | REGRESIÓN (mismo ticket): error genérico (no de stock insuficiente) del RPC deducir_stock_fifo → 500 | PATCH /api/inventario/[id] | integration |
 
 ## Settings (I-87 a I-99, I-414 a I-416)
 
