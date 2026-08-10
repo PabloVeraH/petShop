@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -36,4 +37,4 @@ export async function POST(req: NextRequest) {
 
   const { data: urlData } = supabase.storage.from("instagram-media").getPublicUrl(path);
   return NextResponse.json({ url: urlData.publicUrl }, { status: 201 });
-}
+}, { endpoint: "POST /api/canales/instagram/upload" });

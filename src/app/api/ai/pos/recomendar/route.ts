@@ -5,7 +5,7 @@ import { createServiceClient }       from "@/lib/supabase";
 import { obtenerContextoClimatico, SANTIAGO_LAT, SANTIAGO_LON } from "@/lib/weather";
 import { recomendarProductosEnPOS }  from "@/lib/openrouter";
 import { POSRecomendadorRequestSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // Mismo mecanismo de cold-start que /api/ai/vencimientos/optimizar (ver ese
 // route.ts): recomendarProductosEnPOS tiene su propio timeout interno de 20s
@@ -17,7 +17,7 @@ import { logAudit, getRequestMetadata } from "@/lib/audit";
 // timeout de cliente de 8s (RecomendacionesIA.tsx), un solo intento basta.
 export const maxDuration = 25;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   // 1. Auth — cualquier usuario autenticado de la tienda (workers y admins)
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
     buildResult(recsLLM, catalogo, itemsCarrito),
     { headers: { "X-Cache": "MISS" } }
   );
-}
+}, { endpoint: "POST /api/ai/pos/recomendar" });
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

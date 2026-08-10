@@ -2,12 +2,13 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
+import { withErrorLogging } from "@/lib/audit";
 
 const BodySchema = z.object({
   storeName: z.string().min(3).max(100),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,4 +72,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ storeId: store.id });
-}
+}, { endpoint: "POST /api/onboarding/complete" });

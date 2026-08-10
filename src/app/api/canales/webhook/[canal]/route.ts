@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { decryptJSON } from "@/lib/canales/encryption";
 import type { IExternalChannel } from "@/lib/canales/types";
+import { withErrorLogging } from "@/lib/audit";
 
 // El webhook llega como llamada server-to-server desde Rappi, sin sesión de usuario.
 // La autenticidad se verifica exclusivamente con la firma HMAC del payload.
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const canalId = req.nextUrl.pathname.split("/canales/webhook/")[1]?.split("/")[0];
 
   if (!canalId) {
@@ -158,4 +159,4 @@ export async function POST(req: NextRequest) {
     console.error("[webhook] Error interno:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
-}
+}, { endpoint: "POST /api/canales/webhook/canal" });

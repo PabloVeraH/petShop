@@ -4,9 +4,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus } from "@/lib/admin-check";
 import { CategoriaCreateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServiceClient();
@@ -20,9 +20,9 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/categorias" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -85,4 +85,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/categorias" });

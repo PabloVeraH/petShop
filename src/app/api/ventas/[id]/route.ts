@@ -2,11 +2,10 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { crearAsiento, lineasAnulacionVentaCanal, lineasAnulacionVentaConNc, lineasAnulacionCOGS } from "@/lib/contabilidad/generador-asientos";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -44,12 +43,10 @@ export async function GET(
     .eq("venta_id", id);
 
   return NextResponse.json({ ...venta, worker, items: items ?? [], pagos: pagos ?? [] });
-}
+}, { endpoint: "GET /api/ventas/id" });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -187,4 +184,4 @@ export async function PATCH(
   });
 
   return NextResponse.json(venta);
-}
+}, { endpoint: "PATCH /api/ventas/id" });

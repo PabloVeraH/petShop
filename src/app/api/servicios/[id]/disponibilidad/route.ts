@@ -4,6 +4,7 @@ import { getStoreId } from "@/lib/auth";
 import { DisponibilidadQuerySchema } from "@/lib/validation";
 import { calcularSlotsDisponibles, diaSemanaIsoDesdeFecha, type RangoHorario } from "@/lib/disponibilidad";
 import type { SlotDisponible } from "@/types";
+import { withErrorLogging } from "@/lib/audit";
 
 // Normaliza "HH:MM:SS" → "HH:MM" (Postgres TIME serializa con segundos).
 const hhmm = (v: string) => v.slice(0, 5);
@@ -14,10 +15,8 @@ const hhmm = (v: string) => v.slice(0, 5);
 // encargado_id es obligatorio: sin él la UI podría mostrar como "libre" un
 // slot donde el encargado ya está ocupado en otro servicio). Usa la lib pura
 // calcularSlotsDisponibles. Abierto a cualquier usuario autenticado de la tienda.
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -108,4 +107,4 @@ export async function GET(
 
   const slots: SlotDisponible[] = calcularSlotsDisponibles(ventana, servicio.duracion_minutos, ocupados);
   return NextResponse.json(slots);
-}
+}, { endpoint: "GET /api/servicios/id/disponibilidad" });

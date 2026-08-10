@@ -5,9 +5,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
     detalle_creados: creados,
     detalle_errores: errores,
   }, { status: 200 });
-}
+}, { endpoint: "POST /api/contabilidad/backfill" });
 
 async function calcularCostoTotalVenta(ventaId: string): Promise<number> {
   const supabase = createServiceClient();

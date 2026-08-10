@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, resolveAdminContext } from "@/lib/admin-check";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -37,4 +36,4 @@ export async function PATCH(
   }
 
   return NextResponse.json({ ok: true, data });
-}
+}, { endpoint: "PATCH /api/error-logs/id/resolve" });

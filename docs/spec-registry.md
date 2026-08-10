@@ -109,6 +109,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | C-57 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): UltimasVentas renderiza vacío/sin datos y lista de ventas, y su link a /sales/[id] nace con prefetch=false y se activa solo tras mouseEnter | UltimasVentas | component |
 | AL-05 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): los links del sidebar nacen con prefetch=false y se activan solo tras mouseEnter — cada `<Link>` visible disparaba un prefetch RSC en producción; con 14 rutas el sidebar generaba decenas de peticiones simultáneas (503 intermitentes) | AppLayout | component |
 | C-58 | REGRESIÓN (revisión del ticket 6a76ccfa629628db21ebbe60, mismo patrón sin corregir en otro widget): SugerenciasRecompra renderiza un `<Link href="/purchases">` por cada sugerencia dentro de `data.map()` — nace con prefetch=false y se activa solo tras mouseEnter | SugerenciasRecompra | component |
+| C-59 | Tab "Errores de sistema" con 0 registros muestra la grilla vacía "Mostrando 1-0 de 0 registros" y sus columnas (Severidad, Endpoint) — síntoma del ticket 6a77eec7a32c85d594ee7a62; una vez que el backend registra 500 reales (withErrorLogging) estos aparecen como filas en esta grilla | AuditoriaCard | component |
 
 ## Notas de Crédito (I-100 a I-115)
 
@@ -388,6 +389,7 @@ I-406/I-407/I-408.
 | I-506 | REGRESIÓN (mismo ticket, hallazgo extendido durante esa revisión): mismo defecto en el asiento manual — período de la fecha ya cerrado → 409 accionable, NO 500 genérico; crearAsiento no se llama | POST /api/contabilidad/asientos | integration |
 | I-507 | Fecha dentro de un período abierto → 201 y crearAsiento recibe esa fecha con tipoMovimiento AJUSTE y creadoPor "manual" | POST /api/contabilidad/asientos | integration |
 | I-508 | crearAsiento retorna null por una causa no relacionada a período (ej. colisión de numero_asiento) → 500 (el chequeo de período no reemplaza este manejo de error existente) | POST /api/contabilidad/asientos | integration |
+| I-512 | REGRESIÓN (ticket Trello 6a77eec7a32c85d594ee7a62): el 500 real del repro (crearAsiento retorna null) queda REGISTRADO en error_logs vía withErrorLogging — cadena completa wrapper → logError → INSERT con endpoint, store_id, user_id y mensaje, para que aparezca en "Errores de sistema"; verificado que falla sin el wrapper (0 inserts) | POST /api/contabilidad/aporte-capital | integration |
 | I-464 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres → 400 (sigue opcional, pero si se ingresa algo exige mínimo de trazabilidad) | POST /api/notas-credito | integration |
 | I-465 | MEJORA: motivo con exactamente 5 caracteres → aceptado | POST /api/notas-credito | integration |
 | I-466 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas (motivo del ajuste) con menos de 5 caracteres → 400 | PATCH /api/inventario/[id] | integration |
@@ -648,6 +650,10 @@ I-406/I-407/I-408.
 | U-143 | Nuevo mecanismo: lineasAporteCapital con cuentaDestino=banco debita BANCO en vez de CAJA | lib/contabilidad | unit |
 | U-144 | Nuevo mecanismo: la cuenta CAPITAL es de tipo PATRIMONIO en el plan de cuentas | lib/contabilidad | unit |
 | U-145 | REGRESIÓN (ticket Trello 6a77e779e5698ef7e7e3afda): crearAsiento loguea el rollback de journal_entries fallido que dejaría un asiento huérfano (sin lanzar) — el rollback ya no es silencioso; defensa preventiva (no se confirmaron huérfanos reales en producción al revisar este ticket) | lib/contabilidad | unit |
+| U-146 | withErrorLogging llama a logError con endpoint, error, store_id y user_id al fallar el handler (la causa de un 500 real queda registrada en error_logs) | lib/audit | unit |
+| U-147 | withErrorLogging: cuando el handler devuelve una respuesta con status >= 500 sin lanzar excepción, también hace INSERT en error_logs y retorna la respuesta original intacta (mismo status/body, no la reemplaza por el 500 genérico) | lib/audit | unit |
+| U-148 | withErrorLogging NO loguea cuando el handler responde con status < 500 (ej. 403) — un error esperado no contamina error_logs | lib/audit | unit |
+| U-149 | withErrorLogging: si getStoreId() falla en el path de error, el 500 no se rompe y el registro en error_logs igual se escribe (best-effort del contexto) | lib/audit | unit |
 | U-120 | generateBoletaPDF — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/reports/pdf-generator | unit |
 | U-121 | REGRESIÓN: generateBoletaPDF — con descuento, Subtotal + IVA sigue sumando exactamente Total (antes daba neto del bruto pre-descuento, no del total) | lib/reports/pdf-generator | unit |
 | U-122 | buildBoletaEmailHTML — sin descuento, Subtotal = neto (total − impuesto); no diferencia el código pre-fix (coincide matemáticamente cuando descuento=0), es cobertura de no-regresión | lib/email | unit |

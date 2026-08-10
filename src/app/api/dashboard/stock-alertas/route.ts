@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -26,4 +27,4 @@ export async function GET() {
   // mostraría "10" aunque haya más productos bajo mínimo — la misma
   // discrepancia con Inventario que este endpoint ya tuvo que corregir una vez.
   return NextResponse.json({ total: alertas.length, items: alertas.slice(0, 10) });
-}
+}, { endpoint: "GET /api/dashboard/stock-alertas" });

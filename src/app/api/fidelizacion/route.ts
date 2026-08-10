@@ -2,8 +2,9 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { FidelizacionQuerySchema } from "@/lib/validation";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -41,4 +42,4 @@ export async function GET(req: NextRequest) {
   const niveles = (store?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? defaultNiveles;
 
   return NextResponse.json({ ...data, niveles });
-}
+}, { endpoint: "GET /api/fidelizacion" });

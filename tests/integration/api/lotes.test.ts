@@ -31,6 +31,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   // getRequestMetadata NO es async en la implementación real (src/lib/audit.ts:
   // `export function getRequestMetadata(req) { return {...} }`) — mockReturnValue,

@@ -1,11 +1,11 @@
 import { requireSystemAdminConsistent, getAdminStatus } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { AiConfigUpdateSchema } from "@/lib/validation";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   // 1. Auth — solo systemAdmin
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
@@ -52,4 +52,4 @@ export async function PATCH(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json({ ok: true });
-}
+}, { endpoint: "PATCH /api/admin/ai-config" });

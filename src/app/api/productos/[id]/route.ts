@@ -3,12 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { ProductoUpdateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -154,12 +152,10 @@ export async function PATCH(
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/productos/id" });
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -210,4 +206,4 @@ export async function DELETE(
   }
 
   return new NextResponse(null, { status: 204 });
-}
+}, { endpoint: "DELETE /api/productos/id" });

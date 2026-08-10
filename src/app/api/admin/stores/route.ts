@@ -2,8 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -64,4 +65,4 @@ export async function GET() {
     .eq("store_id", storeId);
 
   return NextResponse.json([{ ...store, user_count: userCounts?.length ?? 0 }]);
-}
+}, { endpoint: "GET /api/admin/stores" });

@@ -4,15 +4,13 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { ServicioUpdateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import type { ServicioConHorarios, ServicioHorario } from "@/types";
 
 // GET /api/servicios/[id] — un servicio con sus horarios anidados.
 // Lectura abierta a cualquier usuario autenticado de la tienda.
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -39,13 +37,11 @@ export async function GET(
   );
   const result: ServicioConHorarios = { ...(data as ServicioConHorarios), servicio_horarios: horariosOrdenados };
   return NextResponse.json(result);
-}
+}, { endpoint: "GET /api/servicios/id" });
 
 // PATCH /api/servicios/[id] — actualización parcial. Solo storeAdmin / systemAdmin.
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -120,14 +116,12 @@ export async function PATCH(
   }).catch(() => {});
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/servicios/id" });
 
 // DELETE /api/servicios/[id] — soft delete (activo: false). Solo storeAdmin / systemAdmin.
 // No toca servicio_horarios: quedan intactos y vuelven a aplicar si el servicio se reactiva.
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -177,4 +171,4 @@ export async function DELETE(
   }).catch(() => {});
 
   return new NextResponse(null, { status: 204 });
-}
+}, { endpoint: "DELETE /api/servicios/id" });

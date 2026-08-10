@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { syncProductsToHub } from "@/lib/hub-sync";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { ProductoCreateSchema } from "@/lib/validation";
 import { z } from "zod";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query.limit(50);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/productos" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -113,4 +113,4 @@ export async function POST(req: NextRequest) {
   }]);
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/productos" });

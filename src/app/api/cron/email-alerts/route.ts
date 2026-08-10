@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,4 +28,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ processed: stores.length, sent: totalSent });
-}
+}, { endpoint: "GET /api/cron/email-alerts" });

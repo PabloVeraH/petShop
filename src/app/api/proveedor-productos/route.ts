@@ -2,8 +2,9 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { ProveedorProductoCreateSchema } from "@/lib/validation";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -32,9 +33,9 @@ export async function POST(req: NextRequest) {
     .select().single();
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data);
-}
+}, { endpoint: "POST /api/proveedor-productos" });
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -54,4 +55,4 @@ export async function DELETE(req: NextRequest) {
   const { error } = await supabase.from("proveedor_productos").delete().eq("id", id);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ ok: true });
-}
+}, { endpoint: "DELETE /api/proveedor-productos" });

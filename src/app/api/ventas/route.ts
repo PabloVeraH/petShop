@@ -5,11 +5,11 @@ import { createServiceClient } from "@/lib/supabase";
 import { sendWhatsAppText, buildReceiptMessage } from "@/lib/whatsapp";
 import { sendBoletaEmail } from "@/lib/email";
 import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
 import { crearAsiento, lineasVentaCanal, lineasVentaConNc, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -73,16 +73,16 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json({ data: data ?? [], count: count ?? 0 });
-}
+}, { endpoint: "GET /api/ventas" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   try {
     return await postVenta(req);
   } catch (e) {
     console.error("[ventas POST] Unhandled error:", e);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
-}
+}, { endpoint: "POST /api/ventas" });
 
 async function postVenta(req: NextRequest) {
   const ctx = await getStoreId();

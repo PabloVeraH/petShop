@@ -3,15 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // DELETE /api/servicios/[id]/excepciones/[excepcionId] — hard delete.
 // Solo admin. Hard delete (a diferencia del soft-delete de servicios) porque
 // una excepción no tiene referencias entrantes: es un toggle de configuración.
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string; excepcionId: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string; excepcionId: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -64,4 +62,4 @@ export async function DELETE(
   }).catch(() => {});
 
   return new NextResponse(null, { status: 204 });
-}
+}, { endpoint: "DELETE /api/servicios/id/excepciones/excepcionId" });

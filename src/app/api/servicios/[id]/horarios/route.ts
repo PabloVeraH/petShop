@@ -4,15 +4,13 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { ServicioHorariosReplaceSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import type { ServicioHorario } from "@/types";
 
 // GET /api/servicios/[id]/horarios — horario semanal del servicio (0 a 7 filas).
 // Lectura abierta a cualquier usuario autenticado de la tienda.
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -39,15 +37,13 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/servicios/id/horarios" });
 
 // PUT /api/servicios/[id]/horarios — reemplazo TOTAL del horario semanal (no PATCH incremental).
 // El body lleva la grilla completa (0 a 7 franjas); el RPC replace_servicio_horarios hace
 // DELETE + INSERT atómico. Solo storeAdmin / systemAdmin.
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PUT = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -103,4 +99,4 @@ export async function PUT(
   }).catch(() => {});
 
   return NextResponse.json(rows);
-}
+}, { endpoint: "PUT /api/servicios/id/horarios" });

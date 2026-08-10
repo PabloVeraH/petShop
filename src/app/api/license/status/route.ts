@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
   const storeId = meta?.storeId as string | undefined;
@@ -36,4 +37,4 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ status });
-}
+}, { endpoint: "GET /api/license/status" });

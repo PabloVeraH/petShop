@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockReturnValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));

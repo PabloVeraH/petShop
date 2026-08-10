@@ -3,7 +3,7 @@ import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { getChannel } from "@/lib/canales/registry";
 import { liberarReservaSinDescontar } from "@/lib/canales/hub";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { z } from "zod";
 import type { CanalId, CanalConfig } from "@/lib/canales/types";
 
@@ -11,7 +11,7 @@ const rejectSchema = z.object({
   reason: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId, userId } = ctx;
@@ -86,4 +86,4 @@ export async function POST(req: NextRequest) {
     status: "rejected",
     reason,
   });
-}
+}, { endpoint: "POST /api/canales/orders/id/reject" });

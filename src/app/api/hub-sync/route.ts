@@ -4,11 +4,12 @@ import { getStoreId } from "@/lib/auth";
 import { getAdminStatus } from "@/lib/admin-check";
 import { auth } from "@clerk/nextjs/server";
 import { syncProductsToHub } from "@/lib/hub-sync";
+import { withErrorLogging } from "@/lib/audit";
 
 const HUB_SYNC_SECRET = process.env.HUB_SYNC_SECRET;
 const STORE_ID = process.env.STORE_ID;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const authHeader = req.headers.get("authorization");
   const isHubCall =
     !!HUB_SYNC_SECRET && authHeader === `Bearer ${HUB_SYNC_SECRET}`;
@@ -80,4 +81,4 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ ok: true, synced: productos.length });
-}
+}, { endpoint: "GET /api/hub-sync" });

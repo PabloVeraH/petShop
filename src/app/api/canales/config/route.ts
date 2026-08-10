@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { encryptJSON, decryptJSON } from "@/lib/canales/encryption";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { z } from "zod";
 
 const REQUIRED_CREDENTIAL_FIELDS: Record<string, string[]> = {
@@ -18,7 +18,7 @@ function allCredentialsFilled(canalId: string, credenciales: Record<string, stri
   return required.every((key) => credenciales[key] && credenciales[key].trim() !== "");
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -41,9 +41,9 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json(result);
-}
+}, { endpoint: "GET /api/canales/config" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -119,9 +119,9 @@ export async function POST(req: NextRequest) {
     { id: data.id, canal_id: data.canal_id, activo: data.activo },
     { status: 201 }
   );
-}
+}, { endpoint: "POST /api/canales/config" });
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -219,4 +219,4 @@ export async function PATCH(req: NextRequest) {
   });
 
   return NextResponse.json({ id: data.id, canal_id: data.canal_id, activo: data.activo });
-}
+}, { endpoint: "PATCH /api/canales/config" });

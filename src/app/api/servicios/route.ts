@@ -4,14 +4,14 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { ServicioCreateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // GET /api/servicios — catálogo de servicios activos de la tienda.
 // Lectura abierta a cualquier usuario autenticado de la tienda (sin admin-check).
 // Query param `incluir_inactivos=true`: lista también los inactivos (para
 // reactivarlos desde el panel admin). Exige storeAdmin/systemAdmin para que
 // el catálogo de agendamiento (workers) siga viendo solo activos.
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServiceClient();
@@ -40,11 +40,11 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/servicios" });
 
 // POST /api/servicios — crear un servicio. Solo storeAdmin / systemAdmin.
 // store_id SIEMPRE del contexto autenticado; el schema no acepta store_id del body.
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -110,4 +110,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/servicios" });

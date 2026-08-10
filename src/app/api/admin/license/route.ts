@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { LicenseConfigSchema } from "@/lib/validation";
-import { logAudit } from "@/lib/audit";
+import { logAudit, withErrorLogging } from "@/lib/audit";
 import { getAdminStatus, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { computeLicenseStatus } from "@/lib/license";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -40,9 +40,9 @@ export async function GET(req: NextRequest) {
     },
     status,
   });
-}
+}, { endpoint: "GET /api/admin/license" });
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -93,4 +93,4 @@ export async function PATCH(req: NextRequest) {
   });
 
   return NextResponse.json({ success: true });
-}
+}, { endpoint: "PATCH /api/admin/license" });

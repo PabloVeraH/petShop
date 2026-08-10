@@ -43,6 +43,7 @@ jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/admin-check", () => ({ getAdminStatus: mockGetAdminStatus }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: mockLogAudit,
   getRequestMetadata: mockGetRequestMetadata,
 }));

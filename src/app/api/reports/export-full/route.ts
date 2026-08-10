@@ -12,7 +12,7 @@ import {
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import * as XLSX from "xlsx";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 const QuerySchema = z.object({
   formato: z.enum(["pdf", "excel"]).default("pdf"),
@@ -20,7 +20,7 @@ const QuerySchema = z.object({
   seccion: z.enum(["prediccion", "reorden", "full"]).default("full"),
 });
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -168,4 +168,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Seccion invalida" }, { status: 400 });
-}
+}, { endpoint: "GET /api/reports/export-full" });

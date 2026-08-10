@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -21,4 +22,4 @@ export async function GET() {
     storeWorker: user.store_worker,
     systemAdmin: user.system_admin,
   });
-}
+}, { endpoint: "GET /api/me" });

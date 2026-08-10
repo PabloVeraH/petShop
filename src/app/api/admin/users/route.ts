@@ -3,11 +3,11 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { AdminUserAssignSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // GET /api/admin/users?storeId=xxx  — lista usuarios de una tienda
 // systemAdmin: requiere storeId param; storeAdmin: fuerza su propia storeId
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -43,11 +43,11 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(users ?? []);
-}
+}, { endpoint: "GET /api/admin/users" });
 
 // POST /api/admin/users  — asigna un usuario existente a una tienda con un rol
 // Body: { email: string, storeId: string, role: "storeAdmin" | "storeWorker" }
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -110,4 +110,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json({ ok: true, clerkId: target.id });
-}
+}, { endpoint: "POST /api/admin/users" });

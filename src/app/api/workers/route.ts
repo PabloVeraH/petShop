@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
 import { getAdminStatus } from "@/lib/admin-check";
-import { logAudit } from "@/lib/audit";
+import { logAudit, withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -93,9 +93,9 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json(result);
-}
+}, { endpoint: "GET /api/workers" });
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -144,4 +144,4 @@ export async function PATCH(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
+}, { endpoint: "PATCH /api/workers" });

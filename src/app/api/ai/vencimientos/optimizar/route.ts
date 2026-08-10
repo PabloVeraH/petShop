@@ -1,7 +1,7 @@
 import { getStoreId }           from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient }  from "@/lib/supabase";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { OptimizadorVencimientosRequestSchema } from "@/lib/validation";
 import { analizarVencimientosConIA } from "@/lib/openrouter";
 import { auth } from "@clerk/nextjs/server";
@@ -34,7 +34,7 @@ async function analizarConReintentoSiTimeout(
   }
 }
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -112,9 +112,9 @@ export async function GET() {
     recomendaciones: validas,
     productos_obsoletos: productosObsoletos,
   });
-}
+}, { endpoint: "GET /api/ai/vencimientos/optimizar" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   // 1. Auth — solo storeAdmin
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -271,4 +271,4 @@ export async function POST(req: NextRequest) {
     created_at:          createdAt,
     dias_alerta:         diasAlerta,
   });
-}
+}, { endpoint: "POST /api/ai/vencimientos/optimizar" });

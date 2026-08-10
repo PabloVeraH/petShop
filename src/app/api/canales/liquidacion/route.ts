@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { z } from "zod";
 
 const liquidacionSchema = z.object({
@@ -13,7 +13,7 @@ const liquidacionSchema = z.object({
   neto: z.number(),
 });
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -43,9 +43,9 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/canales/liquidacion" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId, userId } = ctx;
@@ -96,4 +96,4 @@ export async function POST(req: NextRequest) {
     { id: data.id, estado: data.estado },
     { status: 201 }
   );
-}
+}, { endpoint: "POST /api/canales/liquidacion" });

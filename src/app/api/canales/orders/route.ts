@@ -3,8 +3,9 @@ import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { ChannelError } from "@/lib/canales/types";
 import { getActiveOrders } from "@/lib/canales/hub";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/canales/orders" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId, userId } = ctx;
@@ -99,4 +100,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
-}
+}, { endpoint: "POST /api/canales/orders" });

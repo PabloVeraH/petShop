@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { CitaAccionSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { extraerIva } from "@/lib/tax";
 import { crearAsiento, lineasVentaServicio, lineasVentaServicioConNc } from "@/lib/contabilidad/generador-asientos";
 
 // GET /api/citas/[id] — detalle con joins. Abierto a la tienda.
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,15 +30,13 @@ export async function GET(
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "GET /api/citas/id" });
 
 // PATCH /api/citas/[id] — acciones de estado: cancelar (vía RPC atómico),
 // completar, no_show (update simple con guarda de estado). No requiere rol
 // admin (decisión §9a). No hay DELETE: cancelar es un cambio de estado.
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -142,7 +138,7 @@ export async function PATCH(
   }).catch(() => {});
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/citas/id" });
 
 // Acción "completar": camino legado (sin precio) vs. cobro con
 // completar_cita_tx. Lógica de dinero aislada del resto del PATCH.

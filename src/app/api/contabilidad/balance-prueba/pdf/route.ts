@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generarHtmlBalancePrueba } from "@/lib/contabilidad/html-balance-prueba";
 import { getCuentaTipo } from "@/lib/contabilidad/types";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -76,4 +77,4 @@ export async function GET(req: NextRequest) {
       "Cache-Control": "no-store",
     },
   });
-}
+}, { endpoint: "GET /api/contabilidad/balance-prueba/pdf" });

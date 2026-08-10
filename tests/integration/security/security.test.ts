@@ -17,6 +17,7 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
 jest.mock("@/lib/hub-sync", () => ({ syncPurchaseToHub: jest.fn() }));
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));

@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
 import { checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
+import { withErrorLogging } from "@/lib/audit";
 
 const LineaSchema = z.object({
   cuenta_codigo: z.string().min(1).max(20),
@@ -20,7 +21,7 @@ const AsientoManualSchema = z.object({
   lineas: z.array(LineaSchema).min(2),
 });
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -58,9 +59,9 @@ export async function GET(req: NextRequest) {
     total_creditos: totalCreditos,
     balanceado: Math.abs(totalDebitos - totalCreditos) < 0.01,
   });
-}
+}, { endpoint: "GET /api/contabilidad/asientos" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -129,4 +130,4 @@ export async function POST(req: NextRequest) {
     .single();
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/contabilidad/asientos" });

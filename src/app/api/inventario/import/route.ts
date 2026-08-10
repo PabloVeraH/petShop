@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { parseProductosXLSX, generateTemplateXLSX } from "@/lib/excel/parser";
 import { ProductoImportRowSchema } from "@/lib/validation";
 
@@ -24,7 +24,7 @@ export interface ImportResult {
 }
 
 // GET /api/inventario/import — descarga el template
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -36,10 +36,10 @@ export async function GET() {
       "Content-Disposition": 'attachment; filename="plantilla-productos.xlsx"',
     },
   });
-}
+}, { endpoint: "GET /api/inventario/import" });
 
 // POST /api/inventario/import — importa productos desde .xlsx
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, userId } = ctx;
@@ -302,4 +302,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(result);
-}
+}, { endpoint: "POST /api/inventario/import" });

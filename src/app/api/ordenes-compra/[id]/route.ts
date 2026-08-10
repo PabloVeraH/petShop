@@ -2,14 +2,12 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraReceiveSchema, OrdenCompraEditItemsSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/email";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -31,12 +29,10 @@ export async function GET(
     .eq("orden_id", id);
 
   return NextResponse.json({ ...orden, items: items ?? [] });
-}
+}, { endpoint: "GET /api/ordenes-compra/id" });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -457,4 +453,4 @@ export async function PATCH(
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/ordenes-compra/id" });

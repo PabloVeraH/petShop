@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
 type ClerkWebhookEvent = {
   type: string;
@@ -22,7 +23,7 @@ type ClerkWebhookEvent = {
   };
 };
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
@@ -140,4 +141,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
-}
+}, { endpoint: "POST /api/webhooks/clerk" });

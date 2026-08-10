@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { CuentasPagarUpdateSchema } from "@/lib/validation";
 import { crearAsiento, lineasPagoProveedor } from "@/lib/contabilidad/generador-asientos";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -26,9 +26,9 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/cuentas-pagar" });
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -141,4 +141,4 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/cuentas-pagar" });

@@ -3,10 +3,10 @@ import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { SettingsUpdateSchema } from "@/lib/validation";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -32,9 +32,9 @@ export async function GET() {
     whatsapp_access_token: data?.whatsapp_access_token ? "••••••••" : "",
     whatsapp_webhook_verify_token: data?.whatsapp_webhook_verify_token ? "••••••••" : "",
   });
-}
+}, { endpoint: "GET /api/settings" });
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -146,4 +146,4 @@ export async function PATCH(req: NextRequest) {
   });
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/settings" });

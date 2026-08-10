@@ -3,7 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 const PatchUserSchema = z.object({
   role:   z.enum(["storeWorker", "storeAdmin", "systemAdmin"]),
@@ -17,10 +17,8 @@ const PatchUserStoreAdminSchema = z.object({
   email:  z.string().email().optional(),
 });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
   const { id: clerkId } = await params;
@@ -71,7 +69,7 @@ export async function PATCH(
 
   const { role, nombre, email } = parsed.data;
   return handlePatchUser(clerkId, admin!.storeId, admin!.userId, role, nombre, email, req);
-}
+}, { endpoint: "PATCH /api/admin/users/id" });
 
 async function handlePatchUser(
   clerkId: string,
@@ -194,10 +192,8 @@ async function handlePatchUser(
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
   
@@ -242,4 +238,4 @@ export async function DELETE(
     const message = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+}, { endpoint: "DELETE /api/admin/users/id" });

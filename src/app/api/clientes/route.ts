@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { validateRUT, formatRUT } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
   const { data, error, count } = await query.range(offset, offset + limit - 1);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ data: data ?? [], count: count ?? 0 });
-}
+}, { endpoint: "GET /api/clientes" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -113,4 +113,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json(cliente, { status: 201 });
-}
+}, { endpoint: "POST /api/clientes" });

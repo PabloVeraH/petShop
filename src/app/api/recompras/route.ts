@@ -1,10 +1,11 @@
 import { getStoreId } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
 // Motor de recompra inteligente: cruza consumo_alertas con proveedor_productos
 // para saber cuándo ordenar antes de que se acabe el stock
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -66,4 +67,4 @@ export async function GET() {
 
   sugerencias.sort((a, b) => a.dias_restantes - b.dias_restantes);
   return NextResponse.json(sugerencias);
-}
+}, { endpoint: "GET /api/recompras" });

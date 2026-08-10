@@ -4,14 +4,12 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { EncargadoUpdateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // GET /api/encargados/[id] — detalle. Lectura abierta a cualquier usuario
 // autenticado de la tienda.
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -33,14 +31,12 @@ export async function GET(
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "GET /api/encargados/id" });
 
 // PATCH /api/encargados/[id] — actualización parcial (nombre, activo).
 // Solo storeAdmin / systemAdmin.
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -112,15 +108,13 @@ export async function PATCH(
   }).catch(() => {});
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/encargados/id" });
 
 // DELETE /api/encargados/[id] — soft delete (activo: false). Solo storeAdmin /
 // systemAdmin. Baja lógica para no romper la referencia desde citas históricas
 // (plan §0, decisión 4); nunca un DELETE real.
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -170,4 +164,4 @@ export async function DELETE(
   }).catch(() => {});
 
   return new NextResponse(null, { status: 204 });
-}
+}, { endpoint: "DELETE /api/encargados/id" });

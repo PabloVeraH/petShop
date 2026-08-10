@@ -5,7 +5,7 @@ import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { crearAsiento, lineasCierreCOGS } from "@/lib/contabilidad/generador-asientos";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { computeCierrePreview, checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
 
 const CierreMesSchema = z.object({
@@ -14,7 +14,7 @@ const CierreMesSchema = z.object({
   calcular_costo_venta: z.boolean().default(false),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
     balanceado: preview.balanceado,
     asientos_cierre: asientosCierre,
   }, { status: 201 });
-}
+}, { endpoint: "POST /api/contabilidad/cierre-mes" });
 
 // Retorna true solo si el respaldo se persistió correctamente. El llamador
 // debe abortar la mutación irreversible si retorna false — un respaldo que

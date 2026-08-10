@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const RESERVATION_TTL_MINUTES = 10;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const secret = req.headers.get("Authorization")?.replace("Bearer ", "");
 
   if (!CRON_SECRET || secret !== CRON_SECRET) {
@@ -44,4 +45,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, expired: reservationIds.length });
-}
+}, { endpoint: "POST /api/cron/stock-reservas-expiry" });

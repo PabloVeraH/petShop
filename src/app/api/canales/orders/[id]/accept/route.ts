@@ -4,9 +4,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { extraerIva } from "@/lib/tax";
 import { getChannel } from "@/lib/canales/registry";
 import type { CanalId, CanalConfig } from "@/lib/canales/types";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId, userId } = ctx;
@@ -143,4 +143,4 @@ export async function POST(req: NextRequest) {
     ventaId: nuevaVenta.id,
     total,
   });
-}
+}, { endpoint: "POST /api/canales/orders/id/accept" });

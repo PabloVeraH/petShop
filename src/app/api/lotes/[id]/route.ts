@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus } from "@/lib/admin-check";
-import { logAudit, getRequestMetadata, getChangedFields } from "@/lib/audit";
+import { logAudit, getRequestMetadata, getChangedFields, withErrorLogging } from "@/lib/audit";
 import { LoteUpdateSchema } from "@/lib/validation";
 
 async function requireAdmin() {
@@ -14,10 +14,8 @@ async function requireAdmin() {
   return admin;
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const authCtx = await getStoreId();
   if (!authCtx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -74,12 +72,10 @@ export async function PATCH(
   });
 
   return NextResponse.json({ lote: updated });
-}
+}, { endpoint: "PATCH /api/lotes/id" });
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const authCtx = await getStoreId();
   if (!authCtx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -124,4 +120,4 @@ export async function DELETE(
   });
 
   return NextResponse.json({ ok: true });
-}
+}, { endpoint: "DELETE /api/lotes/id" });

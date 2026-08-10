@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json([], { status: 401 });
 
@@ -25,4 +26,4 @@ export async function GET(req: NextRequest) {
     .map(p => ({ id: p.id, nombre: p.nombre, peso_gramos: p.peso_gramos }));
 
   return NextResponse.json(alimentos);
-}
+}, { endpoint: "GET /api/inventario/alimento-check" });

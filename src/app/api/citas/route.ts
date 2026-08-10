@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { CitaCreateSchema, CitasQuerySchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // GET /api/citas — listado con filtros opcionales (fecha, servicio_id,
 // cliente_id, estado). Abierto a cualquier usuario autenticado de la tienda.
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,12 +32,12 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/citas" });
 
 // POST /api/citas — crear una cita. Cualquier usuario autenticado de la
 // tienda (decisión §9a: operación de staff, como registrar una venta en POS).
 // store_id y created_by SIEMPRE del contexto; el schema ni acepta esos campos.
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -90,4 +90,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/citas" });

@@ -428,4 +428,29 @@ describe("AuditoriaCard — extended tabs", () => {
       expect(options).not.toContain("session.ended");
     });
   });
+
+  // C-59
+  it("C-59: tab 'Errores de sistema' con 0 registros muestra la grilla vacía 'Mostrando 1-0 de 0 registros' (síntoma del ticket 6a77eec7a32c85d594ee7a62)", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("error-logs")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [], count: 0 }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ data: [], count: 0 }) });
+    });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.click(screen.getByText("Errores de sistema"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Mostrando 1-0 de 0 registros")).toBeInTheDocument();
+    }, { timeout: 5000 });
+    // La tabla de errores renderiza sus columnas aunque no haya filas: una
+    // vez que el backend registra 500 reales (con withErrorLogging), estos
+    // aparecen como filas en esta grilla.
+    expect(screen.getByText("Severidad")).toBeInTheDocument();
+    expect(screen.getByText("Endpoint")).toBeInTheDocument();
+  });
 });

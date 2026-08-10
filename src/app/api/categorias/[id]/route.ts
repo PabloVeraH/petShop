@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus } from "@/lib/admin-check";
 import { CategoriaUpdateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 async function requireAdmin(sessionClaims: unknown): Promise<{ storeId: string } | null> {
   const admin = getAdminStatus(sessionClaims as Parameters<typeof getAdminStatus>[0]);
@@ -13,10 +13,8 @@ async function requireAdmin(sessionClaims: unknown): Promise<{ storeId: string }
   return storeId ? { storeId } : null;
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -66,12 +64,10 @@ export async function PATCH(
   }).catch(() => {});
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/categorias/id" });
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -110,4 +106,4 @@ export async function DELETE(
   }).catch(() => {});
 
   return new NextResponse(null, { status: 204 });
-}
+}, { endpoint: "DELETE /api/categorias/id" });

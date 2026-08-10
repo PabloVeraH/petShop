@@ -4,6 +4,18 @@
  */
 import { NextRequest } from "next/server";
 
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope real (lanza fuera de él). Los Route
+    // Handlers ahora usan withErrorLogging (src/lib/audit.ts), que agenda el
+    // log de errores vía after() — mismo patrón que tests/integration/api/
+    // ventas*.test.ts.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
+
 const STORE_ID    = "123e4567-e89b-12d3-a456-426614174000";
 const CAT_ID      = "123e4567-e89b-12d3-a456-426614174099";
 

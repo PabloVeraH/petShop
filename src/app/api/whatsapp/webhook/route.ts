@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
 // Webhook verification (GET) - required by Meta
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const mode = req.nextUrl.searchParams.get("hub.mode");
   const token = req.nextUrl.searchParams.get("hub.verify_token");
   const challenge = req.nextUrl.searchParams.get("hub.challenge");
@@ -24,10 +25,10 @@ export async function GET(req: NextRequest) {
     console.error(`[whatsapp] Integridad: ${stores.length} stores comparten el mismo webhook verify token`);
   }
   return new NextResponse(challenge, { status: 200 });
-}
+}, { endpoint: "GET /api/whatsapp/webhook" });
 
 // Incoming messages (POST)
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   // Verify Meta's HMAC-SHA256 signature before processing
   const appSecret = process.env.WHATSAPP_APP_SECRET;
   if (!appSecret) {
@@ -56,4 +57,4 @@ export async function POST(req: NextRequest) {
   // In production: process messages asynchronously
   // NOTE: Do NOT log the body — it contains customer PII (phone numbers, message content)
   return NextResponse.json({ ok: true });
-}
+}, { endpoint: "POST /api/whatsapp/webhook" });

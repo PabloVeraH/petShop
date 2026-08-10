@@ -1,8 +1,9 @@
 import { getStoreId } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -39,4 +40,4 @@ export async function GET() {
   }
 
   return NextResponse.json({ orderCounts, payableCounts, payableAmounts });
-}
+}, { endpoint: "GET /api/proveedores/stats" });

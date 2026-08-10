@@ -12,7 +12,8 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 jest.mock("@/lib/validation", () => ({
   ...jest.requireActual("@/lib/validation"),
 }));
-jest.mock("@/lib/audit", () => ({ logAudit: jest.fn() }));
+jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler, logAudit: jest.fn() }));
 jest.mock("@clerk/nextjs/server", () => ({
   auth: () => mockAuth(),
 }));

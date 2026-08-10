@@ -4,11 +4,11 @@ import { auth } from "@clerk/nextjs/server";
 import { crearAsiento, lineasAporteCapital } from "@/lib/contabilidad/generador-asientos";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { AporteCapitalSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { createServiceClient } from "@/lib/supabase";
 import { checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, userId } = ctx;
@@ -79,4 +79,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json({ ok: true, asientoId }, { status: 201 });
-}
+}, { endpoint: "POST /api/contabilidad/aporte-capital" });

@@ -1,9 +1,9 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return new NextResponse("Unauthorized", { status: 401 });
   const { storeId: store_id } = ctx;
@@ -82,4 +82,4 @@ export async function GET(req: NextRequest) {
       "Content-Disposition": `attachment; filename="${tipo}-${new Date().toISOString().split("T")[0]}.csv"`,
     },
   });
-}
+}, { endpoint: "GET /api/reports/export" });

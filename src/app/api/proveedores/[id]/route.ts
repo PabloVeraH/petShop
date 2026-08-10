@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 const UpdateProveedorSchema = z.object({
   nombre: z.string().min(1).max(255).optional(),
@@ -12,10 +12,8 @@ const UpdateProveedorSchema = z.object({
   email: z.string().email().optional(),
 });
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -37,12 +35,10 @@ export async function GET(
     .eq("proveedor_id", id);
 
   return NextResponse.json({ ...proveedor, productos: productos ?? [] });
-}
+}, { endpoint: "GET /api/proveedores/id" });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -91,4 +87,4 @@ export async function PATCH(
   }).catch(() => {});
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/proveedores/id" });

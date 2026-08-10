@@ -3,8 +3,9 @@ import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, resolveAdminContext } from "@/lib/admin-check";
 import { UserSessionsQuerySchema } from "@/lib/validation";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims, userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -49,4 +50,4 @@ export async function GET(req: NextRequest) {
     offset,
     limit,
   });
-}
+}, { endpoint: "GET /api/user-sessions" });

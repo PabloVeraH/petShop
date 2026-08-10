@@ -45,6 +45,7 @@ jest.mock("@/lib/hub-sync", () => ({
 }));
 
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit:           jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));

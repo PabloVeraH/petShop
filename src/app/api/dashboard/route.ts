@@ -4,8 +4,9 @@ import { getAdminStatus } from "@/lib/admin-check";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { startOfDay, endOfDay } from "date-fns";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, userId } = ctx;
@@ -164,4 +165,4 @@ export async function GET() {
     ventasPorCanal,
     ventasPorProcedencia,
   });
-}
+}, { endpoint: "GET /api/dashboard" });

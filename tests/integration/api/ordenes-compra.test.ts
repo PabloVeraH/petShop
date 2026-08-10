@@ -6,6 +6,7 @@ jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos");
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn(() => ({ ipAddress: "127.0.0.1", userAgent: "test" })),
 }));

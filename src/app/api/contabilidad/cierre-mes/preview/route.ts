@@ -4,8 +4,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { computeCierrePreview } from "@/lib/contabilidad/cierre-mes";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -35,4 +36,4 @@ export async function GET(req: NextRequest) {
   const preview = await computeCierrePreview(supabase, store_id, mes, año, calcular_costo_venta);
 
   return NextResponse.json(preview);
-}
+}, { endpoint: "GET /api/contabilidad/cierre-mes/preview" });

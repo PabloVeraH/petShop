@@ -3,10 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { UserDisableSchema } from "@/lib/validation";
-import { logAudit } from "@/lib/audit";
+import { logAudit, withErrorLogging } from "@/lib/audit";
 import { getAdminStatus, requireSystemAdminConsistent } from "@/lib/admin-check";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
     .eq("system_admin", false);
 
   return NextResponse.json(users ?? []);
-}
+}, { endpoint: "GET /api/admin/license/users" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -82,4 +82,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ success: true });
-}
+}, { endpoint: "POST /api/admin/license/users" });

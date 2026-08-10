@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { ServicioExcepcionCreateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 async function servicioDeLaTienda(servicioId: string, storeId: string) {
   const supabase = createServiceClient();
@@ -19,10 +19,8 @@ async function servicioDeLaTienda(servicioId: string, storeId: string) {
 
 // GET /api/servicios/[id]/excepciones — lista de feriados/cierres del servicio.
 // Abierto a cualquier usuario autenticado de la tienda (consulta, igual que horarios).
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -41,14 +39,12 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/servicios/id/excepciones" });
 
 // POST /api/servicios/[id]/excepciones — agregar un feriado/cierre.
 // Solo storeAdmin/systemAdmin (es configuración, igual que horarios en Fase 1).
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -108,4 +104,4 @@ export async function POST(
   }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/servicios/id/excepciones" });

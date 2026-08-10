@@ -3,9 +3,9 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
 import { crearAsiento, lineasNotaCredito, lineasNotaCreditoCOGS } from "@/lib/contabilidad/generador-asientos";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, systemAdmin } = ctx;
@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Error al cargar notas de crédito" }, { status: 500 });
   return NextResponse.json({ data: notas ?? [] });
-}
+}, { endpoint: "GET /api/notas-credito" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -194,4 +194,4 @@ export async function POST(req: NextRequest) {
     montoNc: montoTotal,
     fechaVencimiento: fechaVencimiento.toISOString().split("T")[0],
   });
-}
+}, { endpoint: "POST /api/notas-credito" });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
+import { withErrorLogging } from "@/lib/audit";
 
 const createPostSchema = z.object({
   content_type: z.enum(["post", "story", "carousel"]),
@@ -16,7 +17,7 @@ const createPostSchema = z.object({
   scheduled_for: z.string().datetime().optional(),
 });
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -40,9 +41,9 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(data ?? []);
-}
+}, { endpoint: "GET /api/canales/instagram/posts" });
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -99,4 +100,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(post, { status: 201 });
-}
+}, { endpoint: "POST /api/canales/instagram/posts" });

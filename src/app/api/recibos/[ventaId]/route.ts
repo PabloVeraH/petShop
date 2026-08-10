@@ -2,11 +2,10 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ ventaId: string }> }
-) {
+export const GET = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ ventaId: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
@@ -79,7 +78,7 @@ export async function GET(
     numeroComprobante: venta.numero_comprobante,
     total: venta.total,
   });
-}
+}, { endpoint: "GET /api/recibos/ventaId" });
 
 interface ReciboDatos {
   venta: any;

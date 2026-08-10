@@ -24,6 +24,18 @@
  */
 import { NextRequest } from "next/server";
 
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    // after() requiere request scope real (lanza fuera de él). Los Route
+    // Handlers ahora usan withErrorLogging (src/lib/audit.ts), que agenda el
+    // log de errores vía after() — mismo patrón que tests/integration/api/
+    // ventas*.test.ts.
+    after: jest.fn((cb: () => void) => cb()),
+  };
+});
+
 const mockAuth = jest.fn();
 
 jest.mock("@/lib/auth");

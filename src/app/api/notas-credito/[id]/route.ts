@@ -1,11 +1,10 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { withErrorLogging } from "@/lib/audit";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, systemAdmin } = ctx;
@@ -31,4 +30,4 @@ export async function GET(
     .single();
 
   return NextResponse.json({ ...nc, storeName: store?.name ?? "PetShop" });
-}
+}, { endpoint: "GET /api/notas-credito/id" });

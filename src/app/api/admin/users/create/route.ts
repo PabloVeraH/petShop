@@ -3,7 +3,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireStoreAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
 import { AdminUserCreateFullSchema } from "@/lib/validation";
-import { logError } from "@/lib/audit";
+import { logError, withErrorLogging } from "@/lib/audit";
 
 type ClerkApiError = {
   errors: { code?: string; longMessage?: string; message?: string }[];
@@ -119,7 +119,7 @@ async function createClerkUser(
   return NextResponse.json({ ok: true, clerkId: clerkUser.id });
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const { sessionClaims } = await auth();
   const admin = getAdminStatus(sessionClaims);
 
@@ -203,4 +203,4 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+}, { endpoint: "POST /api/admin/users/create" });

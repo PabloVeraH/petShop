@@ -4,12 +4,12 @@ import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { EncargadoCreateSchema } from "@/lib/validation";
-import { logAudit, getRequestMetadata } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 
 // GET /api/encargados — encargados activos de la tienda con conteo de citas
 // (citas_totales / citas_completadas). Lectura abierta a cualquier usuario
 // autenticado de la tienda (igual que GET /api/servicios).
-export async function GET() {
+export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = createServiceClient();
@@ -48,11 +48,11 @@ export async function GET() {
   }));
 
   return NextResponse.json(result);
-}
+}, { endpoint: "GET /api/encargados" });
 
 // POST /api/encargados — crear un encargado. Solo storeAdmin / systemAdmin.
 // store_id SIEMPRE del contexto autenticado; el schema no acepta store_id del body.
-export async function POST(req: NextRequest) {
+export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -115,4 +115,4 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
-}
+}, { endpoint: "POST /api/encargados" });

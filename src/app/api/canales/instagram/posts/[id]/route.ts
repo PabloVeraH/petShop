@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
+import { withErrorLogging } from "@/lib/audit";
 
 const updatePostSchema = z.object({
   caption: z.string().max(2200).optional(),
@@ -14,10 +15,8 @@ const updatePostSchema = z.object({
   scheduled_for: z.string().datetime().optional(),
 });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const PATCH = withErrorLogging(async (req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -68,12 +67,10 @@ export async function PATCH(
   }
 
   return NextResponse.json(data);
-}
+}, { endpoint: "PATCH /api/canales/instagram/posts/id" });
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withErrorLogging(async (_req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
@@ -110,4 +107,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ status: "deleted" }, { status: 200 });
-}
+}, { endpoint: "DELETE /api/canales/instagram/posts/id" });

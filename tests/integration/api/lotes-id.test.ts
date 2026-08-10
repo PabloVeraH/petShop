@@ -19,6 +19,7 @@ jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/admin-check", () => ({ getAdminStatus: mockGetAdminStatus }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockReturnValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
   getChangedFields: jest.requireActual("@/lib/audit").getChangedFields,
