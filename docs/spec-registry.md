@@ -382,6 +382,9 @@ I-406/I-407/I-408.
 | I-463 | Nuevo mecanismo: retorna 500 si crearAsiento falla | POST /api/contabilidad/aporte-capital | integration |
 | I-504 | REGRESIÓN (ticket Trello 6a77ed665c4d8a8c726111ac): período de la fecha ya cerrado (existe CIERRE_MES) → 409 accionable ("elige una fecha dentro de un período abierto"), NO 500 genérico; crearAsiento no se llama | POST /api/contabilidad/aporte-capital | integration |
 | I-505 | Fecha dentro de un período abierto → 201 y crearAsiento recibe esa fecha | POST /api/contabilidad/aporte-capital | integration |
+| I-506 | REGRESIÓN (mismo ticket, hallazgo extendido durante esa revisión): mismo defecto en el asiento manual — período de la fecha ya cerrado → 409 accionable, NO 500 genérico; crearAsiento no se llama | POST /api/contabilidad/asientos | integration |
+| I-507 | Fecha dentro de un período abierto → 201 y crearAsiento recibe esa fecha con tipoMovimiento AJUSTE y creadoPor "manual" | POST /api/contabilidad/asientos | integration |
+| I-508 | crearAsiento retorna null por una causa no relacionada a período (ej. colisión de numero_asiento) → 500 (el chequeo de período no reemplaza este manejo de error existente) | POST /api/contabilidad/asientos | integration |
 | I-464 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): motivo con menos de 5 caracteres → 400 (sigue opcional, pero si se ingresa algo exige mínimo de trazabilidad) | POST /api/notas-credito | integration |
 | I-465 | MEJORA: motivo con exactamente 5 caracteres → aceptado | POST /api/notas-credito | integration |
 | I-466 | MEJORA (ticket Trello 6a62eb3057bc5972b4ca8dcc): notas (motivo del ajuste) con menos de 5 caracteres → 400 | PATCH /api/inventario/[id] | integration |

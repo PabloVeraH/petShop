@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { crearAsiento } from "@/lib/contabilidad/generador-asientos";
+import { checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
 
 const LineaSchema = z.object({
   cuenta_codigo: z.string().min(1).max(20),
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+  const supabase = createServiceClient();
 
   const body = await req.json();
   const parsed = AsientoManualSchema.safeParse(body);
@@ -78,6 +80,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: `Asiento no balanceado: débito ${totalD} ≠ crédito ${totalC}` },
       { status: 400 }
+    );
+  }
+
+  // El período contable ya puede estar cerrado. crearAsiento() rechaza
+  // asientos con tipoMovimiento distinto de CIERRE_MES/ANULACION_VENTA (este
+  // endpoint usa "AJUSTE", no exento) cuya fecha caiga en un período cerrado
+  // (retorna null), pero sin este chequeo explícito el motivo se pierde en
+  // el 500 genérico "Error creando asiento". Mismo patrón y causa raíz que
+  // el fix de POST /api/contabilidad/aporte-capital (ticket Trello
+  // 6a77ed665c4d8a8c726111ac) — encontrado durante esa revisión: este
+  // endpoint es igualmente síncrono y visible al usuario, y acepta una
+  // fecha arbitraria del cliente sin validar contra períodos cerrados.
+  const periodo = fecha.substring(0, 7);
+  const cierres = await checkExistingCierre(supabase, store_id, periodo);
+  if (cierres > 0) {
+    return NextResponse.json(
+      {
+        error: `El período ${periodo} ya está cerrado. Elige una fecha dentro de un período abierto para registrar este asiento.`,
+      },
+      { status: 409 }
     );
   }
 
@@ -100,7 +122,6 @@ export async function POST(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "Error creando asiento" }, { status: 500 });
 
-  const supabase = createServiceClient();
   const { data } = await supabase
     .from("journal_entries")
     .select("*, journal_detail(*)")
