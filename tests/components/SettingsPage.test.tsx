@@ -99,8 +99,10 @@ describe("SettingsPage — Licencia section", () => {
 
     // "Activa" appears in the badge AND in the Estado field
     expect(screen.getAllByText("Activa").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(new Date(start).toLocaleDateString("es-CL"))).toBeInTheDocument();
-    expect(screen.getByText(new Date(end).toLocaleDateString("es-CL"))).toBeInTheDocument();
+    // C-45 (corregido): la fecha se formatea SIN desfase de zona horaria —
+    // se parsea la cadena "YYYY-MM-DD" como medianoche local, no como UTC
+    expect(screen.getByText(new Date(start + "T00:00:00").toLocaleDateString("es-CL"))).toBeInTheDocument();
+    expect(screen.getByText(new Date(end + "T00:00:00").toLocaleDateString("es-CL"))).toBeInTheDocument();
   });
 
   // C-46: no license dates
@@ -215,5 +217,43 @@ describe("SettingsPage — Licencia section", () => {
     });
 
     expect(screen.queryByText(/Ir a Administración/i)).not.toBeInTheDocument();
+  });
+
+  // C-60: REGRESIÓN (ticket Trello 6a77ef3a0ed45ac54505c62a) — las fechas de
+  // licencia se muestran iguales a las almacenadas (columna DATE "YYYY-MM-DD").
+  // Valores reales del repro en producción: inicio 2026-05-01, término
+  // 2026-12-31. Antes del fix, new Date("2026-05-01") se parseaba como UTC y en
+  // América/Santiago la pantalla mostraba 30-04-2026 / 30-12-2026 (1 día antes
+  // que Admin > Licencia). Con el fix ambas vistas muestran 01-05-2026 y
+  // 31-12-2026, sin importar el huso del navegador (la comparación aquí es
+  // contra el texto renderizado, no contra un Date).
+  it("C-60: fechas de licencia sin desfase de 1 día (iguales a las almacenadas)", async () => {
+    mockUseAuth = {
+      userId: "admin-1",
+      sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } },
+    };
+    await renderPage({
+      id: "store-1",
+      name: "PetShop Test",
+      whatsapp_access_token: "",
+      license_start_date: "2026-05-01",
+      license_end_date: "2026-12-31",
+      license_warning_days: 3,
+      fidelizacion_niveles: [],
+      ciudad: "",
+      lat: null,
+      lon: null,
+      direccion: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Licencia")).toBeInTheDocument();
+    });
+
+    // Mismas fechas que muestra Admin > Licencia, sin el día de desfase.
+    expect(screen.getByText("01-05-2026")).toBeInTheDocument();
+    expect(screen.getByText("31-12-2026")).toBeInTheDocument();
+    expect(screen.queryByText("30-04-2026")).not.toBeInTheDocument();
+    expect(screen.queryByText("30-12-2026")).not.toBeInTheDocument();
   });
 });

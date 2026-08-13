@@ -8,7 +8,7 @@
  * DA-06: contador muestra el total real, no el largo de la lista recortada a 10
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -225,5 +225,73 @@ describe("AnaliticaTab — widget Stock bajo mínimo", () => {
 
     expect(screen.getByText("13")).toBeInTheDocument();
     expect(screen.queryByText("10")).not.toBeInTheDocument();
+  });
+
+  // DA-11 — REGRESIÓN (ticket Trello 6a77ef3a0ed45ac54505c62a): el widget de
+  // vencimientos por producto mostraba la fecha con new Date("YYYY-MM-DD")
+  // (medianoche UTC) → en América/Santiago un día antes de lo almacenado.
+  // Con fecha fija 2026-05-01 debe mostrar "vence 01-05-2026", no "30-04-2026".
+  it("DA-11: vencimiento de producto muestra la fecha almacenada sin desfase de 1 día", async () => {
+    endpoints.push({ path: "/api/dashboard/stock-alertas", ok: true, status: 200, body: { total: 0, items: [] } });
+    endpoints = endpoints.filter((e) => e.path !== "/api/dashboard/vencimientos");
+    endpoints.push({
+      path: "/api/dashboard/vencimientos",
+      ok: true,
+      status: 200,
+      body: {
+        vencidos: [
+          { id: "v1", nombre: "Alimento Vencido", sku: "ALI-1", stock: 3, fecha_vencimiento: "2026-05-01" },
+        ],
+        proximos: [],
+        lotes: { vencidos: [], proximos: [] },
+        totalUnidadesVencidas: 3,
+      },
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText(/vence 01-05-2026/)).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    expect(screen.queryByText(/vence 30-04-2026/)).not.toBeInTheDocument();
+  });
+
+  // DA-12 — REGRESIÓN (mismo ticket): un lote que vence HOY (fecha local
+  // actual) está en "próximos" y debe mostrar "vence en 0 días". Antes del fix
+  // el parseo UTC lo desplazaba a "ayer" y mostraba "vence en -1 días".
+  it("DA-12: lote que vence hoy muestra 'vence en 0 días', no '-1 días'", async () => {
+    const hoy = new Date();
+    const hoyLocal = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    endpoints.push({ path: "/api/dashboard/stock-alertas", ok: true, status: 200, body: { total: 0, items: [] } });
+    endpoints = endpoints.filter((e) => e.path !== "/api/dashboard/vencimientos");
+    endpoints.push({
+      path: "/api/dashboard/vencimientos",
+      ok: true,
+      status: 200,
+      body: {
+        vencidos: [],
+        proximos: [],
+        lotes: {
+          vencidos: [],
+          proximos: [
+            { id: "l1", numero_lote: "L-001", cantidad_actual: 5, fecha_vencimiento: hoyLocal, producto: { id: "p1", nombre: "Pienso Adulto", sku: "PIE-1" } },
+          ],
+        },
+        totalUnidadesVencidas: 0,
+      },
+    });
+    setup();
+
+    // Cambia a la pestaña "Por lote"
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Por lote" })).toBeInTheDocument();
+    }, { timeout: 3000 });
+    fireEvent.click(screen.getByRole("button", { name: "Por lote" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Pienso Adulto")).toBeInTheDocument();
+    }, { timeout: 3000 });
+    expect(screen.getByText("vence en 0 dias")).toBeInTheDocument();
+    expect(screen.queryByText(/vence en -1 dias/)).not.toBeInTheDocument();
   });
 });

@@ -110,6 +110,18 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | AL-05 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): los links del sidebar nacen con prefetch=false y se activan solo tras mouseEnter — cada `<Link>` visible disparaba un prefetch RSC en producción; con 14 rutas el sidebar generaba decenas de peticiones simultáneas (503 intermitentes) | AppLayout | component |
 | C-58 | REGRESIÓN (revisión del ticket 6a76ccfa629628db21ebbe60, mismo patrón sin corregir en otro widget): SugerenciasRecompra renderiza un `<Link href="/purchases">` por cada sugerencia dentro de `data.map()` — nace con prefetch=false y se activa solo tras mouseEnter | SugerenciasRecompra | component |
 | C-59 | Tab "Errores de sistema" con 0 registros muestra la grilla vacía "Mostrando 1-0 de 0 registros" y sus columnas (Severidad, Endpoint) — síntoma del ticket 6a77eec7a32c85d594ee7a62; una vez que el backend registra 500 reales (withErrorLogging) estos aparecen como filas en esta grilla | AuditoriaCard | component |
+| C-60 | REGRESIÓN (ticket 6a77ef3a0ed45ac54505c62a): fechas de licencia de Settings se muestran SIN desfase de 1 día (01-05-2026 y 31-12-2026 con los valores reales del repro, no 30-04-2026/30-12-2026) | SettingsPage | component |
+
+## LicenciaCard (C-61 a C-64)
+
+REGRESIÓN del mismo ticket 6a77ef3a0ed45ac54505c62a (parseo UTC de fechas "YYYY-MM-DD" → 1 día de desfase en América/Santiago). `LicenciaCard` (Admin > Licencia) parseaba `license_end_date` con `new Date(...)` (medianoche UTC); con `parseDateOnlyLocal` la preview y los inputs usan la fecha almacenada.
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| C-61 | preview del banner usa la fecha almacenada sin desfase (fin 2026-05-01 − 7d = 24-04-2026, no 23-04-2026) | LicenciaCard | component |
+| C-62 | inputs de fecha muestran el valor almacenado (2026-05-01 y 2026-12-31) | LicenciaCard | component |
+| C-63 | status.isAutoBlocked → muestra VENCIDA | LicenciaCard | component |
+| C-64 | sin license_end_date → muestra "Sin configurar" | LicenciaCard | component |
 
 ## Notas de Crédito (I-100 a I-115)
 
@@ -466,6 +478,27 @@ I-406/I-407/I-408.
 | MW-27 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): stale JWT (JWT systemAdmin, DB storeAdmin) → acceso denegado a /admin | middleware-routing | unit |
 | MW-28 | JWT y DB confirman systemAdmin → acceso permitido a /admin | middleware-routing | unit |
 
+## Control de licencia — cálculo y middleware (LC-XX)
+
+`computeLicenseStatus` (src/lib/license.ts) y middleware de licencia. Los tests LC-01..LC-16 (preexistentes) no están registrados aquí; LC-17..LC-21 son la regresión del ticket 6a77ef3a0ed45ac54505c62a (parseo de `license_end_date` "YYYY-MM-DD" como medianoche LOCAL, no UTC): el fin de la licencia se compara contra "hoy" local del servidor y el bloqueo ocurre solo cuando hoy > fin.
+
+| ID | Requisito | Dónde | Tipo |
+|----|-----------|-------|------|
+| LC-17 | fin = hoy (fecha local) → no bloqueo, en período de aviso (hoy es el último día válido) | license-control | integration |
+| LC-18 | fin = ayer (fecha local) → isAutoBlocked=true | license-control | integration |
+| LC-19 | fin = hoy + warning_days (fecha local) → isInWarningPeriod=true, no bloqueo | license-control | integration |
+| LC-20 | fin = hoy + warning_days + 1 → aún NO en aviso | license-control | integration |
+| LC-21 | fin = hoy + 10 → daysUntilExpiry = 10 (sin desplazamiento por zona horaria) | license-control | integration |
+
+## Unit — src/lib/dates.ts (U-150, U-151)
+
+REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea como medianoche UTC y formateado en América/Santiago desplaza la fecha 1 día antes. `parseDateOnlyLocal`/`formatDateOnlyEsCL` usan el sufijo `T00:00:00` para parsear en hora local y preservar el día sin importar el huso del proceso.
+
+| ID | Requisito | Dónde | Tipo |
+|----|-----------|-------|------|
+| U-150 | parseDateOnlyLocal: "2026-12-31" → medianoche LOCAL del 31-12 (no 30-12 por UTC) | lib/dates | unit |
+| U-151 | formatDateOnlyEsCL: "2026-05-01" → "01-05-2026" y "2026-12-31" → "31-12-2026", sin desfase | lib/dates | unit |
+
 ## AdminPage (AP-XX)
 
 | ID | Requisito | Componente | Tipo |
@@ -746,6 +779,8 @@ código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
 | DA-07 | REGRESIÓN (ticket Trello 6a77edec41f13cebd89d3d1e): los KPICard reales muestran las métricas corregidas del endpoint — "Transacciones" neta (1) y "Ticket promedio" ($8.990) consistente con "Ventas hoy" en el escenario del ticket (3 ventas, 2 devueltas) | AnaliticaTab | component |
 | DA-08 | Con N transacciones, la tarjeta muestra el conteo y el promedio formateado según el payload del endpoint | AnaliticaTab | component |
 | DA-09 | Sin ventas (0/0/$0) la UI no muestra NaN | AnaliticaTab | component |
+| DA-11 | REGRESIÓN (ticket 6a77ef3a0ed45ac54505c62a): vencimiento de producto muestra la fecha almacenada sin desfase de 1 día ("vence 01-05-2026", no "30-04-2026" por parseo UTC) | AnaliticaTab | component |
+| DA-12 | REGRESIÓN (ticket 6a77ef3a0ed45ac54505c62a): lote que vence HOY muestra "vence en 0 días" (no "-1 días" por desfase UTC en el parseo de `lotes.proximos`) | AnaliticaTab | component |
 
 ## POS Page Cache y auto-asignación de vendedor (PP-05 a PP-11)
 

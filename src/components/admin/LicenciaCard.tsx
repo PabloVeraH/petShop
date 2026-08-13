@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import { parseDateOnlyLocal } from "@/lib/dates";
 
 interface LicenseConfig {
   license_start_date: string | null;
@@ -165,7 +166,7 @@ export function LicenciaCard() {
           {licenseData?.config.license_end_date && licenseData?.config.license_warning_days && (
             <p className="text-sm text-gray-500">
               El banner de aviso aparecerá{" "}
-              {new Date(new Date(licenseData.config.license_end_date).getTime() - licenseData.config.license_warning_days * 24 * 60 * 60 * 1000).toLocaleDateString("es-CL")}
+              {new Date(parseDateOnlyLocal(licenseData.config.license_end_date).getTime() - licenseData.config.license_warning_days * 24 * 60 * 60 * 1000).toLocaleDateString("es-CL")}
             </p>
           )}
 

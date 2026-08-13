@@ -1,3 +1,5 @@
+import { parseDateOnlyLocal } from "@/lib/dates";
+
 export interface LicenseStatus {
   isAutoBlocked: boolean;
   isInWarningPeriod: boolean;
@@ -15,8 +17,10 @@ export function computeLicenseStatus(store: {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const endDate = new Date(store.license_end_date);
-  endDate.setHours(0, 0, 0, 0);
+  // Parsear "YYYY-MM-DD" como medianoche local (no UTC) para que hoy === fin
+  // sea "último día válido" y el bloqueo ocurra cuando hoy > fin, sin desfase
+  // de 1 día por zona horaria (ticket Trello 6a77ef3a0ed45ac54505c62a).
+  const endDate = parseDateOnlyLocal(store.license_end_date);
 
   const msPerDay = 1000 * 60 * 60 * 24;
   const daysUntilExpiry = Math.ceil((endDate.getTime() - today.getTime()) / msPerDay);

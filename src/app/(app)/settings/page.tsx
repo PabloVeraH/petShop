@@ -7,6 +7,7 @@ import Link from "next/link";
 import StoreLocationPicker from "@/components/StoreLocationPicker";
 import { ClerkDevWarning } from "@/components/admin/ClerkDevWarning";
 import { computeLicenseStatus } from "@/lib/license";
+import { formatDateOnlyEsCL } from "@/lib/dates";
 
 interface FidelizacionNivel {
   monto: number;
@@ -393,7 +394,7 @@ export default function SettingsPage() {
               <span className="block text-gray-500 mb-1">Fecha de inicio</span>
               <span className="font-medium text-gray-800">
                 {settings.license_start_date
-                  ? new Date(settings.license_start_date).toLocaleDateString("es-CL")
+                  ? formatDateOnlyEsCL(settings.license_start_date)
                   : "—"}
               </span>
             </div>
@@ -401,7 +402,7 @@ export default function SettingsPage() {
               <span className="block text-gray-500 mb-1">Fecha de término</span>
               <span className="font-medium text-gray-800">
                 {settings.license_end_date
-                  ? new Date(settings.license_end_date).toLocaleDateString("es-CL")
+                  ? formatDateOnlyEsCL(settings.license_end_date)
                   : "—"}
               </span>
             </div>

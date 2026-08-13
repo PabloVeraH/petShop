@@ -10,6 +10,7 @@ import AlertasConsumo from "./AlertasConsumo";
 import SugerenciasRecompra from "./SugerenciasRecompra";
 import VentasPorCanal from "./VentasPorCanal";
 import VentasPorProcedencia from "./VentasPorProcedencia";
+import { formatDateOnlyEsCL, parseDateOnlyLocal } from "@/lib/dates";
 
 type StockAlerta = {
   id: string;
@@ -260,7 +261,7 @@ export default function AnaliticaTab() {
                         {p.stock} ud
                       </span>
                       <span className="text-red-600 whitespace-nowrap">
-                        vence {new Date(p.fecha_vencimiento).toLocaleDateString("es-CL")}
+                        vence {formatDateOnlyEsCL(p.fecha_vencimiento)}
                       </span>
                     </div>
                   ))}
@@ -302,7 +303,7 @@ export default function AnaliticaTab() {
                 <div className="space-y-2">
                   {vencData!.lotes.vencidos.map((l: LoteDashboard) => {
                     const diasRestantes = Math.ceil(
-                      (new Date(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
+                      (parseDateOnlyLocal(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
                     );
                     return (
                       <div key={l.id} className="flex items-center justify-between text-sm">
@@ -331,7 +332,7 @@ export default function AnaliticaTab() {
                 <div className="space-y-2">
                   {vencData!.lotes.proximos.map((l: LoteDashboard) => {
                     const diasRestantes = Math.ceil(
-                      (new Date(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
+                      (parseDateOnlyLocal(l.fecha_vencimiento).getTime() - new Date().getTime()) / 86400000
                     );
                     return (
                       <div key={l.id} className="flex items-center justify-between text-sm">

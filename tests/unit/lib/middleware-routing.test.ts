@@ -268,10 +268,16 @@ describe("Middleware — license check fail-open", () => {
 
   // MW-13: store con licencia vigente → permite el request
   it("MW-13: licencia vigente → request pasa", async () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 30);
+    const futuro = new Date();
+    futuro.setDate(futuro.getDate() + 30);
+    // Fecha construida con partes locales: toISOString().split("T")[0]
+    // desplaza por zona horaria y cerca de medianoche devuelve el día
+    // siguiente (el fix de fechas de licencia lo expuso: ticket 6a77ef3a).
+    const y = futuro.getFullYear();
+    const m = String(futuro.getMonth() + 1).padStart(2, "0");
+    const d = String(futuro.getDate()).padStart(2, "0");
     const fetchStore = () => Promise.resolve({
-      license_end_date: tomorrow.toISOString().split("T")[0],
+      license_end_date: `${y}-${m}-${d}`,
       license_warning_days: 7,
     });
     const result = await simulateLicenseCheck(fetchStore);
@@ -280,10 +286,13 @@ describe("Middleware — license check fail-open", () => {
 
   // MW-14: store con licencia vencida → bloquea (redirige a /sistema-suspendido)
   it("MW-14: licencia vencida → request bloqueado", async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const ayer = new Date();
+    ayer.setDate(ayer.getDate() - 1);
+    const y = ayer.getFullYear();
+    const m = String(ayer.getMonth() + 1).padStart(2, "0");
+    const d = String(ayer.getDate()).padStart(2, "0");
     const fetchStore = () => Promise.resolve({
-      license_end_date: yesterday.toISOString().split("T")[0],
+      license_end_date: `${y}-${m}-${d}`,
       license_warning_days: 7,
     });
     const result = await simulateLicenseCheck(fetchStore);

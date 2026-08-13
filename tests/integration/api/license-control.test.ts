@@ -53,26 +53,107 @@ describe("computeLicenseStatus", () => {
     expect(result.daysUntilExpiry).toBe(null);
   });
 
-  it("LC-05: exactamente en el día de vencimiento → isAutoBlocked=true", () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // LC-05 (CORREGIDO, ticket 6a77ef3a): fin = HOY → último día válido → NO
+  // bloqueo y daysUntilExpiry = 0. El test anterior afirmaba bloqueado el día
+  // del vencimiento porque el parseo UTC desplazaba el fin al día anterior
+  // (el bug); el contrato del middleware ("Si hoy > este valor el middleware
+  // bloquea acceso") exige bloqueo cuando hoy > fin, es decir, al día siguiente.
+  it("LC-05: fin = hoy (fecha local) → no bloqueo, daysUntilExpiry = 0", () => {
     const result = computeLicenseStatus({
-      license_end_date: today.toISOString().split("T")[0],
+      license_end_date: localDateString(new Date()),
+      license_warning_days: 7,
+    });
+    expect(result.isAutoBlocked).toBe(false);
+    expect(result.daysUntilExpiry).toBe(0);
+  });
+
+  // LC-06 (CORREGIDO, ticket 6a77ef3a): fin = hoy + 7 días → día de aviso →
+  // isInWarningPeriod=true. Construido con partes locales para no depender de
+  // la hora del día en que corre el test (toISOString desplaza por zona).
+  it("LC-06: fin = hoy + warning_days (fecha local) → isInWarningPeriod=true", () => {
+    const result = computeLicenseStatus({
+      license_end_date: localDateString(addDays(new Date(), 7)),
+      license_warning_days: 7,
+    });
+    expect(result.isAutoBlocked).toBe(false);
+    expect(result.isInWarningPeriod).toBe(true);
+  });
+});
+
+// Tickets Trello 6a77ef3a0ed45ac54505c62a — desfase de 1 día en fechas de
+// licencia. `computeLicenseStatus` parseaba license_end_date ("YYYY-MM-DD",
+// columna DATE) con new Date("...") = medianoche UTC; en América/Santiago
+// (UTC-3/-4) la fecha quedaba 1 día antes y el bloqueo/aviso se activaba un
+// día antes. Las fechas fecha-local se construyen con partes locales (no
+// toISOString, que desplaza por zona horaria) para que el test sea
+// independiente del huso del runner.
+function localDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+describe("computeLicenseStatus — desfase de 1 día por zona horaria (ticket 6a77ef3a)", () => {
+  // LC-17: REGRESIÓN — licencia que vence HOY (último día válido, hoy === fin)
+  // no debe bloquear: el auto-bloqueo es cuando hoy > fin (contrato del
+  // middleware: "Si hoy > este valor el middleware bloquea acceso"). También
+  // debe estar en período de aviso. Antes del fix el fin se leía como "ayer"
+  // y el ítem quedaba bloquedado el mismo día del vencimiento.
+  it("LC-17: fin = hoy → no bloqueo, en período de aviso (hoy es el último día válido)", () => {
+    const result = computeLicenseStatus({
+      license_end_date: localDateString(new Date()),
+      license_warning_days: 7,
+    });
+    expect(result.isAutoBlocked).toBe(false);
+    expect(result.isInWarningPeriod).toBe(true);
+  });
+
+  // LC-18: fin = ayer → bloqueado (también se cubre MW-14)
+  it("LC-18: fin = ayer → isAutoBlocked=true", () => {
+    const result = computeLicenseStatus({
+      license_end_date: localDateString(addDays(new Date(), -1)),
       license_warning_days: 7,
     });
     expect(result.isAutoBlocked).toBe(true);
     expect(result.daysUntilExpiry).toBe(null);
   });
 
-  it("LC-06: exactamente en día de aviso → isInWarningPeriod=true", () => {
-    const warningDay = new Date();
-    warningDay.setDate(warningDay.getDate() + 7);
+  // LC-19: fin = hoy + dias_aviso → empieza el período de aviso (límite)
+  it("LC-19: fin = hoy + warning_days → isInWarningPeriod=true, no bloqueo", () => {
     const result = computeLicenseStatus({
-      license_end_date: warningDay.toISOString().split("T")[0],
+      license_end_date: localDateString(addDays(new Date(), 7)),
       license_warning_days: 7,
     });
     expect(result.isAutoBlocked).toBe(false);
     expect(result.isInWarningPeriod).toBe(true);
+  });
+
+  // LC-20: REGRESIÓN — fin = hoy + warning_days + 1 → aún NO está en el
+  // período de aviso. Antes del fix el límite se desplazaba 1 día antes y
+  // este día ya caía dentro del aviso.
+  it("LC-20: fin = hoy + warning_days + 1 → aún NO en aviso", () => {
+    const result = computeLicenseStatus({
+      license_end_date: localDateString(addDays(new Date(), 8)),
+      license_warning_days: 7,
+    });
+    expect(result.isAutoBlocked).toBe(false);
+    expect(result.isInWarningPeriod).toBe(false);
+  });
+
+  // LC-21: días restantes coinciden con el valor de la columna (sin desfase)
+  it("LC-21: fin = hoy + 10 → daysUntilExpiry = 10 (sin desplazamiento de zona)", () => {
+    const result = computeLicenseStatus({
+      license_end_date: localDateString(addDays(new Date(), 10)),
+      license_warning_days: 7,
+    });
+    expect(result.daysUntilExpiry).toBe(10);
   });
 });
 
