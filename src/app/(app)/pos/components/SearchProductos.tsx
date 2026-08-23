@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ImageOff } from "lucide-react";
 import type { Producto } from "@/types";
 import { usePOSStore } from "@/stores/pos";
 import { getProductos } from "../api";
@@ -17,6 +18,9 @@ export default function SearchProductos() {
   const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
   const [gramosInput, setGramosInput] = useState<string>("");
   const [stockWarning, setStockWarning] = useState<string | null>(null);
+  // Miniaturas con error de carga (URL rota en R2) — cae al placeholder en vez
+  // de mostrar el ícono de imagen quebrada del navegador.
+  const [imgErrorIds, setImgErrorIds] = useState<Set<string>>(new Set());
   const stockWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addItem, mascotaId, items } = usePOSStore();
@@ -256,43 +260,63 @@ export default function SearchProductos() {
                     : "hover:bg-green-50"
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
-                  {sinPrecio && (
-                    <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
-                      Sin precio
-                    </span>
+                <div className="flex gap-3">
+                  {prod.imagen_url && !imgErrorIds.has(prod.id) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={prod.imagen_url}
+                      alt={prod.nombre}
+                      className="w-14 h-14 rounded object-cover border border-gray-100 shrink-0"
+                      onError={() =>
+                        setImgErrorIds((prev) => new Set(prev).add(prod.id))
+                      }
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                      <ImageOff className="w-5 h-5 text-gray-300" aria-hidden="true" />
+                    </div>
                   )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex flex-col">
-                    {sinPrecio ? (
-                      <span className="text-sm text-gray-400">—</span>
-                    ) : prod.en_oferta && prod.precio_oferta ? (
-                      <>
-                        <span className="text-xs text-gray-500 line-through">
-                          ${(prod.precio ?? 0).toLocaleString("es-CL")}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm leading-tight flex-1">{prod.nombre}</p>
+                      {sinPrecio && (
+                        <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                          Sin precio
                         </span>
-                        <span className="text-sm font-bold text-green-700">
-                          ${precioFinal!.toLocaleString("es-CL")}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm font-bold text-green-700">
-                        ${precioFinal!.toLocaleString("es-CL")}
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex flex-col">
+                        {sinPrecio ? (
+                          <span className="text-sm text-gray-400">—</span>
+                        ) : prod.en_oferta && prod.precio_oferta ? (
+                          <>
+                            <span className="text-xs text-gray-500 line-through">
+                              ${(prod.precio ?? 0).toLocaleString("es-CL")}
+                            </span>
+                            <span className="text-sm font-bold text-green-700">
+                              ${precioFinal!.toLocaleString("es-CL")}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-bold text-green-700">
+                            ${precioFinal!.toLocaleString("es-CL")}
+                          </span>
+                        )}
+                      </div>
+                      <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
+                        Stock: {prod.stock}
+                      </Badge>
+                    </div>
+                    {tieneGranel && (
+                      <span className="text-xs text-blue-600 mt-2 block">
+                        Granel: ${prod.precio_venta_kg!.toLocaleString("es-CL")}/kg
                       </span>
                     )}
                   </div>
-                  <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                    Stock: {prod.stock}
-                  </Badge>
                 </div>
-                {tieneGranel && (
-                  <span className="text-xs text-blue-600 mt-2 block">
-                    Granel: ${prod.precio_venta_kg!.toLocaleString("es-CL")}/kg
-                  </span>
-                )}
               </button>
 
               {/* Toggle + input granel */}

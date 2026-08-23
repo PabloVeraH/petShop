@@ -193,4 +193,60 @@ describe("SearchProductos", () => {
     // disabled button → addItem never called
     expect(mockAddItem).not.toHaveBeenCalled();
   });
+
+  // C-65: producto con imagen_url muestra la miniatura en el card del buscador
+  it("C-65: producto con imagen_url renderiza la miniatura con src y alt correctos", async () => {
+    mockGetProductos.mockResolvedValue([
+      prod({
+        id: "p8",
+        nombre: "Alimento Gato Whiskas 1kg",
+        precio: 15458,
+        imagen_url: "https://demo.ammapet.cl/productos/store-1/p8/foto.webp",
+      }),
+    ]);
+    render(<SearchProductos />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Alimento Gato Whiskas 1kg")).toBeInTheDocument()
+    );
+
+    const img = screen.getByRole("img", { name: "Alimento Gato Whiskas 1kg" });
+    expect(img).toHaveAttribute(
+      "src",
+      "https://demo.ammapet.cl/productos/store-1/p8/foto.webp"
+    );
+  });
+
+  // C-66: producto sin imagen_url muestra el placeholder, no un <img> roto
+  it("C-66: producto sin imagen_url NO renderiza <img> — muestra el placeholder", async () => {
+    mockGetProductos.mockResolvedValue([
+      prod({ id: "p9", nombre: "Producto Sin Foto", precio: 4000, imagen_url: null }),
+    ]);
+    render(<SearchProductos />, { wrapper: makeWrapper() });
+
+    await waitFor(() =>
+      expect(screen.getByText("Producto Sin Foto")).toBeInTheDocument()
+    );
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  // C-67: si la miniatura falla al cargar (URL rota en R2), cae al placeholder
+  // en vez de dejar el ícono de imagen quebrada del navegador
+  it("C-67: error al cargar la miniatura reemplaza el <img> por el placeholder", async () => {
+    mockGetProductos.mockResolvedValue([
+      prod({
+        id: "p10",
+        nombre: "Foto Rota",
+        precio: 4000,
+        imagen_url: "https://demo.ammapet.cl/productos/store-1/p10/foto.webp",
+      }),
+    ]);
+    render(<SearchProductos />, { wrapper: makeWrapper() });
+
+    const img = await screen.findByRole("img", { name: "Foto Rota" });
+    fireEvent.error(img);
+
+    await waitFor(() => expect(screen.queryByRole("img")).not.toBeInTheDocument());
+  });
 });

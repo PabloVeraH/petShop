@@ -123,6 +123,16 @@ REGRESIÓN del mismo ticket 6a77ef3a0ed45ac54505c62a (parseo UTC de fechas "YYYY
 | C-63 | status.isAutoBlocked → muestra VENCIDA | LicenciaCard | component |
 | C-64 | sin license_end_date → muestra "Sin configurar" | LicenciaCard | component |
 
+## SearchProductos — miniatura de producto (C-65 a C-67)
+
+Foto de producto (docs/product-images.md) visible en el buscador del POS, no en el carrito (Carrito.tsx sin cambios).
+
+| ID | Requisito | Componente | Tipo |
+|----|-----------|------------|------|
+| C-65 | producto con imagen_url renderiza la miniatura con src y alt correctos | SearchProductos | component |
+| C-66 | producto sin imagen_url NO renderiza `<img>` — muestra el placeholder | SearchProductos | component |
+| C-67 | error al cargar la miniatura (URL rota en R2) reemplaza el `<img>` por el placeholder | SearchProductos | component |
+
 ## Notas de Crédito (I-100 a I-115)
 
 | ID | Requisito | Route | Tipo |
