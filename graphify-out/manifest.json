@@ -775,9 +775,9 @@
     "semantic_hash": ""
   },
   "src/app/(app)/pos/components/SearchProductos.tsx": {
-    "mtime": 1782538637.94101,
-    "ast_hash": "5ad26a63b27bc6a831efe19ec5205409",
-    "semantic_hash": "5ad26a63b27bc6a831efe19ec5205409"
+    "mtime": 1787507018.636727,
+    "ast_hash": "3185a6fa3f1f5faeaa6a0aec07f22ade",
+    "semantic_hash": ""
   },
   "src/app/(app)/pos/page.tsx": {
     "mtime": 1786218481.030664,
@@ -1720,8 +1720,8 @@
     "semantic_hash": "5cf953502b0acf849e4a0abb0e363c49"
   },
   "src/middleware.ts": {
-    "mtime": 1784828125.0344715,
-    "ast_hash": "14aaebdc550a39a4d309dbf2d1d294e4",
+    "mtime": 1787499759.1989503,
+    "ast_hash": "64ec3c5b0e8f7f8801a2c0ef73af9219",
     "semantic_hash": ""
   },
   "src/middleware/rateLimit.ts": {
@@ -1890,9 +1890,9 @@
     "semantic_hash": ""
   },
   "tests/components/SearchProductos.test.tsx": {
-    "mtime": 1782355600.3319542,
-    "ast_hash": "d1440c82327969038be79575897025bb",
-    "semantic_hash": "d1440c82327969038be79575897025bb"
+    "mtime": 1787507064.9029117,
+    "ast_hash": "fcd24ad65b653e042436df44f3aca477",
+    "semantic_hash": ""
   },
   "tests/components/SuppliersPage.test.tsx": {
     "mtime": 1785623338.256658,
@@ -2425,8 +2425,8 @@
     "semantic_hash": "307206e9632118677cfd449515535c62"
   },
   "tests/unit/lib/middleware-routing.test.ts": {
-    "mtime": 1786586918.91835,
-    "ast_hash": "71b97fbc6d96b0cc474370e8bc56e8c3",
+    "mtime": 1787499730.987444,
+    "ast_hash": "063184ba51b760b739960689d5606c1c",
     "semantic_hash": ""
   },
   "tests/unit/lib/openrouter-pos.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1787459869.3658526,
-    "ast_hash": "c3c6d3879736e86f42d4f416d7673c97",
+    "mtime": 1787507075.9978852,
+    "ast_hash": "1dc82aa62dc352f742bafff9933968e7",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
