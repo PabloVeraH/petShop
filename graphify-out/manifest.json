@@ -525,9 +525,9 @@
     "semantic_hash": "8c69d536da907992d2170a1bf565cda2"
   },
   "package.json": {
-    "mtime": 1782538637.9389513,
-    "ast_hash": "80c1c125970688d07648bb06874469ea",
-    "semantic_hash": "80c1c125970688d07648bb06874469ea"
+    "mtime": 1787369671.450406,
+    "ast_hash": "fd28682186e66f32e272e46055939123",
+    "semantic_hash": ""
   },
   "postcss.config.mjs": {
     "mtime": 1774724119.042305,
@@ -615,7 +615,7 @@
     "semantic_hash": "da1279f435a412e1a539d89e951006da"
   },
   "src/app/(app)/contabilidad/page.tsx": {
-    "mtime": 1786404433.0433917,
+    "mtime": 1787370785.442101,
     "ast_hash": "85b6791ab51438adb4428164ee52a849",
     "semantic_hash": ""
   },
@@ -650,7 +650,7 @@
     "semantic_hash": "8eb248a6609250b84a4460959ea66850"
   },
   "src/app/(app)/dashboard/components/AnaliticaTab.tsx": {
-    "mtime": 1786586700.880594,
+    "mtime": 1786586918.9177098,
     "ast_hash": "16233d06f6d2b3ba58a486feeb3921e7",
     "semantic_hash": ""
   },
@@ -720,8 +720,8 @@
     "semantic_hash": "229ba34539621d5a7d1467718bd364a9"
   },
   "src/app/(app)/inventory/page.tsx": {
-    "mtime": 1785623338.2550237,
-    "ast_hash": "6511e6c1075012d92addbfeb66c2e266",
+    "mtime": 1787459465.3000479,
+    "ast_hash": "602346f6ee30c1d532ff311cc5d02e87",
     "semantic_hash": ""
   },
   "src/app/(app)/layout.tsx": {
@@ -810,7 +810,7 @@
     "semantic_hash": ""
   },
   "src/app/(app)/settings/page.tsx": {
-    "mtime": 1786586700.8807592,
+    "mtime": 1786586918.9178233,
     "ast_hash": "19ccbd8fc48096a2ba7a18e2f573719c",
     "semantic_hash": ""
   },
@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "src/app/api/inventario/route.ts": {
-    "mtime": 1786404433.0462892,
-    "ast_hash": "3deda3fe5379f2cfd96d3cdb118de738",
+    "mtime": 1787369919.1226583,
+    "ast_hash": "1d71a58f08f0767e0f8f1b6aed7decc1",
     "semantic_hash": ""
   },
   "src/app/api/license/status/route.ts": {
@@ -1165,13 +1165,13 @@
     "semantic_hash": ""
   },
   "src/app/api/productos/[id]/route.ts": {
-    "mtime": 1786404433.0469055,
-    "ast_hash": "dc9c5893747c6999bcab8ca74732832a",
+    "mtime": 1787369910.8226833,
+    "ast_hash": "eee57bbb45526cdd98ed58b74e3544f6",
     "semantic_hash": ""
   },
   "src/app/api/productos/route.ts": {
-    "mtime": 1786404433.0469484,
-    "ast_hash": "08d048ab29806246c8f881c393ae72bb",
+    "mtime": 1787459345.4281478,
+    "ast_hash": "97d4f1cf24e042c90adccc3e33f0c025",
     "semantic_hash": ""
   },
   "src/app/api/proveedor-productos/route.ts": {
@@ -1370,7 +1370,7 @@
     "semantic_hash": "b8f446e129c76cb10c1efeea3475ef6d"
   },
   "src/components/admin/LicenciaCard.tsx": {
-    "mtime": 1786586700.8808722,
+    "mtime": 1786586918.9178977,
     "ast_hash": "c92dcec20e7685785609d9c0bcceef8f",
     "semantic_hash": ""
   },
@@ -1580,7 +1580,7 @@
     "semantic_hash": "d59fd09cba7515fa57a0234b6042f8db"
   },
   "src/lib/contabilidad/generador-asientos.ts": {
-    "mtime": 1786404433.0485005,
+    "mtime": 1787370785.442101,
     "ast_hash": "1af387d08f6051408ec0afd7a15afb33",
     "semantic_hash": ""
   },
@@ -1600,7 +1600,7 @@
     "semantic_hash": "e8a6ea1d3f16aa4554c4ff094ed954c7"
   },
   "src/lib/contabilidad/types.ts": {
-    "mtime": 1786112086.681391,
+    "mtime": 1787370785.442101,
     "ast_hash": "b12e8332db95c0a1f28fb3a444c58b2a",
     "semantic_hash": ""
   },
@@ -1625,7 +1625,7 @@
     "semantic_hash": "300193f3934073521883b557b54a86b3"
   },
   "src/lib/license.ts": {
-    "mtime": 1786586700.8809438,
+    "mtime": 1786586918.9179795,
     "ast_hash": "1a2ac301a2d922ef7d6efd1499887660",
     "semantic_hash": ""
   },
@@ -1690,8 +1690,8 @@
     "semantic_hash": "9041515dc45f539930e9d1f3702f6698"
   },
   "src/lib/validation/inventario.ts": {
-    "mtime": 1785623338.255782,
-    "ast_hash": "e381b378bf6bd9b9db64b2e708699713",
+    "mtime": 1787459325.4295547,
+    "ast_hash": "e6583449637e2d2205aca0248464d17b",
     "semantic_hash": ""
   },
   "src/lib/validation/primitives.ts": {
@@ -1735,8 +1735,8 @@
     "semantic_hash": ""
   },
   "src/types/index.ts": {
-    "mtime": 1786112086.681391,
-    "ast_hash": "f9a731aced26446a1737b3efce395a26",
+    "mtime": 1787369938.8445985,
+    "ast_hash": "b328bb81e06af5807ec7878c0da9cf88",
     "semantic_hash": ""
   },
   "supabase/functions/sync-catalog/index.ts": {
@@ -1755,7 +1755,7 @@
     "semantic_hash": "224a9657c44dfb4624a6d34bb0308926"
   },
   "tests/components/AnaliticaTab.test.tsx": {
-    "mtime": 1786586700.8810487,
+    "mtime": 1786586918.918051,
     "ast_hash": "40be8935cd4fd8cdbb60bca767e62b7e",
     "semantic_hash": ""
   },
@@ -1815,8 +1815,8 @@
     "semantic_hash": "b8cba50040f3a3c780ec8ff4746854ec"
   },
   "tests/components/InventoryPage.test.tsx": {
-    "mtime": 1786404433.0489736,
-    "ast_hash": "32cf5bacfa901ffcea0f792482551f74",
+    "mtime": 1787371576.0164702,
+    "ast_hash": "2213c82e06e68e449fb8cc1d0ddd9890",
     "semantic_hash": ""
   },
   "tests/components/LotesPanel.test.tsx": {
@@ -2140,7 +2140,7 @@
     "semantic_hash": ""
   },
   "tests/integration/api/license-control.test.ts": {
-    "mtime": 1786586700.8812594,
+    "mtime": 1786586918.9182255,
     "ast_hash": "0afe17b4b0cc4f93cf22e4e483de0f81",
     "semantic_hash": ""
   },
@@ -2180,8 +2180,8 @@
     "semantic_hash": ""
   },
   "tests/integration/api/productos.test.ts": {
-    "mtime": 1786404433.0509133,
-    "ast_hash": "47f3d32ecea79e206abc979c258847f2",
+    "mtime": 1787459728.5327926,
+    "ast_hash": "84afbc03cd20bfddfcd88e115e4b9a9a",
     "semantic_hash": ""
   },
   "tests/integration/api/proveedor-productos.test.ts": {
@@ -2360,7 +2360,7 @@
     "semantic_hash": "c539d1efaa7d3334a093c6710f3e7f42"
   },
   "tests/unit/lib/contabilidad-crear-asiento.test.ts": {
-    "mtime": 1786404433.0516267,
+    "mtime": 1787370785.4431012,
     "ast_hash": "95dbae5adea0ac862cd05603a2fd97a9",
     "semantic_hash": ""
   },
@@ -2425,7 +2425,7 @@
     "semantic_hash": "307206e9632118677cfd449515535c62"
   },
   "tests/unit/lib/middleware-routing.test.ts": {
-    "mtime": 1786586700.8814137,
+    "mtime": 1786586918.91835,
     "ast_hash": "71b97fbc6d96b0cc474370e8bc56e8c3",
     "semantic_hash": ""
   },
@@ -2455,8 +2455,8 @@
     "semantic_hash": "d226f12e6dd29c65ef300f77f7902828"
   },
   "tests/unit/lib/validation.test.ts": {
-    "mtime": 1786112086.6828911,
-    "ast_hash": "44fd949c600da6e8f8501d522cf69b10",
+    "mtime": 1787459613.5848653,
+    "ast_hash": "b9f345154ad66959958c7973be9e9f84",
     "semantic_hash": ""
   },
   "tests/unit/lib/vencimiento-helpers.test.ts": {
@@ -3735,8 +3735,8 @@
     "semantic_hash": ""
   },
   "docs/spec-registry.md": {
-    "mtime": 1786586700.8677325,
-    "ast_hash": "e4f16f17aa196d25f274a2dfbe5d498d",
+    "mtime": 1787459869.3658526,
+    "ast_hash": "c3c6d3879736e86f42d4f416d7673c97",
     "semantic_hash": ""
   },
   "docs/test_plan.md": {
@@ -3900,7 +3900,7 @@
     "semantic_hash": ""
   },
   "tests/components/SettingsPage.test.tsx": {
-    "mtime": 1786586700.8811522,
+    "mtime": 1786586918.9181592,
     "ast_hash": "d765fc479eec02a76dcd6bffdea16a80",
     "semantic_hash": ""
   },
@@ -4360,18 +4360,58 @@
     "semantic_hash": ""
   },
   "src/lib/dates.ts": {
-    "mtime": 1786586700.8885248,
+    "mtime": 1786586918.9179337,
     "ast_hash": "516eb9072226b642fee5a71b3eb3fc2c",
     "semantic_hash": ""
   },
   "tests/components/LicenciaCard.test.tsx": {
-    "mtime": 1786586726.6987464,
+    "mtime": 1786586918.9180982,
     "ast_hash": "6ed694193cd6e28a98c15ee730945afc",
     "semantic_hash": ""
   },
   "tests/unit/lib/dates.test.ts": {
-    "mtime": 1786586700.888682,
+    "mtime": 1786586918.9182644,
     "ast_hash": "037c5b519b2903d32c74ad7af2d68a00",
+    "semantic_hash": ""
+  },
+  "migrations/072_imagen_url_2_producto.sql": {
+    "mtime": 1787369606.7936013,
+    "ast_hash": "a8f0778ddef8e74b4d51cbeb1874e503",
+    "semantic_hash": ""
+  },
+  "src/app/(app)/inventory/components/ProductoImagenesField.tsx": {
+    "mtime": 1787459374.1992917,
+    "ast_hash": "26de1449730c76694596909abb72194f",
+    "semantic_hash": ""
+  },
+  "src/app/api/productos/imagenes/route.ts": {
+    "mtime": 1787459310.992905,
+    "ast_hash": "e39a1f5077418dac3f2bb21d31f62a15",
+    "semantic_hash": ""
+  },
+  "src/lib/r2-storage.ts": {
+    "mtime": 1787459287.7329621,
+    "ast_hash": "ae4cff953724480b81caa6665102d4ca",
+    "semantic_hash": ""
+  },
+  "tests/components/ProductoImagenesField.test.tsx": {
+    "mtime": 1787459587.0151618,
+    "ast_hash": "76d1d492c883354688f394f90e0b24c8",
+    "semantic_hash": ""
+  },
+  "tests/integration/api/productos-imagenes.test.ts": {
+    "mtime": 1787459558.954101,
+    "ast_hash": "4d5ca7ad217be3cfd15e6ceb562a8528",
+    "semantic_hash": ""
+  },
+  "docs/product-images.md": {
+    "mtime": 1787459892.1350274,
+    "ast_hash": "ecda85ae6631efd602f67d4251d94057",
+    "semantic_hash": ""
+  },
+  "tests/unit/lib/r2-storage.test.ts": {
+    "mtime": 1787459502.4907362,
+    "ast_hash": "f10ee2757fe7911b1693b4b7e55c42b1",
     "semantic_hash": ""
   }
 }
