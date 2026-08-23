@@ -477,6 +477,7 @@ I-406/I-407/I-408.
 | MW-26 | /api/admin NO es bloqueado para storeAdmin en el middleware (cada API route tiene su propio guard) | middleware-routing | unit |
 | MW-27 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): stale JWT (JWT systemAdmin, DB storeAdmin) → acceso denegado a /admin | middleware-routing | unit |
 | MW-28 | JWT y DB confirman systemAdmin → acceso permitido a /admin | middleware-routing | unit |
+| MW-29 | REGRESIÓN: CSP img-src incluye el dominio de R2 de fotos de producto (demo.ammapet.cl) — sin esto el navegador bloquea las miniaturas del formulario de Inventario y del buscador del POS | middleware-routing | unit |
 
 ## Control de licencia — cálculo y middleware (LC-XX)
 

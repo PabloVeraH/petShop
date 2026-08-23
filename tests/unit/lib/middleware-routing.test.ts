@@ -344,6 +344,18 @@ describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
     expect(frameDirective).toBeDefined();
     expect(frameDirective).toContain("challenges.cloudflare.com");
   });
+
+  // MW-29: REGRESIÓN — img-src permite el dominio de R2 de fotos de producto
+  // (docs/product-images.md). Bug: sin esto, el navegador bloqueaba
+  // silenciosamente las miniaturas del formulario de Inventario (ícono de
+  // imagen rota) aunque la URL guardada en imagen_url/imagen_url_2 fuera
+  // válida y el objeto existiera en R2.
+  it("MW-29: CSP incluye el dominio de R2 (demo.ammapet.cl) en img-src", () => {
+    const csp = buildCsp(NONCE, false);
+    const imgDirective = csp.split(";").find((d) => d.trim().startsWith("img-src"));
+    expect(imgDirective).toBeDefined();
+    expect(imgDirective).toContain("https://demo.ammapet.cl");
+  });
 });
 
 describe("Middleware — redirect de /workers a /vendedores (MW-24, Suite 5)", () => {
