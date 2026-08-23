@@ -525,3 +525,113 @@ describe("CitaCreateSchema — encargado_id obligatorio", () => {
     expect(CitaCreateSchema.safeParse({ ...CITA_BASE, encargado_id: undefined }).success).toBe(false);
   });
 });
+
+describe("ProductoCreateSchema — imagen_url e imagen_url_2", () => {
+  const BASE = {
+    nombre: "Alimento Premium",
+    sku: "ALI-001",
+    precio: 19990,
+  };
+
+  it("IMG-VAL-01: acepta imagen_url válida bajo R2_PUBLIC_URL", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "https://pub-test.r2.dev/productos/store1/img.webp",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("IMG-VAL-02: rechaza imagen_url de dominio no permitido", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "https://evil.com/hack.jpg",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("IMG-VAL-03: acepta imagen_url null", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("IMG-VAL-04: acepta sin imagen_url (undefined)", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse(BASE);
+    expect(result.success).toBe(true);
+  });
+
+  it("IMG-VAL-05: rechaza imagen_url con formato no URL", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "not-a-url",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("IMG-VAL-06: acepta ambas imágenes válidas", () => {
+    process.env.R2_PUBLIC_URL = "https://pub-test.r2.dev";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "https://pub-test.r2.dev/productos/store1/foto1.webp",
+      imagen_url_2: "https://pub-test.r2.dev/productos/store1/foto2.webp",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  // REGRESIÓN: el refine original evaluaba v.startsWith(process.env.R2_PUBLIC_URL ?? "")
+  // — sin la variable configurada, ".startsWith('')" es true para cualquier string,
+  // aceptando URLs externas arbitrarias (fail-open). Debe fallar cerrado.
+  it("IMG-VAL-07: rechaza cualquier imagen_url si R2_PUBLIC_URL no está configurada", () => {
+    delete process.env.R2_PUBLIC_URL;
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "https://cualquier-dominio-externo.com/foto.jpg",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("IMG-VAL-08: rechaza si R2_PUBLIC_URL está vacía", () => {
+    process.env.R2_PUBLIC_URL = "";
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      imagen_url: "https://cualquier-dominio-externo.com/foto.jpg",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("ProductoCreateSchema — id opcional (organización de fotos en R2 por producto)", () => {
+  const BASE = {
+    nombre: "Alimento Premium",
+    sku: "ALI-001",
+    precio: 19990,
+  };
+
+  it("IMG-VAL-09: acepta un id UUID válido (generado en el cliente antes de crear el producto)", () => {
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      id: "323e4567-e89b-12d3-a456-426614174050",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("IMG-VAL-10: acepta sin id (la base de datos genera uno, comportamiento previo)", () => {
+    const result = ProductoCreateSchema.safeParse(BASE);
+    expect(result.success).toBe(true);
+  });
+
+  it("IMG-VAL-11: rechaza un id que no es un UUID válido", () => {
+    const result = ProductoCreateSchema.safeParse({
+      ...BASE,
+      id: "no-es-un-uuid",
+    });
+    expect(result.success).toBe(false);
+  });
+});

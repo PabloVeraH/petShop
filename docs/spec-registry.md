@@ -1623,3 +1623,106 @@ cubre el negativo (sin venta_id no se falsea que la cita generó una venta).
 |----|-------------|-------|------|
 | DET-05 | Cita completada con venta_id muestra la fila 'Venta #…' (vínculo con la venta generada) | DetalleCita | component |
 | DET-06 | Cita sin venta_id no muestra la fila 'Venta' (negativo: no falsear 'generó venta') | DetalleCita | component |
+
+## Fotografías de productos — R2 + WebP (I-513 a I-518, U-152 a U-158, FP-13/14, IMG-VAL-01 a IMG-VAL-11, IMG-01 a IMG-12, CMP-IMG-01 a CMP-IMG-06)
+
+Hasta 2 fotos por producto (`imagen_url`, `imagen_url_2` — migración
+`072_imagen_url_2_producto.sql`), optimizadas a WebP server-side (`sharp`)
+antes de subirse a Cloudflare R2 (S3 API, `@aws-sdk/client-s3`). Diseño en
+`docs/product-images.md`. `imagen_url` existía desde `033_imagen_url_producto.sql`
+pero no tenía escritor real hasta este cambio.
+
+Los IDs `IMG-*`/`IMG-VAL-*`/`CMP-IMG-*` se crearon en la implementación
+original sin registrar aquí (gate §2.3 incumplido); se registran ahora en
+retrospectiva junto con los agregados en la revisión (`I-513` a `I-516`,
+`U-152` a `U-158`, `FP-13/14`). La primera versión de `CMP-IMG-06` se eliminó
+del archivo de test (duplicaba `CMP-IMG-02`, no probaba lo que su nombre
+afirmaba); el ID se reutilizó después para un test real.
+
+**Cambio posterior (mismo día)**: la key en R2 pasó de
+`productos/{storeId}/{uuid}.webp` a
+`productos/{storeId}/{productoId}/{uuid}.webp` — mejor administración manual
+del bucket (fotos agrupadas por producto). Requirió generar el `id` del
+producto en el cliente (`crypto.randomUUID()`) *antes* de crear la fila,
+porque la foto se sube desde el formulario "Nuevo producto" antes de que el
+producto exista. `ProductoCreateSchema` acepta ahora un `id` opcional; si
+viene, `POST /api/productos` lo usa como PK en el insert en vez del default
+de la base. Agregó `IMG-11/12`, `IMG-VAL-09/10/11`, `I-517/518` y reescribió
+`U-155`.
+
+### Unit Zod — imagen_url/imagen_url_2 en ProductoCreateSchema/ProductoUpdateSchema
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| IMG-VAL-01 | Acepta imagen_url válida bajo R2_PUBLIC_URL | lib/validation/inventario | unit |
+| IMG-VAL-02 | Rechaza imagen_url de dominio no permitido | lib/validation/inventario | unit |
+| IMG-VAL-03 | Acepta imagen_url null | lib/validation/inventario | unit |
+| IMG-VAL-04 | Acepta sin imagen_url (undefined) | lib/validation/inventario | unit |
+| IMG-VAL-05 | Rechaza imagen_url con formato no URL | lib/validation/inventario | unit |
+| IMG-VAL-06 | Acepta ambas imágenes (imagen_url e imagen_url_2) válidas | lib/validation/inventario | unit |
+| IMG-VAL-07 | REGRESIÓN: rechaza cualquier imagen_url si R2_PUBLIC_URL no está configurada (el refine original hacía `v.startsWith("")`, fail-open) | lib/validation/inventario | unit |
+| IMG-VAL-08 | Rechaza si R2_PUBLIC_URL está configurada como string vacío | lib/validation/inventario | unit |
+| IMG-VAL-09 | ProductoCreateSchema acepta un id UUID válido (generado en el cliente antes de crear el producto) | lib/validation/inventario | unit |
+| IMG-VAL-10 | ProductoCreateSchema acepta sin id (la base de datos genera uno, comportamiento previo) | lib/validation/inventario | unit |
+| IMG-VAL-11 | ProductoCreateSchema rechaza un id que no es un UUID válido | lib/validation/inventario | unit |
+
+### Integración — POST/DELETE /api/productos/imagenes
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| IMG-01 | POST sin sesión → 401 | POST /api/productos/imagenes | integration |
+| IMG-02 | POST sin archivo → 400 | POST /api/productos/imagenes | integration |
+| IMG-03 | POST con tipo de archivo no permitido → 400 | POST /api/productos/imagenes | integration |
+| IMG-04 | POST con archivo > 8 MB → 400 | POST /api/productos/imagenes | integration |
+| IMG-05 | POST válido → 201, URL bajo R2_PUBLIC_URL con prefijo productos/{storeId}/{productoId}/ | POST /api/productos/imagenes | integration |
+| IMG-06 | POST cuando sharp falla (archivo corrupto) → 400, no sube a R2 | POST /api/productos/imagenes | integration |
+| IMG-07 | DELETE sin sesión → 401 | DELETE /api/productos/imagenes | integration |
+| IMG-08 | DELETE sin URL en el body → 400 | DELETE /api/productos/imagenes | integration |
+| IMG-09 | DELETE URL que no pertenece al storeId → 403 | DELETE /api/productos/imagenes | integration |
+| IMG-10 | DELETE válido → 204 | DELETE /api/productos/imagenes | integration |
+| IMG-11 | POST sin productoId → 400, no sube a R2 | POST /api/productos/imagenes | integration |
+| IMG-12 | POST con productoId que no es un UUID válido → 400, no sube a R2 | POST /api/productos/imagenes | integration |
+
+### Unit — src/lib/r2-storage.ts (ejecuta la implementación real, no mockeada)
+
+Cierra el vacío de cobertura detectado en revisión: `IMG-09` mockeaba
+`eliminarImagenProducto` por completo y nunca ejercitaba el chequeo real de
+aislamiento por prefijo de tenant.
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-152 | createR2Client lanza si falta alguna variable de entorno de R2 | lib/r2-storage | unit |
+| U-153 | optimizarImagenProducto redimensiona a 1200px máx. y convierte a WebP | lib/r2-storage | unit |
+| U-154 | optimizarImagenProducto no agranda una imagen más chica que el máximo (withoutEnlargement) | lib/r2-storage | unit |
+| U-155 | subirImagenProducto sube con key productos/{storeId}/{productoId}/{uuid}.webp y retorna la URL pública | lib/r2-storage | unit |
+| U-156 | eliminarImagenProducto borra cuando la URL pertenece a la tienda (prefijo correcto) | lib/r2-storage | unit |
+| U-157 | eliminarImagenProducto rechaza y NO llama al cliente S3 si la URL es de otra tienda (IDOR, implementación real) | lib/r2-storage | unit |
+| U-158 | createR2Client no lanza cuando todas las variables están presentes | lib/r2-storage | unit |
+
+### Integración — limpieza de imágenes en R2 desde /api/productos/[id]
+
+Cierra el vacío de cobertura de la Fase 10 del plan: la lógica de limpieza
+fire-and-forget en PATCH y la invariante de que el soft delete no borra
+imágenes no tenían ningún test.
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-513 | PATCH que reemplaza imagen_url dispara eliminarImagenProducto con la URL anterior | PATCH /api/productos/[id] | integration |
+| I-514 | PATCH que limpia imagen_url a null dispara eliminarImagenProducto con la URL anterior | PATCH /api/productos/[id] | integration |
+| I-515 | PATCH que no envía imagen_url NO dispara ningún borrado en R2 | PATCH /api/productos/[id] | integration |
+| I-516 | Soft delete (DELETE) NO dispara ningún borrado en R2 (invariante: las fotos se preservan para una posible reactivación) | DELETE /api/productos/[id] | integration |
+| I-517 | POST /api/productos con id → el insert en productos usa ese id (no el default de la base) | POST /api/productos | integration |
+| I-518 | POST /api/productos sin id → el insert no incluye la clave id (la base genera el default, comportamiento previo) | POST /api/productos | integration |
+
+### Componentes — ProductoImagenesField e InventoryPage
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CMP-IMG-01 | Renderiza ambos slots vacíos con botón de selección | ProductoImagenesField | component |
+| CMP-IMG-02 | Renderiza miniatura cuando hay URL existente | ProductoImagenesField | component |
+| CMP-IMG-03 | Seleccionar archivo dispara POST a /api/productos/imagenes | ProductoImagenesField | component |
+| CMP-IMG-04 | Error de API se muestra en el slot, no en formError | ProductoImagenesField | component |
+| CMP-IMG-05 | Eliminar slot con URL llama a DELETE y limpia el campo | ProductoImagenesField | component |
+| CMP-IMG-06 | La subida incluye productoId en el FormData (organización por producto en R2) | ProductoImagenesField | component |
+| FP-13 | Guardar producto nuevo con foto subida incluye imagen_url en el body real del POST a /api/productos | InventoryPage | component |
+| FP-14 | Editar producto con foto existente: la miniatura se prellena y imagen_url viaja intacta en el PATCH | InventoryPage | component |

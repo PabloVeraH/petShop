@@ -18,6 +18,7 @@ import {
 import { LotesPanel } from "./components/LotesPanel";
 import { CategoriasTab } from "./components/CategoriasTab";
 import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
+import { ProductoImagenesField } from "./components/ProductoImagenesField";
 import { ProductoCreateSchema } from "@/lib/validation";
 
 type Producto = {
@@ -37,6 +38,8 @@ type Producto = {
   categoria_id: string | null;
   codigo_barra: string | null;
   precio_venta_kg: number | null;
+  imagen_url: string | null;
+  imagen_url_2: string | null;
 };
 
 type Categoria = {
@@ -59,6 +62,11 @@ type StockMovement = {
 };
 
 type ProductoForm = {
+  // Generado en el navegador (crypto.randomUUID()) al abrir "Nuevo producto",
+  // o el id real al editar — permite que las fotos se suban a R2 organizadas
+  // por producto (productos/{storeId}/{productoId}/...) antes de que la fila
+  // exista en la base. Ver docs/product-images.md.
+  id: string;
   nombre: string;
   sku: string;
   precio: string;
@@ -74,14 +82,19 @@ type ProductoForm = {
   categoria_id: string;
   codigo_barra: string;
   precio_venta_kg: string;
+  imagen_url: string | null;
+  imagen_url_2: string | null;
 };
 
 const EMPTY_FORM: ProductoForm = {
+  id: "",
   nombre: "", sku: "", precio: "", costo: "",
   stock: "0", stock_minimo: "0", marca: "", peso_gramos: "",
   fecha_vencimiento: "", dias_alerta_expira: "30", precio_oferta: "", en_oferta: false,
   categoria_id: "", codigo_barra: "",
   precio_venta_kg: "",
+  imagen_url: null,
+  imagen_url_2: null,
 };
 
 async function getInventario(search: string, soloAlertas: boolean, soloVencimientos: boolean): Promise<Producto[]> {
@@ -191,6 +204,10 @@ export default function InventoryPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // El id solo se manda al crear — es el id generado en abrirNuevo()
+          // bajo el cual ya se subieron las fotos a R2. Al editar, el id del
+          // producto no cambia; PATCH lo toma de la URL, no del body.
+          ...(editando ? {} : { id: form.id }),
           nombre: form.nombre,
           sku: form.sku,
           precio: Number(form.precio),
@@ -206,6 +223,8 @@ export default function InventoryPage() {
           categoria_id: form.categoria_id || null,
           codigo_barra: form.codigo_barra || undefined,
           precio_venta_kg: form.precio_venta_kg ? Number(form.precio_venta_kg) : null,
+          imagen_url: form.imagen_url ?? null,
+          imagen_url_2: form.imagen_url_2 ?? null,
         }),
       });
       const data = await res.json();
@@ -239,6 +258,7 @@ export default function InventoryPage() {
   function abrirEditar(p: Producto) {
     setEditando(p);
     setForm({
+      id: p.id,
       nombre: p.nombre, sku: p.sku,
       precio: p.precio != null ? String(p.precio) : "", costo: p.costo != null ? String(p.costo) : "",
       stock: String(p.stock), stock_minimo: String(p.stock_minimo),
@@ -250,6 +270,8 @@ export default function InventoryPage() {
       categoria_id: p.categoria_id ?? "",
       codigo_barra: p.codigo_barra ?? "",
       precio_venta_kg: p.precio_venta_kg != null ? String(p.precio_venta_kg) : "",
+      imagen_url: p.imagen_url ?? null,
+      imagen_url_2: p.imagen_url_2 ?? null,
     });
     setFormError("");
     setFieldErrors({});
@@ -257,7 +279,14 @@ export default function InventoryPage() {
   }
 
   function abrirNuevo() {
-    setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({}); setShowForm(true);
+    // Se genera acá (no al crear el producto) para que las fotos puedan
+    // subirse a R2 organizadas por producto desde el primer clic en el
+    // selector de archivo, antes de que la fila exista en la base.
+    setEditando(null);
+    setForm({ ...EMPTY_FORM, id: crypto.randomUUID() });
+    setFormError("");
+    setFieldErrors({});
+    setShowForm(true);
   }
 
   const productos = data ?? [];
@@ -480,6 +509,12 @@ export default function InventoryPage() {
               {editando ? `Editar: ${editando.nombre}` : "Nuevo producto"}
             </h3>
             <form noValidate className="space-y-3 max-h-[60vh] overflow-y-auto" onSubmit={(e) => { e.preventDefault(); guardarProducto(); }}>
+              <ProductoImagenesField
+                imagenUrl={form.imagen_url}
+                imagenUrl2={form.imagen_url_2}
+                productoId={form.id}
+                onChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+              />
               {([
                 { label: "Nombre *", key: "nombre" as const, placeholder: "Alimento Premium Perro 15kg", required: true },
                 { label: "SKU *", key: "sku" as const, placeholder: "PRD-001", required: true },

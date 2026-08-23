@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { ProductoUpdateSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { eliminarImagenProducto } from "@/lib/r2-storage";
 
 export const PATCH = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
@@ -67,6 +68,8 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
   if (parsed.data.categoria_id !== undefined) updates.categoria_id = parsed.data.categoria_id;
   if (parsed.data.codigo_barra !== undefined) updates.codigo_barra = parsed.data.codigo_barra?.trim() || null;
   if (parsed.data.precio_venta_kg !== undefined) updates.precio_venta_kg = parsed.data.precio_venta_kg;
+  if (parsed.data.imagen_url !== undefined) updates.imagen_url = parsed.data.imagen_url ?? null;
+  if (parsed.data.imagen_url_2 !== undefined) updates.imagen_url_2 = parsed.data.imagen_url_2 ?? null;
 
   const { data, error } = await supabase
     .from("productos")
@@ -110,6 +113,20 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
     ipAddress,
     userAgent,
   }).catch(() => {});
+
+  // Limpiar imágenes huérfanas en R2 cuando se reemplazan o borran (fire-and-forget)
+  if (data) {
+    const imagenesParaLimpiar: Array<{ url: string; storeId: string }> = [];
+    if (updates.imagen_url !== undefined && productoActual?.imagen_url && productoActual.imagen_url !== data.imagen_url) {
+      imagenesParaLimpiar.push({ url: productoActual.imagen_url, storeId: store_id });
+    }
+    if (updates.imagen_url_2 !== undefined && productoActual?.imagen_url_2 && productoActual.imagen_url_2 !== data.imagen_url_2) {
+      imagenesParaLimpiar.push({ url: productoActual.imagen_url_2, storeId: store_id });
+    }
+    for (const img of imagenesParaLimpiar) {
+      eliminarImagenProducto(img.url, img.storeId).catch(() => {});
+    }
+  }
 
   if (data) {
     if (data.fecha_vencimiento && data.stock > 0 && updates.tiene_vencimiento) {
@@ -169,7 +186,7 @@ export const DELETE = withErrorLogging(async (req: NextRequest,
     .update({ activo: false })
     .eq("id", id)
     .eq("store_id", store_id)
-    .select("id, nombre, marca, precio, stock, codigo_barra, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
+    .select("id, nombre, marca, precio, stock, codigo_barra, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, imagen_url_2, categorias(nombre)")
     .single();
 
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

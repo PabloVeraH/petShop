@@ -386,6 +386,106 @@ describe("InventoryPage — formulario de producto", () => {
 
     expect(screen.getByText("Campo obligatorio")).toBeInTheDocument();
   });
+
+  // FP-13: cierra el gap de cobertura de CMP-IMG-06 (que no probaba el body real
+  // de guardado) — verifica el wiring real entre ProductoImagenesField y el
+  // fetch de creación, no solo el componente aislado.
+  it("FP-13: guardar producto nuevo con foto subida incluye imagen_url en el body del POST", async () => {
+    const IMG_URL = "https://pub-test.r2.dev/productos/store1/foto.webp";
+    (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL, init?: RequestInit) => {
+      const u = url.toString();
+      if (u.includes("/api/inventario")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([PRODUCTO]) } as Response);
+      }
+      if (u.includes("/api/categorias")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (u.includes("/api/productos/imagenes")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ url: IMG_URL }) } as Response);
+      }
+      if (u === "/api/productos" && init?.method === "POST") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "new1" }) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    });
+
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ Nuevo producto/i }));
+
+    const fileInput = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+    const file = new File(["dummy"], "foto.jpg", { type: "image/jpeg" });
+    Object.defineProperty(file, "size", { value: 1024 });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Espera a que termine la subida (el slot pasa de "Seleccionar imagen" a mostrar "Eliminar")
+    await waitFor(() => expect(screen.getByText("Eliminar")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText("Alimento Premium Perro 15kg"), {
+      target: { value: "Alimento Premium" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("PRD-001"), { target: { value: "SKU-100" } });
+    fireEvent.change(screen.getByPlaceholderText("19990"), { target: { value: "19990" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Crear producto/i }));
+
+    await waitFor(() => {
+      const postCall = (global.fetch as jest.Mock).mock.calls.find(
+        ([callUrl, callInit]) => callUrl === "/api/productos" && callInit?.method === "POST"
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse((postCall![1] as RequestInit).body as string);
+      expect(body.imagen_url).toBe(IMG_URL);
+      expect(body.imagen_url_2).toBeNull();
+    });
+
+    // Deja que el onSuccess de la mutación (cierre del modal) termine de
+    // asentarse antes de que el test finalice.
+    await waitFor(() => expect(screen.queryByText("Nuevo producto")).not.toBeInTheDocument());
+  });
+
+  // FP-14: la foto ya guardada de un producto existente se prellena al editar
+  // y viaja intacta en el PATCH si el usuario no la toca.
+  it("FP-14: editar producto con foto existente preserva imagen_url en el PATCH", async () => {
+    const IMG_URL = "https://pub-test.r2.dev/productos/store1/existente.webp";
+    const PRODUCTO_CON_FOTO = { ...PRODUCTO, imagen_url: IMG_URL, imagen_url_2: null };
+
+    (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL, init?: RequestInit) => {
+      const u = url.toString();
+      if (u.includes("/api/inventario")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([PRODUCTO_CON_FOTO]) } as Response);
+      }
+      if (u.includes("/api/categorias")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      if (u === `/api/productos/${PRODUCTO_CON_FOTO.id}` && init?.method === "PATCH") {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(PRODUCTO_CON_FOTO) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    });
+
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => screen.getByText(PRODUCTO_CON_FOTO.nombre));
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+    // La miniatura de la foto existente ya está prellenada, sin necesidad de subir nada
+    expect(screen.getByRole("img")).toHaveAttribute("src", IMG_URL);
+
+    fireEvent.click(screen.getByRole("button", { name: /Guardar cambios|Actualizar/i }));
+
+    await waitFor(() => {
+      const patchCall = (global.fetch as jest.Mock).mock.calls.find(
+        ([callUrl, callInit]) =>
+          callUrl === `/api/productos/${PRODUCTO_CON_FOTO.id}` && callInit?.method === "PATCH"
+      );
+      expect(patchCall).toBeDefined();
+      const body = JSON.parse((patchCall![1] as RequestInit).body as string);
+      expect(body.imagen_url).toBe(IMG_URL);
+    });
+
+    await waitFor(() => expect(screen.queryByText(`Editar: ${PRODUCTO_CON_FOTO.nombre}`)).not.toBeInTheDocument());
+  });
 });
 
 describe("InventoryPage — acciones responsivas", () => {

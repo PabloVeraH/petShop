@@ -22,10 +22,12 @@ const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
 const mockSyncProductsToHub = jest.fn();
+const mockEliminarImagenProducto = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/hub-sync", () => ({ syncProductsToHub: mockSyncProductsToHub }));
+jest.mock("@/lib/r2-storage", () => ({ eliminarImagenProducto: mockEliminarImagenProducto }));
 
 function chain(terminal?: Promise<unknown>) {
   const c: Record<string, jest.Mock> = {
@@ -182,6 +184,46 @@ describe("POST /api/productos", () => {
     const body = await res.json();
     expect(body.error).toBe("El código de barra ya existe");
   });
+
+  // I-517/I-518 — el id generado en el cliente (antes de subir fotos a R2, ver
+  // docs/product-images.md) debe usarse como PK real al crear el producto.
+  // Nota: la ruta también llama a logAudit(), que hace su propio
+  // supabase.from("audit_logs").insert(...) — mockFrom debe distinguir la
+  // tabla para no capturar ese insert en vez del de "productos".
+  it("I-517: POST con id → el insert en productos usa ese id (no el default de la base)", async () => {
+    const idCliente = "323e4567-e89b-12d3-a456-426614174050";
+    let insertPayload: Record<string, unknown> | undefined;
+    const productosChain = chain();
+    productosChain.insert = jest.fn((payload: Record<string, unknown>) => { insertPayload = payload; return productosChain; });
+    mockFrom.mockImplementation((table: string) => (table === "productos" ? productosChain : chain()));
+    mockSingle.mockResolvedValue({
+      data: { id: idCliente, nombre: "Test", sku: "SKU1", precio: 15000, stock: 0, activo: true, marca: null },
+      error: null,
+    });
+
+    const { POST } = await import("@/app/api/productos/route");
+    const res = await POST(req("/api/productos", "POST", { id: idCliente, nombre: "Test", sku: "SKU1", precio: 15000 }));
+
+    expect(res.status).toBe(201);
+    expect(insertPayload?.id).toBe(idCliente);
+  });
+
+  it("I-518: POST sin id → el insert en productos no incluye la clave id (la base genera el default)", async () => {
+    let insertPayload: Record<string, unknown> | undefined;
+    const productosChain = chain();
+    productosChain.insert = jest.fn((payload: Record<string, unknown>) => { insertPayload = payload; return productosChain; });
+    mockFrom.mockImplementation((table: string) => (table === "productos" ? productosChain : chain()));
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", sku: "SKU1", precio: 15000, stock: 0, activo: true, marca: null },
+      error: null,
+    });
+
+    const { POST } = await import("@/app/api/productos/route");
+    const res = await POST(req("/api/productos", "POST", { nombre: "Test", sku: "SKU1", precio: 15000 }));
+
+    expect(res.status).toBe(201);
+    expect(insertPayload).not.toHaveProperty("id");
+  });
 });
 
 describe("PATCH /api/productos/[id]", () => {
@@ -279,5 +321,159 @@ describe("DELETE /api/productos/[id]", () => {
     expect(mockSyncProductsToHub).toHaveBeenCalledWith([
       expect.objectContaining({ activo: false }),
     ]);
+  });
+
+  // I-516 — invariante de diseño explícita: el soft delete preserva las fotos
+  // (el producto puede reactivarse; no debe perder sus imágenes en R2).
+  it("I-516: soft delete NO dispara ningún borrado en R2", async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        id: PRODUCTO_ID,
+        nombre: "Test",
+        marca: null,
+        precio: 1000,
+        stock: 5,
+        imagen_url: "https://pub-test.r2.dev/productos/store/foto.webp",
+      },
+      error: null,
+    });
+    const { DELETE } = await import("@/app/api/productos/[id]/route");
+    await DELETE(
+      new NextRequest(`http://localhost/api/productos/${PRODUCTO_ID}`, { method: "DELETE" }),
+      { params: patchParams }
+    );
+    expect(mockEliminarImagenProducto).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/productos/[id] — limpieza de imágenes en R2", () => {
+  const R2_PUBLIC_URL = "https://pub-test.r2.dev";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+    process.env.R2_PUBLIC_URL = R2_PUBLIC_URL;
+    mockEliminarImagenProducto.mockResolvedValue(undefined);
+  });
+
+  afterAll(() => {
+    delete process.env.R2_PUBLIC_URL;
+  });
+
+  // I-513
+  it("I-513: reemplazar imagen_url dispara el borrado de la imagen anterior en R2", async () => {
+    mockSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+          imagen_url_2: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          marca: null,
+          precio: 9999,
+          stock: 5,
+          activo: true,
+          imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/new.webp`,
+          imagen_url_2: null,
+        },
+        error: null,
+      });
+
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(
+      req(`/api/productos/${PRODUCTO_ID}`, "PATCH", {
+        imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/new.webp`,
+      }),
+      { params: patchParams }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEliminarImagenProducto).toHaveBeenCalledWith(
+      `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+      STORE_ID
+    );
+  });
+
+  // I-514
+  it("I-514: limpiar imagen_url (a null) dispara el borrado de la imagen anterior en R2", async () => {
+    mockSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+          imagen_url_2: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          marca: null,
+          precio: 9999,
+          stock: 5,
+          activo: true,
+          imagen_url: null,
+          imagen_url_2: null,
+        },
+        error: null,
+      });
+
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(
+      req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { imagen_url: null }),
+      { params: patchParams }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEliminarImagenProducto).toHaveBeenCalledWith(
+      `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+      STORE_ID
+    );
+  });
+
+  // I-515
+  it("I-515: PATCH que no envía imagen_url NO dispara ningún borrado en R2", async () => {
+    mockSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+          imagen_url_2: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: PRODUCTO_ID,
+          nombre: "Test",
+          marca: null,
+          precio: 9999,
+          stock: 5,
+          activo: true,
+          imagen_url: `${R2_PUBLIC_URL}/productos/${STORE_ID}/old.webp`,
+          imagen_url_2: null,
+        },
+        error: null,
+      });
+
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(
+      req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { precio: 9999 }),
+      { params: patchParams }
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockEliminarImagenProducto).not.toHaveBeenCalled();
   });
 });

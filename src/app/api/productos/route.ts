@@ -18,7 +18,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   let query = supabase
     .from("productos")
-    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, codigo_barra, precio_venta_kg, peso_gramos")
+    .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, codigo_barra, precio_venta_kg, peso_gramos, imagen_url, imagen_url_2")
     .eq("store_id", store_id)
     .eq("activo", true)
     .gt("stock", 0);
@@ -47,11 +47,14 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, precio_venta_kg, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, codigo_barra } = parsed.data;
+  const { id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, precio_venta_kg, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, codigo_barra, imagen_url, imagen_url_2 } = parsed.data;
 
   const { data, error } = await supabase
     .from("productos")
     .insert({
+      // Solo se usa si el cliente lo generó antes de subir fotos a R2 bajo ese
+      // id (ver /api/productos/imagenes); si no viene, la BD genera uno.
+      ...(id ? { id } : {}),
       store_id,
       nombre: nombre.trim(),
       sku: sku.trim().toUpperCase(),
@@ -68,6 +71,8 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       en_oferta: en_oferta === true,
       categoria_id: categoria_id ?? null,
       codigo_barra: codigo_barra?.trim() || null,
+      imagen_url: imagen_url ?? null,
+      imagen_url_2: imagen_url_2 ?? null,
       activo: true,
     })
     .select("*, categorias(nombre)")

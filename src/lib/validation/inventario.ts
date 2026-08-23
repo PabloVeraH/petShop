@@ -22,7 +22,23 @@ export const InventarioUpdateSchema = z.object({
   ),
 });
 
+const imagenUrlField = z.string().url().max(2048).nullable().optional()
+  .refine((v) => {
+    if (!v) return true;
+    // Fail-closed: sin R2_PUBLIC_URL configurada, ningún valor es válido —
+    // v.startsWith("") sería siempre true y aceptaría cualquier URL externa.
+    const base = process.env.R2_PUBLIC_URL;
+    return !!base && v.startsWith(base);
+  }, {
+    message: "URL de imagen inválida",
+  });
+
 export const ProductoCreateSchema = z.object({
+  // Opcional: id generado en el cliente (crypto.randomUUID()) antes de crear el
+  // producto, para que las fotos ya subidas a R2 bajo ese id (ver
+  // /api/productos/imagenes) queden asociadas a la fila real al insertarla.
+  // Si se omite, la base de datos genera el id como siempre (gen_random_uuid()).
+  id: UUIDSchema.optional(),
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
   sku: z.string().min(1, "El SKU es obligatorio").max(50),
   precio: z.number().positive("El precio debe ser mayor a 0"),
@@ -38,6 +54,8 @@ export const ProductoCreateSchema = z.object({
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).nullable().optional(),
   precio_venta_kg: z.number().positive("El precio por kg debe ser mayor a 0").nullable().optional(),
+  imagen_url: imagenUrlField,
+  imagen_url_2: imagenUrlField,
 }).refine(
   (data) => !(data.precio_venta_kg && !data.peso_gramos),
   { message: "El peso por unidad (gramos) es obligatorio para productos granel", path: ["peso_gramos"] }
@@ -59,6 +77,8 @@ export const ProductoUpdateSchema = z.object({
   categoria_id: UUIDSchema.nullable().optional(),
   codigo_barra: z.string().max(100).nullable().optional(),
   precio_venta_kg: z.number().positive("El precio por kg debe ser mayor a 0").nullable().optional(),
+  imagen_url: imagenUrlField,
+  imagen_url_2: imagenUrlField,
 }).refine(
   (data) => !(data.precio_venta_kg && !data.peso_gramos),
   { message: "El peso por unidad (gramos) es obligatorio para productos granel", path: ["peso_gramos"] }

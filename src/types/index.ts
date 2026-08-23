@@ -13,6 +13,8 @@ export interface Producto {
   codigo_barra?: string | null;
   precio_venta_kg?: number | null;  // <-- NUEVO
   peso_gramos?: number | null;      // <-- asegurarse que ya esté
+  imagen_url?: string | null;
+  imagen_url_2?: string | null;
 }
 
 export interface Cliente {
