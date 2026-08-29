@@ -18,6 +18,7 @@ export default function PedidosYaOrdenesPage() {
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -41,9 +42,17 @@ export default function PedidosYaOrdenesPage() {
 
   async function handleAccept(ordenId: string) {
     setProcesando(ordenId);
+    setError(null);
     try {
       const res = await fetch(`/api/canales/orders/${ordenId}/accept`, { method: "POST" });
-      if (res.ok) await fetchOrdenes();
+      if (res.ok) {
+        await fetchOrdenes();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "No se pudo aceptar la orden");
+      }
+    } catch {
+      setError("No se pudo aceptar la orden — revisa tu conexión");
     } finally {
       setProcesando(null);
     }
@@ -51,13 +60,21 @@ export default function PedidosYaOrdenesPage() {
 
   async function handleReject(ordenId: string) {
     setProcesando(ordenId);
+    setError(null);
     try {
       const res = await fetch(`/api/canales/orders/${ordenId}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Rechazado por el operador" }),
       });
-      if (res.ok) await fetchOrdenes();
+      if (res.ok) {
+        await fetchOrdenes();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "No se pudo rechazar la orden");
+      }
+    } catch {
+      setError("No se pudo rechazar la orden — revisa tu conexión");
     } finally {
       setProcesando(null);
     }
@@ -78,6 +95,15 @@ export default function PedidosYaOrdenesPage() {
           <p className="text-sm text-gray-500">Órdenes activas pendientes</p>
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-start justify-between gap-3 mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600" aria-label="Cerrar">
+            ✕
+          </button>
+        </div>
+      )}
 
       {ordenes.length === 0 ? (
         <div className="text-center py-12 text-gray-400">No hay órdenes activas</div>
