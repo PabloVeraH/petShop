@@ -62,7 +62,10 @@ export interface CrearAsientoInput {
   storeId: string;
   fecha: string;
   tipoMovimiento?: TipoMovimiento;
-  canal?: "pos" | "rappi" | "pedidosya" | "ubereats";
+  // string (no unión cerrada) para no tener que tocar este tipo cada vez que
+  // se habilita un canal nuevo — igual que el parámetro `canal` de
+  // lineasVentaCanal/lineasAnulacionVentaCanal, que ya es string.
+  canal?: string;
   referenciaId?: string;
   referenciaNomero?: string;
   descripcion: string;
