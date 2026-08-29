@@ -286,10 +286,22 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-314 | PATCH /api/canales/config activo=true con credencial de solo espacios y sin credenciales previas → 422 | PATCH /api/canales/config | integration |
 | I-321 | POST /api/canales/config activo=true con credenciales parciales (solo 1 de N campos) → 422 | POST /api/canales/config | integration |
 | I-322 | PATCH /api/canales/config activo=true con credenciales parciales → 422 | PATCH /api/canales/config | integration |
-| I-325 | REGRESIÓN: venta creada al aceptar orden de canal persiste `impuesto` con fórmula de extracción (antes quedaba NULL) | POST /api/canales/orders/[id]/accept | integration |
-| I-326 | REGRESIÓN: venta_items de orden de canal usa columna `precio_unitario` (antes usaba `precio`, inexistente — insert fallaba en silencio) | POST /api/canales/orders/[id]/accept | integration |
-| I-327 | Aceptar orden de canal responde accepted y vincula venta_id en canal_ordenes | POST /api/canales/orders/[id]/accept | integration |
 | I-443 | REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): GET /api/canales/config expone `tiene_credenciales` derivado por canal y nunca `credenciales_encriptada` | GET /api/canales/config | integration |
+| I-519 | RPC crear_venta_tx recibe p_total/p_subtotal/p_impuesto correctos (extracción, no aditiva) al aceptar orden de canal | POST /api/canales/orders/[id]/accept | integration |
+| I-520 | Items enviados al RPC usan producto_id resuelto por SKU y precio_unitario (no `precio`) | POST /api/canales/orders/[id]/accept | integration |
+| I-521 | Aceptar orden de canal responde accepted, vincula venta_id y confirma al canal externo | POST /api/canales/orders/[id]/accept | integration |
+| I-522 | REGRESIÓN: aceptar orden de canal genera asiento contable vía crearAsiento(lineasVentaCanal) — antes nunca se llamaba | POST /api/canales/orders/[id]/accept | integration |
+| I-523 | idempotency_key enviado al RPC es determinístico (`canal:<canalId>:<external_order_id>`) | POST /api/canales/orders/[id]/accept | integration |
+| I-524 | REGRESIÓN: reintento idempotente (RPC created=false) no repite auditoría, confirmación al canal ni asiento contable | POST /api/canales/orders/[id]/accept | integration |
+| I-525 | REGRESIÓN: SKU no encontrado en el catálogo → 422 sin invocar el RPC (antes: el item se saltaba en silencio) | POST /api/canales/orders/[id]/accept | integration |
+| I-526 | Stock insuficiente → 422 sin invocar el RPC | POST /api/canales/orders/[id]/accept | integration |
+| I-527 | Orden ya procesada (estado accepted) → 400, sin efectos secundarios | POST /api/canales/orders/[id]/accept | integration |
+| I-528 | Sin sesión → 401 | POST /api/canales/orders/[id]/accept | integration |
+| I-529 | Orden inexistente o de otra tienda (filtro store_id sin match) → 404 | POST /api/canales/orders/[id]/accept | integration |
+| I-530 | p_procedencia usa el canalId real (rappi/pedidosya/ubereats), no 'presencial' — distingue canales con conexión sistémica de los manuales (whatsapp/instagram/etc., sin API en Chile) | POST /api/canales/orders/[id]/accept | integration |
+| CO-01 a CO-04 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | PedidosYaOrdenesPage | component |
+| CO-05 a CO-08 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | RappiOrdenesPage | component |
+| CO-09 a CO-12 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | UberEatsOrdenesPage | component |
 | CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
 | CC-07 | REGRESIÓN: campos type="password" (API Key, API Secret, Webhook Secret) tienen autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | CanalConfigPage | component |
@@ -302,6 +314,13 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | CC-14 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): canal con tiene_credenciales=true → checklist muestra todos los campos configurados sin que el formulario los reescriba | CanalConfigPage | component |
 | CC-15 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): el checklist NO incluye un paso de "Webhook registrado" — ese webhook solo está implementado para Rappi, no para todos los canales | CanalConfigPage | component |
 | CC-16 | MEJORA (ticket Trello 6a62eb3669e64e3d5cf110d0): canal ya activo → el checklist de onboarding no se muestra | CanalConfigPage | component |
+
+Nota: I-325, I-326 e I-327 quedaron retirados — `tests/integration/api/canales-accept.test.ts`
+se reescribió por completo junto con el fix de `aceptarOrdenExterna()` (ver
+docs/revision_claude_shopify.md §2), que reemplaza los inserts directos a
+`ventas`/`venta_items` por el RPC `crear_venta_tx`. Su intención (IVA por
+extracción, columna `precio_unitario` correcta, venta vinculada a la orden)
+queda cubierta por I-519, I-520 e I-521 respectivamente.
 
 Nota: los tests I-200 a I-208 y CC-01 a CC-04 (fix de activación automática sin
 credenciales, commit 7471d24) existen en `tests/integration/api/canales-config.test.ts`
@@ -487,7 +506,7 @@ I-406/I-407/I-408.
 | MW-26 | /api/admin NO es bloqueado para storeAdmin en el middleware (cada API route tiene su propio guard) | middleware-routing | unit |
 | MW-27 | REGRESIÓN (ticket 6a61a8b2792efeb5e59de96a): stale JWT (JWT systemAdmin, DB storeAdmin) → acceso denegado a /admin | middleware-routing | unit |
 | MW-28 | JWT y DB confirman systemAdmin → acceso permitido a /admin | middleware-routing | unit |
-| MW-29 | REGRESIÓN: CSP img-src incluye el dominio de R2 de fotos de producto (demo.ammapet.cl) — sin esto el navegador bloquea las miniaturas del formulario de Inventario y del buscador del POS | middleware-routing | unit |
+| MW-29 | REGRESIÓN: CSP img-src incluye el subdominio dedicado de R2 de fotos de producto (imgs.ammapet.cl, separado del dominio de la app en demo.ammapet.cl → Vercel) — sin esto el navegador bloquea las miniaturas del formulario de Inventario y del buscador del POS | middleware-routing | unit |
 
 ## Control de licencia — cálculo y middleware (LC-XX)
 
