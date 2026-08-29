@@ -16,10 +16,12 @@ export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "develo
     ].filter(Boolean).join(" "),
     // style-src mantiene unsafe-inline: necesario para Tailwind + Next.js inline styles
     "style-src 'self' 'unsafe-inline'",
-    // demo.ammapet.cl: dominio propio conectado al bucket R2 de fotos de
-    // producto (docs/product-images.md) — sin esto el navegador bloquea las
-    // miniaturas del formulario de Inventario aunque la URL sea válida.
-    "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.tile.openstreetmap.org https://demo.ammapet.cl",
+    // imgs.ammapet.cl: subdominio dedicado conectado al bucket R2 de fotos de
+    // producto (docs/product-images.md), separado del dominio de la app
+    // (demo.ammapet.cl → Vercel) para evitar que ambos compitan por el mismo
+    // registro DNS — sin esto el navegador bloquea las miniaturas del
+    // formulario de Inventario y del buscador del POS aunque la URL sea válida.
+    "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://*.tile.openstreetmap.org https://imgs.ammapet.cl",
     "font-src 'self' data:",
     [
       "connect-src 'self'",
