@@ -5,3 +5,10 @@ sessions/
 neural/
 *.log
 *.tmp
+
+# daemon runtime state (regenerado continuamente por el daemon local)
+daemon.pid
+daemon-state.json
+harness-active-policy.json
+metrics/
+policy/

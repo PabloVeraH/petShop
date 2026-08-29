@@ -1,0 +1,7 @@
+# Metadatos locales de versionado/integridad de helpers, regenerados por
+# el mecanismo de auto-tuning de claude-flow (ruflo doctor --fix / init).
+# No son código de la app ni deben viajar con el repo.
+.proven-config-version
+proven-config.json
+helpers/.helpers-version
+helpers/helpers.manifest.json
