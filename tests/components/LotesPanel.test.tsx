@@ -302,3 +302,118 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     spy.mockRestore();
   });
 });
+
+// ── Fase 1 (docs/canales-stock/stock_canales_externos.md): LOTE-0 (D11/D21) y merma (D23) ──────
+describe("LotesPanel — stock suelto a LOTE-0 y merma por vencimiento", () => {
+  const LOTE_VENCIDO = {
+    id: "lote-v", store_id: "store-1", producto_id: "prod-1", numero_lote: "LOTE-V",
+    cantidad_inicial: 10, cantidad_actual: 4, fecha_vencimiento: "2020-01-01",
+    fecha_ingreso: "2019-12-01", notas: null, activo: true, created_at: "", updated_at: "",
+  };
+
+  function mockFetchLotes(lotes: object[], postResponse: { ok: boolean; body: object } = { ok: true, body: {} }) {
+    (global.fetch as jest.Mock).mockImplementation((url: string, options?: RequestInit) => {
+      if (!options?.method || options.method === "GET") {
+        return Promise.resolve({ ok: true, json: async () => ({ lotes }) });
+      }
+      return Promise.resolve({ ok: postResponse.ok, json: async () => postResponse.body });
+    });
+  }
+
+  function postCall(urlPart: string) {
+    return (global.fetch as jest.Mock).mock.calls.find(
+      ([url, opts]: [string, RequestInit]) => url.includes(urlPart) && opts?.method === "POST"
+    );
+  }
+
+  beforeEach(() => jest.clearAllMocks());
+
+  // LP-07 — D11/D21: sin lotes y con stock, el formulario avisa que el stock
+  // existente pasa a ser el lote inicial y prellena su vencimiento.
+  it("LP-07: producto sin lotes con stock → aviso de LOTE-0 con vencimiento prellenado", async () => {
+    mockFetchLotes([]);
+    setup({ stockProducto: 100, fechaVencimientoProducto: "2026-11-15" });
+    await waitFor(() => expect(screen.getByText("Sin lotes registrados")).toBeInTheDocument());
+
+    abrirFormularioNuevoLote();
+
+    expect(screen.getByText(/Las 100 unidades existentes se registrarán como lote inicial/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Vencimiento del stock existente/)).toHaveValue("2026-11-15");
+  });
+
+  // LP-08 — D21: el vencimiento del stock existente es obligatorio; se envía
+  // en el body del POST junto al lote nuevo.
+  it("LP-08: exige el vencimiento del stock existente y lo envía en el POST /api/lotes", async () => {
+    mockFetchLotes([]);
+    setup({ stockProducto: 100, fechaVencimientoProducto: null });
+    await waitFor(() => expect(screen.getByText("Sin lotes registrados")).toBeInTheDocument());
+    abrirFormularioNuevoLote();
+
+    fireEvent.change(screen.getByPlaceholderText("10"), { target: { value: "50" } });
+    const [fechaLote] = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(fechaLote, { target: { value: "2027-01-01" } });
+    // Sin vencimiento del stock existente: bloqueado
+    expect(screen.getByRole("button", { name: "Crear Lote" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/Vencimiento del stock existente/), { target: { value: "2026-12-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear Lote" }));
+
+    await waitFor(() => expect(postCall("/api/lotes")).toBeDefined());
+    const body = JSON.parse(postCall("/api/lotes")![1].body as string);
+    expect(body).toMatchObject({
+      producto_id: "prod-1",
+      cantidad_inicial: 50,
+      fecha_vencimiento: "2027-01-01",
+      fecha_vencimiento_stock_existente: "2026-12-01",
+    });
+  });
+
+  // LP-09 — con lotes activos (aunque agotados) no hay stock suelto: sin
+  // aviso y sin el campo en el body (mismo criterio que el servidor).
+  it("LP-09: producto con lotes activos (aunque en 0) → sin aviso de LOTE-0", async () => {
+    mockFetchLotes([{ ...LOTE_VENCIDO, fecha_vencimiento: "2030-01-01", cantidad_actual: 0 }]);
+    setup({ stockProducto: 0 });
+    await waitFor(() => expect(screen.getByText("Sin lotes registrados")).toBeInTheDocument());
+    abrirFormularioNuevoLote();
+    expect(screen.queryByText(/se registrarán como lote inicial/)).not.toBeInTheDocument();
+  });
+
+  // LP-10 — D23: un lote vencido ofrece "Dar de baja (merma)" que llama a
+  // POST /api/lotes/[id]/merma e invalida inventario/productos.
+  it("LP-10: lote vencido → 'Dar de baja (merma)' llama a POST /api/lotes/[id]/merma", async () => {
+    mockFetchLotes([LOTE_VENCIDO], { ok: true, body: { cantidad_baja: 4 } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const spy = jest.spyOn(qc, "invalidateQueries");
+    render(
+      <QueryClientProvider client={qc}>
+        <LotesPanel productoId="prod-1" storeId="store-1" diasAlerta={30} />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(screen.getByText("LOTE-V")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Dar de baja (merma)" }));
+
+    await waitFor(() => expect(postCall("/api/lotes/lote-v/merma")).toBeDefined());
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" }));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+  });
+
+  // LP-11 — el error del servidor (ej. 403 para storeWorker) se muestra.
+  it("LP-11: error al dar de baja se muestra en pantalla", async () => {
+    mockFetchLotes([LOTE_VENCIDO], { ok: false, body: { error: "Forbidden" } });
+    setup();
+    await waitFor(() => expect(screen.getByText("LOTE-V")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Dar de baja (merma)" }));
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+  });
+
+  // LP-12 — lotes vigentes no ofrecen la merma por vencimiento; en modo solo
+  // lectura (no admin) no hay acciones (gate de UX; el servidor exige admin).
+  it("LP-12: lote vigente sin botón de merma; solo lectura sin acciones", async () => {
+    mockFetchLotes([{ ...LOTE_VENCIDO, id: "lote-ok", numero_lote: "LOTE-OK", fecha_vencimiento: "2030-01-01" }]);
+    setup({ esSoloLectura: true });
+    await waitFor(() => expect(screen.getByText("LOTE-OK")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Dar de baja (merma)" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Desactivar")).not.toBeInTheDocument();
+  });
+});

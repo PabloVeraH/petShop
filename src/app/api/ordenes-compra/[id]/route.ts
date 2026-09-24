@@ -5,6 +5,8 @@ import { OrdenCompraReceiveSchema, OrdenCompraEditItemsSchema, OrdenCompraEstado
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asientos";
 import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/email";
+import { mapearErrorStock } from "@/lib/stock-errors";
+import type { RegistrarLoteResultado } from "@/types";
 
 export const GET = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
@@ -60,6 +62,71 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       .single();
     if (ordenBaseError || !ordenBase) {
       return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    }
+
+    // ── Prevalidación de stock/lotes (Fase 1, D11) — ANTES de escribir nada ──
+    // La recepción recorre los items con escrituras independientes (no es una
+    // transacción): cualquier rechazo debe ocurrir aquí, no a mitad del loop.
+    //  - IDOR: un producto_id que no es de esta tienda se rechaza (antes se
+    //    le hacía increment_stock sin verificar el tenant).
+    //  - Producto CON lotes sin fecha de vencimiento: increment_stock sumaría
+    //    a productos.stock y el trigger lo borraría en el próximo cambio de
+    //    lote → se exige la fecha.
+    //  - Producto SIN lotes con stock suelto y fecha de vencimiento: el stock
+    //    suelto se convierte en LOTE-0 (registrar_lote) y necesita su propio
+    //    vencimiento (D21): el del producto o el enviado en el item.
+    const idsExistentes = [...new Set(
+      items.filter((i) => i.cantidad_recibida > 0 && i.producto_id).map((i) => i.producto_id as string)
+    )];
+    const productosInfo = new Map<string, { nombre: string; stock: number; fecha_vencimiento: string | null; tieneLotes: boolean }>();
+    if (idsExistentes.length > 0) {
+      const [{ data: prods }, { data: lotesActivos }] = await Promise.all([
+        supabase
+          .from("productos")
+          .select("id, nombre, stock, fecha_vencimiento")
+          .in("id", idsExistentes)
+          .eq("store_id", store_id),
+        supabase
+          .from("lotes_producto")
+          .select("producto_id")
+          .in("producto_id", idsExistentes)
+          .eq("store_id", store_id)
+          .eq("activo", true),
+      ]);
+      const conLotes = new Set((lotesActivos ?? []).map((l) => l.producto_id as string));
+      for (const p of prods ?? []) {
+        productosInfo.set(p.id, {
+          nombre: p.nombre,
+          stock: Number(p.stock ?? 0),
+          fecha_vencimiento: p.fecha_vencimiento ?? null,
+          tieneLotes: conLotes.has(p.id),
+        });
+      }
+    }
+    const conFechaEnEstaOc = new Set(
+      items.filter((i) => i.cantidad_recibida > 0 && i.producto_id && i.fecha_vencimiento).map((i) => i.producto_id as string)
+    );
+    for (const item of items) {
+      if (item.cantidad_recibida <= 0 || !item.producto_id) continue;
+      const info = productosInfo.get(item.producto_id);
+      if (!info) {
+        return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
+      }
+      // Otra línea de esta misma OC le crea lotes al producto → esta también
+      // necesita fecha (si no, fallaría a mitad de la recepción).
+      if (!item.fecha_vencimiento && (info.tieneLotes || conFechaEnEstaOc.has(item.producto_id))) {
+        return NextResponse.json(
+          { error: `"${info.nombre}" usa lotes: indica la fecha de vencimiento de lo recibido` },
+          { status: 422 }
+        );
+      }
+      if (item.fecha_vencimiento && !info.tieneLotes && info.stock > 0 &&
+          !info.fecha_vencimiento && !item.fecha_vencimiento_stock_existente) {
+        return NextResponse.json(
+          { error: `"${info.nombre}" tiene ${info.stock} unidades sin lote: indica su fecha de vencimiento (se registrarán como lote inicial)` },
+          { status: 422 }
+        );
+      }
     }
 
     let totalNeto = 0;
@@ -149,6 +216,9 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
         }
 
         // Auto-generate numero_lote if not provided: LOTE-{count of existing lotes}
+        // (+1 si en esta misma recepción el stock suelto pasa a ser "LOTE-0").
+        const info = productosInfo.get(productoId);
+        const convertiraStockSuelto = !!info && !info.tieneLotes && info.stock > 0;
         let numeroLote = item.numero_lote ?? null;
         if (!numeroLote) {
           const { count } = await supabase
@@ -156,39 +226,49 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
             .select("*", { count: "exact", head: true })
             .eq("producto_id", productoId)
             .eq("store_id", store_id);
-          numeroLote = `LOTE-${count ?? 0}`;
+          numeroLote = `LOTE-${(count ?? 0) + (convertiraStockSuelto ? 1 : 0)}`;
         }
 
-        // Crear lote — el trigger sync_stock_on_lote actualiza productos.stock
-        const { data: lote, error: loteError } = await supabase
-          .from("lotes_producto")
-          .insert({
-            store_id,
-            producto_id: productoId,
-            numero_lote: numeroLote,
-            cantidad_inicial: item.cantidad_recibida,
-            cantidad_actual: item.cantidad_recibida,
-            fecha_vencimiento: item.fecha_vencimiento,
-            fecha_ingreso: new Date().toISOString().split("T")[0],
-            orden_compra_id: id,
-            notas: `Recepción OC ${ordenBase.numero}`,
-          })
-          .select()
-          .single();
+        // D11 (S6): registrar_lote convierte el stock suelto en LOTE-0 y crea
+        // el lote nuevo en una transacción (antes el INSERT directo hacía que
+        // el trigger recalculara stock = Σ lotes y se perdiera el suelto).
+        // También marca tiene_vencimiento y registra el stock_movements.
+        const { data: registro, error: loteError } = await supabase.rpc("registrar_lote", {
+          p_store_id:                   store_id,
+          p_producto_id:                productoId,
+          p_cantidad_inicial:           item.cantidad_recibida,
+          p_fecha_vencimiento:          item.fecha_vencimiento,
+          p_user_id:                    ctx.userId,
+          p_numero_lote:                numeroLote,
+          p_orden_compra_id:            id,
+          p_notas:                      `Recepción OC ${ordenBase.numero}`,
+          p_fecha_venc_stock_existente: item.fecha_vencimiento_stock_existente ?? null,
+          p_movimiento_notas:           `Recepción OC ${ordenBase.numero}`,
+        });
 
         if (loteError) {
+          const mapped = mapearErrorStock(loteError.message);
           return NextResponse.json(
-            { error: `Error al crear lote: ${loteError.message}` },
-            { status: 500 }
+            { error: mapped.status === 500 ? "Error al crear lote" : mapped.error },
+            { status: mapped.status }
           );
         }
 
-        // Marcar producto con tiene_vencimiento = true
-        await supabase
-          .from("productos")
-          .update({ tiene_vencimiento: true })
-          .eq("id", productoId)
-          .eq("tiene_vencimiento", false);
+        const { lote, lote_inicial } = registro as RegistrarLoteResultado;
+
+        if (lote_inicial) {
+          await logAudit({
+            storeId: store_id,
+            userId: ctx.userId,
+            action: "CREATE",
+            entityType: "lotes_producto",
+            entityId: lote_inicial.id,
+            newValues: { ...lote_inicial },
+            changeDescription: `Stock existente convertido a lote inicial: ${nombreProducto ?? "Producto"} × ${lote_inicial.cantidad_inicial} unidades — ${ordenBase.numero}`,
+            ipAddress,
+            userAgent,
+          });
+        }
 
         await logAudit({
           storeId: store_id,
@@ -196,19 +276,10 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
           action: "CREATE",
           entityType: "lotes_producto",
           entityId: lote.id,
-          newValues: lote,
+          newValues: { ...lote },
           changeDescription: `Recepción de lote: ${nombreProducto ?? "Producto"} × ${item.cantidad_recibida} unidades — ${ordenBase.numero}`,
           ipAddress,
           userAgent,
-        });
-
-        await supabase.from("stock_movements").insert({
-          producto_id: productoId,
-          tipo: "entrada",
-          cantidad: item.cantidad_recibida,
-          referencia_id: id,
-          notas: `Recepción OC ${ordenBase.numero}`,
-          user_id: ctx.userId,
         });
       } else {
         // Sin fecha de vencimiento → stock directo. Incremento atómico vía RPC
@@ -217,10 +288,16 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
         // concurrentes del mismo producto (dos OC casi simultáneas, o un
         // doble clic en "Confirmar recepción") — encontrado al investigar el
         // ticket Trello 6a61a6136d3d8009490d7113.
-        await supabase.rpc("increment_stock", {
+        // Desde la migración 074 increment_stock rechaza productos con lotes
+        // (la prevalidación de arriba ya lo evita) — su error ya no se ignora.
+        const { error: incError } = await supabase.rpc("increment_stock", {
           p_producto_id: productoId,
           p_cantidad: item.cantidad_recibida,
         });
+        if (incError) {
+          const mapped = mapearErrorStock(incError.message);
+          return NextResponse.json({ error: mapped.error }, { status: mapped.status });
+        }
 
         await supabase.from("stock_movements").insert({
           producto_id: productoId,

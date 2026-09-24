@@ -18,6 +18,45 @@ import * as auditModule from "@/lib/audit";
 import * as asientosModule from "@/lib/contabilidad/generador-asientos";
 import * as emailModule from "@/lib/email";
 
+// ── Helpers de la prevalidación de recepción (Fase 1, migración 076) ──────
+// La recepción ahora lee productos (tenant + stock + vencimiento) y
+// lotes_producto (activos) ANTES de escribir. Estos chains son "thenables":
+// cualquier combinación de select/eq/in/single se resuelve según si se usó
+// .in() (consulta de prevalidación → lista) o no (lookup por id → objeto /
+// conteo de lotes).
+type ProdPrevalidacion = { id: string; nombre: string; stock: number; fecha_vencimiento: string | null };
+
+function thenableChain(resolver: (usoIn: boolean) => unknown) {
+  let usoIn = false;
+  const c: Record<string, unknown> = {};
+  for (const m of ["select", "eq", "single", "insert"]) c[m] = jest.fn(() => c);
+  c.in = jest.fn(() => { usoIn = true; return c; });
+  c.then = (resolve: (v: unknown) => unknown) => resolve(resolver(usoIn));
+  return c;
+}
+
+function productosChainFactory(prods: ProdPrevalidacion[]) {
+  const updateSpy = jest.fn();
+  const factory = () => {
+    const c = thenableChain((usoIn) => usoIn ? { data: prods, error: null } : { data: prods[0] ?? null, error: null });
+    c.update = updateSpy.mockReturnValue(c);
+    return c;
+  };
+  return { factory, updateSpy };
+}
+
+function lotesChainFactory(productosConLotes: string[], count = 0) {
+  const insertSpy = jest.fn();
+  const factory = () => {
+    const c = thenableChain((usoIn) => usoIn
+      ? { data: productosConLotes.map((id) => ({ producto_id: id })), error: null }
+      : { count, error: null });
+    c.insert = insertSpy;
+    return c;
+  };
+  return { factory, insertSpy };
+}
+
 describe("Órdenes de Compra API", () => {
   const mockStoreId = "a57ace69-a5f4-4089-83e9-04d92c27dd43";
   const mockOrden = {
@@ -149,8 +188,12 @@ describe("Órdenes de Compra API", () => {
         return resolve({ data: mockOrden, error: null });
       };
 
+      const productos = productosChainFactory([{ id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", nombre: "Arena", stock: 3, fecha_vencimiento: null }]);
+      const lotes = lotesChainFactory([]);
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return ordenChain;
+        if (table === "productos") return productos.factory();
+        if (table === "lotes_producto") return lotes.factory();
         if (table === "ordenes_compra_items") {
           return {
             update: jest.fn().mockReturnThis(),
@@ -199,10 +242,10 @@ describe("Órdenes de Compra API", () => {
     // vencimiento debe ser atómico (RPC increment_stock), no un SELECT stock
     // + UPDATE stock=leído+cantidad en dos statements separados — ese patrón
     // pierde incrementos bajo dos recepciones concurrentes del mismo
-    // producto. El fromMock de este test NO define un caso para la tabla
-    // "productos": si el código volviera al patrón viejo (select/update
-    // directo), fromMock("productos") devolvería undefined y el acceso a
-    // .select() lanzaría un TypeError, fallando el test.
+    // producto. Desde Fase 1 la recepción SÍ hace un SELECT de productos
+    // (prevalidación de tenant/lotes, antes de escribir), así que la
+    // invariante se verifica sobre lo que importa: productos.update NUNCA se
+    // llama (el stock solo cambia vía la RPC).
     it("I-455: REGRESIÓN — incremento de stock sin vencimiento usa RPC atómico increment_stock, no SELECT+UPDATE", async () => {
       const ordenChain = {
         select: jest.fn().mockReturnThis(),
@@ -214,8 +257,12 @@ describe("Órdenes de Compra API", () => {
         return resolve({ data: mockOrden, error: null });
       };
 
+      const productos = productosChainFactory([{ id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", nombre: "Arena", stock: 3, fecha_vencimiento: null }]);
+      const lotes = lotesChainFactory([]);
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return ordenChain;
+        if (table === "productos") return productos.factory();
+        if (table === "lotes_producto") return lotes.factory();
         if (table === "ordenes_compra_items") {
           return {
             update: jest.fn().mockReturnThis(),
@@ -238,7 +285,6 @@ describe("Órdenes de Compra API", () => {
             then: function(resolve: any) { return resolve({ data: null, error: null }); },
           };
         }
-        // Sin caso para "productos" a propósito — ver comentario del test.
       });
       const rpcMock = jest.fn().mockResolvedValue({ data: null, error: null });
 
@@ -255,7 +301,7 @@ describe("Órdenes de Compra API", () => {
       const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
 
       expect(res.status).toBe(200);
-      expect(fromMock).not.toHaveBeenCalledWith("productos");
+      expect(productos.updateSpy).not.toHaveBeenCalled();
       expect(rpcMock).toHaveBeenCalledWith("increment_stock", {
         p_producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5",
         p_cantidad: 5,
@@ -264,58 +310,45 @@ describe("Órdenes de Compra API", () => {
   });
 
   describe("PATCH /api/ordenes-compra/[id] — recibir con lotes", () => {
-    // I-471 — MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el audit log
-    // de "lotes_producto" quedaba con changeDescription/ipAddress vacíos.
-    it("I-471: crea lote cuando se proporciona lotes[] y el audit log queda con descripción e IP", async () => {
-      const itemsLoteInsert: any[] = [];
+    const PROD_ID = "6b63b917-9abb-466f-8b1b-a81c5329e199";
+    const OC_ID = "a57ace69-a5f4-4089-83e9-04d92c27dd43";
 
-      const ordenChain = {
+    function makeOrdenChain() {
+      const ordenChain: Record<string, unknown> = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         update: jest.fn().mockReturnThis(),
       };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
-        return resolve({ data: mockOrden, error: null });
-      };
+      ordenChain.single = jest.fn().mockReturnThis();
+      ordenChain.then = (resolve: (v: unknown) => unknown) => resolve({ data: mockOrden, error: null });
+      return ordenChain;
+    }
 
+    // fromMock completo para la recepción: prevalidación (productos/lotes),
+    // items de OC, cuentas por pagar. Devuelve los spies relevantes.
+    function montarRecepcion(opts: {
+      prods: ProdPrevalidacion[];
+      conLotes?: string[];
+      countLotes?: number;
+      rpc?: jest.Mock;
+    }) {
+      const productos = productosChainFactory(opts.prods);
+      const lotes = lotesChainFactory(opts.conLotes ?? [], opts.countLotes ?? 0);
+      const itemUpdates = jest.fn();
+      const stockMovInsert = jest.fn();
       const fromMock = jest.fn((table: string) => {
-        if (table === "ordenes_compra") return ordenChain;
+        if (table === "ordenes_compra") return makeOrdenChain();
+        if (table === "productos") return productos.factory();
+        if (table === "lotes_producto") return lotes.factory();
         if (table === "ordenes_compra_items") {
           return {
-            update: jest.fn().mockReturnThis(),
+            update: itemUpdates.mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
-        }
-        if (table === "lotes_producto") {
-          return {
-            insert: jest.fn().mockImplementation((data) => {
-              itemsLoteInsert.push(data);
-              return {
-                select: jest.fn().mockReturnThis(),
-                single: jest.fn().mockReturnThis(),
-                then: function(resolve: any) {
-                  return resolve({ data: { ...data, id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }, error: null });
-                },
-              };
-            }),
-          };
-        }
-        if (table === "productos") {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            update: jest.fn().mockReturnThis(),
-            single: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: { nombre: "Alimento Gato Whiskas 1kg" }, error: null }); },
+            then: (resolve: (v: unknown) => unknown) => resolve({ data: {}, error: null }),
           };
         }
         if (table === "stock_movements") {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
+          return { insert: stockMovInsert.mockReturnThis(), then: (resolve: (v: unknown) => unknown) => resolve({ data: {}, error: null }) };
         }
         if (table === "cuentas_pagar") {
           return {
@@ -323,39 +356,56 @@ describe("Órdenes de Compra API", () => {
             eq: jest.fn().mockReturnThis(),
             single: jest.fn().mockReturnThis(),
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+            then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null }),
           };
         }
       });
+      const rpcMock = opts.rpc ?? jest.fn().mockResolvedValue({
+        data: { lote: { id: "lote-nuevo", cantidad_inicial: 20 }, lote_inicial: null },
+        error: null,
+      });
+      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock, rpc: rpcMock });
+      return { fromMock, rpcMock, productos, lotes, itemUpdates, stockMovInsert };
+    }
 
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
-
-      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
+    function recibir(items: object[]) {
+      const req = new NextRequest(`http://localhost/api/ordenes-compra/${OC_ID}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "recibir",
-          items: [{
-            id: "df50e110-0482-4450-8745-42c54006d902",
-            cantidad_recibida: 20,
-            precio_unitario: 100,
-            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
-            fecha_vencimiento: "2026-12-31",
-            numero_lote: "LOTE-A",
-          }],
-        }),
+        body: JSON.stringify({ action: "recibir", items }),
       });
-      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      return PATCH(req, { params: Promise.resolve({ id: OC_ID }) });
+    }
+
+    // I-471 — MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el audit log
+    // de "lotes_producto" quedaba con changeDescription/ipAddress vacíos.
+    // Desde Fase 1 (D11) el lote se crea con la RPC registrar_lote (atómica,
+    // convierte stock suelto en LOTE-0) — nunca con un INSERT directo.
+    it("I-471: crea lote cuando se proporciona lotes[] y el audit log queda con descripción e IP", async () => {
+      const { rpcMock, lotes } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento Gato Whiskas 1kg", stock: 0, fecha_vencimiento: null }],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 20,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        fecha_vencimiento: "2026-12-31",
+        numero_lote: "LOTE-A",
+      }]);
 
       expect(res.status).toBe(200);
-      expect(itemsLoteInsert.length).toBe(1);
-      expect(itemsLoteInsert[0]).toMatchObject({
-        producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
-        cantidad_inicial: 20,
-        cantidad_actual: 20,
-        numero_lote: "LOTE-A",
-        fecha_vencimiento: "2026-12-31",
-      });
+      expect(rpcMock).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({
+        p_store_id: mockStoreId,
+        p_producto_id: PROD_ID,
+        p_cantidad_inicial: 20,
+        p_numero_lote: "LOTE-A",
+        p_fecha_vencimiento: "2026-12-31",
+        p_orden_compra_id: OC_ID,
+        p_movimiento_notas: "Recepción OC OC-20260424-ABC123",
+      }));
+      expect(lotes.insertSpy).not.toHaveBeenCalled();
 
       // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): el audit log de
       // "lotes_producto" debe traer descripción legible e IP — antes
@@ -371,151 +421,152 @@ describe("Órdenes de Compra API", () => {
     });
 
     it("omite lote cuando cantidad_recibida = 0", async () => {
-      const itemsLoteInsert: any[] = [];
+      const { rpcMock } = montarRecepcion({ prods: [] });
 
-      const ordenChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        update: jest.fn().mockReturnThis(),
-      };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
-        return resolve({ data: mockOrden, error: null });
-      };
-
-      const fromMock = jest.fn((table: string) => {
-        if (table === "ordenes_compra") return ordenChain;
-        if (table === "ordenes_compra_items") {
-          return {
-            update: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
-        }
-        if (table === "lotes_producto") {
-          return {
-            insert: jest.fn().mockImplementation((data) => {
-              itemsLoteInsert.push(data);
-              return {
-                select: jest.fn().mockReturnThis(),
-                single: jest.fn().mockReturnThis(),
-                then: function(resolve: any) {
-                  return resolve({ data: { ...data, id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }, error: null });
-                },
-              };
-            }),
-          };
-        }
-        if (table === "stock_movements") {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
-        }
-        if (table === "cuentas_pagar") {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockReturnThis(),
-            insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: null, error: null }); },
-          };
-        }
-      });
-
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
-
-      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "recibir",
-          items: [{
-            id: "df50e110-0482-4450-8745-42c54006d902",
-            cantidad_recibida: 0,
-            precio_unitario: 0,
-            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
-            fecha_vencimiento: "2026-12-31",
-          }],
-        }),
-      });
-      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 0,
+        precio_unitario: 0,
+        producto_id: PROD_ID,
+        fecha_vencimiento: "2026-12-31",
+      }]);
 
       expect(res.status).toBe(200);
-      expect(itemsLoteInsert.length).toBe(0);
+      expect(rpcMock).not.toHaveBeenCalled();
     });
 
     it("retorna 500 si falla la creación del lote", async () => {
-      const ordenChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        update: jest.fn().mockReturnThis(),
-      };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
-        return resolve({ data: mockOrden, error: null });
-      };
-
-      let lotesCalls = 0;
-      const fromMock = jest.fn((table: string) => {
-        if (table === "ordenes_compra") return ordenChain;
-        if (table === "ordenes_compra_items") {
-          return {
-            update: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
-          };
-        }
-        if (table === "productos") {
-          return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { nombre: "Producto X" }, error: null }),
-          };
-        }
-        if (table === "lotes_producto") {
-          lotesCalls++;
-          if (lotesCalls === 1) {
-            // Count query for auto-numbering
-            return {
-              select: jest.fn().mockReturnThis(),
-              eq: jest.fn().mockReturnThis(),
-              then: function(resolve: any) { return resolve({ count: 1, error: null }); },
-            };
-          }
-          // Insert query — simulate failure
-          return {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            single: jest.fn().mockReturnThis(),
-            then: function(resolve: any) {
-              return resolve({ data: null, error: { message: "FK violation" } });
-            },
-          };
-        }
+      montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Producto X", stock: 0, fecha_vencimiento: null }],
+        countLotes: 1,
+        rpc: jest.fn().mockResolvedValue({ data: null, error: { message: "FK violation" } }),
       });
 
-      (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock });
-
-      const req = new NextRequest("http://localhost/api/ordenes-compra/oc-1", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "recibir",
-          items: [{
-            id: "df50e110-0482-4450-8745-42c54006d902",
-            cantidad_recibida: 5,
-            precio_unitario: 100,
-            producto_id: "6b63b917-9abb-466f-8b1b-a81c5329e199",
-            fecha_vencimiento: "2026-12-31",
-          }],
-        }),
-      });
-      const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 5,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        fecha_vencimiento: "2026-12-31",
+      }]);
 
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.error).toContain("Error al crear lote");
+    });
+
+    // I-547 — IDOR: un producto_id que no pertenece a la tienda (la
+    // prevalidación filtra por store_id y no lo encuentra) → 404 ANTES de
+    // cualquier escritura. Antes se le hacía increment_stock sin verificar.
+    it("I-547: producto de otra tienda → 404 sin escribir nada", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({ prods: [] });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 5,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+      }]);
+
+      expect(res.status).toBe(404);
+      expect(rpcMock).not.toHaveBeenCalled();
+      expect(itemUpdates).not.toHaveBeenCalled();
+    });
+
+    // I-548 — producto CON lotes recibido sin vencimiento → 422 antes de
+    // escribir (antes: increment_stock que el trigger borraba después).
+    it("I-548: producto con lotes sin fecha de vencimiento → 422 sin escribir nada", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 30, fecha_vencimiento: "2026-12-01" }],
+        conLotes: [PROD_ID],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 5,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+      }]);
+
+      expect(res.status).toBe(422);
+      expect((await res.json()).error).toMatch(/usa lotes/);
+      expect(rpcMock).not.toHaveBeenCalled();
+      expect(itemUpdates).not.toHaveBeenCalled();
+    });
+
+    // I-549 — D11/D21 vía OC: stock suelto sin vencimiento conocido y sin
+    // fecha_vencimiento_stock_existente → 422 antes de escribir.
+    it("I-549: primer lote con stock suelto sin vencimiento conocido → 422", async () => {
+      const { rpcMock } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 100, fecha_vencimiento: null }],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 50,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        fecha_vencimiento: "2027-01-01",
+      }]);
+
+      expect(res.status).toBe(422);
+      expect((await res.json()).error).toMatch(/100 unidades sin lote/);
+      expect(rpcMock).not.toHaveBeenCalled();
+    });
+
+    // I-550 — D11 vía OC (caso del plan: 100 sueltas + lote de 50): con el
+    // vencimiento del stock existente, registrar_lote lo recibe y el lote
+    // nuevo se numera LOTE-1 (el LOTE-0 es el stock convertido).
+    it("I-550: primer lote con stock suelto → registrar_lote con vencimiento del existente y numeración LOTE-1", async () => {
+      const { rpcMock } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 100, fecha_vencimiento: null }],
+        countLotes: 0,
+        rpc: jest.fn().mockResolvedValue({
+          data: {
+            lote: { id: "lote-1", cantidad_inicial: 50 },
+            lote_inicial: { id: "lote-0", numero_lote: "LOTE-0", cantidad_inicial: 100 },
+          },
+          error: null,
+        }),
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 50,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        fecha_vencimiento: "2027-01-01",
+        fecha_vencimiento_stock_existente: "2026-11-30",
+      }]);
+
+      expect(res.status).toBe(200);
+      expect(rpcMock).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({
+        p_cantidad_inicial: 50,
+        p_numero_lote: "LOTE-1",
+        p_fecha_venc_stock_existente: "2026-11-30",
+      }));
+      expect(auditModule.logAudit).toHaveBeenCalledWith(expect.objectContaining({
+        entityId: "lote-0",
+        changeDescription: expect.stringContaining("Stock existente convertido a lote inicial"),
+      }));
+    });
+
+    // I-551 — mismo producto dos veces en la OC, una línea con vencimiento
+    // (le crea lotes) y otra sin él → 422 antes de escribir (si no, la
+    // segunda fallaría a mitad de la recepción, que no es transaccional).
+    it("I-551: mismo producto con y sin vencimiento en la misma OC → 422 sin escribir nada", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 0, fecha_vencimiento: null }],
+      });
+
+      const res = await recibir([
+        { id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 5, precio_unitario: 100, producto_id: PROD_ID, fecha_vencimiento: "2027-01-01" },
+        { id: "e1a1a1a1-0482-4450-8745-42c54006d903", cantidad_recibida: 3, precio_unitario: 100, producto_id: PROD_ID },
+      ]);
+
+      expect(res.status).toBe(422);
+      expect(rpcMock).not.toHaveBeenCalled();
+      expect(itemUpdates).not.toHaveBeenCalled();
     });
   });
 
@@ -663,8 +714,15 @@ describe("Órdenes de Compra API", () => {
       ordenChain.single = jest.fn().mockReturnThis();
       ordenChain.then = (resolve: Resolver) => resolve({ data: mockOrden, error: null });
 
+      const productos = productosChainFactory([
+        { id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", nombre: "A", stock: 0, fecha_vencimiento: null },
+        { id: "24ab45db-484f-4e24-9c22-fe9c0894e2b6", nombre: "B", stock: 0, fecha_vencimiento: null },
+      ]);
+      const lotes = lotesChainFactory([]);
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return ordenChain;
+        if (table === "productos") return productos.factory();
+        if (table === "lotes_producto") return lotes.factory();
         if (table === "ordenes_compra_items") {
           return {
             update: jest.fn((data: Record<string, unknown>) => {

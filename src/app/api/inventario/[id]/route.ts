@@ -1,15 +1,27 @@
 import { getStoreId } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { InventarioUpdateSchema } from "@/lib/validation";
+import { mapearErrorStock } from "@/lib/stock-errors";
 
 export const PATCH = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id, userId } = ctx;
+
+  // S11: el ajuste manual de stock es solo para storeAdmin/systemAdmin. El
+  // menú oculta Inventario a storeWorker, pero eso es UX; el control es este.
+  const { sessionClaims } = await auth();
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), store_id);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -168,31 +180,42 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
     return finalizarAjuste(prodTrasLotes as unknown as ProductoActualizado);
   }
 
-  // Sin lotes activos: comportamiento original — stock del producto es la
-  // única fuente de verdad, no hay invariante con lotes que mantener.
-  const nuevoStock = Math.max(0, prod.stock + delta);
+  // Sin lotes activos: productos.stock es la única fuente de verdad. S7: el
+  // ajuste es atómico en BD (increment_stock / decrement_stock, migración
+  // 074) — antes se leía el stock y se escribía `Math.max(0, stock + delta)`,
+  // lo que bajo dos ajustes/ventas concurrentes perdía una actualización y
+  // podía "vender" más que el stock dejando 0.
+  const { error: rpcError } = tipo === "entrada"
+    ? await supabase.rpc("increment_stock", { p_producto_id: id, p_cantidad: cantidad })
+    : await supabase.rpc("decrement_stock", { p_producto_id: id, p_cantidad: cantidad });
+
+  if (rpcError) {
+    const mapped = mapearErrorStock(rpcError.message);
+    if (mapped.status === 500) {
+      await logAudit({
+        storeId: store_id,
+        userId,
+        action: "UPDATE",
+        entityType: "inventario",
+        entityId: id,
+        oldValues: auditOldValues,
+        ipAddress,
+        userAgent,
+        result: "failure",
+        errorMessage: rpcError.message,
+      });
+    }
+    return NextResponse.json({ error: mapped.error }, { status: mapped.status });
+  }
 
   const { data: prodActualizado, error } = await supabase
     .from("productos")
-    .update({ stock: nuevoStock })
-    .eq("id", id)
     .select("id, nombre, marca, precio, stock, codigo_barra, tipo_animal, peso_gramos, en_oferta, precio_oferta, imagen_url, categorias(nombre)")
+    .eq("id", id)
+    .eq("store_id", store_id)
     .single();
 
-  if (error) {
-    await logAudit({
-      storeId: store_id,
-      userId,
-      action: "UPDATE",
-      entityType: "inventario",
-      entityId: id,
-      oldValues: auditOldValues,
-      newValues: { stock: nuevoStock },
-      ipAddress,
-      userAgent,
-      result: "failure",
-      errorMessage: error.message,
-    });
+  if (error || !prodActualizado) {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 

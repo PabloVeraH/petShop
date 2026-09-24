@@ -994,3 +994,75 @@ describe("InventoryPage — salida de stock limitada al disponible", () => {
     expect(screen.getByText("Entrada de stock")).toBeInTheDocument();
   });
 });
+
+// ── Fase 1 (docs/canales-stock/stock_canales_externos.md): gate de ajuste, conteo físico (D22)
+// y filtro de stock con decimales (S9) ──────────────────────────────────────
+describe("InventoryPage — conteo físico y gates de stock", () => {
+  const PRODUCTO_DECIMAL = { ...PRODUCTO, id: "p3", nombre: "Granel Saco 15kg", stock: 9.5 };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupFetch([PRODUCTO, PRODUCTO_DECIMAL]);
+  });
+
+  // IV-15 — gate de UX: storeWorker no ve ajuste +/−, Conteo ni el filtro de
+  // decimales. NO es el control de seguridad: PATCH /api/inventario/[id] y
+  // POST .../conteo exigen storeAdmin/systemAdmin en el servidor (I-532,
+  // I-555).
+  it("IV-15: storeWorker no ve ajuste +/−, Conteo ni 'Con decimales' (gate de UX)", async () => {
+    mockAsWorker();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    expect(screen.queryByRole("button", { name: "+" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "−" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Conteo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Con decimales" })).not.toBeInTheDocument();
+  });
+
+  // IV-16 — admin abre "Conteo" y el modal envía el POST real.
+  it("IV-16: admin abre Conteo y registra el conteo con POST /api/inventario/[id]/conteo", async () => {
+    mockAsAdmin();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Conteo" })[0]);
+    await waitFor(() => expect(screen.getByLabelText(/Cantidad contada/)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/Cantidad contada/), { target: { value: "14" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo de fin de mes" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar conteo" }));
+
+    await waitFor(() => {
+      const call = (global.fetch as jest.Mock).mock.calls.find(
+        ([url, opts]: [string, RequestInit]) => String(url).includes("/conteo") && opts?.method === "POST"
+      );
+      expect(call).toBeDefined();
+      expect(call[0]).toBe("/api/inventario/p1/conteo");
+      expect(JSON.parse(call[1].body as string)).toEqual({ stock_contado: 14, motivo: "Conteo de fin de mes" });
+    });
+  });
+
+  // IV-17 — "Con decimales" deja solo los productos con stock fraccionario
+  // (heredado de S9) para corregirlos por conteo.
+  it("IV-17: filtro 'Con decimales' muestra solo productos con stock fraccionario", async () => {
+    mockAsAdmin();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+    expect(screen.getByText("Granel Saco 15kg")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Con decimales" }));
+
+    expect(screen.queryByText("Alimento Premium")).not.toBeInTheDocument();
+    expect(screen.getByText("Granel Saco 15kg")).toBeInTheDocument();
+  });
+
+  // IV-18 — admin sigue viendo el ajuste +/− (el gate no rompe su flujo).
+  it("IV-18: admin ve ajuste +/− por producto", async () => {
+    mockAsAdmin();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+    expect(screen.getAllByRole("button", { name: "+" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "−" })).toHaveLength(2);
+  });
+});

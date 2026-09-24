@@ -25,6 +25,13 @@ const DB_VENTA_HUB = { id: "v1", total: 30000, numero_comprobante: "V-001", crea
 const mockRpc = jest.fn().mockResolvedValue({ data: { venta: DB_VENTA_HUB, created: true }, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+// PATCH /api/inventario/[id] exige storeAdmin desde Fase 1 (S11): sesión admin
+// de la misma tienda (admin-check real).
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: () => Promise.resolve({
+    sessionClaims: { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } },
+  }),
+}));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/hub-sync", () => ({
   syncProductsToHub: mockSyncProductsToHub,

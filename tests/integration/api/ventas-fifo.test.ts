@@ -34,6 +34,14 @@ jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
+// PATCH /api/productos/[id] exige storeAdmin desde Fase 1 (S11): sesión admin
+// de la misma tienda (admin-check real).
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: () => Promise.resolve({
+    sessionClaims: { sub: "user-1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } },
+  }),
+}));
+
 jest.mock("@/lib/whatsapp", () => ({
   sendWhatsAppText:    jest.fn().mockResolvedValue(undefined),
   buildReceiptMessage: jest.fn().mockReturnValue("receipt"),

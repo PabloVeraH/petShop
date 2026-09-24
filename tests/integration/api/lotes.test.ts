@@ -1,5 +1,5 @@
 /**
- * Tests I-XXX: GET/POST /api/lotes
+ * Tests I-XXX, I-472, I-537..I-543: GET/POST /api/lotes
  */
 import { NextRequest } from "next/server";
 
@@ -9,7 +9,11 @@ const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
 const mockSingle = jest.fn();
 const mockFrom = jest.fn();
 const mockRpc = jest.fn();
+const mockAuth = jest.fn();
 let mockGetStoreId = jest.fn().mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
+
+// admin-check es el REAL (requireStoreAdmin): solo se simula la sesión Clerk.
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => mockAuth() }));
 
 const mockChain = {
   select: jest.fn().mockReturnThis(),
@@ -135,151 +139,103 @@ describe("GET /api/lotes", () => {
   });
 });
 
+// POST /api/lotes — Fase 1 (docs/canales-stock/stock_canales_externos.md, migración 076):
+// el alta pasa por la RPC registrar_lote (D11: convierte el stock suelto en
+// "LOTE-0" en la misma transacción — S6) y exige storeAdmin/systemAdmin en el
+// servidor (S11). Los contratos previos (201, cantidad_actual por defecto,
+// 404 otra tienda, 400 fecha inválida, auditoría I-472) se conservan; solo
+// cambia el mecanismo de escritura (RPC en vez de INSERT directo).
 describe("POST /api/lotes", () => {
+  const LOTE_CREADO = {
+    id: "new-lote-id",
+    store_id: STORE_ID,
+    producto_id: PRODUCTO_ID,
+    numero_lote: null,
+    cantidad_inicial: 20,
+    cantidad_actual: 20,
+    fecha_vencimiento: "2026-12-01",
+    fecha_ingreso: "2026-09-24",
+    notas: null,
+    activo: true,
+  };
+
+  function mockProducto(data: object | null) {
+    const insertLotes = jest.fn();
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue(data ? { data, error: null } : { data: null, error: { code: "PGRST116" } }),
+        };
+      }
+      if (table === "lotes_producto") return { insert: insertLotes };
+      return {};
+    });
+    return { insertLotes };
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetStoreId = jest.fn().mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({ sessionClaims: { sub: "user-1", publicMetadata: { storeId: STORE_ID, storeAdmin: true } } });
+    mockRpc.mockResolvedValue({ data: { lote: LOTE_CREADO, lote_inicial: null }, error: null });
   });
 
   it("crea lote con campos mínimos", async () => {
-    const createdLote = {
-      id: "new-lote-id",
-      store_id: STORE_ID,
-      producto_id: PRODUCTO_ID,
-      numero_lote: null,
-      cantidad_inicial: 20,
-      cantidad_actual: 20,
-      fecha_vencimiento: "2026-12-01",
-      fecha_ingreso: new Date().toISOString().split("T")[0],
-      notas: null,
-      activo: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    const { insertLotes } = mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID }, error: null }) };
-      }
-      if (table === "lotes_producto") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: createdLote, error: null }),
-        };
-      }
-      return {};
-    });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 20, fecha_vencimiento: "2026-12-01" }));
 
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 20,
-      fecha_vencimiento: "2026-12-01",
-    });
-
-    const res = await POST(req);
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.lote.id).toBe("new-lote-id");
+    expect(mockRpc).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({
+      p_store_id: STORE_ID,
+      p_producto_id: PRODUCTO_ID,
+      p_cantidad_inicial: 20,
+      p_fecha_vencimiento: "2026-12-01",
+      p_user_id: "user-1",
+    }));
+    // S6: nunca un INSERT directo en lotes_producto (el trigger borraría el
+    // stock suelto); toda alta pasa por la RPC atómica.
+    expect(insertLotes).not.toHaveBeenCalled();
   });
 
   it("cantidad_actual default = cantidad_inicial", async () => {
-    const createdLote = {
-      id: "lote-2",
-      store_id: STORE_ID,
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 15,
-      cantidad_actual: 15,
-      fecha_vencimiento: "2026-12-01",
-      fecha_ingreso: new Date().toISOString().split("T")[0],
-    };
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID }, error: null }) };
-      }
-      if (table === "lotes_producto") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: createdLote, error: null }),
-        };
-      }
-      return {};
-    });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 15, fecha_vencimiento: "2026-12-01" }));
 
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 15,
-      cantidad_actual: undefined,
-      fecha_vencimiento: "2026-12-01",
-    });
-
-    const res = await POST(req);
     expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({
+      p_cantidad_inicial: 15,
+      p_cantidad_actual: 15,
+    }));
   });
 
   it("404 si producto_id es de otro store", async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } }) };
-      }
-      return {};
-    });
+    mockProducto(null);
 
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 10,
-      fecha_vencimiento: "2026-12-01",
-    });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
 
-    const res = await POST(req);
     expect(res.status).toBe(404);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it("400 si fecha_vencimiento no es YYYY-MM-DD", async () => {
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 10,
-      fecha_vencimiento: "invalid-date",
-    });
-
-    const res = await POST(req);
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "invalid-date" }));
     expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it("registra en audit_logs", async () => {
-    const createdLote = {
-      id: "lote-audit",
-      store_id: STORE_ID,
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 10,
-      cantidad_actual: 10,
-      fecha_vencimiento: "2026-12-01",
-      fecha_ingreso: new Date().toISOString().split("T")[0],
-    };
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID }, error: null }) };
-      }
-      if (table === "lotes_producto") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: createdLote, error: null }),
-        };
-      }
-      return {};
-    });
-
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
     const { logAudit } = await import("@/lib/audit");
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 10,
-      fecha_vencimiento: "2026-12-01",
-    });
 
-    await POST(req);
+    await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
+
     expect(logAudit).toHaveBeenCalled();
   });
 
@@ -288,38 +244,11 @@ describe("POST /api/lotes", () => {
   // changeDescription ausente. Este endpoint (creación manual de lote) tenía
   // el mismo defecto (llamador similar del mismo logAudit/getRequestMetadata).
   it("I-472: audit log de creación manual de lote incluye changeDescription con nombre y cantidad, e IP/userAgent", async () => {
-    const createdLote = {
-      id: "lote-audit-2",
-      store_id: STORE_ID,
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 12,
-      cantidad_actual: 12,
-      fecha_vencimiento: "2026-12-01",
-      fecha_ingreso: new Date().toISOString().split("T")[0],
-    };
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "productos") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: PRODUCTO_ID, nombre: "Alimento Gato Whiskas 1kg" }, error: null }) };
-      }
-      if (table === "lotes_producto") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: createdLote, error: null }),
-        };
-      }
-      return {};
-    });
-
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento Gato Whiskas 1kg" });
+    mockRpc.mockResolvedValue({ data: { lote: { ...LOTE_CREADO, id: "lote-audit-2", cantidad_inicial: 12, cantidad_actual: 12 }, lote_inicial: null }, error: null });
     const { logAudit } = await import("@/lib/audit");
-    const req = makePostRequest({
-      producto_id: PRODUCTO_ID,
-      cantidad_inicial: 12,
-      fecha_vencimiento: "2026-12-01",
-    });
 
-    await POST(req);
+    await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 12, fecha_vencimiento: "2026-12-01" }));
 
     expect(logAudit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -328,5 +257,91 @@ describe("POST /api/lotes", () => {
         userAgent: "test",
       })
     );
+  });
+
+  // I-537 — S11: sin sesión → 401.
+  it("I-537: sin sesión → 401", async () => {
+    mockGetStoreId = jest.fn().mockResolvedValue(null);
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
+    expect(res.status).toBe(401);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-538 — S11: storeWorker → 403 (antes el endpoint no validaba rol).
+  it("I-538: storeWorker → 403 sin llamar a la BD", async () => {
+    mockAuth.mockResolvedValue({ sessionClaims: { sub: "w1", publicMetadata: { storeId: STORE_ID } } });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-539 — D11/D21: la fecha de vencimiento del stock existente viaja a la
+  // RPC y, si hubo conversión a LOTE-0, se audita por separado y se devuelve.
+  it("I-539: primer lote con stock suelto → envía fecha del stock existente y audita el LOTE-0", async () => {
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    const loteInicial = { ...LOTE_CREADO, id: "lote-0", numero_lote: "LOTE-0", cantidad_inicial: 100, cantidad_actual: 100 };
+    mockRpc.mockResolvedValue({ data: { lote: { ...LOTE_CREADO, cantidad_inicial: 50, cantidad_actual: 50 }, lote_inicial: loteInicial }, error: null });
+    const { logAudit } = await import("@/lib/audit");
+
+    const res = await POST(makePostRequest({
+      producto_id: PRODUCTO_ID,
+      cantidad_inicial: 50,
+      fecha_vencimiento: "2027-01-01",
+      fecha_vencimiento_stock_existente: "2026-11-15",
+    }));
+
+    expect(res.status).toBe(201);
+    expect((await res.json()).lote_inicial.id).toBe("lote-0");
+    expect(mockRpc).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({
+      p_fecha_venc_stock_existente: "2026-11-15",
+    }));
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      entityId: "lote-0",
+      changeDescription: "Stock existente convertido a lote inicial: Alimento × 100 unidades",
+    }));
+  });
+
+  // I-540 — §6.2: store_id malicioso en el body se ignora; la RPC recibe el
+  // tenant de la sesión.
+  it("I-540: store_id en el body se ignora (se usa el de la sesión)", async () => {
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    await POST(makePostRequest({
+      producto_id: PRODUCTO_ID,
+      cantidad_inicial: 10,
+      fecha_vencimiento: "2026-12-01",
+      store_id: "123e4567-e89b-12d3-a456-4266141740ff",
+    }));
+    expect(mockRpc).toHaveBeenCalledWith("registrar_lote", expect.objectContaining({ p_store_id: STORE_ID }));
+  });
+
+  // I-541 — D21: sin vencimiento para el stock existente (ni en el producto)
+  // la BD rechaza → 422 con el mensaje, no 500.
+  it("I-541: falta el vencimiento del stock existente → 422 con el mensaje de la BD", async () => {
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Falta la fecha de vencimiento del stock existente (100 unidades)" } });
+
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toContain("100 unidades");
+  });
+
+  // I-542 — cantidad_actual mayor que la inicial → 400 (antes llegaba a la BD).
+  it("I-542: cantidad_actual > cantidad_inicial → 400", async () => {
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, cantidad_actual: 11, fecha_vencimiento: "2026-12-01" }));
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-543 — error no reconocido de la BD → 500 genérico (no se filtra el
+  // mensaje interno, a diferencia del `error.message` que devolvía antes).
+  it("I-543: error genérico de la RPC → 500 sin filtrar el mensaje interno", async () => {
+    mockProducto({ id: PRODUCTO_ID, nombre: "Alimento" });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "connection reset by peer" } });
+    const res = await POST(makePostRequest({ producto_id: PRODUCTO_ID, cantidad_inicial: 10, fecha_vencimiento: "2026-12-01" }));
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Error interno del servidor");
   });
 });

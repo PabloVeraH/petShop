@@ -1,5 +1,12 @@
 /**
- * Tests I-50 a I-56, I-431, I-436: PATCH /api/inventario/[id]
+ * Tests I-50 a I-56, I-431, I-436, I-500..I-503, I-531..I-536:
+ * PATCH /api/inventario/[id]
+ *
+ * Fase 1 (docs/canales-stock/stock_canales_externos.md, migración 074): sin lotes, entrada y
+ * salida son atómicas en BD (increment_stock / decrement_stock) en vez de
+ * leer-y-escribir productos.stock (S7), y el endpoint exige
+ * storeAdmin/systemAdmin en el servidor (S11). admin-check es el REAL: solo
+ * se simula la sesión de Clerk.
  */
 import { NextRequest } from "next/server";
 
@@ -22,8 +29,13 @@ const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 const mockSingle = jest.fn();
 const mockRpc = jest.fn();
+const mockAuth = jest.fn();
+
+const SESION_ADMIN = { sessionClaims: { sub: "u1", publicMetadata: { storeId: STORE_ID, storeAdmin: true } } };
+const SESION_WORKER = { sessionClaims: { sub: "u2", publicMetadata: { storeId: STORE_ID } } };
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => mockAuth() }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/hub-sync", () => ({ syncProductsToHub: jest.fn() }));
 
@@ -72,7 +84,83 @@ describe("PATCH /api/inventario/[id]", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue(SESION_ADMIN);
+    mockRpc.mockResolvedValue({ data: null, error: null });
     mockFrom.mockReturnValue(chain());
+  });
+
+  // I-531 — S11: sin sesión → 401, sin tocar la BD.
+  it("I-531: sin sesión → 401", async () => {
+    mockGetStoreId.mockResolvedValue(null);
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(401);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-532 — S11: storeWorker (sin storeAdmin/systemAdmin) → 403, sin tocar la
+  // BD. Antes el endpoint solo exigía sesión: el menú ocultaba Inventario,
+  // pero un request directo ajustaba stock.
+  it("I-532: storeWorker → 403 sin leer ni escribir stock", async () => {
+    mockAuth.mockResolvedValue(SESION_WORKER);
+    const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 5 }), { params });
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-533 — storeAdmin de OTRA tienda (sesión con otro storeId) → 403.
+  it("I-533: storeAdmin de otra tienda → 403", async () => {
+    mockAuth.mockResolvedValue({
+      sessionClaims: { sub: "u9", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-4266141740ff", storeAdmin: true } },
+    });
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(403);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-534 — systemAdmin pasa (excepción de rol, AGENTS.md §5).
+  it("I-534: systemAdmin → 200", async () => {
+    mockAuth.mockResolvedValue({ sessionClaims: { sub: "sa", publicMetadata: { systemAdmin: true } } });
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 10 }, error: null })
+      .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, nombre: "X", marca: null, precio: 1000, stock: 15 }, error: null });
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(200);
+  });
+
+  // I-535 — S7 / carrera: el pre-check JS pasa (stock leído 10) pero entre la
+  // lectura y el descuento una venta concurrente consumió el stock; la BD
+  // (decrement_stock estricto) rechaza → 422 con su mensaje, sin movimiento.
+  it("I-535: salida que la BD rechaza por stock insuficiente (carrera) → 422, sin movimiento", async () => {
+    const insertMock = jest.fn();
+    mockFrom.mockImplementation((table: string) => {
+      const c = chain();
+      if (table === "stock_movements") c.insert = insertMock.mockReturnValue(c);
+      return c;
+    });
+    mockSingle.mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 10 }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Stock insuficiente: disponible 2, solicitado 5" } });
+
+    const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 5 }), { params });
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("Stock insuficiente: disponible 2, solicitado 5");
+    expect(mockRpc).toHaveBeenCalledWith("decrement_stock", { p_producto_id: PRODUCTO_ID, p_cantidad: 5 });
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  // I-536 — entrada sin lotes que la BD rechaza porque el producto pasó a
+  // tener lotes (carrera con registrar_lote) → 409, sin movimiento.
+  it("I-536: entrada rechazada por la BD porque el producto ya tiene lotes → 409", async () => {
+    mockSingle.mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 10 }, error: null });
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Producto con lotes activos: el ingreso de stock requiere un lote con fecha de vencimiento (producto=x)" },
+    });
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(409);
+    expect(mockRpc).toHaveBeenCalledWith("increment_stock", { p_producto_id: PRODUCTO_ID, p_cantidad: 5 });
   });
 
   // I-50
@@ -129,6 +217,8 @@ describe("PATCH /api/inventario/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.stock).toBe(15);
+    // S7 (074): la suma es atómica en BD, no `stock leído + 5` escrito desde JS.
+    expect(mockRpc).toHaveBeenCalledWith("increment_stock", { p_producto_id: PRODUCTO_ID, p_cantidad: 5 });
   });
 
   // I-54 — REGRESIÓN (ticket Trello 6a5f9a8c29a2a067617111f7): antes el endpoint
@@ -167,19 +257,19 @@ describe("PATCH /api/inventario/[id]", () => {
     // La operación rechazada no debe modificar stock ni registrar movimiento
     expect(updateMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   // I-436 — frontera: salida con cantidad EXACTAMENTE igual al stock se permite
   // (no sobre-bloquear), deja el stock en 0 y registra el movimiento completo.
+  // Contrato 074: el descuento lo hace decrement_stock (atómico) — el endpoint
+  // ya NO escribe productos.stock con un valor calculado en JS.
   it("I-436: salida con cantidad igual al stock → 200, stock queda en 0 y movimiento registra la salida completa", async () => {
-    let stockPasado: number | undefined;
+    const updateMock = jest.fn();
     const inserts: Record<string, unknown>[] = [];
     mockFrom.mockImplementation((table: string) => {
       const c = chain();
-      c.update = jest.fn().mockImplementation((data: { stock: number }) => {
-        stockPasado = data.stock;
-        return c;
-      });
+      c.update = updateMock.mockReturnValue(c);
       if (table === "stock_movements") {
         c.insert = jest.fn((data: Record<string, unknown>) => {
           inserts.push(data);
@@ -195,7 +285,9 @@ describe("PATCH /api/inventario/[id]", () => {
     const res = await PATCH(makeRequest({ tipo: "salida", cantidad: 4 }), { params });
 
     expect(res.status).toBe(200);
-    expect(stockPasado).toBe(0);
+    expect(mockRpc).toHaveBeenCalledWith("decrement_stock", { p_producto_id: PRODUCTO_ID, p_cantidad: 4 });
+    expect(updateMock).not.toHaveBeenCalled();
+    expect((await res.json()).stock).toBe(0);
     // stock y movimiento quedan consistentes: -4 registrado sobre stock 4 → 0
     expect(inserts).toHaveLength(1);
     expect(inserts[0]).toMatchObject({ producto_id: PRODUCTO_ID, tipo: "salida", cantidad: -4 });
@@ -240,16 +332,27 @@ describe("PATCH /api/inventario/[id]", () => {
     ]);
   });
 
-  // I-431
+  // I-431 — error de BD al ajustar → 500 genérico (sin filtrar el mensaje
+  // interno). Contrato 074: el ajuste es la RPC increment_stock.
   it("I-431: error en update del producto retorna 500", async () => {
+    mockSingle.mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 5 }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "error de DB simulado", code: "PGRST000" } });
+
+    const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Error interno del servidor" });
+  });
+
+  // I-431b — el ajuste se aplicó pero el refetch falla → 500 (no se responde
+  // con datos inventados).
+  it("I-431b: refetch del producto tras el ajuste falla → 500", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: { id: PRODUCTO_ID, stock: 5 }, error: null })
       .mockResolvedValueOnce({ data: null, error: { message: "error de DB simulado", code: "PGRST000" } });
 
     const res = await PATCH(makeRequest({ tipo: "entrada", cantidad: 5 }), { params });
     expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body).toEqual({ error: "Error interno del servidor" });
   });
 
   // I-500 a I-503 — REGRESIÓN (ticket Trello 6a77e8454f3227d6d4a42437): el

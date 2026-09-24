@@ -1756,3 +1756,121 @@ imágenes no tenían ningún test.
 | CMP-IMG-06 | La subida incluye productoId en el FormData (organización por producto en R2) | ProductoImagenesField | component |
 | FP-13 | Guardar producto nuevo con foto subida incluye imagen_url en el body real del POST a /api/productos | InventoryPage | component |
 | FP-14 | Editar producto con foto existente: la miniatura se prellena y imagen_url viaja intacta en el PATCH | InventoryPage | component |
+
+---
+
+## Fase 1 — Integridad de stock (plan `docs/canales-stock/stock_canales_externos.md`)
+
+Migraciones 074 (primitivas de stock estrictas), 075 (devoluciones y
+anulaciones vuelven a los lotes) y 076 (registrar_lote / conteo físico /
+merma por vencimiento). Los tests de esta sección usan mocks de las RPC: la
+semántica en BD se verifica con `docs/canales-stock/stock_canales_fase1_verificacion.sql`
+(BEGIN … ROLLBACK, AGENTS.md §11.4) una vez aplicadas las migraciones.
+
+### Integración — PATCH /api/inventario/[id] (S7, S11)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-531 | Sin sesión → 401 sin tocar la BD | PATCH /api/inventario/[id] | integration |
+| I-532 | storeWorker → 403 sin leer ni escribir stock | PATCH /api/inventario/[id] | integration |
+| I-533 | storeAdmin de otra tienda → 403 | PATCH /api/inventario/[id] | integration |
+| I-534 | systemAdmin → 200 | PATCH /api/inventario/[id] | integration |
+| I-535 | Salida que la BD rechaza por stock insuficiente (carrera) → 422, sin movimiento | PATCH /api/inventario/[id] | integration |
+| I-536 | Entrada rechazada por la BD porque el producto ya tiene lotes → 409 | PATCH /api/inventario/[id] | integration |
+| I-431b | Refetch del producto tras el ajuste falla → 500 | PATCH /api/inventario/[id] | integration |
+
+I-53, I-54, I-431 e I-436 se actualizaron al contrato atómico (increment_stock /
+decrement_stock en vez de escribir `productos.stock` desde JS); ninguna
+expectativa se eliminó.
+
+### Integración — POST /api/lotes (D11, S6, S11)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-537 | Sin sesión → 401 | POST /api/lotes | integration |
+| I-538 | storeWorker → 403 sin llamar a la BD | POST /api/lotes | integration |
+| I-539 | Primer lote con stock suelto → envía vencimiento del existente y audita el LOTE-0 | POST /api/lotes | integration |
+| I-540 | store_id malicioso en el body se ignora | POST /api/lotes | integration |
+| I-541 | Falta el vencimiento del stock existente → 422 | POST /api/lotes | integration |
+| I-542 | cantidad_actual > cantidad_inicial → 400 | POST /api/lotes | integration |
+| I-543 | Error genérico de la RPC → 500 sin filtrar el mensaje interno | POST /api/lotes | integration |
+
+### Integración — PATCH /api/productos/[id] (S11, D11)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-544 | storeWorker → 403 sin tocar la BD | PATCH /api/productos/[id] | integration |
+| I-545 | Activar vencimiento con stock → RPC convertir_stock_suelto_a_lote, sin INSERT directo | PATCH /api/productos/[id] | integration |
+| I-546 | PATCH sin fecha_vencimiento no convierte stock a lote | PATCH /api/productos/[id] | integration |
+
+### Integración — recepción de OC (D11, IDOR)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-547 | producto_id de otra tienda → 404 sin escribir nada (IDOR cerrado) | PATCH /api/ordenes-compra/[id] | integration |
+| I-548 | Producto con lotes recibido sin vencimiento → 422 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+| I-549 | Primer lote con stock suelto sin vencimiento conocido → 422 | PATCH /api/ordenes-compra/[id] | integration |
+| I-550 | 100 sueltas + lote de 50 → registrar_lote con vencimiento del existente, numeración LOTE-1 | PATCH /api/ordenes-compra/[id] | integration |
+| I-551 | Mismo producto con y sin vencimiento en la misma OC → 422 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+
+### Integración — POST /api/inventario/[id]/conteo (D22)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-552 | Admin fija el stock contado → 200, RPC con tenant de la sesión, auditoría y sync | POST /api/inventario/[id]/conteo | integration |
+| I-553 | Conteo por lote → lote_id enviado al RPC | POST /api/inventario/[id]/conteo | integration |
+| I-554 | Sin sesión → 401 | POST /api/inventario/[id]/conteo | integration |
+| I-555 | storeWorker → 403 | POST /api/inventario/[id]/conteo | integration |
+| I-556 | Sesión sin publicMetadata → 403 | POST /api/inventario/[id]/conteo | integration |
+| I-557 | storeAdmin de otra tienda → 403 | POST /api/inventario/[id]/conteo | integration |
+| I-558 | Producto de otra tienda → 404 genérico | POST /api/inventario/[id]/conteo | integration |
+| I-559 | store_id malicioso en el body se ignora | POST /api/inventario/[id]/conteo | integration |
+| I-560 | Entradas inválidas (motivo, negativo, >3 decimales, tipo, lote_id) → 400 | POST /api/inventario/[id]/conteo | integration |
+| I-561 | Producto con lotes sin lote_id → 409 | POST /api/inventario/[id]/conteo | integration |
+| I-562 | id no UUID → 404 | POST /api/inventario/[id]/conteo | integration |
+| I-563 | Error inesperado del RPC → 500 genérico + auditoría de fallo | POST /api/inventario/[id]/conteo | integration |
+| I-563b | Acepta 3 decimales (1.005) | POST /api/inventario/[id]/conteo | integration |
+
+### Integración — POST /api/lotes/[id]/merma (D23)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-564 | Admin da de baja un lote vencido → 200, RPC con tenant y usuario, auditoría | POST /api/lotes/[id]/merma | integration |
+| I-565 | Sin body (motivo opcional) → 200 | POST /api/lotes/[id]/merma | integration |
+| I-566 | Sin sesión → 401 | POST /api/lotes/[id]/merma | integration |
+| I-567 | storeWorker → 403 | POST /api/lotes/[id]/merma | integration |
+| I-568 | Lote de otra tienda → 404 genérico | POST /api/lotes/[id]/merma | integration |
+| I-569 | Lote no vencido → 409 | POST /api/lotes/[id]/merma | integration |
+| I-570 | Lote ya dado de baja → 409 | POST /api/lotes/[id]/merma | integration |
+| I-571 | id no UUID → 404; motivo > 255 → 400 | POST /api/lotes/[id]/merma | integration |
+
+### Unitarios — src/lib/stock-errors.ts
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-159 | Cada prefijo de error SQL se traduce a su código HTTP con el mensaje de la BD | lib/stock-errors | unit |
+| U-160 | 404 no repite el UUID del mensaje | lib/stock-errors | unit |
+| U-161 | Mensaje no reconocido → 500 genérico | lib/stock-errors | unit |
+| U-162 | null/undefined/vacío → 500 genérico | lib/stock-errors | unit |
+
+### Componentes — ConteoFisicoModal, LotesPanel, InventoryPage
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CF-01 | Sin lotes: POST a /api/inventario/[id]/conteo con body correcto y cierre | ConteoFisicoModal | component |
+| CF-02 | Con lotes: exige elegir lote y envía lote_id | ConteoFisicoModal | component |
+| CF-03 | Motivo < 5 caracteres: error visible y envío bloqueado | ConteoFisicoModal | component |
+| CF-04 | Cantidad vacía o negativa bloquea el envío | ConteoFisicoModal | component |
+| CF-05 | Error de la API se muestra y el modal no se cierra | ConteoFisicoModal | component |
+| CF-06 | Estados de carga y de error al cargar lotes | ConteoFisicoModal | component |
+| CF-07 | Éxito invalida inventario, productos y lotes | ConteoFisicoModal | component |
+| LP-07 | Sin lotes con stock → aviso de LOTE-0 con vencimiento prellenado | LotesPanel | component |
+| LP-08 | Vencimiento del stock existente obligatorio y enviado en el POST | LotesPanel | component |
+| LP-09 | Con lotes activos (aunque en 0) → sin aviso de LOTE-0 | LotesPanel | component |
+| LP-10 | Lote vencido → "Dar de baja (merma)" llama a POST /api/lotes/[id]/merma | LotesPanel | component |
+| LP-11 | Error al dar de baja se muestra | LotesPanel | component |
+| LP-12 | Lote vigente sin botón de merma; solo lectura sin acciones | LotesPanel | component |
+| IV-15 | storeWorker no ve ajuste +/−, Conteo ni "Con decimales" (gate de UX, no de seguridad) | InventoryPage | component |
+| IV-16 | Admin abre Conteo y registra el conteo con el POST real | InventoryPage | component |
+| IV-17 | Filtro "Con decimales" muestra solo stock fraccionario | InventoryPage | component |
+| IV-18 | Admin ve ajuste +/− por producto | InventoryPage | component |

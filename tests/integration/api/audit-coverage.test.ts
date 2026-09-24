@@ -40,7 +40,12 @@ const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
-jest.mock("@/lib/admin-check", () => ({ getAdminStatus: mockGetAdminStatus }));
+// requireStoreAdmin es el real: desde Fase 1 (S11) PATCH /api/productos/[id]
+// lo exige; se simula solo getAdminStatus (la sesión decodificada).
+jest.mock("@/lib/admin-check", () => ({
+  getAdminStatus: mockGetAdminStatus,
+  requireStoreAdmin: jest.requireActual("@/lib/admin-check").requireStoreAdmin,
+}));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/audit", () => ({
   withErrorLogging: (handler) => handler,
@@ -228,6 +233,8 @@ describe("I-235: PATCH /api/productos/[id] → logAudit", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: USER_ID, storeId: STORE_ID });
+    mockAuth.mockResolvedValue({ sessionClaims: {} });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: true, storeId: STORE_ID, userId: USER_ID });
     mockLogAudit.mockResolvedValue(undefined);
   });
 

@@ -105,6 +105,10 @@ export const OrdenCompraReceiveItemSchema = z.object({
   nombre_nuevo: z.string().min(1).max(200).optional(),
   fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   numero_lote: z.string().max(100).optional(),
+  // D11/D21: vencimiento del stock suelto existente cuando esta recepción
+  // registra el PRIMER lote del producto (se convierte en "LOTE-0"). Si se
+  // omite, se usa productos.fecha_vencimiento.
+  fecha_vencimiento_stock_existente: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 }).refine(
   // Un item efectivamente recibido (cantidad > 0) debe tener precio > 0 — sin
   // esto, "Recibir OC" acepta silenciosamente precio 0 (fallback `|| 0` del

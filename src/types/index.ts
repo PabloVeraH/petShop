@@ -104,6 +104,32 @@ export interface DeduccionFIFOResultado {
   fecha_ingreso: string;
 }
 
+// Migración 074: venta_item_lotes.cantidad y stock_movements.cantidad pasan a
+// NUMERIC(10,3) — siguen siendo `number` en TS.
+
+// Resultado de la RPC registrar_lote (migración 076, D11). lote_inicial es el
+// "LOTE-0" creado con el stock suelto existente, o null si no hubo conversión.
+export interface RegistrarLoteResultado {
+  lote: LoteProducto;
+  lote_inicial: LoteProducto | null;
+}
+
+// Resultado de la RPC ajustar_stock_conteo (migración 076, D22).
+export interface AjusteConteoResultado {
+  stock_anterior: number;
+  stock_nuevo: number;
+  cantidad_anterior: number;
+  cantidad_contada: number;
+  delta: number;
+  lote_id: string | null;
+}
+
+// Resultado de la RPC merma_lote_vencido (migración 076, D23).
+export interface MermaLoteResultado {
+  lote: LoteProducto;
+  cantidad_baja: number;
+}
+
 // ─── Servicios agendables (Fase 1) ───────────────────────────────────────
 // Ver docs/plan_servicios.md. Fase 1 = solo catálogo + horario semanal;
 // sin citas, disponibilidad ni excepciones.

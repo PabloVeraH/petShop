@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LotesPanel } from "./components/LotesPanel";
+import { ConteoFisicoModal } from "./components/ConteoFisicoModal";
 import { CategoriasTab } from "./components/CategoriasTab";
 import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
 import { ProductoImagenesField } from "./components/ProductoImagenesField";
@@ -147,7 +148,13 @@ export default function InventoryPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState<Producto | null>(null);
   const [historial, setHistorial] = useState<HistorialModal>(null);
-  const [verLotesDe, setVerLotesDe] = useState<{ id: string; nombre: string; dias_alerta_expira: number } | null>(null);
+  const [verLotesDe, setVerLotesDe] = useState<{
+    id: string; nombre: string; dias_alerta_expira: number; stock: number; fecha_vencimiento: string | null;
+  } | null>(null);
+  // D22: conteo físico (solo admin) y filtro de stocks con decimales
+  // heredados de S9 (granel), para encontrarlos y corregirlos por conteo.
+  const [conteoDe, setConteoDe] = useState<Producto | null>(null);
+  const [soloDecimales, setSoloDecimales] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
@@ -289,7 +296,7 @@ export default function InventoryPage() {
     setShowForm(true);
   }
 
-  const productos = data ?? [];
+  const productos = (data ?? []).filter((p) => !soloDecimales || !Number.isInteger(Number(p.stock)));
   const totalAlertas = data?.filter((p) => p.stock <= p.stock_minimo).length ?? 0;
 
   function validate(): boolean {
@@ -398,6 +405,15 @@ export default function InventoryPage() {
         >
           Solo vencimientos
         </Button>
+        {isAdmin && (
+          <Button
+            variant={soloDecimales ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSoloDecimales((v) => !v)}
+          >
+            Con decimales
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto rounded-lg bg-white shadow-sm">
@@ -405,7 +421,7 @@ export default function InventoryPage() {
         {isError && <p className="text-sm text-red-500 p-4 text-center">Error al cargar inventario.</p>}
         {!isLoading && !isError && productos.length === 0 && (
           <p className="text-sm text-gray-400 p-4 text-center">
-            {soloAlertas ? "Sin productos en alerta" : soloVencimientos ? "Sin productos con vencimiento" : "Sin productos"}
+            {soloDecimales ? "Sin productos con stock decimal" : soloAlertas ? "Sin productos en alerta" : soloVencimientos ? "Sin productos con vencimiento" : "Sin productos"}
           </p>
         )}
         {!isLoading && !isError && productos.length > 0 && (
@@ -419,7 +435,7 @@ export default function InventoryPage() {
                 <TableHead className="text-right">Mín.</TableHead>
                 <TableHead>Vencimiento</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Ajustar</TableHead>
+                {isAdmin && <TableHead>Ajustar</TableHead>}
                 {isAdmin && <TableHead></TableHead>}
               </TableRow>
             </TableHeader>
@@ -471,6 +487,11 @@ export default function InventoryPage() {
                             {p.precio && p.costo && <Badge variant="secondary">OK</Badge>}
                           </div>}
                     </TableCell>
+                    {/* Ajuste +/− y conteo: solo admin (S11/D22). Es una
+                        conveniencia de UX — el control real es el servidor
+                        (PATCH /api/inventario/[id] y POST .../conteo exigen
+                        storeAdmin/systemAdmin). */}
+                    {isAdmin && (
                     <TableCell>
                       <div className="flex gap-1">
                         <button
@@ -483,12 +504,14 @@ export default function InventoryPage() {
                         >−</button>
                       </div>
                     </TableCell>
+                    )}
                     {isAdmin && (
                       <TableCell className="whitespace-nowrap">
                         <div className="flex gap-0.5 items-center">
                           <button onClick={() => abrirEditar(p)} className="text-[11px] text-blue-500 hover:underline px-1">Editar</button>
                           <button onClick={() => setHistorial(p)} className="text-[11px] text-gray-500 hover:underline px-1">Historial</button>
-                          <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30 })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
+                          <button onClick={() => setConteoDe(p)} className="text-[11px] text-emerald-700 hover:underline px-1">Conteo</button>
+                          <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30, stock: p.stock, fecha_vencimiento: p.fecha_vencimiento })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
                           <button onClick={() => setConfirmDelete(p)} className="text-[11px] text-red-400 hover:underline px-1">Desact.</button>
                         </div>
                       </TableCell>
@@ -741,9 +764,16 @@ export default function InventoryPage() {
               diasAlerta={verLotesDe.dias_alerta_expira}
               esSoloLectura={!isAdmin}
               puedeAgregarLote={isSystemAdmin}
+              stockProducto={verLotesDe.stock}
+              fechaVencimientoProducto={verLotesDe.fecha_vencimiento}
             />
           </div>
         </ModalOverlay>
+      )}
+
+      {/* Modal conteo físico (D22) */}
+      {conteoDe && (
+        <ConteoFisicoModal producto={conteoDe} onClose={() => setConteoDe(null)} />
       )}
       </>
       )}

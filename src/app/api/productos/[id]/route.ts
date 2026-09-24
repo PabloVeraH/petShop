@@ -1,4 +1,6 @@
 import { getStoreId } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { syncProductsToHub } from "@/lib/hub-sync";
@@ -11,6 +13,17 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  // S11: editar un producto (precio, stock, vencimientos) es solo para
+  // storeAdmin/systemAdmin — la UI ya muestra "Editar" solo a admin, pero eso
+  // es UX; el control real es este.
+  const { sessionClaims } = await auth();
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), store_id);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const supabase = createServiceClient();
 
   const { id } = await params;
@@ -130,24 +143,43 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
 
   if (data) {
     if (data.fecha_vencimiento && data.stock > 0 && updates.tiene_vencimiento) {
-      const { count } = await supabase
-        .from("lotes_producto")
-        .select("*", { count: "exact", head: true })
-        .eq("producto_id", id)
-        .eq("store_id", store_id)
-        .eq("activo", true);
-
-      if ((count ?? 0) === 0) {
-        await supabase.from("lotes_producto").insert({
-          store_id,
-          producto_id: id,
-          numero_lote: "LOTE-0",
-          cantidad_inicial: data.stock,
-          cantidad_actual: data.stock,
-          fecha_vencimiento: data.fecha_vencimiento,
-          fecha_ingreso: new Date().toISOString().split("T")[0],
-          notas: "Lote inicial — stock existente al activar vencimientos",
-        });
+      // D11: al activar vencimientos, el stock suelto pasa a "LOTE-0". La RPC
+      // bloquea el producto y es no-op si ya tiene lotes activos (antes: un
+      // count + insert separados que dos requests concurrentes podían
+      // duplicar). fecha_ingreso = alta del producto, para que FIFO lo
+      // consuma primero.
+      const { data: loteInicial, error: loteError } = await supabase.rpc("convertir_stock_suelto_a_lote", {
+        p_store_id:          store_id,
+        p_producto_id:       id,
+        p_fecha_vencimiento: data.fecha_vencimiento,
+      });
+      const { ipAddress, userAgent } = getRequestMetadata(req);
+      if (loteError) {
+        console.error("[productos PATCH] Error convirtiendo stock a LOTE-0:", loteError.message);
+        logAudit({
+          storeId: store_id,
+          userId: ctx.userId,
+          action: "CREATE",
+          entityType: "lote_producto",
+          entityId: id,
+          changeDescription: "Error convirtiendo stock existente a lote inicial",
+          ipAddress,
+          userAgent,
+          result: "failure",
+          errorMessage: loteError.message,
+        }).catch(() => {});
+      } else if (loteInicial) {
+        logAudit({
+          storeId: store_id,
+          userId: ctx.userId,
+          action: "CREATE",
+          entityType: "lote_producto",
+          entityId: (loteInicial as { id: string }).id,
+          newValues: loteInicial as Record<string, unknown>,
+          changeDescription: `Stock existente convertido a lote inicial: ${data.nombre} × ${data.stock} unidades`,
+          ipAddress,
+          userAgent,
+        }).catch(() => {});
       }
     }
 

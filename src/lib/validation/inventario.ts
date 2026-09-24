@@ -118,6 +118,31 @@ export const LoteCreateSchema = z.object({
   fecha_ingreso:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   orden_compra_id:   z.string().uuid().optional().nullable(),
   notas:             z.string().max(500).optional().nullable(),
+  // D11/D21: vencimiento del stock suelto existente, que se convierte en
+  // "LOTE-0" al registrar el primer lote. Si se omite, la BD usa
+  // productos.fecha_vencimiento; sin ninguna de las dos, rechaza.
+  fecha_vencimiento_stock_existente: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD').optional().nullable(),
+}).refine(
+  (d) => d.cantidad_actual === undefined || d.cantidad_actual <= d.cantidad_inicial,
+  { message: "La cantidad actual no puede superar la inicial", path: ["cantidad_actual"] }
+);
+
+// D22 — ajuste por conteo físico. 3 decimales como máximo (misma escala que
+// productos.stock NUMERIC(10,3)); permite corregir stocks fraccionarios
+// heredados de S9. Si el producto tiene lotes, el conteo es por lote.
+export const ConteoFisicoSchema = z.object({
+  stock_contado: z.number()
+    .nonnegative("La cantidad contada no puede ser negativa")
+    .max(9_999_999, "Cantidad fuera de rango")
+    // Tolerancia de punto flotante: 1.005 * 1000 = 1004.9999999999999.
+    .refine((v) => Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6, "Máximo 3 decimales"),
+  lote_id: UUIDSchema.optional().nullable(),
+  motivo: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(255),
+});
+
+// D23 — merma por vencimiento de un lote.
+export const MermaLoteSchema = z.object({
+  motivo: z.string().trim().max(255).optional(),
 });
 
 export const LoteUpdateSchema = z.object({
@@ -129,4 +154,5 @@ export const LoteUpdateSchema = z.object({
 });
 
 export type LoteCreateInput = z.infer<typeof LoteCreateSchema>;
+export type ConteoFisicoInput = z.infer<typeof ConteoFisicoSchema>;
 export type LoteUpdateInput = z.infer<typeof LoteUpdateSchema>;

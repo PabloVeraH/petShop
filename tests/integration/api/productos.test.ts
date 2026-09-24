@@ -23,9 +23,16 @@ const mockFrom = jest.fn();
 const mockSingle = jest.fn();
 const mockSyncProductsToHub = jest.fn();
 const mockEliminarImagenProducto = jest.fn();
+const mockRpc = jest.fn();
+// Sesión Clerk: por defecto storeAdmin de STORE_ID (PATCH exige admin desde
+// Fase 1 / S11). admin-check es el real.
+const mockAuth = jest.fn(async () => ({
+  sessionClaims: { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } },
+}));
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
-jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => mockAuth() }));
+jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/hub-sync", () => ({ syncProductsToHub: mockSyncProductsToHub }));
 jest.mock("@/lib/r2-storage", () => ({ eliminarImagenProducto: mockEliminarImagenProducto }));
 
@@ -283,6 +290,57 @@ describe("PATCH /api/productos/[id]", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.error).toBe("El código de barra ya existe");
+  });
+
+  // I-544 — S11: storeWorker no puede editar productos (precio, stock,
+  // vencimientos): 403 sin leer ni escribir. El botón "Editar" ya se ocultaba
+  // a no-admin en la UI; eso era solo UX.
+  it("I-544: storeWorker → 403 sin tocar la BD", async () => {
+    mockAuth.mockResolvedValueOnce({ sessionClaims: { sub: "w1", publicMetadata: { storeId: STORE_ID } } });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { precio: 1 }), { params: patchParams });
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  // I-545 — D11: activar vencimientos con stock suelto convierte el stock en
+  // LOTE-0 vía la RPC atómica convertir_stock_suelto_a_lote (antes: count +
+  // INSERT directo, duplicable por dos requests concurrentes).
+  it("I-545: activar vencimiento con stock → RPC convertir_stock_suelto_a_lote, sin INSERT directo en lotes", async () => {
+    const insertLotes = jest.fn();
+    mockFrom.mockImplementation((table: string) => {
+      const c = chain();
+      if (table === "lotes_producto") c.insert = insertLotes;
+      return c;
+    });
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", marca: null, precio: 9999, stock: 100, activo: true, fecha_vencimiento: "2026-12-31" },
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ data: { id: "lote-0", numero_lote: "LOTE-0" }, error: null });
+
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { fecha_vencimiento: "2026-12-31" }), { params: patchParams });
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("convertir_stock_suelto_a_lote", {
+      p_store_id: STORE_ID,
+      p_producto_id: PRODUCTO_ID,
+      p_fecha_vencimiento: "2026-12-31",
+    });
+    expect(insertLotes).not.toHaveBeenCalled();
+  });
+
+  // I-546 — sin fecha de vencimiento en el PATCH no hay conversión a lote.
+  it("I-546: PATCH sin fecha_vencimiento no convierte stock a lote", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: PRODUCTO_ID, nombre: "Test", marca: null, precio: 9999, stock: 100, activo: true, fecha_vencimiento: null },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { precio: 9999 }), { params: patchParams });
+    expect(res.status).toBe(200);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 

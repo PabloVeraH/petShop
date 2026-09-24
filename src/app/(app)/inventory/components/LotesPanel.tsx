@@ -22,6 +22,8 @@ type LoteForm = {
   cantidad_actual: string;
   fecha_vencimiento: string;
   notas: string;
+  // D21: vencimiento del stock suelto que se convierte en "LOTE-0".
+  fecha_vencimiento_stock_existente: string;
 };
 
 const EMPTY_LOTE_FORM: LoteForm = {
@@ -30,6 +32,7 @@ const EMPTY_LOTE_FORM: LoteForm = {
   cantidad_actual: "",
   fecha_vencimiento: "",
   notas: "",
+  fecha_vencimiento_stock_existente: "",
 };
 
 interface LotesPanelProps {
@@ -38,11 +41,18 @@ interface LotesPanelProps {
   diasAlerta: number;
   esSoloLectura?: boolean;
   puedeAgregarLote?: boolean;
+  // Stock actual del producto y su vencimiento: si no tiene lotes y hay
+  // stock, el primer lote convierte ese stock en "LOTE-0" (D11) y la UI
+  // exige su vencimiento, prellenado con el del producto (D21).
+  stockProducto?: number;
+  fechaVencimientoProducto?: string | null;
 }
 
-async function getLotes(productoId: string, conStock = true): Promise<LoteProducto[]> {
+// Trae TODOS los lotes activos (también los agotados): "tiene lotes" se
+// decide con cualquier lote activo, igual que el servidor (migración 074).
+// La tabla sigue mostrando solo los que tienen stock.
+async function getLotes(productoId: string): Promise<LoteProducto[]> {
   const params = new URLSearchParams({ producto_id: productoId });
-  if (conStock) params.set("con_stock", "1");
   const res = await fetch(`/api/lotes?${params}`);
   if (!res.ok) throw new Error("Error al cargar lotes");
   const data = await res.json();
@@ -84,17 +94,42 @@ async function desactivarLote(id: string) {
   return res.json();
 }
 
-export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregarLote }: LotesPanelProps) {
+// D23: baja de un lote vencido con registro de merma (stock_movements
+// 'merma' + usuario). Solo admin — el servidor lo valida.
+async function darDeBajaVencido(id: string) {
+  const res = await fetch(`/api/lotes/${id}/merma`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error ?? "Error al dar de baja el lote");
+  }
+  return res.json();
+}
+
+export function LotesPanel({
+  productoId, diasAlerta, esSoloLectura, puedeAgregarLote, stockProducto, fechaVencimientoProducto,
+}: LotesPanelProps) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<LoteProducto | null>(null);
   const [form, setForm] = useState<LoteForm>(EMPTY_LOTE_FORM);
   const [formError, setFormError] = useState("");
+  const [bajaError, setBajaError] = useState("");
 
-  const { data: lotes = [], isLoading } = useQuery({
+  const { data: lotesActivos = [], isLoading } = useQuery({
     queryKey: ["lotes", productoId],
     queryFn: () => getLotes(productoId),
   });
+  const lotes = lotesActivos.filter((l) => Number(l.cantidad_actual) > 0);
+
+  // D11: sin lotes activos y con stock → el primer lote convierte ese stock
+  // en "LOTE-0". Mismo criterio que el servidor (cualquier lote activo).
+  const stockSuelto = !isLoading && lotesActivos.length === 0 && (stockProducto ?? 0) > 0
+    ? stockProducto ?? 0
+    : 0;
 
   const crearMutation = useMutation({
     mutationFn: crearLote,
@@ -132,9 +167,23 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
     },
   });
 
+  const bajaMutation = useMutation({
+    mutationFn: darDeBajaVencido,
+    onSuccess: () => {
+      setBajaError("");
+      queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+    },
+    onError: (e: Error) => setBajaError(e.message),
+  });
+
   function abrirNuevo() {
     setEditando(null);
-    setForm(EMPTY_LOTE_FORM);
+    setForm({
+      ...EMPTY_LOTE_FORM,
+      fecha_vencimiento_stock_existente: fechaVencimientoProducto ? fechaVencimientoProducto.split("T")[0] : "",
+    });
     setFormError("");
     setShowForm(true);
   }
@@ -147,6 +196,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
       cantidad_actual: String(l.cantidad_actual),
       fecha_vencimiento: l.fecha_vencimiento,
       notas: l.notas ?? "",
+      fecha_vencimiento_stock_existente: "",
     });
     setFormError("");
     setShowForm(true);
@@ -171,6 +221,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
         cantidad_actual: form.cantidad_actual ? Number(form.cantidad_actual) : Number(form.cantidad_inicial),
         fecha_vencimiento: form.fecha_vencimiento,
         notas: form.notas || null,
+        ...(stockSuelto > 0 ? { fecha_vencimiento_stock_existente: form.fecha_vencimiento_stock_existente } : {}),
       });
     }
   }
@@ -245,6 +296,15 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
                       >
                         Desactivar
                       </button>
+                      {l.status === "vencido" && (
+                        <button
+                          onClick={() => bajaMutation.mutate(l.id)}
+                          disabled={bajaMutation.isPending}
+                          className="text-xs text-red-700 font-medium hover:underline ml-2 disabled:opacity-50"
+                        >
+                          Dar de baja (merma)
+                        </button>
+                      )}
                     </div>
                   </TableCell>
                 )}
@@ -253,6 +313,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
           </TableBody>
         </Table>
       )}
+      {bajaError && <p className="text-xs text-red-500 mt-2">{bajaError}</p>}
 
       {showForm && (
         <ModalOverlay open onClose={() => { setShowForm(false); setEditando(null); }}>
@@ -301,6 +362,24 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
                   onChange={(e) => setForm((f) => ({ ...f, fecha_vencimiento: e.target.value }))}
                 />
               </div>
+              {!editando && stockSuelto > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                  <p className="text-xs text-amber-800 mb-2">
+                    Las {stockSuelto} unidades existentes se registrarán como lote inicial (LOTE-0).
+                    Indica su fecha de vencimiento.
+                  </p>
+                  <label htmlFor="venc-stock-existente" className="block text-sm font-medium text-gray-700 mb-1">
+                    Vencimiento del stock existente *
+                  </label>
+                  <input
+                    id="venc-stock-existente"
+                    type="date"
+                    value={form.fecha_vencimiento_stock_existente}
+                    onChange={(e) => setForm((f) => ({ ...f, fecha_vencimiento_stock_existente: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
                 <Input
@@ -325,6 +404,7 @@ export function LotesPanel({ productoId, diasAlerta, esSoloLectura, puedeAgregar
                   Boolean(crearMutation.isPending ||
                   actualizarMutation.isPending ||
                   (!editando && (!form.cantidad_inicial || !form.fecha_vencimiento)) ||
+                  (!editando && stockSuelto > 0 && !form.fecha_vencimiento_stock_existente) ||
                   (editando && !form.fecha_vencimiento))
                 }
                 className="flex-1"
