@@ -32,14 +32,15 @@ ausencia no bloquea el trabajo; su contenido no es autoridad sobre el repo.
 
 Los datos de mayor riesgo si se ignoran. El detalle está en la sección indicada.
 
-1. **`wnxrdbnvreofrrmhcybc` es el único proyecto Supabase — desarrollo y
-   producción a la vez.** Contiene datos reales de tiendas en uso. No hay
-   staging ni stack local. Toda migración, backfill u operación de escritura
-   fuera del flujo normal de la app requiere confirmación explícita del
-   usuario, incluso si parece aditiva/reversible. (§7, §11)
+1. **`wnxrdbnvreofrrmhcybc` es el único proyecto Supabase — es un entorno de
+   demo, no de producción.** Contiene datos de demostración que no deben
+   perderse. No hay staging ni stack local: ese proyecto es el único entorno.
+   Toda migración, backfill u operación de escritura fuera del flujo normal de
+   la app requiere confirmación explícita del usuario, incluso si parece
+   aditiva/reversible. (§7, §11)
 2. **Todas las API routes usan `createServiceClient()` (service role) — RLS no
-   se ejercita en producción.** `createClient()` (anon key) existe en
-   `src/lib/supabase.ts` pero ningún endpoint lo usa. El aislamiento
+   se ejercita en la ruta de ejecución real.** `createClient()` (anon key)
+   existe en `src/lib/supabase.ts` pero ningún endpoint lo usa. El aislamiento
    multi-tenant depende 100% de los filtros manuales por `store_id`; omitir uno
    es un leak entre tiendas que la BD no va a bloquear. (§6)
 3. **`venta_items` y `nota_credito_items` no tienen columna `store_id`.** Su
@@ -296,7 +297,7 @@ tienda; hijo cuyo padre pertenece a otra tienda; `store_id` malicioso en body;
 `systemAdmin` sin `storeId`; usuario deshabilitado si el flujo debe impedirlo;
 tienda sin licencia (considerando la excepción de systemAdmin).
 
-## 7. Supabase, service role y datos reales
+## 7. Supabase, service role y datos de demo
 
 Variables de entorno conocidas (confirma en el repo antes de usar otras):
 
@@ -323,10 +324,11 @@ respuestas, tests o fixtures; aplica autorización y aislamiento de tenant
 explícitos en aplicación; revisa imports transitivos para que código
 server-only no llegue al cliente.
 
-### 7.2 Datos reales
+### 7.2 Datos de demo
 
-El proyecto `wnxrdbnvreofrrmhcybc` contiene datos reales de negocio (§0.1).
-Nunca: pruebes destructivamente contra él; uses datos reales como fixtures;
+El proyecto `wnxrdbnvreofrrmhcybc` es un demo (no producción), pero es el
+único entorno disponible y sus datos no deben perderse (§0.1). Nunca: pruebes
+destructivamente contra él; uses sus datos como fixtures;
 copies montos, nombres o identificadores de negocio a respuestas, docs, logs o
 tests; ejecutes migraciones o backfills sin confirmación; asumas que una
 herramienta conectada apunta a un sandbox.
