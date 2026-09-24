@@ -53,6 +53,10 @@ deploy.sh
 # manifest.json) sí puede versionarse para que viaje con el repo
 /graphify-out/cache/
 /graphify-out/20*/
+# estado local por máquina (ruta absoluta, intérprete, costo de corridas)
+/graphify-out/.graphify_root
+/graphify-out/.graphify_python
+/graphify-out/cost.json
 
 # opencode — dependencias locales del directorio de plugins
 .opencode/node_modules/
