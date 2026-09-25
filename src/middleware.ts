@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { apiGeneralLimit } from "@/middleware/rateLimit";
+import { apiGeneralLimit, webhookLimit } from "@/middleware/rateLimit";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
 
@@ -40,12 +40,15 @@ export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "develo
   return directives.join("; ");
 }
 
-// No requieren autenticación de Clerk
-const publicRoutes = createRouteMatcher([
+// No requieren autenticación de Clerk. El webhook de canales externos
+// (Rappi, …) llega server-to-server sin sesión: se autentica con la firma del
+// adaptador en el propio handler (C1 — antes auth.protect() lo rechazaba).
+export const publicRoutes = createRouteMatcher([
   "/auth/(.*)",
   "/api/health",
   "/api/webhooks/(.*)",
   "/api/whatsapp/webhook",
+  "/api/canales/webhook/(.*)",
   "/sistema-suspendido",
   "/landing",
 ]);
@@ -57,6 +60,7 @@ const skipLicenseCheck = createRouteMatcher([
   "/api/health",
   "/api/webhooks/(.*)",
   "/api/whatsapp/webhook",
+  "/api/canales/webhook/(.*)",
   "/sistema-suspendido",
   "/api/admin/license/(.*)",
   "/api/license/status",
@@ -73,7 +77,11 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Rate limiting para todas las rutas /api
   if (req.nextUrl.pathname.startsWith("/api")) {
-    const rateLimitResponse = await apiGeneralLimit(req);
+    // Webhooks de canales: límite propio (50/min por IP). Con el general
+    // (100/15 min) los PING de Rappi (cada 3 min por tienda) más las órdenes
+    // de varias tiendas, que llegan desde las mismas IPs, lo agotarían.
+    const limiter = req.nextUrl.pathname.startsWith("/api/canales/webhook/") ? webhookLimit : apiGeneralLimit;
+    const rateLimitResponse = await limiter(req);
     if (rateLimitResponse) return rateLimitResponse;
   }
 

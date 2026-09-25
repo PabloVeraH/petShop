@@ -282,3 +282,57 @@ export interface SlotDisponible {
   hora_inicio: string; // "HH:MM"
   hora_fin: string;
 }
+
+// ─── Canales externos (migración 079, Fase 2 de
+// docs/canales-stock/stock_canales_externos.md) ──────────────────────────
+// Filas de BD. Los tipos de dominio (EstadoOrden, OrdenNormalizada…) viven en
+// src/lib/canales/domain/types.ts.
+import type { EstadoOrden, CanalExternoId } from "@/lib/canales/domain/types";
+
+export interface CanalOrdenItemRow {
+  sku: string;
+  nombre: string | null;
+  cantidad: number;
+  precio_unitario_bruto: number;
+}
+
+export interface CanalOrdenRow {
+  id: string;
+  store_id: string;
+  canal_id: CanalExternoId;
+  external_order_id: string;
+  estado: EstadoOrden;
+  payload: unknown;              // evento crudo de la plataforma
+  items: CanalOrdenItemRow[];    // orden normalizada por el adaptador
+  total_externo: number | null;
+  venta_id: string | null;
+  aceptar_antes_de: string | null;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  ready_at: string | null;
+  motivo_rechazo: string | null;
+  intentos: number;
+  ultimo_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CanalOutboxTipo = "confirm" | "reject" | "ready" | "availability" | "catalog";
+export type CanalOutboxEstado = "pending" | "processing" | "done" | "dead";
+
+export interface CanalOutboxRow {
+  id: string;
+  store_id: string;
+  canal_id: CanalExternoId;
+  tipo: CanalOutboxTipo;
+  canal_orden_id: string | null;
+  payload: Record<string, unknown>;
+  dedupe_key: string | null;
+  estado: CanalOutboxEstado;
+  intentos: number;
+  next_attempt_at: string;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+  processed_at: string | null;
+}

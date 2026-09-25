@@ -1,22 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { getStoreId } from "@/lib/auth";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
-import { encryptJSON, decryptJSON } from "@/lib/canales/encryption";
+import { encryptJSON } from "@/lib/canales/encryption";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import {
+  CAMPO_EXTERNAL_STORE_ID,
+  CANALES_INTEGRACION_PENDIENTE,
+  type CanalConfigurableId,
+} from "@/lib/canales/campos";
+import { credencialesValidas } from "@/lib/canales/credenciales";
 import { z } from "zod";
 
-const REQUIRED_CREDENTIAL_FIELDS: Record<string, string[]> = {
-  rappi: ["api_key", "api_secret", "store_id", "webhook_secret"],
-  pedidosya: ["client_id", "client_secret", "business_id"],
-  ubereats: ["client_id", "client_secret", "store_uuid"],
-  instagram: ["app_id", "app_secret", "ig_user_id", "access_token"],
-};
-
-function allCredentialsFilled(canalId: string, credenciales: Record<string, string>): boolean {
-  const required = REQUIRED_CREDENTIAL_FIELDS[canalId];
-  if (!required) return false;
-  return required.every((key) => credenciales[key] && credenciales[key].trim() !== "");
+// Fase 2 (2.3): las credenciales se validan con el MISMO schema que usa el
+// flujo del canal (lib/canales/credenciales.ts, generado desde
+// lib/canales/campos.ts — fuente única con la UI). Antes esta ruta exigía
+// api_key/api_secret para Rappi mientras rappi/auth.ts leía
+// client_id/client_secret (C5).
+function allCredentialsFilled(canalId: CanalConfigurableId, credenciales: Record<string, string>): boolean {
+  return credencialesValidas(canalId, credenciales);
 }
+
+// C4: el id de la tienda en la plataforma se guarda también en su columna
+// (canal_config.external_store_id), que es lo que lee el flujo del canal.
+function externalStoreIdDe(canalId: CanalConfigurableId, credenciales: Record<string, string>): string | undefined {
+  const campo = CAMPO_EXTERNAL_STORE_ID[canalId];
+  return campo ? credenciales[campo]?.trim() || undefined : undefined;
+}
+
+// D8: configurar un canal (credenciales, activar) es solo para
+// storeAdmin/systemAdmin, validado aquí; el formulario es solo UX.
+async function soloAdmin(storeId: string): Promise<NextResponse | null> {
+  const { sessionClaims } = await auth();
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), storeId);
+    return null;
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+}
+
+const INTEGRACION_PENDIENTE = "Integración pendiente: este canal aún no se puede activar";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -47,6 +72,8 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+  const forbidden = await soloAdmin(store_id);
+  if (forbidden) return forbidden;
   const supabase = createServiceClient();
 
   const configSchema = z.object({
@@ -73,6 +100,10 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     );
   }
 
+  if (wantsActive && CANALES_INTEGRACION_PENDIENTE.includes(canal_id)) {
+    return NextResponse.json({ error: INTEGRACION_PENDIENTE }, { status: 409 });
+  }
+
   const hasCredentials = Object.values(credenciales).some(v => v.trim() !== "");
 
   // Sin credenciales reales, no cifrar/guardar un blob vacío: dejar las
@@ -90,6 +121,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       credenciales_encriptada: encryptedCreds?.ciphertext ?? null,
       credenciales_iv: encryptedCreds?.iv ?? null,
       credenciales_auth_tag: encryptedCreds?.authTag ?? null,
+      external_store_id: hasCredentials ? externalStoreIdDe(canal_id, credenciales) ?? null : null,
       activo: activo ?? false,
     })
     .select()
@@ -125,6 +157,8 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+  const forbidden = await soloAdmin(store_id);
+  if (forbidden) return forbidden;
   const supabase = createServiceClient();
 
   const updateSchema = z.object({
@@ -169,6 +203,10 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
         );
       }
     }
+
+    if (CANALES_INTEGRACION_PENDIENTE.includes(canal_id)) {
+      return NextResponse.json({ error: INTEGRACION_PENDIENTE }, { status: 409 });
+    }
   }
 
   const hasCredentialsInPayload = credenciales !== undefined && Object.values(credenciales).some(v => v.trim() !== "");
@@ -187,6 +225,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     updateData.credenciales_encriptada = encryptedCreds.ciphertext;
     updateData.credenciales_iv = encryptedCreds.iv;
     updateData.credenciales_auth_tag = encryptedCreds.authTag;
+    updateData.external_store_id = externalStoreIdDe(canal_id, credenciales) ?? null;
   }
 
   if (activo !== undefined) {

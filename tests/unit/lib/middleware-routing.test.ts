@@ -376,3 +376,25 @@ describe("Middleware — redirect de /workers a /vendedores (MW-24, Suite 5)", (
     expect(configContent).toContain("permanent: false");
   });
 });
+
+// ── Fase 2 (docs/canales-stock/stock_canales_externos.md, 2.4 — C1) ────────
+// El webhook de canales llega server-to-server sin sesión Clerk: debe ser
+// ruta pública (la autenticidad la verifica la firma en el handler, I-609).
+// El resto de /api/canales/** sigue protegido.
+import { NextRequest } from "next/server";
+import { publicRoutes } from "@/middleware";
+
+describe("Middleware — webhook de canales público (MW-30/MW-31)", () => {
+  const esPublica = (p: string) => publicRoutes(new NextRequest(`http://localhost${p}`));
+
+  it("MW-30: /api/canales/webhook/<canal> es pública (con o sin query)", () => {
+    expect(esPublica("/api/canales/webhook/rappi")).toBe(true);
+    expect(esPublica("/api/canales/webhook/rappi?store_id=x&evento=NEW_ORDER")).toBe(true);
+  });
+
+  it("MW-31: el resto de /api/canales sigue exigiendo sesión", () => {
+    expect(esPublica("/api/canales/config")).toBe(false);
+    expect(esPublica("/api/canales/orders")).toBe(false);
+    expect(esPublica("/api/canales/catalog")).toBe(false);
+  });
+});

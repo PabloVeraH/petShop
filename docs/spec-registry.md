@@ -1984,3 +1984,67 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | ID | Descripción | Dónde | Tipo |
 |----|-------------|-------|------|
 | UI-01..UI-14 | Tests existentes de StoreLocationPicker; nunca se ejecutaban (ver nota). UI-13 destapó que el refactor b83f545 (ModalOverlay) perdió `aria-labelledby="pin-moved-title"` — corregido con la prop `labelledBy` de ModalOverlay | StoreLocationPicker | component |
+
+---
+
+## Fase 2 — Núcleo común de canales (plan `docs/canales-stock/stock_canales_externos.md` §6)
+
+Migración 079 (UNIQUE por tienda en canal_ordenes, ciclo de vida, CHECK de
+estados, canal_outbox, recargo_pct). Semántica en BD verificada con
+`docs/canales-stock/stock_canales_fase2_verificacion.sql` (K1–K7). Fixtures de
+Rappi en `tests/fixtures/canales/rappi/` (basados en la documentación pública).
+`canales-webhook-idempotency.test.ts` se reemplazó por
+`canales-webhook.test.ts`: probaba el formato anterior (event_type en el
+cuerpo), contradicho por la documentación de Rappi; sus 3 casos siguen
+cubiertos por I-609, I-613/I-614 e I-617.
+
+### Integración — POST /api/canales/webhook/[canal]
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-604 | Canal fuera de ENABLED_CHANNELS → 404 sin BD | POST /api/canales/webhook/[canal] | integration |
+| I-605 | PedidosYa/UberEats/pos/desconocido → 404 (integración pendiente) | POST /api/canales/webhook/[canal] | integration |
+| I-606 | store_id ausente o no UUID → 400 | POST /api/canales/webhook/[canal] | integration |
+| I-607 | Canal deshabilitado global o sin config activa en la tienda → 404 | POST /api/canales/webhook/[canal] | integration |
+| I-608 | Config buscada por store_id de la URL, canal y activo (tenant) | POST /api/canales/webhook/[canal] | integration |
+| I-609 | Firma inválida / otro secreto / ausente → 401 sin persistir | POST /api/canales/webhook/[canal] | integration |
+| I-610 | Replay (timestamp viejo) → 401 | POST /api/canales/webhook/[canal] | integration |
+| I-611 | Credenciales con campos anteriores o indescifrables → 503 sin exponerlas | POST /api/canales/webhook/[canal] | integration |
+| I-612 | Payload inválido o evento ausente → 400/401 sin persistir | POST /api/canales/webhook/[canal] | integration |
+| I-613 | NEW_ORDER → 201, upsert ON CONFLICT DO NOTHING con ítems normalizados | POST /api/canales/webhook/[canal] | integration |
+| I-614 | Reentrega → 200 duplicada | POST /api/canales/webhook/[canal] | integration |
+| I-615 | Error de BD → 500 genérico | POST /api/canales/webhook/[canal] | integration |
+| I-616 | Evento de otra tienda de la plataforma → 403 | POST /api/canales/webhook/[canal] | integration |
+| I-617 | PING → {status:"OK", description:"Store on"} | POST /api/canales/webhook/[canal] | integration |
+| I-618 | ORDER_EVENT_CANCEL cancela solo la orden pending de la tienda/canal | POST /api/canales/webhook/[canal] | integration |
+| I-619 | ORDER_OTHER_EVENT / MENU_APPROVED / ignorados → 200 sin escribir | POST /api/canales/webhook/[canal] | integration |
+| I-620 | Secreto por evento (webhook_secret_<EVENTO>) | POST /api/canales/webhook/[canal] | integration |
+
+### Integración — /api/canales/config (2.3, 2.7, D8)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-621 | storeWorker → 403 en POST y PATCH | /api/canales/config | integration |
+| I-622 | storeAdmin de otra tienda → 403 | /api/canales/config | integration |
+| I-623 | store_id de Rappi → external_store_id (C4) | /api/canales/config | integration |
+| I-624 | Activar PedidosYa/UberEats → 409 "Integración pendiente"; guardar sí | /api/canales/config | integration |
+| I-625 | Campos anteriores o claves desconocidas no activan; webhook_secret_<EVENTO> sí | /api/canales/config | integration |
+
+### Unitarios — dominio y contrato de adaptadores
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-167..U-170 | Máquina de estados de canal_ordenes (§4.3) y paridad con el CHECK de 079 | lib/canales/domain/estados | unit |
+| U-171..U-174 | Precio por canal D7/D13/D14 (sin error de float; propiedad) | lib/canales/domain/precio | unit |
+| U-175..U-176 | Cupo D4 y disponibilidad §4.1 | lib/canales/domain/disponibilidad | unit |
+| CTR-01..CTR-08 | Contrato parametrizado por adaptador: firma válida/inválida/replay, parseo de fixtures, payload y credenciales inválidas | adapters/* | unit |
+| CTR-09..CTR-14 | Rappi: evento por URL, secreto por evento, normalización, llamadas salientes con contexto (C4), token cacheado y URL base de producción (C19) | adapters/rappi | unit |
+| MW-30..MW-31 | Webhook de canales es ruta pública; el resto de /api/canales no | middleware | unit |
+
+### Componentes — CanalConfigPage
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CC-17 | PedidosYa/UberEats: aviso "Integración pendiente" y activar no envía request | CanalConfigPage | component |
+| CC-18 | PedidosYa puede guardar credenciales sin activar | CanalConfigPage | component |
+| CC-19 | Rappi sin aviso y con los campos de la fuente única | CanalConfigPage | component |

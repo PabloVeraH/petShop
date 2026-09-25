@@ -2,15 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import {
+  CAMPOS_CREDENCIALES,
+  CANALES_INTEGRACION_PENDIENTE,
+  type CampoCredencial,
+  type CanalConfigurableId,
+} from "@/lib/canales/campos";
 
 interface CanalInfo {
-  id: string;
+  id: CanalConfigurableId;
   nombre: string;
   descripcion: string;
   color: string;
   icono: string;
   useImage?: boolean;
-  campos: { key: string; label: string; type: string; placeholder: string }[];
+  // Fuente única con la validación del servidor (lib/canales/campos.ts — C5).
+  campos: CampoCredencial[];
 }
 
 const CANALES_INFO: Record<string, CanalInfo> = {
@@ -20,12 +27,7 @@ const CANALES_INFO: Record<string, CanalInfo> = {
     descripcion: "Configura tu integración con Rappi",
     color: "bg-red-500",
     icono: "🛵",
-    campos: [
-      { key: "api_key", label: "API Key", type: "password", placeholder: "rk_live_..." },
-      { key: "api_secret", label: "API Secret", type: "password", placeholder: "ws_rappi_..." },
-      { key: "store_id", label: "Store ID", type: "text", placeholder: "12345" },
-      { key: "webhook_secret", label: "Webhook Secret", type: "password", placeholder: "whsec_..." },
-    ],
+    campos: CAMPOS_CREDENCIALES.rappi,
   },
   pedidosya: {
     id: "pedidosya",
@@ -33,11 +35,7 @@ const CANALES_INFO: Record<string, CanalInfo> = {
     descripcion: "Configura tu integración con PedidosYa",
     color: "bg-yellow-500",
     icono: "📦",
-    campos: [
-      { key: "client_id", label: "Client ID", type: "text", placeholder: "pedidosya_cliente_123" },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "py_secret_..." },
-      { key: "business_id", label: "Business ID", type: "text", placeholder: "123456" },
-    ],
+    campos: CAMPOS_CREDENCIALES.pedidosya,
   },
   ubereats: {
     id: "ubereats",
@@ -45,11 +43,7 @@ const CANALES_INFO: Record<string, CanalInfo> = {
     descripcion: "Configura tu integración con Uber Eats",
     color: "bg-black",
     icono: "🍔",
-    campos: [
-      { key: "client_id", label: "Client ID", type: "text", placeholder: "..." },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "..." },
-      { key: "store_uuid", label: "Store UUID", type: "text", placeholder: "..." },
-    ],
+    campos: CAMPOS_CREDENCIALES.ubereats,
   },
   instagram: {
     id: "instagram",
@@ -58,12 +52,7 @@ const CANALES_INFO: Record<string, CanalInfo> = {
     color: "bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-400",
     icono: "/logos/instagram.jpeg",
     useImage: true,
-    campos: [
-      { key: "app_id", label: "App ID", type: "text", placeholder: "123456789" },
-      { key: "app_secret", label: "App Secret", type: "password", placeholder: "abc123..." },
-      { key: "ig_user_id", label: "IG User ID", type: "text", placeholder: "17841..." },
-      { key: "access_token", label: "Access Token", type: "password", placeholder: "EAAB..." },
-    ],
+    campos: CAMPOS_CREDENCIALES.instagram,
   },
 };
 
@@ -82,6 +71,9 @@ export default function CanalConfigPage() {
   const [tieneCredencialesGuardadas, setTieneCredencialesGuardadas] = useState(false);
 
   const canalInfo = canalId ? CANALES_INFO[canalId] : undefined;
+  // 2.7: sin adaptador real todavía — se pueden guardar credenciales, no activar
+  // (el servidor responde 409 igual; esto es solo UX).
+  const integracionPendiente = !!canalInfo && CANALES_INTEGRACION_PENDIENTE.includes(canalInfo.id);
 
   useEffect(() => {
     if (!canalId || !canalInfo) {
@@ -133,7 +125,7 @@ export default function CanalConfigPage() {
   // guardados, no solo algunos). No se incluye un paso de "Webhook
   // registrado" como el ejemplo del ticket: el webhook de canales solo está
   // implementado para Rappi (POST /api/canales/webhook/[canal] rechaza
-  // pedidosya/ubereats con "Canal no soportado", ver route.ts) — mostrar ese
+  // pedidosya/ubereats con 404 "Canal no disponible", ver adapters/registry.ts) — mostrar ese
   // paso para los otros dos canales sería instrucción falsa.
   const yaGuardado = configExists && tieneCredencialesGuardadas;
   const camposEstado = canalInfo?.campos.map((campo) => ({
@@ -144,6 +136,11 @@ export default function CanalConfigPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!canalInfo) return;
+
+    if (activo && integracionPendiente) {
+      setError("Integración pendiente: este canal aún no se puede activar");
+      return;
+    }
 
     if (activo && !puedeActivar) {
       setError("Debe completar todas las credenciales antes de activar el canal");
@@ -205,6 +202,13 @@ export default function CanalConfigPage() {
           <p className="text-sm text-gray-500">{canalInfo.descripcion}</p>
         </div>
       </div>
+
+      {integracionPendiente && (
+        <div role="status" className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          Integración pendiente: {canalInfo.nombre} aún no está disponible. Puedes guardar las
+          credenciales, pero el canal no se puede activar hasta tener la integración oficial.
+        </div>
+      )}
 
       {canalId !== "instagram" && !activo && (
         <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 space-y-1.5">

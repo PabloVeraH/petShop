@@ -19,6 +19,16 @@ jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/canales/encryption");
 
+// Fase 2 (D8): POST/PATCH exigen storeAdmin/systemAdmin (admin-check real;
+// solo se simula la sesión Clerk). Por defecto, storeAdmin de STORE_ID.
+const mockAuth = jest.fn();
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => mockAuth() }));
+beforeEach(() => {
+  mockAuth.mockResolvedValue({
+    sessionClaims: { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } },
+  });
+});
+
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
 
@@ -166,7 +176,7 @@ describe("POST /api/canales/config — activo handling", () => {
       }),
     });
 
-    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const allCreds = { client_id: "rk_live", client_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
     const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: allCreds, activo: true }));
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -183,7 +193,7 @@ describe("POST /api/canales/config — activo handling", () => {
 
   // I-207
   it("I-207: POST activo=true con credenciales vacías → 422", async () => {
-    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "", api_secret: "" }, activo: true }));
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { client_id: "", client_secret: "" }, activo: true }));
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.error).toContain("credenciales");
@@ -191,7 +201,7 @@ describe("POST /api/canales/config — activo handling", () => {
 
   // I-310 — REGRESIÓN: un valor de solo espacios no cuenta como credencial real
   it("I-310: POST activo=true con credencial de solo espacios en blanco → 422", async () => {
-    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "   " }, activo: true }));
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { client_id: "   " }, activo: true }));
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.error).toContain("credenciales");
@@ -225,7 +235,7 @@ describe("POST /api/canales/config — activo handling", () => {
       }),
     });
 
-    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { api_key: "" } }));
+    const res = await POST(authReq("POST", { canal_id: "rappi", credenciales: { client_id: "" } }));
     expect(res.status).toBe(201);
     expect(insertData.credenciales_encriptada).toBeNull();
     expect(insertData.credenciales_iv).toBeNull();
@@ -236,7 +246,7 @@ describe("POST /api/canales/config — activo handling", () => {
   it("I-321: POST activo=true con solo 1 de 4 campos necesarios para Rappi → 422", async () => {
     const res = await POST(authReq("POST", {
       canal_id: "rappi",
-      credenciales: { api_key: "rk_live" },
+      credenciales: { client_id: "rk_live" },
       activo: true,
     }));
     expect(res.status).toBe(422);
@@ -353,7 +363,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
-    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const allCreds = { client_id: "rk_live", client_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
     const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: allCreds }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -388,7 +398,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
-    const allCreds = { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
+    const allCreds = { client_id: "rk_live", client_secret: "ws_secret", store_id: "12345", webhook_secret: "whsec_abc" };
     const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: allCreds, activo: true }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -515,7 +525,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       from: jest.fn(() => checkChain),
     });
 
-    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: { api_key: "   " }, activo: true }));
+    const res = await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: { client_id: "   " }, activo: true }));
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.error).toContain("credenciales");
@@ -525,7 +535,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
   it("I-322: PATCH activo=true con solo 1 de 4 campos Rappi → 422", async () => {
     const res = await PATCH(authReq("PATCH", {
       canal_id: "rappi",
-      credenciales: { api_key: "rk_live" },
+      credenciales: { client_id: "rk_live" },
       activo: true,
     }));
     expect(res.status).toBe(422);
@@ -573,9 +583,86 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
 
     const res = await PATCH(authReq("PATCH", {
       canal_id: "rappi",
-      credenciales: { api_key: "rk_live", api_secret: "ws_secret", store_id: "12345" },
+      credenciales: { client_id: "rk_live", client_secret: "ws_secret", store_id: "12345" },
       activo: true,
     }));
     expect(res.status).toBe(422);
+  });
+});
+// ── Fase 2 (docs/canales-stock/stock_canales_externos.md, 2.3 / 2.7, D8) ──
+describe("POST/PATCH /api/canales/config — Fase 2", () => {
+  const RAPPI = { client_id: "cid", client_secret: "csec", store_id: "900105814", webhook_secret: "whsec" };
+  let insertData: Record<string, unknown>;
+  let updateData: Record<string, unknown>;
+
+  function setupChain(result: unknown = { id: CONFIG_ID, canal_id: "rappi", activo: false }) {
+    insertData = {};
+    updateData = {};
+    const c = buildChain();
+    // logAudit también inserta (audit_logs) con esta cadena: solo se captura el de canal_config.
+    c.insert.mockImplementation((d: Record<string, unknown>) => { if ("canal_id" in d) insertData = d; return c; });
+    c.update.mockImplementation((d: Record<string, unknown>) => { if ("updated_at" in d) updateData = d; return c; });
+    mockSingle.mockResolvedValue({ data: result, error: null });
+    (c as unknown as { then: (r: (v: unknown) => unknown) => unknown }).then = (resolve) => resolve({ data: result, error: null });
+    const from = jest.fn(() => c);
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from });
+    return from;
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
+  });
+
+  // I-621 — D8: configurar canales es solo para admin (antes: cualquier usuario — C15).
+  it("I-621: storeWorker → 403 en POST y PATCH sin tocar la BD", async () => {
+    const from = setupChain();
+    mockAuth.mockResolvedValue({ sessionClaims: { sub: "w1", publicMetadata: { storeId: STORE_ID } } });
+    expect((await POST(authReq("POST", { canal_id: "rappi", credenciales: RAPPI }))).status).toBe(403);
+    expect((await PATCH(authReq("PATCH", { canal_id: "rappi", activo: false }))).status).toBe(403);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("I-622: storeAdmin de OTRA tienda → 403", async () => {
+    const from = setupChain();
+    mockAuth.mockResolvedValue({
+      sessionClaims: { sub: "a9", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-4266141740ff", storeAdmin: true } },
+    });
+    expect((await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: RAPPI }))).status).toBe(403);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  // I-623 — C4: el id de la tienda en la plataforma queda en external_store_id.
+  it("I-623: guardar credenciales de Rappi copia store_id a external_store_id (POST y PATCH)", async () => {
+    setupChain();
+    await POST(authReq("POST", { canal_id: "rappi", credenciales: RAPPI }));
+    expect(insertData.external_store_id).toBe("900105814");
+    setupChain();
+    await PATCH(authReq("PATCH", { canal_id: "rappi", credenciales: RAPPI }));
+    expect(updateData.external_store_id).toBe("900105814");
+  });
+
+  // I-624 — 2.7: PedidosYa/UberEats no se pueden activar (sin adaptador real).
+  it("I-624: activar PedidosYa o UberEats con credenciales completas → 409 'Integración pendiente'", async () => {
+    setupChain();
+    const py = { client_id: "a", client_secret: "b", business_id: "c" };
+    const ue = { client_id: "a", client_secret: "b", store_uuid: "c" };
+    const r1 = await POST(authReq("POST", { canal_id: "pedidosya", credenciales: py, activo: true }));
+    expect(r1.status).toBe(409);
+    expect((await r1.json()).error).toMatch(/Integración pendiente/);
+    expect((await PATCH(authReq("PATCH", { canal_id: "ubereats", credenciales: ue, activo: true }))).status).toBe(409);
+    // guardar sin activar sí se permite
+    expect((await POST(authReq("POST", { canal_id: "pedidosya", credenciales: py }))).status).toBe(201);
+  });
+
+  // I-625 — C5: la ruta valida con el schema de lib/canales/credenciales
+  // (fuente única con la UI): campos viejos o claves desconocidas no activan.
+  it("I-625: activar Rappi con los campos anteriores (api_key/api_secret) o con claves desconocidas → 422", async () => {
+    setupChain();
+    const viejos = { api_key: "k", api_secret: "s", store_id: "1", webhook_secret: "w" };
+    expect((await POST(authReq("POST", { canal_id: "rappi", credenciales: viejos, activo: true }))).status).toBe(422);
+    expect((await POST(authReq("POST", { canal_id: "rappi", credenciales: { ...RAPPI, extra: "x" }, activo: true }))).status).toBe(422);
+    // webhook_secret_<EVENTO> es una clave adicional válida
+    expect((await POST(authReq("POST", { canal_id: "rappi", credenciales: { ...RAPPI, webhook_secret_NEW_ORDER: "s2" }, activo: true }))).status).toBe(201);
   });
 });

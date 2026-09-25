@@ -1,0 +1,31 @@
+{
+  "order_detail": {
+    "order_id": "2150558091",
+    "created_at": "2026-09-25 12:00:00",
+    "items": [
+      {
+        "id": "729970",
+        "sku": "SKU-ALIM-15K",
+        "name": "Alimento perro adulto 15 kg",
+        "quantity": 2,
+        "price": 45990,
+        "unit_price_with_discount": 43990,
+        "unit_price_without_discount": 45990
+      },
+      {
+        "id": "729971",
+        "sku": "SKU-JUG-01",
+        "name": "Juguete pelota",
+        "quantity": 1,
+        "price": 3990
+      }
+    ],
+    "totals": {
+      "total_order": 91970,
+      "total_to_pay": 91970,
+      "charges": {},
+      "other_totals": { "tip": 0, "total_rappi_pay": 0, "total_rappi_credits": 0 }
+    }
+  },
+  "store": { "internal_id": "900105814", "external_id": "900105814" }
+}

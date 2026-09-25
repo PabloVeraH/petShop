@@ -17,9 +17,10 @@ global.fetch = mockFetch;
 
 // Mock next/navigation
 const mockPush = jest.fn();
+let mockCanal = "rappi";
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  useParams: () => ({ canal: "rappi" }),
+  useParams: () => ({ canal: mockCanal }),
 }));
 
 let fetchCalls: Array<{ url: string; options?: RequestInit }> = [];
@@ -57,7 +58,7 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     // Completar campo de credencial pero dejar toggle como está (inactivo por defecto)
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
 
     // Click "Guardar configuración"
@@ -119,7 +120,7 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     // Llenar TODAS las credenciales (Rappi requiere 4 campos)
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
     fireEvent.change(inputs[1], { target: { value: "ws_rappi_secret" } });
     fireEvent.change(inputs[2], { target: { value: "12345" } });
@@ -189,7 +190,7 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     // Llenar un campo con solo espacios en blanco
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     fireEvent.change(inputs[0], { target: { value: "   " } });
 
     const initialFetchCount = fetchCalls.length;
@@ -223,7 +224,7 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     // Llenar solo 1 de 4 campos requeridos
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
 
     const initialFetchCount = fetchCalls.length;
@@ -250,7 +251,7 @@ describe("CanalConfigPage — activo handling", () => {
 
   // CC-07 — REGRESIÓN: sin autoComplete, el navegador ofrecía autocompletar
   // API Key/Secret con credenciales guardadas de otro contexto (email/password).
-  it("CC-07: REGRESIÓN — campos type=\"password\" (API Key, API Secret, Webhook Secret) tienen autoComplete=\"new-password\"", async () => {
+  it("CC-07: REGRESIÓN — campos type=\"password\" (Client Secret, Webhook Secret) tienen autoComplete=\"new-password\"", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -258,8 +259,8 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     const passwordInputs = document.querySelectorAll('input[type="password"]');
-    // Rappi: API Key, API Secret, Webhook Secret → 3 campos password
-    expect(passwordInputs.length).toBe(3);
+    // Rappi: Client Secret, Webhook Secret → 2 campos password (Fase 2: client_id pasó a texto, C5)
+    expect(passwordInputs.length).toBe(2);
     passwordInputs.forEach((input) => {
       expect(input).toHaveAttribute("autocomplete", "new-password");
     });
@@ -304,7 +305,7 @@ describe("CanalConfigPage — activo handling", () => {
   // CC-08 — mismo defecto en campos type="text" (Store ID, Client ID, etc.):
   // sin autoComplete="off", el navegador aplica heurísticas propias sobre
   // identificadores que no son datos de perfil del usuario.
-  it("CC-08: campo type=\"text\" (Store ID) tiene autoComplete=\"off\"", async () => {
+  it("CC-08: campos type=\"text\" (Client ID, ID de tienda) tienen autoComplete=\"off\"", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -312,9 +313,9 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     const textInputs = document.querySelectorAll('input[type="text"]');
-    // Rappi: Store ID → 1 campo text
-    expect(textInputs.length).toBe(1);
-    expect(textInputs[0]).toHaveAttribute("autocomplete", "off");
+    // Rappi: Client ID e ID de tienda → 2 campos text
+    expect(textInputs.length).toBe(2);
+    textInputs.forEach((input) => expect(input).toHaveAttribute("autocomplete", "off"));
   });
 
   // CC-11 — REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): reactivar un
@@ -381,9 +382,9 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     expect(screen.getByText(/Pasos para activar Rappi/i)).toBeInTheDocument();
-    expect(screen.getByText("API Key pendiente")).toBeInTheDocument();
-    expect(screen.getByText("API Secret pendiente")).toBeInTheDocument();
-    expect(screen.getByText("Store ID pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Client ID pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Client Secret pendiente")).toBeInTheDocument();
+    expect(screen.getByText("ID de tienda en Rappi pendiente")).toBeInTheDocument();
     expect(screen.getByText("Webhook Secret pendiente")).toBeInTheDocument();
   });
 
@@ -395,16 +396,16 @@ describe("CanalConfigPage — activo handling", () => {
       expect(screen.getByText("Rappi")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("API Key pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Client ID pendiente")).toBeInTheDocument();
 
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     fireEvent.change(inputs[0], { target: { value: "rk_test_123" } });
 
     await waitFor(() => {
-      expect(screen.getByText("API Key configurada")).toBeInTheDocument();
+      expect(screen.getByText("Client ID configurada")).toBeInTheDocument();
     });
     // Los demás siguen pendientes — no se marcan todos por completar uno solo
-    expect(screen.getByText("API Secret pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Client Secret pendiente")).toBeInTheDocument();
   });
 
   // CC-14
@@ -424,15 +425,15 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     // El formulario NO precarga las credenciales (siguen vacías por seguridad)...
-    const inputs = screen.getAllByPlaceholderText(/rk_live|ws_rappi|12345|whsec/);
+    const inputs = screen.getAllByPlaceholderText(/client_id del portal|^client_secret$|900105814|secreto del webhook/);
     inputs.forEach((input) => expect(input).toHaveValue(""));
 
     // ...pero el checklist sabe (vía tiene_credenciales) que YA están guardadas
     await waitFor(() => {
-      expect(screen.getByText("API Key configurada")).toBeInTheDocument();
+      expect(screen.getByText("Client ID configurada")).toBeInTheDocument();
     });
-    expect(screen.getByText("API Secret configurada")).toBeInTheDocument();
-    expect(screen.getByText("Store ID configurada")).toBeInTheDocument();
+    expect(screen.getByText("Client Secret configurada")).toBeInTheDocument();
+    expect(screen.getByText("ID de tienda en Rappi configurada")).toBeInTheDocument();
     expect(screen.getByText("Webhook Secret configurada")).toBeInTheDocument();
   });
 
@@ -471,5 +472,53 @@ describe("CanalConfigPage — activo handling", () => {
     });
 
     expect(screen.queryByText(/Pasos para activar/i)).not.toBeInTheDocument();
+  });
+});
+// ── Fase 2 (2.7): PedidosYa/UberEats "Integración pendiente" ────────────────
+// Gate de UX: el control real es el servidor (POST/PATCH responden 409, I-624).
+describe("CanalConfigPage — integración pendiente", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    fetchCalls = [];
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      return Promise.resolve({ ok: true, json: async () => (options?.method ? { id: "cfg-1", activo: false } : []) });
+    });
+  });
+  afterEach(() => { mockCanal = "rappi"; });
+
+  it.each(["pedidosya", "ubereats"])("CC-17: %s muestra el aviso y no envía request al intentar activarlo", async (canal) => {
+    mockCanal = canal;
+    renderPage();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Integración pendiente/);
+
+    const inputs = document.querySelectorAll("form input");
+    inputs.forEach((input) => fireEvent.change(input, { target: { value: "valor" } }));
+    fireEvent.click(document.querySelector(".bg-gray-300")!);
+    fireEvent.click(screen.getByText("Guardar configuración"));
+
+    expect(await screen.findByText(/Integración pendiente: este canal aún no se puede activar/)).toBeInTheDocument();
+    expect(fetchCalls.filter((c) => c.options?.method)).toHaveLength(0);
+  });
+
+  it("CC-18: pedidosya puede guardar credenciales sin activar (envía POST con activo=false)", async () => {
+    mockCanal = "pedidosya";
+    renderPage();
+    await screen.findByRole("status");
+    document.querySelectorAll("form input").forEach((input) => fireEvent.change(input, { target: { value: "valor" } }));
+    fireEvent.click(screen.getByText("Guardar configuración"));
+    await waitFor(() => expect(fetchCalls.some((c) => c.options?.method === "POST")).toBe(true));
+    const post = fetchCalls.find((c) => c.options?.method === "POST")!;
+    expect(JSON.parse(post.options!.body as string)).toMatchObject({ canal_id: "pedidosya", activo: false });
+  });
+
+  it("CC-19: rappi no muestra el aviso y sus campos son los de la fuente única (client_id/client_secret/ID de tienda)", async () => {
+    renderPage();
+    await screen.findByText("Rappi");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("Client ID")).toBeInTheDocument();
+    expect(screen.getByText("Client Secret")).toBeInTheDocument();
+    expect(screen.getByText("ID de tienda en Rappi")).toBeInTheDocument();
+    expect(screen.queryByText("API Key")).not.toBeInTheDocument();
   });
 });
