@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getStoreId } from "@/lib/auth";
-import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { UUIDSchema } from "@/lib/validation";
 import { procesarOrden } from "@/lib/canales/application/procesar-orden";
 import { procesarOutbox } from "@/lib/canales/application/outbox";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // Reintentar una orden 'failed' (paso 3.7: lo único manual que queda; la
 // aceptación es automática — D5). Solo storeAdmin/systemAdmin (D8), validado
 // aquí. failed → pending (intentos a 0) y se reprocesa tras responder.
 export const POST = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId, userId } = ctx;
-
-  const { sessionClaims } = await auth();
-  try {
-    requireStoreAdmin(getAdminStatus(sessionClaims), storeId);
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const { id } = await params;
   if (!UUIDSchema.safeParse(id).success) {

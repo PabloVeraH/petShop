@@ -357,3 +357,23 @@ export interface CanalProductoConfigRow {
   disponibilidad_publicada_at: string | null;
   updated_at: string;
 }
+
+// canal_liquidaciones (migración 083, Fase 5): liquidación real de una
+// plataforma. Invariante (CHECK): monto_neto = monto_bruto − comision.
+export interface CanalLiquidacionRow {
+  id: string;
+  store_id: string;
+  canal_id: CanalExternoId;
+  periodo_desde: string;   // YYYY-MM-DD
+  periodo_hasta: string;
+  monto_bruto: number;     // ventas del período (IVA incluido)
+  comision: number;        // comisión cobrada (IVA incluido, D24)
+  monto_neto: number;      // depositado por la plataforma
+  referencia: string | null;
+  journal_entry_id: string | null;
+  created_at: string;
+}
+
+// canal_config.menu_estado (migración 083): último estado del catálogo en la
+// plataforma; NULL = nunca publicado.
+export type CanalMenuEstado = "enviado" | "aprobado" | "rechazado";

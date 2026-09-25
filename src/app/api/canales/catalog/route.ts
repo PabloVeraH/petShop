@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { getStoreId } from "@/lib/auth";
-import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { CANALES_EXTERNOS } from "@/lib/canales/domain/types";
 import { obtenerAdaptador } from "@/lib/canales/adapters/registry";
 import { encolarTrabajoTienda, procesarOutbox } from "@/lib/canales/application/outbox";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // "Publicar catálogo" (paso 4.5). Solo storeAdmin/systemAdmin (D8), validado
 // aquí. ENCOLA un trabajo 'catalog' (el worker arma el catálogo con los
@@ -18,16 +16,9 @@ import { encolarTrabajoTienda, procesarOutbox } from "@/lib/canales/application/
 const bodySchema = z.object({ canal_id: z.enum(CANALES_EXTERNOS) });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId, userId } = ctx;
-
-  const { sessionClaims } = await auth();
-  try {
-    requireStoreAdmin(getAdminStatus(sessionClaims), storeId);
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Canal inválido" }, { status: 400 });

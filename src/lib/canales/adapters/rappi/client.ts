@@ -46,8 +46,12 @@ export function limpiarCacheTokens(): void {
   cacheTokens.clear();
 }
 
+function claveToken(ctx: ChannelContext): string {
+  return `${ctx.storeId}:${ctx.credentials.client_id}`;
+}
+
 async function obtenerToken(ctx: ChannelContext): Promise<string> {
-  const clave = `${ctx.storeId}:${ctx.credentials.client_id}`;
+  const clave = claveToken(ctx);
   const cacheado = cacheTokens.get(clave);
   if (cacheado && Date.now() < cacheado.expiraMs) return cacheado.token;
 
@@ -90,6 +94,9 @@ export async function rappiFetch(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
+    // Fase 5 (5.3, token expirado/revocado): sin esto el token cacheado
+    // seguiría usándose en cada reintento hasta su expiración local.
+    if (res.status === 401) cacheTokens.delete(claveToken(ctx));
     throw new PlataformaError(`Rappi: ${metodo} ${path.split("?")[0]} respondió ${res.status}`, res.status);
   }
   return res;

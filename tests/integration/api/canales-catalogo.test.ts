@@ -17,6 +17,9 @@
 import { NextRequest } from "next/server";
 import { crearFakeSupabase, tiene, argsDe, type Op } from "../../helpers/fake-supabase";
 
+// Fase 5 (5.1): /api/canales/** rechaza usuarios deshabilitados; por defecto habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
 jest.mock("next/server", () => {
   const actual = jest.requireActual("next/server");
   return { ...actual, after: jest.fn((cb: () => unknown) => cb()) };

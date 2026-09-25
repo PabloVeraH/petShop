@@ -2017,7 +2017,7 @@ cubiertos por I-609, I-613/I-614 e I-617.
 | I-616 | Evento de otra tienda de la plataforma → 403 | POST /api/canales/webhook/[canal] | integration |
 | I-617 | PING → {status:"OK", description:"Store on"} | POST /api/canales/webhook/[canal] | integration |
 | I-618 | ORDER_EVENT_CANCEL cancela solo la orden pending de la tienda/canal | POST /api/canales/webhook/[canal] | integration |
-| I-619 | ORDER_OTHER_EVENT / MENU_APPROVED / ignorados → 200 sin escribir | POST /api/canales/webhook/[canal] | integration |
+| I-619 | ORDER_OTHER_EVENT / ignorados → 200 sin escribir (Fase 5: MENU_APPROVED pasó a I-678) | POST /api/canales/webhook/[canal] | integration |
 | I-620 | Secreto por evento (webhook_secret_<EVENTO>) | POST /api/canales/webhook/[canal] | integration |
 
 ### Integración — /api/canales/config (2.3, 2.7, D8)
@@ -2179,3 +2179,56 @@ coalescencia, lotes vencidos, licencia, tenant, grants).
 | CTC-08 | Error de la API en una mutación visible | CatalogoCanal | component |
 | CTC-09 | Las tres páginas de catálogo usan el componente con su canal | canales/*/catalogo | component |
 | CC-20 | Enlace "Catálogo y precios" solo con canal configurado e integración disponible | CanalConfigPage | component |
+
+## Fase 5 — Seguridad, contabilidad y operación (plan `docs/canales-stock/stock_canales_externos.md` §6)
+
+Migración 083 (CHECK/UNIQUE de `canal_liquidaciones`, `canal_config.menu_estado`);
+verificación real en `docs/canales-stock/stock_canales_fase5_verificacion.sql` (N1–N4).
+
+### Integración
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| I-678 | MENU_APPROVED / MENU_REJECTED firmados → estado del menú de la tienda; sin firma nada | POST /api/canales/webhook/[canal] | integration |
+| I-679 | Rechazo automático y falla definitiva auditados como sistema; reintento transitorio no | procesarOrden | integration |
+| I-680 | Todo /api/canales/** sin sesión → 401 sin tocar la BD | /api/canales/** | integration |
+| I-681 | Usuario deshabilitado → 403 sin tocar la BD | /api/canales/** | integration |
+| I-682 | storeWorker o admin de otra tienda → 403 en rutas de admin (D8) | /api/canales/** | integration |
+| I-683 | storeWorker sí lista pedidos y marca lista | GET /api/canales/orders, POST .../ready | integration |
+| I-684 | Liquidación: store de sesión, neto calculado, asiento D24 balanceado y vinculado, auditoría | POST /api/canales/liquidacion | integration |
+| I-685 | store_id/monto_neto del cliente, comisión > bruto, período invertido, decimales → 400 | POST /api/canales/liquidacion | integration |
+| I-686 | Período cerrado → 409 sin insertar; duplicada (UNIQUE) → 409 sin asiento | POST /api/canales/liquidacion | integration |
+| I-687 | Asiento falla → compensación (DELETE por tienda) y 500 | POST /api/canales/liquidacion | integration |
+| I-688 | Lista por tienda con filtro de canal validado | GET /api/canales/liquidacion | integration |
+| I-689 | Alertas desde outbox/pedidos/menú de la tienda | GET /api/canales/alertas | integration |
+| I-690 | Reintento de una llamada dead: tenant, 404, 409, 400 | POST /api/canales/alertas | integration |
+| I-691 | Catálogo publicado → menu_estado enviado | procesarOutbox | integration |
+
+### Unitarios
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-182 | Asiento D24 (ejemplo del usuario) y CxC por canal | lineasLiquidacionCanal | unit |
+| U-183 | Siempre balanceado, sin líneas en cero, IVA extraído | lineasLiquidacionCanal | unit |
+| U-184 | Límite de confianza de la liquidación | LiquidacionCanalSchema | unit |
+| U-185 | Clasificación de errores de credenciales/token | esErrorCredenciales | unit |
+| U-186 | Una alerta de credenciales por canal; dead reintentable | armarAlertas | unit |
+| U-187 | is_disabled, sin fila, error → fail-closed | usuarioDeshabilitado | unit |
+| U-188 | Estado del menú por tienda/canal, auditoría, no lanza | registrarEstadoMenu | unit |
+| U-189 | 401 invalida el token cacheado (token expirado) | rappiFetch | unit |
+
+### Componentes
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| ALC-01 | Alertas con detalle y enlaces de acción | AlertasCanales | component |
+| ALC-02 | Sin alertas o 403 → nada (UX) | AlertasCanales | component |
+| ALC-03 | "Reintentar" → POST con id y recarga | AlertasCanales | component |
+| ALC-04 | Error del reintento visible | AlertasCanales | component |
+| ALC-05 | Error de carga visible | AlertasCanales | component |
+| LQC-01 | Lista liquidaciones del canal | LiquidacionesCanal | component |
+| LQC-02 | Vacío | LiquidacionesCanal | component |
+| LQC-03 | Registrar → POST con montos enteros y previsualización del depositado | LiquidacionesCanal | component |
+| LQC-04 | Incompleto o comisión > bruto → error sin request | LiquidacionesCanal | component |
+| LQC-05 | Error de la API visible | LiquidacionesCanal | component |
+| CC-21 | Sección de liquidaciones solo con canal configurado | CanalConfigPage | component |

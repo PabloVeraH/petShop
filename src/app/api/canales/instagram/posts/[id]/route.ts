@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { withErrorLogging } from "@/lib/audit";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 const updatePostSchema = z.object({
   caption: z.string().max(2200).optional(),
@@ -17,8 +17,8 @@ const updatePostSchema = z.object({
 
 export const PATCH = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId } = ctx;
   const supabase = createServiceClient();
 
@@ -71,8 +71,8 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
 
 export const DELETE = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId } = ctx;
   const supabase = createServiceClient();
 

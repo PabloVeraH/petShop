@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { getStoreId } from "@/lib/auth";
-import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { UUIDSchema } from "@/lib/validation";
 import { esCanalExterno, type CanalExternoId } from "@/lib/canales/domain/types";
 import { precioBase, precioCanal } from "@/lib/canales/domain/precio";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // Catálogo por canal (paso 4.3). Configurar catálogo y precios es solo para
-// storeAdmin/systemAdmin (D8), validado aquí. Tenant: todo filtra por el
+// storeAdmin/systemAdmin no deshabilitados (D8, 5.1), validado aquí. Tenant: todo filtra por el
 // store_id de la sesión; un producto de otra tienda responde 404.
 
 type Params = { params: Promise<{ canal: string }> };
@@ -20,15 +18,9 @@ type Contexto =
   | { error?: never; ctx: { storeId: string; userId: string }; canal: CanalExternoId };
 
 async function contexto(params: Params["params"]): Promise<Contexto> {
-  const ctx = await getStoreId();
-  if (!ctx) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-
-  const { sessionClaims } = await auth();
-  try {
-    requireStoreAdmin(getAdminStatus(sessionClaims), ctx.storeId);
-  } catch {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-  }
+  const r = await autorizarCanales({ soloAdmin: true });
+  if (!r.ok) return { error: r.response };
+  const ctx = { storeId: r.storeId, userId: r.userId };
 
   const { canal } = await params;
   if (!esCanalExterno(canal)) return { error: NextResponse.json({ error: "Canal no encontrado" }, { status: 404 }) };

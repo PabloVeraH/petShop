@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
 import { esCanalExterno } from "@/lib/canales/domain/types";
 import { esEstadoOrden } from "@/lib/canales/domain/estados";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // Órdenes de canales externos de la tienda (Fase 3). Cualquier usuario de la
 // tienda las ve: el storeWorker prepara y marca "lista" (D8).
@@ -12,8 +12,8 @@ import { esEstadoOrden } from "@/lib/canales/domain/estados";
 const ESTADOS_POR_DEFECTO = ["processing", "accepted", "ready", "failed"];
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: false });
+  if (!ctx.ok) return ctx.response;
 
   const canal = req.nextUrl.searchParams.get("canal");
   const estado = req.nextUrl.searchParams.get("estado");

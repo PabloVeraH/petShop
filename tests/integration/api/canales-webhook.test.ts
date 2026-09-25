@@ -1,5 +1,5 @@
 /**
- * Tests I-604 a I-624: POST /api/canales/webhook/[canal] — webhook genérico de
+ * Tests I-604 a I-624 (+ I-678, Fase 5): POST /api/canales/webhook/[canal] — webhook genérico de
  * canales externos (Fase 2, pasos 2.4–2.5 y 2.9 de
  * docs/canales-stock/stock_canales_externos.md).
  *
@@ -34,6 +34,8 @@ const mockOutbox = jest.fn();
 jest.mock("@/lib/canales/application/cancelar-orden", () => ({ cancelarOrdenCanal: (...a: unknown[]) => mockCancelar(...a) }));
 jest.mock("@/lib/canales/application/procesar-orden", () => ({ procesarOrden: (...a: unknown[]) => mockProcesar(...a) }));
 jest.mock("@/lib/canales/application/outbox", () => ({ procesarOutbox: (...a: unknown[]) => mockOutbox(...a) }));
+const mockMenu = jest.fn();
+jest.mock("@/lib/canales/application/menu", () => ({ registrarEstadoMenu: (...a: unknown[]) => mockMenu(...a) }));
 
 import { POST } from "@/app/api/canales/webhook/[canal]/route";
 
@@ -269,14 +271,28 @@ describe("POST /api/canales/webhook/[canal] — eventos", () => {
     expect(mockProcesar).not.toHaveBeenCalled();
   });
 
-  it("I-619: ORDER_OTHER_EVENT, MENU_APPROVED y eventos ignorados → 200 sin escribir", async () => {
-    for (const evento of ["ORDER_OTHER_EVENT", "MENU_APPROVED", "STORE_CONNECTIVITY", "NEW_ORDER_SCHEDULED"]) {
+  // Fase 5 (5.3): MENU_APPROVED ya no es "sin escribir" — registra el estado
+  // del menú (I-678). El resto sigue sin efectos.
+  it("I-619: ORDER_OTHER_EVENT y eventos ignorados → 200 sin escribir", async () => {
+    for (const evento of ["ORDER_OTHER_EVENT", "STORE_CONNECTIVITY", "NEW_ORDER_SCHEDULED"]) {
       const body = evento === "ORDER_OTHER_EVENT" ? fixture("ORDER_OTHER_EVENT") : "{}";
       const res = await post({ evento, body });
       expect(res.status).toBe(200);
     }
     expect(upsertSpy).not.toHaveBeenCalled();
     expect(updateSpy).not.toHaveBeenCalled();
+    expect(mockMenu).not.toHaveBeenCalled();
+  });
+
+  it("I-678: MENU_APPROVED / MENU_REJECTED firmados → estado del menú de ESTA tienda (con el motivo del rechazo)", async () => {
+    expect((await post({ evento: "MENU_APPROVED", body: "{}" })).status).toBe(200);
+    expect(mockMenu).toHaveBeenLastCalledWith(expect.anything(), STORE_ID, "rappi", "aprobado");
+    expect((await post({ evento: "MENU_REJECTED", body: fixture("MENU_REJECTED") })).status).toBe(200);
+    expect(mockMenu).toHaveBeenLastCalledWith(expect.anything(), STORE_ID, "rappi", "rechazado", "Faltan imágenes");
+    // Sin firma válida no se registra nada.
+    mockMenu.mockClear();
+    expect((await post({ evento: "MENU_REJECTED", body: fixture("MENU_REJECTED"), signature: null })).status).toBe(401);
+    expect(mockMenu).not.toHaveBeenCalled();
   });
 
   it("I-620: la firma se verifica con el secreto del evento cuando existe webhook_secret_<EVENTO>", async () => {

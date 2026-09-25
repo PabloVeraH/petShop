@@ -37,3 +37,6 @@ describe("canales instagram API", () => {
     expect(true).toBe(true);
   });
 });
+// Fase 5 (5.1): /api/canales/** rechaza usuarios deshabilitados; por defecto habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));

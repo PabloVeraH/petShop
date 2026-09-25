@@ -6,6 +6,7 @@ import { PlataformaError } from "../adapters/port";
 import { CanalNoConfiguradoError, CredencialesInvalidasError, loadChannelContext } from "../infrastructure/context";
 import { publicarDisponibilidad } from "./disponibilidad";
 import { CatalogoVacioError, publicarCatalogo } from "./catalogo";
+import { registrarEstadoMenu } from "./menu";
 
 // Outbox de canales (§5.3, paso 3.4). Toda llamada saliente a una plataforma
 // (confirmar, rechazar, lista para retiro) se ENCOLA y la ejecuta el worker:
@@ -136,6 +137,8 @@ async function despachar(supabase: SupabaseClient, fila: FilaOutbox): Promise<vo
       return;
     case "catalog":
       await publicarCatalogo(supabase, adapter, ctx);
+      // 5.3: la plataforma revisa el menú; MENU_APPROVED/REJECTED lo actualiza.
+      await registrarEstadoMenu(supabase, fila.store_id, fila.canal_id, "enviado");
       // §4.5: después del catálogo, disponibilidad completa (la plataforma
       // recién conoce los productos; sin esto quedarían con su estado por
       // defecto hasta el próximo cambio de stock).

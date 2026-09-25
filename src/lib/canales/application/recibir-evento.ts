@@ -4,6 +4,7 @@ import { esCanalExterno, type CanalExternoId, type EventoCanal } from "../domain
 import { obtenerAdaptador } from "../adapters/registry";
 import { PayloadInvalidoError, type ChannelContext } from "../adapters/port";
 import { cancelarOrdenCanal } from "./cancelar-orden";
+import { registrarEstadoMenu } from "./menu";
 import {
   CanalNoConfiguradoError,
   CredencialesInvalidasError,
@@ -143,12 +144,18 @@ export async function recibirEventoWebhook(e: EntradaWebhook): Promise<Respuesta
       return { status: 200, body: { status: "ok" } };
     }
 
+    // 5.3: el estado del menú queda en canal_config (alerta visible para el
+    // admin en /canales) en vez de solo en un console.warn.
     case "menu_rechazado":
       console.warn(`[canales/webhook] ${canalId} store=${e.storeId}: menú rechazado por la plataforma`);
+      await registrarEstadoMenu(e.supabase, ctx.storeId, canalId, "rechazado", evento.detalle);
+      return { status: 200, body: { status: "ok" } };
+
+    case "menu_aprobado":
+      await registrarEstadoMenu(e.supabase, ctx.storeId, canalId, "aprobado");
       return { status: 200, body: { status: "ok" } };
 
     case "estado_cambiado":
-    case "menu_aprobado":
     case "ignorado":
       return { status: 200, body: { status: "ok" } };
   }

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { UUIDSchema } from "@/lib/validation";
 import { esCanalExterno } from "@/lib/canales/domain/types";
 import { encolarOutbox } from "@/lib/canales/application/outbox";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // "Marcar lista para retiro" (paso 3.8, D8): cualquier usuario de la tienda
 // (el storeWorker prepara el pedido). Transición atómica accepted → ready y
@@ -12,8 +12,8 @@ import { encolarOutbox } from "@/lib/canales/application/outbox";
 // Tenant: una orden de otra tienda responde 404 sin confirmar que exista.
 export const POST = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: false });
+  if (!ctx.ok) return ctx.response;
   const { storeId, userId } = ctx;
 
   const { id } = await params;

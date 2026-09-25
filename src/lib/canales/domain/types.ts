@@ -5,6 +5,9 @@
 export const CANALES_EXTERNOS = ["rappi", "pedidosya", "ubereats"] as const;
 export type CanalExternoId = (typeof CANALES_EXTERNOS)[number];
 
+// userId de auditoría para acciones automáticas de los canales (sin sesión).
+export const USUARIO_SISTEMA = "sistema:canales";
+
 export function esCanalExterno(valor: unknown): valor is CanalExternoId {
   return typeof valor === "string" && (CANALES_EXTERNOS as readonly string[]).includes(valor);
 }

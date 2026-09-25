@@ -216,3 +216,26 @@ describe("procesarOrden — errores transitorios", () => {
     expect(argsDe(upd.ops, "update")?.[0]).toMatchObject({ estado: "failed" });
   });
 });
+
+// ─── Fase 5 (5.4): auditoría de rechazos y fallas automáticas ──────────────
+describe("procesarOrden — auditoría (5.4)", () => {
+  it("I-679: rechazo automático y falla definitiva quedan auditados como sistema; un reintento transitorio no", async () => {
+    await procesarOrden(montar({ items: [] }).client, STORE, ORDEN);
+    expect(mockLogAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ storeId: STORE, userId: "sistema:canales", entityType: "canal_ordenes", entityId: ORDEN, result: "failure" })
+    );
+    expect(mockLogAudit.mock.calls.at(-1)![0].changeDescription).toMatch(/rechazado automáticamente: OTHER/);
+
+    mockLogAudit.mockClear();
+    let fake = montar({ intentos: 0 });
+    fake.rpc.mockResolvedValue({ data: null, error: { code: "40P01", message: "deadlock" } });
+    expect((await procesarOrden(fake.client, STORE, ORDEN)).resultado).toBe("reintentar");
+    expect(mockLogAudit).not.toHaveBeenCalled();
+
+    fake = montar({ intentos: ORDEN_MAX_INTENTOS - 1 });
+    fake.rpc.mockResolvedValue({ data: null, error: { code: "40P01", message: "deadlock" } });
+    await procesarOrden(fake.client, STORE, ORDEN);
+    expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({ entityType: "canal_ordenes", result: "failure" }));
+    expect(mockLogAudit.mock.calls.at(-1)![0].changeDescription).toMatch(/falló tras/);
+  });
+});

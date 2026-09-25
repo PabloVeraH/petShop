@@ -1,5 +1,5 @@
 export type TipoCuenta = 'ACTIVO' | 'PASIVO' | 'PATRIMONIO' | 'INGRESO' | 'GASTO';
-export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES' | 'ANULACION_VENTA' | 'APORTE_CAPITAL';
+export type TipoMovimiento = 'VENTA' | 'NOTA_CREDITO' | 'COMPRA' | 'PAGO_PROVEEDOR' | 'AJUSTE' | 'CIERRE_MES' | 'ANULACION_VENTA' | 'APORTE_CAPITAL' | 'LIQUIDACION_CANAL';
 
 export interface ChartOfAccount {
   id: string;
@@ -99,6 +99,10 @@ export const CUENTAS = {
   DEVOLUCIONES_CANAL: { codigo: '510201', nombre: 'Devoluciones Canal Externo', tipo: 'GASTO' as TipoCuenta },
   // Patrimonio: aportes de capital de los socios/dueños de la tienda
   CAPITAL: { codigo: '310101', nombre: 'Capital', tipo: 'PATRIMONIO' as TipoCuenta },
+  // Comisiones que cobran las plataformas de delivery (D17/D24: se
+  // contabilizan al registrar la liquidación real; neto de IVA, el IVA va a
+  // IVA_CREDITO_FISCAL). Siguiente código libre de la serie 5xxx.
+  COMISIONES_CANAL: { codigo: '520101', nombre: 'Comisiones Canales Externos', tipo: 'GASTO' as TipoCuenta },
 } as const;
 
 // Lookup helper: retorna el tipo contable desde CUENTAS por código.

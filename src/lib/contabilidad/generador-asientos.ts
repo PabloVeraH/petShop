@@ -755,6 +755,67 @@ export function lineasAporteCapital(params: {
   ];
 }
 
+// Liquidación de una plataforma de delivery (Fase 5, D17 + D24). Cada venta
+// del canal debitó CxC <canal> por el total bruto (lineasVentaCanal); al
+// conciliar la liquidación real se salda esa CxC:
+//   Dr Banco                    monto_bruto − comisión (lo depositado)
+//   Dr Comisiones canales       comisión neta de IVA
+//   Dr IVA crédito fiscal       IVA de la comisión (la plataforma factura con IVA)
+//      Cr CxC <canal>           monto_bruto
+// La comisión es bruta (IVA incluido, AGENTS.md §23.3): el IVA se EXTRAE.
+export function lineasLiquidacionCanal(params: {
+  canal: string;
+  montoBruto: number;
+  comision: number;
+}): LineaAsiento[] {
+  const cxc =
+    params.canal === "rappi" ? CUENTAS.CXC_RAPPI
+    : params.canal === "pedidosya" ? CUENTAS.CXC_PEDIDOSYA
+    : params.canal === "ubereats" ? CUENTAS.CXC_UBEREATS
+    : null;
+  if (!cxc) throw new Error(`Canal sin cuenta por cobrar: ${params.canal}`);
+
+  const bruto = Math.round(params.montoBruto);
+  const comision = Math.round(params.comision);
+  const ivaComision = extraerIva(comision);
+  const lineas: LineaAsiento[] = [
+    {
+      cuentaCodigo: CUENTAS.BANCO.codigo,
+      cuentaNombre: CUENTAS.BANCO.nombre,
+      cuentaTipo: CUENTAS.BANCO.tipo,
+      debito: bruto - comision,
+      credito: 0,
+      descripcionLinea: `Depósito liquidación ${params.canal}`,
+    },
+    {
+      cuentaCodigo: CUENTAS.COMISIONES_CANAL.codigo,
+      cuentaNombre: CUENTAS.COMISIONES_CANAL.nombre,
+      cuentaTipo: CUENTAS.COMISIONES_CANAL.tipo,
+      debito: comision - ivaComision,
+      credito: 0,
+      descripcionLinea: `Comisión ${params.canal}`,
+    },
+    {
+      cuentaCodigo: CUENTAS.IVA_CREDITO_FISCAL.codigo,
+      cuentaNombre: CUENTAS.IVA_CREDITO_FISCAL.nombre,
+      cuentaTipo: CUENTAS.IVA_CREDITO_FISCAL.tipo,
+      debito: ivaComision,
+      credito: 0,
+      descripcionLinea: `IVA comisión ${params.canal}`,
+    },
+    {
+      cuentaCodigo: cxc.codigo,
+      cuentaNombre: cxc.nombre,
+      cuentaTipo: cxc.tipo,
+      debito: 0,
+      credito: bruto,
+      descripcionLinea: `Cobro de ventas ${params.canal}`,
+    },
+  ];
+  // Sin comisión (o comisión igual al bruto) no se emiten líneas en cero.
+  return lineas.filter((l) => l.debito !== 0 || l.credito !== 0);
+}
+
 // Asiento de cierre: COGS = costo de ventas del mes
 export function lineasCierreCOGS(costoTotal: number): LineaAsiento[] {
   return [

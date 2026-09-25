@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import AlertasCanales from "./components/AlertasCanales";
 
 interface CanalConfig {
   id: string;
@@ -85,6 +86,8 @@ export default function CanalesPage() {
       <p className="text-gray-500 mb-8">
         Administra tus canales de venta multi-plataforma
       </p>
+
+      <AlertasCanales />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CANALES.map((canal) => {

@@ -8,3 +8,4 @@ export * from "./validation/admin";
 export * from "./validation/servicios";
 export * from "./validation/citas";
 export * from "./validation/encargados";
+export * from "./validation/canales";

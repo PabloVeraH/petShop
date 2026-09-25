@@ -22,7 +22,10 @@ import { encolarOutbox } from "./outbox";
 // Debe correr fuera del camino crítico de la respuesta (after() o cron).
 
 export const ORDEN_MAX_INTENTOS = 3;
-export const USUARIO_SISTEMA = "sistema:canales";
+// Definido en domain/types (lo usan también cancelar-orden y menu sin
+// importar este módulo, que depende de la outbox).
+export { USUARIO_SISTEMA } from "../domain/types";
+import { USUARIO_SISTEMA } from "../domain/types";
 
 export type ResultadoProcesamiento =
   | { resultado: "omitida" }
@@ -90,6 +93,16 @@ async function rechazar(
     canalOrdenId: orden.id,
     payload: { external_order_id: orden.external_order_id, motivo },
   });
+  // 5.4: el rechazo automático también queda auditado (antes solo la venta).
+  logAudit({
+    storeId,
+    userId: USUARIO_SISTEMA,
+    action: "UPDATE",
+    entityType: "canal_ordenes",
+    entityId: orden.id,
+    changeDescription: `Pedido ${orden.external_order_id} (${canalId}) rechazado automáticamente: ${motivo}`,
+    result: "failure",
+  }).catch(() => {});
   return { resultado: "rechazada", motivo, detalle };
 }
 
@@ -106,6 +119,17 @@ async function fallar(
     .eq("id", orden.id)
     .eq("store_id", storeId)
     .eq("estado", "processing");
+  if (agotado) {
+    logAudit({
+      storeId,
+      userId: USUARIO_SISTEMA,
+      action: "UPDATE",
+      entityType: "canal_ordenes",
+      entityId: orden.id,
+      changeDescription: `Pedido ${orden.external_order_id} falló tras ${orden.intentos} intentos`,
+      result: "failure",
+    }).catch(() => {});
+  }
   return { resultado: agotado ? "fallida" : "reintentar", error };
 }
 

@@ -8,6 +8,7 @@ import {
   type CampoCredencial,
   type CanalConfigurableId,
 } from "@/lib/canales/campos";
+import LiquidacionesCanal from "../components/LiquidacionesCanal";
 
 interface CanalInfo {
   id: CanalConfigurableId;
@@ -311,6 +312,8 @@ export default function CanalConfigPage() {
           )}
         </div>
       </form>
+
+      {isCatalogoAvailable && <LiquidacionesCanal canalId={canalInfo.id} nombre={canalInfo.nombre} />}
     </div>
   );
 }

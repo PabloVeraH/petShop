@@ -15,6 +15,9 @@ import { GET, POST, PATCH } from "@/app/api/canales/config/route";
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
+// Fase 5 (5.1): /api/canales/** rechaza usuarios deshabilitados; por defecto habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/canales/encryption");

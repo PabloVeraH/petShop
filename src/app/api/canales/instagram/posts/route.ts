@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoreId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { withErrorLogging } from "@/lib/audit";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 const createPostSchema = z.object({
   content_type: z.enum(["post", "story", "carousel"]),
@@ -18,8 +18,8 @@ const createPostSchema = z.object({
 });
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId } = ctx;
   const supabase = createServiceClient();
 
@@ -44,8 +44,8 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 }, { endpoint: "GET /api/canales/instagram/posts" });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId } = ctx;
   const supabase = createServiceClient();
 

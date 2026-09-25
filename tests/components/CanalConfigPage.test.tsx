@@ -558,4 +558,17 @@ describe("CanalConfigPage — catálogo y precios", () => {
     await screen.findByText("Rappi");
     expect(screen.queryByText("Catálogo y precios")).not.toBeInTheDocument();
   });
+
+  it("CC-21: Rappi configurado muestra la sección de liquidaciones (carga GET por canal); sin configurar no", async () => {
+    configurado("rappi");
+    const { unmount } = await renderPage();
+    expect(await screen.findByRole("region", { name: "Liquidaciones Rappi" })).toBeInTheDocument();
+    await waitFor(() => expect(fetchCalls.some((c) => c.url === "/api/canales/liquidacion?canal=rappi")).toBe(true));
+    unmount();
+
+    mockFetch.mockImplementation(() => Promise.resolve({ ok: true, json: async () => [] }));
+    await renderPage();
+    await screen.findByText("Rappi");
+    expect(screen.queryByRole("region", { name: "Liquidaciones Rappi" })).not.toBeInTheDocument();
+  });
 });

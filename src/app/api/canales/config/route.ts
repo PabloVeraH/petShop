@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getStoreId } from "@/lib/auth";
-import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { createServiceClient } from "@/lib/supabase";
 import { encryptJSON } from "@/lib/canales/encryption";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
@@ -12,6 +9,7 @@ import {
 } from "@/lib/canales/campos";
 import { credencialesValidas } from "@/lib/canales/credenciales";
 import { z } from "zod";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // Fase 2 (2.3): las credenciales se validan con el MISMO schema que usa el
 // flujo del canal (lib/canales/credenciales.ts, generado desde
@@ -29,23 +27,15 @@ function externalStoreIdDe(canalId: CanalConfigurableId, credenciales: Record<st
   return campo ? credenciales[campo]?.trim() || undefined : undefined;
 }
 
-// D8: configurar un canal (credenciales, activar) es solo para
-// storeAdmin/systemAdmin, validado aquí; el formulario es solo UX.
-async function soloAdmin(storeId: string): Promise<NextResponse | null> {
-  const { sessionClaims } = await auth();
-  try {
-    requireStoreAdmin(getAdminStatus(sessionClaims), storeId);
-    return null;
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-}
+// D8 + Fase 5 (5.1): toda la configuración de canales (incluida la lectura)
+// es solo para storeAdmin/systemAdmin no deshabilitados, validado aquí; la UI
+// (/canales) ya es inaccesible para el storeWorker (middleware).
 
 const INTEGRACION_PENDIENTE = "Integración pendiente: este canal aún no se puede activar";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
@@ -69,11 +59,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 }, { endpoint: "GET /api/canales/config" });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
-  const forbidden = await soloAdmin(store_id);
-  if (forbidden) return forbidden;
   const supabase = createServiceClient();
 
   const configSchema = z.object({
@@ -154,11 +142,9 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 }, { endpoint: "POST /api/canales/config" });
 
 export const PATCH = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
-  const forbidden = await soloAdmin(store_id);
-  if (forbidden) return forbidden;
   const supabase = createServiceClient();
 
   const updateSchema = z.object({
