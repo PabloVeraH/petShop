@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/table";
 import { LotesPanel } from "./components/LotesPanel";
 import { ConteoFisicoModal } from "./components/ConteoFisicoModal";
+import { DeshacerAperturaButton } from "./components/DeshacerAperturaButton";
+import { estadoSacos, formatoSacos } from "@/lib/granel";
 import { CategoriasTab } from "./components/CategoriasTab";
 import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
 import { ProductoImagenesField } from "./components/ProductoImagenesField";
@@ -41,6 +43,8 @@ type Producto = {
   precio_venta_kg: number | null;
   imagen_url: string | null;
   imagen_url_2: string | null;
+  // Granel (migración 077): gramos del saco abierto (null = sin saco abierto).
+  saco_abierto_gramos?: number | null;
 };
 
 type Categoria = {
@@ -451,7 +455,13 @@ export default function InventoryPage() {
                     <TableCell className="font-medium max-w-[200px] truncate">{p.nombre}</TableCell>
                     <TableCell className="text-gray-500 text-sm max-w-[100px] truncate">{p.sku}</TableCell>
                     <TableCell className="text-right">{p.precio != null ? `$${p.precio.toLocaleString("es-CL")}` : <span className="text-gray-400 text-xs">Sin precio</span>}{p.en_oferta && p.precio_oferta && <span className="text-xs text-red-500 ml-1">${p.precio_oferta}</span>}</TableCell>
-                    <TableCell className="text-right font-medium">{p.stock}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {p.stock}
+                      {(p.precio_venta_kg ?? 0) > 0 && (p.peso_gramos ?? 0) > 0 && (() => {
+                        const s = estadoSacos(p);
+                        return <span className="block text-[11px] font-normal text-blue-600">{formatoSacos(s.cerrados, s.gramosAbiertos)}</span>;
+                      })()}
+                    </TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
                     <TableCell>
                       {vencStatus === 'sin-fecha' && (
@@ -513,6 +523,7 @@ export default function InventoryPage() {
                           <button onClick={() => setConteoDe(p)} className="text-[11px] text-emerald-700 hover:underline px-1">Conteo</button>
                           <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30, stock: p.stock, fecha_vencimiento: p.fecha_vencimiento })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
                           <button onClick={() => setConfirmDelete(p)} className="text-[11px] text-red-400 hover:underline px-1">Desact.</button>
+                          {p.saco_abierto_gramos != null && <DeshacerAperturaButton productoId={p.id} />}
                         </div>
                       </TableCell>
                     )}

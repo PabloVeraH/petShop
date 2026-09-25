@@ -1874,3 +1874,113 @@ expectativa se eliminó.
 | IV-16 | Admin abre Conteo y registra el conteo con el POST real | InventoryPage | component |
 | IV-17 | Filtro "Con decimales" muestra solo stock fraccionario | InventoryPage | component |
 | IV-18 | Admin ve ajuste +/− por producto | InventoryPage | component |
+
+---
+
+## Fase 1b — Granel: saco abierto (plan `docs/canales-stock/stock_canales_externos.md` §4.6)
+
+Migraciones 077 (sacos_abiertos, venta_item_sacos, stock = cerrados +
+ROUND(gramos/peso, 3), RPCs de saco, conteo con gramos) y 078
+(crear_venta_tx / anular_venta_tx / crear_nota_credito_tx en gramos). Los
+tests de esta sección usan mocks de las RPC: la semántica en BD se verifica
+con `docs/canales-stock/stock_canales_fase1b_verificacion.sql` (G1–G17,
+BEGIN … ROLLBACK, AGENTS.md §11.4) una vez aplicadas las migraciones.
+
+Nota (corregido 2026-09-24): `tests/unit/components/*.test.tsx` no coincidía con
+ningún proyecto de Jest y nunca se ejecutaba. `jest.config.ts` ahora toma todo
+`tests/**/*.test.tsx` en el proyecto `components`; `StoreLocationPicker.test.tsx`
+(UI-01..UI-14) se movió a `tests/components/` y los placeholders GR-U-05..10 se
+reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.tsx`.
+
+### Integración — POST /api/productos/[id]/saco (D18, G2, G6)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-572 | storeWorker abre saco → 200, RPC con tenant y usuario de la sesión, auditoría, sin sync | POST /api/productos/[id]/saco | integration |
+| I-573 | Merma con motivo → RPC cerrar_saco_merma con usuario, auditoría y sync del stock | POST /api/productos/[id]/saco | integration |
+| I-574 | storeAdmin deshace la apertura → 200 | POST /api/productos/[id]/saco | integration |
+| I-575 | storeWorker intenta deshacer → 403 sin tocar la BD | POST /api/productos/[id]/saco | integration |
+| I-576 | storeAdmin de otra tienda intenta deshacer → 403 | POST /api/productos/[id]/saco | integration |
+| I-577 | Sin sesión → 401 | POST /api/productos/[id]/saco | integration |
+| I-578 | Producto de otra tienda → 404 genérico (IDOR) | POST /api/productos/[id]/saco | integration |
+| I-579 | store_id / user_id en el body se ignoran | POST /api/productos/[id]/saco | integration |
+| I-580 | Acción desconocida / sin acción / merma sin motivo o corto / body inválido → 400 | POST /api/productos/[id]/saco | integration |
+| I-581 | id no UUID → 404 sin BD | POST /api/productos/[id]/saco | integration |
+| I-582 | Abrir con gramos en el saco abierto → 409 (merma primero) | POST /api/productos/[id]/saco | integration |
+| I-583 | Deshacer un saco con ventas → 409 | POST /api/productos/[id]/saco | integration |
+| I-584 | Merma sin saco abierto → 409; producto no granel → 400 | POST /api/productos/[id]/saco | integration |
+| I-585 | Error inesperado → 500 genérico + auditoría de fallo | POST /api/productos/[id]/saco | integration |
+
+### Integración — POST /api/ventas granel (D20, G1, G5, G8)
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-586 | Cantidad granel derivada de gramos (se ignora la del cliente) | POST /api/ventas | integration |
+| I-587 | abrir_saco viaja al RPC solo si el POS lo confirmó | POST /api/ventas | integration |
+| I-588 | p_user_id = usuario de la sesión (no workerClerkId) | POST /api/ventas | integration |
+| I-589 | 'Saco abierto insuficiente' → 409 REQUIERE_ABRIR_SACO | POST /api/ventas | integration |
+| I-590 | COGS granel = gramos / peso × costo del saco | POST /api/ventas | integration |
+| I-591 | Granel sin peso_gramos → 400 sin RPC | POST /api/ventas | integration |
+| I-592 | Venta por unidad con cantidad fraccionaria → 400 (Zod) | POST /api/ventas | integration |
+| I-593 | 'Producto no habilitado para granel' / 'Cantidad inválida' de la BD → 400 | POST /api/ventas | integration |
+
+### Integración — conteo, NC, GET productos/inventario, PATCH productos
+
+| ID | Descripción | Ruta | Tipo |
+|----|-------------|------|------|
+| I-594 | gramos_saco_abierto viaja al RPC y a la auditoría | POST /api/inventario/[id]/conteo | integration |
+| I-595 | Gramos negativos / decimales / no numéricos → 400; producto no granel → 400 (I-595b) | POST /api/inventario/[id]/conteo | integration |
+| I-596 | Devolución granel en kg (0.4) se acepta y viaja al RPC | POST /api/notas-credito | integration |
+| I-597 | Más de 3 decimales, 0 o negativo → 400 sin RPC | POST /api/notas-credito | integration |
+| I-598 | 'Cantidad inválida' de la BD → 400 | POST /api/notas-credito | integration |
+| I-599 | Productos granel traen saco_abierto_gramos (tenant, saco abierto) | GET /api/productos | integration |
+| I-600 | Sin productos granel no consulta sacos_abiertos | GET /api/productos | integration |
+| I-601 | Inventario trae saco_abierto_gramos (null sin saco) | GET /api/inventario | integration |
+| I-602 | Cambiar peso_gramos con saco abierto → 409 | PATCH /api/productos/[id] | integration |
+| I-603 | CHECK granel sin peso → 400 | PATCH /api/productos/[id] | integration |
+
+### Unitarios — src/lib/stock-errors.ts, src/lib/granel.ts
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-163 | Prefijos de error de las funciones de saco → 409/400 con el mensaje | lib/stock-errors | unit |
+| U-164 | 9,967 con 14 500 g de 15 000 → 9 cerrados | lib/granel | unit |
+| U-165 | Sin saco, recién abierto, redondeo a 3 decimales, fracción > 1, sin peso | lib/granel | unit |
+| U-166 | Formato "N sacos + X kg" (G11) | lib/granel | unit |
+
+### Componentes — POS granel, conteo, devolución, inventario
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| GR-U-11 | Muestra "N sacos + X kg" y gramos del saco abierto | SearchProductos | component |
+| GR-U-12 | Gramos suficientes → addItem sin abrir_saco | SearchProductos | component |
+| GR-U-13 | Gramos que exceden el saco exigen confirmar; al confirmar viaja abrir_saco (G1) | SearchProductos | component |
+| GR-U-14 | Gramos granel ya en el carrito cuentan para la apertura; cancelar no agrega | SearchProductos | component |
+| GR-U-15 | Más gramos que el stock total → error, no agrega | SearchProductos | component |
+| GR-U-16 | "Abrí un saco nuevo" sin saco abierto → POST de apertura (D18) | SearchProductos | component |
+| GR-U-17 | Con gramos en el saco, pide la merma y no llama a la API (G6) | SearchProductos | component |
+| GR-U-18 | Merma exige motivo ≥ 5 y envía accion 'merma' | SearchProductos | component |
+| GR-U-19 | Error de la API del saco se muestra | SearchProductos | component |
+| GR-U-20 | Sin sacos cerrados no agrega un saco entero (I5) | SearchProductos | component |
+| GR-U-21 | createVenta incluye abrir_saco en el body | pos/api | integration |
+| CF-08 | Granel: "N sacos + X kg", pide cerrados + gramos del saco abierto | ConteoFisicoModal | component |
+| CF-09 | Envía gramos_saco_abierto solo si se contaron | ConteoFisicoModal | component |
+| CF-10 | Gramos con decimales bloquean el envío; no granel sin campo (CF-10b) | ConteoFisicoModal | component |
+| DV-21 | Línea granel muestra los gramos a devolver, sin editar cantidad | DevolucionModal | component |
+| DV-22 | Confirmar envía la cantidad pendiente en kg | DevolucionModal | component |
+| DAB-01 | Clic → POST /api/productos/[id]/saco accion 'deshacer' | DeshacerAperturaButton | component |
+| DAB-02 | Éxito invalida inventario, productos y lotes | DeshacerAperturaButton | component |
+| DAB-03 | Error del servidor se muestra | DeshacerAperturaButton | component |
+| IV-19 | "N sacos + X kg"; "Deshacer apertura" solo admin y con saco abierto (gate de UX) | InventoryPage | component |
+| GR-U-05 | Sin precio_venta_kg no muestra "Vender a granel" | SearchProductos | component |
+| GR-U-06 | Con precio_venta_kg muestra "Vender a granel" | SearchProductos | component |
+| GR-U-07 | "Vender a granel" abre el input de gramos | SearchProductos | component |
+| GR-U-08 | Previsualiza el precio mientras se escriben los gramos | SearchProductos | component |
+| GR-U-09 | 500 g → addItem con cantidad 0.5 y subtotal correcto | SearchProductos | component |
+| GR-U-10 | "Agregar" deshabilitado con gramos vacío o 0 | SearchProductos | component |
+
+### Componentes — StoreLocationPicker (movido a tests/components/, 2026-09-24)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| UI-01..UI-14 | Tests existentes de StoreLocationPicker; nunca se ejecutaban (ver nota). UI-13 destapó que el refactor b83f545 (ModalOverlay) perdió `aria-labelledby="pin-moved-title"` — corregido con la prop `labelledBy` de ModalOverlay | StoreLocationPicker | component |

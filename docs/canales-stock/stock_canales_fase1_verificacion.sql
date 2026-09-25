@@ -18,6 +18,11 @@
 --
 -- NO cubre (requiere dos sesiones simultáneas): concurrencia real de dos
 -- ventas por el último stock. Ver instrucciones al final.
+--
+-- Vigencia: describe el estado posterior a 076. Desde 077 (granel)
+-- ajustar_stock_conteo tiene un 7º parámetro (p_gramos_saco_abierto) y la
+-- consulta de T12 con la firma de 6 parámetros falla; la verificación
+-- vigente de esos grants está en stock_canales_fase1b_verificacion.sql (G17).
 -- ============================================================================
 
 BEGIN;

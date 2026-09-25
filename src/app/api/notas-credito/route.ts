@@ -107,6 +107,11 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       result: "failure",
       errorMessage: rpcError?.message ?? "Unknown error",
     }).catch(() => {});
+    // Cantidad fuera de contrato (fracción en una línea por unidad, más de 3
+    // decimales en granel, migración 078) es error del cliente, no del servidor.
+    if (rpcError?.message?.startsWith("Cantidad inválida")) {
+      return NextResponse.json({ error: rpcError.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: `Error creando nota de crédito: ${rpcError?.message}` },
       { status: 500 }

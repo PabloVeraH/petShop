@@ -15,6 +15,9 @@ export interface Producto {
   peso_gramos?: number | null;      // <-- asegurarse que ya esté
   imagen_url?: string | null;
   imagen_url_2?: string | null;
+  // Granel (migración 077): gramos del saco abierto; null/ausente = no hay
+  // saco abierto. Lo agregan GET /api/productos y GET /api/inventario.
+  saco_abierto_gramos?: number | null;
 }
 
 export interface Cliente {
@@ -46,9 +49,11 @@ export interface VentaItem {
   producto_id: string | null;
   servicio_id?: string | null;
   mascota_id?: string;
-  cantidad: number;
-  precio_unitario: number;
+  cantidad: number;          // granel: kg (= gramos / 1000)
+  precio_unitario: number;   // granel: precio por kg
   subtotal: number;
+  es_granel?: boolean;       // migración 077
+  gramos?: number | null;    // migración 077 — solo granel (fuente de verdad)
 }
 
 export interface Venta {
@@ -114,7 +119,8 @@ export interface RegistrarLoteResultado {
   lote_inicial: LoteProducto | null;
 }
 
-// Resultado de la RPC ajustar_stock_conteo (migración 076, D22).
+// Resultado de la RPC ajustar_stock_conteo (migración 076, D22; gramos desde
+// 077). cantidad_* son las unidades/sacos CERRADOS (o el lote contado).
 export interface AjusteConteoResultado {
   stock_anterior: number;
   stock_nuevo: number;
@@ -122,12 +128,54 @@ export interface AjusteConteoResultado {
   cantidad_contada: number;
   delta: number;
   lote_id: string | null;
+  gramos_anterior?: number | null;   // gramos del saco abierto antes (null: no había)
+  gramos_contados?: number | null;   // null: no se contaron gramos
 }
 
 // Resultado de la RPC merma_lote_vencido (migración 076, D23).
 export interface MermaLoteResultado {
   lote: LoteProducto;
   cantidad_baja: number;
+}
+
+// ─── Granel: saco abierto (migración 077, §4.6) ──────────────────────────
+// gramos_restantes (enteros) es la fuente de verdad; productos.stock =
+// sacos cerrados + ROUND(gramos_restantes / peso_gramos, 3).
+export type SacoOrigen = "apertura" | "devolucion" | "conteo";
+export type SacoMotivoCierre = "agotado" | "merma" | "deshecho" | "conteo";
+
+export interface SacoAbierto {
+  id: string;
+  store_id: string;
+  producto_id: string;
+  lote_id: string | null;
+  origen: SacoOrigen;
+  gramos_iniciales: number;
+  gramos_restantes: number;
+  abierto_at: string;
+  abierto_por: string | null;
+  cerrado_at: string | null;
+  cerrado_por: string | null;
+  motivo_cierre: SacoMotivoCierre | null;
+  gramos_merma: number | null;
+  nota: string | null;
+}
+
+// Trazabilidad venta ↔ saco (migración 077), análoga a VentaItemLote.
+export interface VentaItemSaco {
+  id: string;
+  venta_item_id: string;
+  saco_id: string;
+  gramos: number;
+  created_at: string;
+}
+
+// Resultado de POST /api/productos/[id]/saco (RPCs abrir_saco,
+// cerrar_saco_merma, deshacer_apertura_saco).
+export interface SacoAccionResultado {
+  saco: SacoAbierto;
+  stock: number;
+  gramos_merma?: number;
 }
 
 // ─── Servicios agendables (Fase 1) ───────────────────────────────────────

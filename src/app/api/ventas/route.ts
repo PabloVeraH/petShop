@@ -113,7 +113,7 @@ async function postVenta(req: NextRequest) {
   const uniqueProductoIds = [...new Set(productoIds)];
   const { data: productosDB, error: precioError } = await supabase
     .from("productos")
-    .select("id, nombre, precio, precio_oferta, en_oferta, precio_venta_kg, stock, costo")
+    .select("id, nombre, precio, precio_oferta, en_oferta, precio_venta_kg, peso_gramos, stock, costo")
     .in("id", uniqueProductoIds)
     .eq("store_id", store_id);
 
@@ -122,26 +122,35 @@ async function postVenta(req: NextRequest) {
   }
 
    const precioMap: Record<string, number> = {};
+   const precioKgMap: Record<string, number> = {};
    const costoMap: Record<string, number> = {};
+   const pesoMap: Record<string, number> = {};
    const granelSinPrecioKg: string[] = [];
+   const granelSinPeso: string[] = [];
 
+   // Precio por línea, no por producto: el mismo producto puede venderse por
+   // unidad y a granel en la misma venta.
    productosDB.forEach(p => {
-     const itemDelCarrito = items.find(i => i.producto_id === p.id);
-     if (itemDelCarrito?.es_granel) {
-       if (p.precio_venta_kg) {
-         precioMap[p.id] = Number(p.precio_venta_kg);
-       } else {
-         granelSinPrecioKg.push(p.id);
-       }
-     } else {
-       precioMap[p.id] = p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio);
-     }
+     precioMap[p.id] = p.en_oferta && p.precio_oferta ? Number(p.precio_oferta) : Number(p.precio);
+     if (p.precio_venta_kg) precioKgMap[p.id] = Number(p.precio_venta_kg);
      costoMap[p.id] = Number(p.costo ?? 0);
+     pesoMap[p.id] = Number(p.peso_gramos ?? 0);
+     if (items.some(i => i.producto_id === p.id && i.es_granel)) {
+       if (!p.precio_venta_kg) granelSinPrecioKg.push(p.id);
+       // G8: sin peso del saco no se puede calcular la proporción descontada (D20).
+       else if (!(Number(p.peso_gramos) > 0)) granelSinPeso.push(p.id);
+     }
    });
 
    if (granelSinPrecioKg.length > 0) {
      return NextResponse.json(
        { error: "Producto granel sin precio_venta_kg configurado — configure el precio por kg antes de vender a granel" },
+       { status: 400 }
+     );
+   }
+   if (granelSinPeso.length > 0) {
+     return NextResponse.json(
+       { error: "Producto granel sin peso del saco (peso_gramos) — configúrelo antes de vender a granel" },
        { status: 400 }
      );
    }
@@ -162,33 +171,44 @@ async function postVenta(req: NextRequest) {
      );
    }
 
-   const itemsConPrecio = items.map((item: {
-     producto_id: string;
-     cantidad: number;     // kg para granel, unidades enteras para normal
-     mascota_id?: string;
-     es_granel?: boolean;
-     gramos?: number;
-   }) => {
+   const itemsConPrecio = items.map((item) => {
+     if (item.es_granel) {
+       // Granel (D20): los gramos enteros son la fuente de verdad; la
+       // cantidad en kg se deriva aquí (y la BD la vuelve a fijar), no se
+       // toma del cliente. Subtotal redondeado igual que el POS.
+       const gramos = item.gramos as number;
+       const precioKg = precioKgMap[item.producto_id];
+       return {
+         producto_id:     item.producto_id,
+         cantidad:        gramos / 1000,
+         precio_unitario: precioKg,
+         subtotal:        Math.round((gramos * precioKg) / 1000),
+         mascota_id:      item.mascota_id ?? null,
+         es_granel:       true,
+         gramos,
+         abrir_saco:      item.abrir_saco === true,
+       };
+     }
      const precio = precioMap[item.producto_id];
-     const subtotal = item.es_granel
-       ? item.cantidad * precio    // cantidad=kg, precio=precio_venta_kg
-       : precio * item.cantidad;
-
      return {
        producto_id:     item.producto_id,
        cantidad:        item.cantidad,
        precio_unitario: precio,
-       subtotal,
+       subtotal:        precio * item.cantidad,
        mascota_id:      item.mascota_id ?? null,
-       es_granel:       item.es_granel ?? false,
-       gramos:          item.gramos ?? null,
+       es_granel:       false,
+       gramos:          null,
      };
    });
 
   const subtotal: number = itemsConPrecio.reduce((sum: number, i: { subtotal: number }) => sum + i.subtotal, 0);
+  // COGS (G5): el costo es por saco/unidad; una línea granel cuesta la
+  // proporción vendida del saco (gramos / peso_gramos × costo).
   const costoTotal: number = itemsConPrecio.reduce(
-    (sum: number, i: { producto_id: string; cantidad: number }) =>
-      sum + (i.cantidad * (costoMap[i.producto_id] ?? 0)),
+    (sum: number, i) =>
+      sum + (i.es_granel
+        ? ((i.gramos as number) / pesoMap[i.producto_id]) * (costoMap[i.producto_id] ?? 0)
+        : i.cantidad * (costoMap[i.producto_id] ?? 0)),
     0
   );
   const descuentoMonto = (subtotal * descuento_pct) / 100;
@@ -251,6 +271,9 @@ async function postVenta(req: NextRequest) {
     p_fidelizacion_niveles: fidelizacionNiveles,
     p_dias_aviso:           diasAviso,
     p_idempotency_key:      idempotencyKey ?? null,
+    // Usuario autenticado (no el workerClerkId elegido en el POS): queda como
+    // abierto_por / cerrado_por de los sacos que abra o agote la venta.
+    p_user_id:              ctx.userId,
   });
 
   if (txError) {
@@ -265,6 +288,17 @@ async function postVenta(req: NextRequest) {
       result: "failure",
       errorMessage: txError.message,
     });
+    // Granel (G1): el saco abierto no alcanza y el POS no confirmó abrir uno
+    // nuevo → 409 con código estable para que el POS pida la confirmación.
+    if (txError.message.startsWith("Saco abierto insuficiente")) {
+      return NextResponse.json(
+        { error: txError.message, code: "REQUIERE_ABRIR_SACO" },
+        { status: 409 }
+      );
+    }
+    if (txError.message.startsWith("Cantidad inválida") || txError.message.startsWith("Producto no habilitado para granel")) {
+      return NextResponse.json({ error: txError.message }, { status: 400 });
+    }
     const isStockError = txError.message.toLowerCase().includes("stock") || txError.message.toLowerCase().includes("insuficiente");
     return NextResponse.json(
       { error: isStockError ? "Stock insuficiente para completar la venta." : "Error interno del servidor" },

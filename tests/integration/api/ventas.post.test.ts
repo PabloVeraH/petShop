@@ -905,6 +905,10 @@ const DB_PRODUCTO_GRANEL = {
   precio_oferta: null,
   en_oferta: false,
   precio_venta_kg: 10000, // precio especial por kg
+  // Migración 077 (G8): un producto con precio por kg exige el peso del saco
+  // (CHECK productos_granel_requiere_peso); sin él la ruta responde 400.
+  peso_gramos: 15000,
+  costo: 30000,           // por saco
 };
 
 const DB_PRODUCTO_GRANEL_SYNC = {
@@ -1023,6 +1027,127 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
     const body = await res.json();
     expect(body.error).toMatch(/gramos/i);
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // ── Fase 1b — granel en gramos (migraciones 077/078, §4.6) ────────────────
+  // El RPC se simula: el descuento real de gramos del saco abierto, la
+  // apertura forzada y el stock derivado se verifican contra la BD real con
+  // docs/canales-stock/stock_canales_fase1b_verificacion.sql (G1–G17).
+
+  // I-586 — D20: los gramos enteros son la fuente de verdad; la cantidad en
+  // kg que manda el cliente se ignora (se deriva de gramos).
+  it("I-586: la cantidad granel se deriva de gramos, no de la cantidad del cliente", async () => {
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 99, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_items: [expect.objectContaining({ cantidad: 0.5, gramos: 500, subtotal: 5000, precio_unitario: 10000 })],
+      p_total: 5000,
+    }));
+  });
+
+  // I-587 — G1: la confirmación de apertura del POS viaja al RPC; sin ella, false.
+  it("I-587: abrir_saco viaja al RPC solo cuando el POS lo confirmó", async () => {
+    await POST(makeRequest({
+      items: [
+        { producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500, abrir_saco: true },
+        { producto_id: PRODUCTO_ID, cantidad: 0.2, es_granel: true, gramos: 200 },
+      ],
+      metodoPago: "efectivo",
+    }));
+    const pItems = mockRpc.mock.calls[0][1].p_items;
+    expect(pItems[0].abrir_saco).toBe(true);
+    expect(pItems[1].abrir_saco).toBe(false);
+  });
+
+  // I-588 — el usuario del saco (abierto_por) es el de la sesión, no el
+  // workerClerkId que elige el cliente.
+  it("I-588: p_user_id es el usuario de la sesión aunque el body traiga workerClerkId", async () => {
+    await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+      workerClerkId: "otro-worker",
+    }));
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_user_id: "user-1",
+      p_worker_clerk_id: "otro-worker",
+    }));
+  });
+
+  // I-589 — G1: el saco abierto no alcanza y la línea no trae confirmación →
+  // 409 con código estable (el POS pide confirmar), no 422 ni 500.
+  it("I-589: 'Saco abierto insuficiente' de la BD → 409 REQUIERE_ABRIR_SACO", async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Saco abierto insuficiente: quedan 200 g, se requieren 500 g — confirme la apertura de un saco nuevo" },
+    });
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("REQUIERE_ABRIR_SACO");
+    expect(body.error).toMatch(/Saco abierto insuficiente/);
+  });
+
+  // I-590 — G5: COGS proporcional. 500 g de un saco de 15 000 g con costo
+  // $30.000 por saco → $1.000 (antes: 0,5 × $30.000 = $15.000).
+  it("I-590: COGS de granel = gramos / peso_gramos × costo del saco", async () => {
+    await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    const cogsCall = (crearAsiento as jest.Mock).mock.calls
+      .map((c) => c[0])
+      .find((a) => a.lineas.some((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo));
+    expect(cogsCall).toBeDefined();
+    const lineaCOGS = cogsCall.lineas.find((l: { cuentaCodigo: string }) => l.cuentaCodigo === CUENTAS.COGS.codigo);
+    expect(lineaCOGS.debito).toBe(1000);
+  });
+
+  // I-591 — G8: granel sin peso del saco → 400 sin tocar la BD.
+  it("I-591: producto granel sin peso_gramos → 400, RPC no llamado", async () => {
+    const sinPeso = { ...DB_PRODUCTO_GRANEL, peso_gramos: null };
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "productos") {
+        return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [sinPeso], error: null }) };
+      }
+      return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
+    });
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/peso/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-592 — por unidad la cantidad debe ser entera (para peso: granel).
+  it("I-592: venta por unidad con cantidad 1.5 → 400 por Zod, RPC no llamado", async () => {
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 1.5 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/entera/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-593 — errores de contrato de la BD (078) → 400, no 500 ni 422.
+  it.each([
+    "Producto no habilitado para granel (requiere precio por kg y peso del saco)",
+    "Cantidad inválida: una venta a granel requiere gramos (producto=x)",
+  ])("I-593: '%s' → 400", async (message) => {
+    mockRpc.mockResolvedValue({ data: null, error: { message } });
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
   });
 });
 

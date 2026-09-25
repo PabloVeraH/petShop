@@ -31,7 +31,25 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   const { data, error } = await query.limit(50);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  // Granel (§4.6): el POS necesita los gramos del saco abierto para decidir
+  // si una venta exige abrir un saco nuevo (G1) y para mostrar "N sacos + X kg".
+  const productos = data ?? [];
+  const granelIds = productos.filter((p) => Number(p.precio_venta_kg) > 0).map((p) => p.id);
+  if (granelIds.length === 0) return NextResponse.json(productos);
+
+  const { data: sacos, error: sacosError } = await supabase
+    .from("sacos_abiertos")
+    .select("producto_id, gramos_restantes")
+    .eq("store_id", store_id)
+    .in("producto_id", granelIds)
+    .is("cerrado_at", null);
+  if (sacosError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+  const gramosPorProducto = new Map((sacos ?? []).map((s) => [s.producto_id, Number(s.gramos_restantes)]));
+  return NextResponse.json(productos.map((p) =>
+    granelIds.includes(p.id) ? { ...p, saco_abierto_gramos: gramosPorProducto.get(p.id) ?? null } : p
+  ));
 }, { endpoint: "GET /api/productos" });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {

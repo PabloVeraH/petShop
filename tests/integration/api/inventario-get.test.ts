@@ -327,3 +327,47 @@ describe("GET /api/inventario", () => {
     expect(data[0].nombre).toBe("Producto Perecedero con Baja");
   });
 });
+
+// ── Fase 1b — granel (migración 077, G11) ──────────────────────────────────
+describe("GET /api/inventario — saco abierto de granel", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: "store-1" });
+  });
+
+  // I-601 — el inventario trae los gramos del saco abierto (tenant de la
+  // sesión, solo saco abierto) para mostrar "N sacos + X kg".
+  it("I-601: productos granel traen saco_abierto_gramos (null si no hay saco abierto)", async () => {
+    const productosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({
+        data: [
+          { id: "g-1", nombre: "Granel A", stock: 9.967, stock_minimo: 1, precio_venta_kg: 5000, peso_gramos: 15000, fecha_vencimiento: null },
+          { id: "g-2", nombre: "Granel B", stock: 4, stock_minimo: 1, precio_venta_kg: 3000, peso_gramos: 10000, fecha_vencimiento: null },
+          { id: "u-1", nombre: "Unidad", stock: 3, stock_minimo: 1, precio_venta_kg: null, peso_gramos: null, fecha_vencimiento: null },
+        ],
+        error: null,
+      }),
+    };
+    const sacosChain: Record<string, jest.Mock> = {};
+    sacosChain.select = jest.fn(() => sacosChain);
+    sacosChain.eq = jest.fn(() => sacosChain);
+    sacosChain.in = jest.fn(() => sacosChain);
+    sacosChain.is = jest.fn().mockResolvedValue({ data: [{ producto_id: "g-1", gramos_restantes: 14500 }], error: null });
+
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "sacos_abiertos" ? sacosChain : productosChain)),
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/inventario"));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.find((p: { id: string }) => p.id === "g-1").saco_abierto_gramos).toBe(14500);
+    expect(data.find((p: { id: string }) => p.id === "g-2").saco_abierto_gramos).toBeNull();
+    expect(data.find((p: { id: string }) => p.id === "u-1")).not.toHaveProperty("saco_abierto_gramos");
+    expect(sacosChain.eq).toHaveBeenCalledWith("store_id", "store-1");
+    expect(sacosChain.in).toHaveBeenCalledWith("producto_id", ["g-1", "g-2"]);
+    expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
+  });
+});

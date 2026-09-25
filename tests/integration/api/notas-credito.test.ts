@@ -868,3 +868,58 @@ describe("GET /api/saldos-a-favor", () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ── Fase 1b — devolución de granel (migración 078, G7) ─────────────────────
+// Las líneas granel se devuelven en kg (3 decimales = gramos exactos). La
+// regla "por unidad = entera" vive en crear_nota_credito_tx (conoce el tipo
+// de línea); aquí se prueba el contrato de la ruta. La restitución real de
+// gramos al saco se verifica con docs/canales-stock/stock_canales_fase1b_verificacion.sql.
+describe("POST /api/notas-credito — granel (I-596..I-598)", () => {
+  const ITEM_GRANEL = "723e4567-e89b-12d3-a456-426614174007";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID, systemAdmin: false });
+    rpcSuccess();
+    mockFrom.mockImplementation(makeEmptyFrom());
+  });
+
+  async function postNc(cantidadDevuelta: unknown) {
+    const { POST } = await import("@/app/api/notas-credito/route");
+    return POST(
+      new NextRequest("http://localhost/api/notas-credito", {
+        method: "POST",
+        body: JSON.stringify({
+          ventaId: VENTA_ID,
+          items: [{ ventaItemId: ITEM_GRANEL, cantidadDevuelta, restituirStock: true }],
+          tipoReembolso: "reembolso_directo",
+        }),
+      })
+    );
+  }
+
+  // I-596 — 0.4 kg (400 g) de una línea granel llega al RPC tal cual.
+  it("I-596: cantidad en kg con decimales (0.4) se acepta y viaja al RPC", async () => {
+    const res = await postNc(0.4);
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_nota_credito_tx", expect.objectContaining({
+      p_items: [{ venta_item_id: ITEM_GRANEL, cantidad_devuelta: 0.4, restituir_stock: true }],
+    }));
+  });
+
+  // I-597 — más de 3 decimales (fracción de gramo) → 400 sin tocar la BD.
+  it.each([0.0005, 1.2345, 0, -1])("I-597: cantidadDevuelta %p → 400 sin llamar al RPC", async (cantidad) => {
+    const res = await postNc(cantidad);
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-598 — la BD rechaza una fracción en una línea por unidad: es error del
+  // cliente (400), no del servidor (500).
+  it("I-598: 'Cantidad inválida' de la BD → 400 con el mensaje", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Cantidad inválida para devolver: 0.5 (debe ser entera)" } });
+    const res = await postNc(0.5);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/debe ser entera/);
+  });
+});

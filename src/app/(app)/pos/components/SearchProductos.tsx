@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { ImageOff } from "lucide-react";
 import type { Producto } from "@/types";
 import { usePOSStore } from "@/stores/pos";
-import { getProductos } from "../api";
+import { getProductos, accionSaco } from "../api";
 import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { estadoSacos, formatoSacos } from "@/lib/granel";
 
 export default function SearchProductos() {
   const [search, setSearch] = useState("");
@@ -18,6 +19,12 @@ export default function SearchProductos() {
   const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
   const [gramosInput, setGramosInput] = useState<string>("");
   const [stockWarning, setStockWarning] = useState<string | null>(null);
+  // Granel: confirmación forzada de apertura (G1), merma (G6) y errores del saco.
+  const [confirmarApertura, setConfirmarApertura] = useState<{ productoId: string; gramos: number } | null>(null);
+  const [mermaProductoId, setMermaProductoId] = useState<string | null>(null);
+  const [mermaMotivo, setMermaMotivo] = useState("");
+  const [sacoError, setSacoError] = useState<{ productoId: string; mensaje: string } | null>(null);
+  const [sacoPendiente, setSacoPendiente] = useState(false);
   // Miniaturas con error de carga (URL rota en R2) — cae al placeholder en vez
   // de mostrar el ícono de imagen quebrada del navegador.
   const [imgErrorIds, setImgErrorIds] = useState<Set<string>>(new Set());
@@ -35,15 +42,22 @@ export default function SearchProductos() {
     staleTime: 30_000,
   });
 
+  // Unidades vendibles por unidad: para granel, solo los sacos cerrados (el
+  // abierto se vende por gramos). La BD aplica la misma regla (I5, 077).
+  function unidadesVendibles(prod: Producto): number {
+    return (prod.precio_venta_kg ?? 0) > 0 ? estadoSacos(prod).cerrados : prod.stock;
+  }
+
   function addProductoToCart(prod: Producto) {
     const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
     if (!precioFinal) return;
 
     // Guard sobrestock: verificar cantidad ya en carrito vs stock disponible
+    const maxUnidades = unidadesVendibles(prod);
     const inCartItem = items.find((i) => i.producto_id === prod.id && !i.es_granel);
     const inCartQty = inCartItem?.cantidad ?? 0;
-    if (inCartQty >= prod.stock) {
-      setStockWarning(`Stock máximo alcanzado: ${prod.stock} unidad${prod.stock !== 1 ? "es" : ""} disponible${prod.stock !== 1 ? "s" : ""}`);
+    if (inCartQty >= maxUnidades) {
+      setStockWarning(`Stock máximo alcanzado: ${maxUnidades} unidad${maxUnidades !== 1 ? "es" : ""} disponible${maxUnidades !== 1 ? "s" : ""}`);
       if (stockWarningTimerRef.current) clearTimeout(stockWarningTimerRef.current);
       stockWarningTimerRef.current = setTimeout(() => {
         setStockWarning(null);
@@ -62,13 +76,34 @@ export default function SearchProductos() {
       fecha_vencimiento: prod.fecha_vencimiento,
       precio_oferta: prod.precio_oferta,
       en_oferta: prod.en_oferta,
-      stock: prod.stock,
+      stock: maxUnidades,
     });
   }
 
-  function addGranelToCart(prod: Producto) {
+  // G1: si los gramos pedidos (más los granel de este producto ya en el
+  // carrito, que la venta consume antes) superan el saco abierto, el cajero
+  // debe confirmar la apertura de un saco nuevo. La BD vuelve a verificarlo
+  // y responde 409 si la línea no trae la confirmación.
+  function addGranelToCart(prod: Producto, confirmado = false) {
     const gramos = parseInt(gramosInput, 10);
     if (!prod.precio_venta_kg || gramos <= 0 || isNaN(gramos)) return;
+
+    const { peso, gramosAbiertos, cerrados } = estadoSacos(prod);
+    const gramosEnCarrito = items
+      .filter((i) => i.producto_id === prod.id && i.es_granel)
+      .reduce((sum, i) => sum + (i.gramos ?? 0), 0);
+    const requerido = gramosEnCarrito + gramos;
+    const sacosEnCarrito = items.find((i) => i.producto_id === prod.id && !i.es_granel)?.cantidad ?? 0;
+
+    if (requerido > gramosAbiertos + Math.max(0, cerrados - sacosEnCarrito) * peso) {
+      setSacoError({ productoId: prod.id, mensaje: "Stock insuficiente para esa cantidad a granel" });
+      return;
+    }
+    const necesitaAbrir = requerido > gramosAbiertos;
+    if (necesitaAbrir && !confirmado) {
+      setConfirmarApertura({ productoId: prod.id, gramos });
+      return;
+    }
 
     const kg = gramos / 1000;
     const subtotal = Math.round(kg * prod.precio_venta_kg);
@@ -81,11 +116,44 @@ export default function SearchProductos() {
       subtotal,
       mascota_id: mascotaId,
       es_granel: true,
-      gramos,                          // para mostrar en recibo y carrito
+      gramos,                          // fuente de verdad del descuento de stock
+      ...(necesitaAbrir ? { abrir_saco: true } : {}),
     });
 
+    setConfirmarApertura(null);
+    setSacoError(null);
     setGranelProductoId(null);
     setGramosInput("");
+  }
+
+  async function ejecutarAccionSaco(prod: Producto, body: Parameters<typeof accionSaco>[1]) {
+    setSacoPendiente(true);
+    setSacoError(null);
+    try {
+      await accionSaco(prod.id, body);
+      setMermaProductoId(null);
+      setMermaMotivo("");
+      await queryClient.invalidateQueries({ queryKey: ["productos"] });
+    } catch (e) {
+      setSacoError({ productoId: prod.id, mensaje: e instanceof Error ? e.message : "Error en la acción del saco" });
+    } finally {
+      setSacoPendiente(false);
+    }
+  }
+
+  // D18: "Abrí un saco nuevo". Con gramos en el saco abierto, primero la merma
+  // del resto (G6) — la BD también lo exige.
+  function abrirSacoManual(prod: Producto) {
+    const { gramosAbiertos } = estadoSacos(prod);
+    if (gramosAbiertos > 0) {
+      setSacoError({
+        productoId: prod.id,
+        mensaje: `El saco abierto aún tiene ${gramosAbiertos} g: registra la merma del resto antes de abrir otro`,
+      });
+      setMermaProductoId(prod.id);
+      return;
+    }
+    ejecutarAccionSaco(prod, { accion: "abrir" });
   }
 
   const handleDetected = useCallback((code: string) => {
@@ -241,6 +309,10 @@ export default function SearchProductos() {
           const sinPrecio = !precioFinal;
           const inCartQty = items.find((i) => i.producto_id === prod.id && !i.es_granel)?.cantidad ?? 0;
           const sinStock = !tieneGranel && inCartQty >= prod.stock;
+          const sacos = tieneGranel ? estadoSacos(prod) : null;
+          const errorSaco = sacoError?.productoId === prod.id ? sacoError.mensaje : null;
+          const pidiendoApertura = confirmarApertura?.productoId === prod.id;
+          const enMerma = mermaProductoId === prod.id;
 
           return (
             <div key={prod.id} className="relative rounded border bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -307,12 +379,16 @@ export default function SearchProductos() {
                         )}
                       </div>
                       <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                        Stock: {prod.stock}
+                        {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos) : `Stock: ${prod.stock}`}
                       </Badge>
                     </div>
                     {tieneGranel && (
                       <span className="text-xs text-blue-600 mt-2 block">
                         Granel: ${prod.precio_venta_kg!.toLocaleString("es-CL")}/kg
+                        {" · "}
+                        {sacos && sacos.gramosAbiertos > 0
+                          ? `saco abierto: ${sacos.gramosAbiertos.toLocaleString("es-CL")} g`
+                          : "sin saco abierto"}
                       </span>
                     )}
                   </div>
@@ -321,19 +397,69 @@ export default function SearchProductos() {
 
               {/* Toggle + input granel */}
               {tieneGranel && (
-                <div className="border-t border-blue-100 px-3 py-2 bg-blue-50">
-                  {!isGranelActivo ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setGranelProductoId(prod.id);
-                        setGramosInput("");
-                      }}
-                      className="text-xs text-blue-600 hover:underline font-medium"
-                    >
-                      Vender a granel
-                    </button>
+                <div className="border-t border-blue-100 px-3 py-2 bg-blue-50 space-y-2">
+                  {pidiendoApertura ? (
+                    <div role="alertdialog" aria-label="Confirmar apertura de saco" className="space-y-2">
+                      <p className="text-xs text-amber-800">
+                        El saco abierto no alcanza para {confirmarApertura!.gramos} g
+                        {sacos ? ` (quedan ${sacos.gramosAbiertos} g)` : ""}. ¿Abrir un saco nuevo?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => addGranelToCart(prod, true)}
+                          className="text-xs bg-amber-600 text-white rounded px-2 py-1"
+                        >
+                          Abrir saco y agregar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmarApertura(null)}
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : !isGranelActivo ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGranelProductoId(prod.id);
+                          setGramosInput("");
+                          setSacoError(null);
+                        }}
+                        className="text-xs text-blue-600 hover:underline font-medium"
+                      >
+                        Vender a granel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={sacoPendiente}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirSacoManual(prod);
+                        }}
+                        className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                      >
+                        Abrí un saco nuevo
+                      </button>
+                      {sacos && sacos.gramosAbiertos > 0 && !enMerma && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMermaProductoId(prod.id);
+                            setMermaMotivo("");
+                          }}
+                          className="text-xs text-gray-600 hover:underline"
+                        >
+                          Registrar merma
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <input
@@ -369,6 +495,39 @@ export default function SearchProductos() {
                         Cancelar
                       </button>
                     </div>
+                  )}
+
+                  {/* G6: merma del resto del saco abierto (guarda el usuario en la BD) */}
+                  {enMerma && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Motivo de la merma"
+                        aria-label="Motivo de la merma"
+                        value={mermaMotivo}
+                        onChange={(e) => setMermaMotivo(e.target.value)}
+                        className="flex-1 min-w-0 text-sm border border-gray-300 rounded px-2 py-1"
+                      />
+                      <button
+                        type="button"
+                        disabled={sacoPendiente || mermaMotivo.trim().length < 5}
+                        onClick={() => ejecutarAccionSaco(prod, { accion: "merma", motivo: mermaMotivo.trim() })}
+                        className="text-xs bg-gray-700 text-white rounded px-2 py-1 disabled:opacity-50"
+                      >
+                        Confirmar merma
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setMermaProductoId(null); setMermaMotivo(""); }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+
+                  {errorSaco && (
+                    <p role="alert" className="text-xs text-red-600">{errorSaco}</p>
                   )}
                 </div>
               )}

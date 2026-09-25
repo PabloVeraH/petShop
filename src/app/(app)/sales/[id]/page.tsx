@@ -26,6 +26,9 @@ type VentaDetalle = {
     // XOR por línea (migración 068): producto o servicio, nunca ambos.
     productos: { nombre: string; sku: string } | null;
     servicios?: { nombre: string } | null;
+    // Granel (migración 077): cantidad en kg; gramos = fuente de verdad.
+    es_granel?: boolean;
+    gramos?: number | null;
   }>;
   pagos?: Array<{
     id: string;
@@ -84,7 +87,9 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const itemsDisponibles = (data?.items ?? [])
     .map((item) => ({
       ...item,
-      cantidad: item.cantidad - (cantidadesDevueltas[item.id] ?? 0),
+      // Redondeo a 3 decimales: las líneas granel están en kg (0.5 − 0.4 en
+      // punto flotante no da exactamente 0.1).
+      cantidad: Math.round((item.cantidad - (cantidadesDevueltas[item.id] ?? 0)) * 1000) / 1000,
     }))
     .filter((item) => item.cantidad > 0);
 
@@ -297,7 +302,9 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="flex-1 mr-2">
                   {prod?.nombre ?? serv?.nombre ?? "Producto"}
-                  <span className="text-gray-400 text-xs ml-1">×{item.cantidad}</span>
+                  <span className="text-gray-400 text-xs ml-1">
+                    {item.es_granel && item.gramos ? `${item.gramos} g` : `×${item.cantidad}`}
+                  </span>
                   {devuelto > 0 && (
                     <span className="text-amber-600 text-xs ml-1">(Dev. {devuelto})</span>
                   )}

@@ -21,6 +21,14 @@ const REGLAS: { prefijo: string; status: number }[] = [
   { prefijo: "Cantidad actual inválida", status: 400 },
   { prefijo: "Cantidad contada inválida", status: 400 },
   { prefijo: "El motivo del conteo", status: 400 },
+  // Granel (migraciones 077/078)
+  { prefijo: "Saco abierto insuficiente", status: 409 },
+  { prefijo: "Saco abierto con gramos restantes", status: 409 },
+  { prefijo: "No hay saco abierto", status: 409 },
+  { prefijo: "El saco no se puede deshacer", status: 409 },
+  { prefijo: "No se puede cambiar el peso del saco", status: 409 },
+  { prefijo: "Producto no habilitado para granel", status: 400 },
+  { prefijo: "El motivo de la merma", status: 400 },
 ];
 
 export function mapearErrorStock(message: string | null | undefined): StockErrorHttp {

@@ -110,6 +110,17 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       const msg = error.message?.includes("codigo_barra") ? "El código de barra ya existe" : "El SKU ya existe";
       return NextResponse.json({ error: msg }, { status: 409 });
     }
+    // Granel (migración 077): el peso del saco no cambia con un saco abierto
+    // (trigger) y un precio por kg exige peso del saco (CHECK G8).
+    if (error.message?.startsWith("No se puede cambiar el peso del saco")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error.code === "23514" && error.message?.includes("productos_granel_requiere_peso")) {
+      return NextResponse.json(
+        { error: "Para vender a granel el producto necesita el peso del saco (peso en gramos)" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 

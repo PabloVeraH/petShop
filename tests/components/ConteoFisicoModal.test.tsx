@@ -155,3 +155,60 @@ describe("ConteoFisicoModal", () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ["lotes", "prod-1"] });
   });
 });
+
+// ── Fase 1b — conteo de granel (migración 077) ─────────────────────────────
+describe("ConteoFisicoModal — granel", () => {
+  const GRANEL = {
+    id: "prod-g", nombre: "Alimento granel", stock: 9.967,
+    precio_venta_kg: 5000, peso_gramos: 15000, saco_abierto_gramos: 14500,
+  };
+
+  function renderGranel(producto: object = GRANEL) {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <ConteoFisicoModal producto={producto as typeof GRANEL} onClose={jest.fn()} />
+      </QueryClientProvider>
+    );
+  }
+
+  it("CF-08: granel muestra 'N sacos + X kg' y pide sacos cerrados + gramos del saco abierto", async () => {
+    mockFetch([]);
+    renderGranel();
+    expect(screen.getByText(/9 sacos \+ 14,5 kg/)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Sacos cerrados contados/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Gramos en el saco abierto/)).toBeInTheDocument();
+    expect(screen.getByText("Cantidad registrada: 9")).toBeInTheDocument();
+  });
+
+  it("CF-09: envía gramos_saco_abierto solo si se contaron (vacío = sin cambio)", async () => {
+    mockFetch([], { ok: true, body: {} });
+    renderGranel();
+    fireEvent.change(await screen.findByLabelText(/Sacos cerrados contados/), { target: { value: "9" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo mensual" } });
+    fireEvent.change(screen.getByLabelText(/Gramos en el saco abierto/), { target: { value: "12000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar conteo" }));
+
+    await waitFor(() => expect(postConteo()).toBeDefined());
+    expect(JSON.parse(postConteo()![1].body)).toEqual({
+      stock_contado: 9, motivo: "Conteo mensual", gramos_saco_abierto: 12000,
+    });
+  });
+
+  it("CF-10: gramos con decimales bloquean el envío; producto no granel no muestra el campo", async () => {
+    mockFetch([]);
+    renderGranel();
+    fireEvent.change(await screen.findByLabelText(/Sacos cerrados contados/), { target: { value: "9" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo mensual" } });
+    fireEvent.change(screen.getByLabelText(/Gramos en el saco abierto/), { target: { value: "10.5" } });
+    expect(screen.getByText(/Los gramos deben ser un entero/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar conteo" })).toBeDisabled();
+  });
+
+  it("CF-10b: producto sin granel no muestra el campo de gramos ni los envía", async () => {
+    mockFetch([]);
+    renderGranel({ id: "prod-u", nombre: "Cama", stock: 3, precio_venta_kg: null, peso_gramos: null });
+    expect(await screen.findByLabelText(/Cantidad contada/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Gramos en el saco abierto/)).not.toBeInTheDocument();
+  });
+});

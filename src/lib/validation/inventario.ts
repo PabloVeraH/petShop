@@ -138,12 +138,38 @@ export const ConteoFisicoSchema = z.object({
     .refine((v) => Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6, "Máximo 3 decimales"),
   lote_id: UUIDSchema.optional().nullable(),
   motivo: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(255),
+  // Granel (migración 077): gramos contados en el saco abierto. Con granel,
+  // stock_contado son los sacos CERRADOS; 0 g cierra el saco abierto.
+  gramos_saco_abierto: z.number()
+    .int("Los gramos deben ser enteros")
+    .nonnegative("Los gramos no pueden ser negativos")
+    .max(10_000_000, "Cantidad fuera de rango")
+    .optional()
+    .nullable(),
 });
 
 // D23 — merma por vencimiento de un lote.
 export const MermaLoteSchema = z.object({
   motivo: z.string().trim().max(255).optional(),
 });
+
+// Granel (§4.6, D18/D19) — acciones sobre el saco abierto de un producto:
+// abrir (D18, cualquier usuario de la tienda), merma del resto (G6, guarda
+// el usuario) y deshacer apertura (G2, solo storeAdmin/systemAdmin — lo
+// valida el endpoint).
+export const SacoAccionSchema = z.discriminatedUnion("accion", [
+  z.object({
+    accion: z.literal("abrir"),
+    nota: z.string().trim().max(255).optional(),
+  }),
+  z.object({
+    accion: z.literal("merma"),
+    motivo: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(255),
+  }),
+  z.object({
+    accion: z.literal("deshacer"),
+  }),
+]);
 
 export const LoteUpdateSchema = z.object({
   numero_lote:       z.string().max(100).optional().nullable(),
@@ -155,4 +181,5 @@ export const LoteUpdateSchema = z.object({
 
 export type LoteCreateInput = z.infer<typeof LoteCreateSchema>;
 export type ConteoFisicoInput = z.infer<typeof ConteoFisicoSchema>;
+export type SacoAccionInput = z.infer<typeof SacoAccionSchema>;
 export type LoteUpdateInput = z.infer<typeof LoteUpdateSchema>;

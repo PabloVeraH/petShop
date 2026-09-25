@@ -96,6 +96,8 @@ describe("POST /api/inventario/[id]/conteo", () => {
       p_stock_contado: 9,
       p_motivo: "Conteo de fin de mes",
       p_user_id: "u1",
+      // Migración 077: sin gramos contados → null (la BD no toca el saco abierto).
+      p_gramos_saco_abierto: null,
     });
     expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({
       action: "UPDATE",
@@ -199,5 +201,43 @@ describe("POST /api/inventario/[id]/conteo", () => {
   it("I-563b: acepta 3 decimales (1.005)", async () => {
     const res = await post({ stock_contado: 1.005, motivo: "Conteo mensual" });
     expect(res.status).toBe(200);
+  });
+
+  // I-594 — granel (077): los gramos del saco abierto viajan al RPC y quedan
+  // en la auditoría (valor anterior y nuevo).
+  it("I-594: gramos_saco_abierto viaja al RPC y a la auditoría", async () => {
+    mockRpc.mockResolvedValue({
+      data: { ...RESULTADO, gramos_anterior: 10000, gramos_contados: 4000 },
+      error: null,
+    });
+    const res = await post({ stock_contado: 3, gramos_saco_abierto: 4000, motivo: "Conteo saco abierto" });
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("ajustar_stock_conteo", expect.objectContaining({
+      p_stock_contado: 3,
+      p_gramos_saco_abierto: 4000,
+    }));
+    expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({
+      oldValues: expect.objectContaining({ gramos_saco_abierto: 10000 }),
+      newValues: expect.objectContaining({ gramos_saco_abierto: 4000 }),
+      changeDescription: expect.stringContaining("saco abierto 10000 → 4000 g"),
+    }));
+  });
+
+  it.each([
+    ["gramos negativos", -1],
+    ["gramos con decimales", 10.5],
+    ["gramos no numéricos", "500"],
+  ])("I-595: %s → 400 sin llamar al RPC", async (_desc, gramos) => {
+    const res = await post({ stock_contado: 3, gramos_saco_abierto: gramos, motivo: "Conteo mensual" });
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // I-595b — granel en un producto que no es granel: la BD lo rechaza → 400.
+  it("I-595b: gramos en un producto no granel → 400 con el mensaje de la BD", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Producto no habilitado para granel (requiere precio por kg y peso del saco)" } });
+    const res = await post({ stock_contado: 3, gramos_saco_abierto: 100, motivo: "Conteo mensual" });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/no habilitado para granel/);
   });
 });

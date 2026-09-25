@@ -440,3 +440,45 @@ describe("DevolucionModal — Paso 2: tipo de reembolso", () => {
     }
   });
 });
+
+// ── Fase 1b — devolución de granel (migración 078, G7) ─────────────────────
+// La línea granel (kg) se devuelve completa; los gramos vuelven al saco
+// abierto en la BD (verificado en stock_canales_fase1b_verificacion.sql G9).
+describe("DevolucionModal — granel", () => {
+  const ITEM_GRANEL = {
+    id: "item-granel",
+    cantidad: 0.6,               // pendiente: 1000 g vendidos − 400 g ya devueltos
+    precio_unitario: 5000,       // por kg
+    subtotal: 5000,
+    productos: { nombre: "Alimento granel" },
+    es_granel: true,
+    gramos: 1000,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ numeroNc: "NC-20260924-GRANEL01", notaCreditoId: "nc-granel" }),
+    });
+  });
+
+  it("DV-21: línea granel muestra los gramos a devolver y no ofrece editar la cantidad", () => {
+    setup({ items: [ITEM_GRANEL] });
+    expect(screen.getByText(/\$5\.000 \/kg/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    expect(screen.getByText(/se devuelven 600 g/)).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("DV-22: confirmar envía la cantidad pendiente en kg (0.6) a POST /api/notas-credito", async () => {
+    setup({ items: [ITEM_GRANEL] });
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/notas-credito", expect.objectContaining({ method: "POST" })));
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls.find(([u]: [string]) => u === "/api/notas-credito")[1].body);
+    expect(body.items).toEqual([{ ventaItemId: "item-granel", cantidadDevuelta: 0.6, restituirStock: true }]);
+  });
+});

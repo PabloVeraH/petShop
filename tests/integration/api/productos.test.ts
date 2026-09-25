@@ -535,3 +535,86 @@ describe("PATCH /api/productos/[id] — limpieza de imágenes en R2", () => {
     expect(mockEliminarImagenProducto).not.toHaveBeenCalled();
   });
 });
+
+// ── Fase 1b — granel (migración 077, §4.6) ─────────────────────────────────
+describe("GET /api/productos — saco abierto de granel (I-599/I-600)", () => {
+  const GRANEL_ID = "123e4567-e89b-12d3-a456-426614174011";
+  let sacosChain: Record<string, jest.Mock>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    sacosChain = {
+      select: jest.fn(() => sacosChain),
+      eq: jest.fn(() => sacosChain),
+      in: jest.fn(() => sacosChain),
+      is: jest.fn().mockResolvedValue({ data: [{ producto_id: GRANEL_ID, gramos_restantes: 14500 }], error: null }),
+    };
+  });
+
+  // I-599 — el POS recibe los gramos del saco abierto de cada granel (G1),
+  // leídos con el tenant de la sesión y solo del saco abierto (cerrado_at null).
+  it("I-599: productos granel traen saco_abierto_gramos; los demás no", async () => {
+    const productos = [
+      { id: GRANEL_ID, nombre: "Granel", precio_venta_kg: 5000, peso_gramos: 15000, stock: 9.967 },
+      { id: PRODUCTO_ID, nombre: "Cama", precio_venta_kg: null, peso_gramos: null, stock: 3 },
+    ];
+    mockFrom.mockImplementation((table: string) =>
+      table === "sacos_abiertos" ? sacosChain : chain(Promise.resolve({ data: productos, error: null }))
+    );
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.find((p: { id: string }) => p.id === GRANEL_ID).saco_abierto_gramos).toBe(14500);
+    expect(data.find((p: { id: string }) => p.id === PRODUCTO_ID)).not.toHaveProperty("saco_abierto_gramos");
+    expect(sacosChain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(sacosChain.in).toHaveBeenCalledWith("producto_id", [GRANEL_ID]);
+    expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
+  });
+
+  it("I-600: sin productos granel no consulta sacos_abiertos", async () => {
+    mockFrom.mockImplementation((table: string) =>
+      table === "sacos_abiertos"
+        ? sacosChain
+        : chain(Promise.resolve({ data: [{ id: PRODUCTO_ID, precio_venta_kg: null, stock: 3 }], error: null }))
+    );
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(200);
+    expect(mockFrom).not.toHaveBeenCalledWith("sacos_abiertos");
+  });
+});
+
+describe("PATCH /api/productos/[id] — guardias de granel (I-602/I-603)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+  });
+
+  // I-602 — la BD impide cambiar el peso con un saco abierto (descuadraría
+  // sacos cerrados = stock − fracción) → 409 con el mensaje.
+  it("I-602: cambiar peso_gramos con saco abierto → 409", async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: "P0001", message: "No se puede cambiar el peso del saco con un saco abierto: registre la merma o termine el saco primero" },
+    });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { peso_gramos: 12000 }), { params: patchParams });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/saco abierto/);
+  });
+
+  // I-603 — G8: CHECK productos_granel_requiere_peso → 400 legible.
+  it("I-603: violación del CHECK de granel sin peso → 400", async () => {
+    mockSingle.mockResolvedValue({
+      data: null,
+      error: { code: "23514", message: 'new row for relation "productos" violates check constraint "productos_granel_requiere_peso"' },
+    });
+    const { PATCH } = await import("@/app/api/productos/[id]/route");
+    const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { nombre: "Granel" }), { params: patchParams });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/peso del saco/);
+  });
+});

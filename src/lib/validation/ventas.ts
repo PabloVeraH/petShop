@@ -3,11 +3,15 @@ import { UUIDSchema } from "./primitives";
 
 export const VentaItemSchema = z.object({
   producto_id: UUIDSchema,
-  cantidad: z.number().positive(),          // decimal for granel (kg), integer for normal
+  // Granel: informativo (kg); la ruta y la BD lo recalculan desde `gramos`.
+  // Por unidad: entero (la BD rechaza fracciones — migración 078).
+  cantidad: z.number().positive(),
   precioUnitario: z.number().positive().optional(),
   mascota_id: UUIDSchema.optional(),
   es_granel: z.boolean().optional(),
   gramos: z.number().int().positive().optional(),
+  // Granel (G1): el POS confirmó abrir un saco nuevo si el abierto no alcanza.
+  abrir_saco: z.boolean().optional(),
 }).superRefine((val, ctx) => {
   // Granel sin gramos → backend caería silenciosamente al precio de lista
   if (val.es_granel && !val.gramos) {
@@ -15,6 +19,13 @@ export const VentaItemSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "gramos es requerido para ventas a granel (es_granel=true)",
       path: ["gramos"],
+    });
+  }
+  if (!val.es_granel && !Number.isInteger(val.cantidad)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "La cantidad debe ser entera (para vender por peso use la venta a granel)",
+      path: ["cantidad"],
     });
   }
 });

@@ -41,3 +41,18 @@ describe("mapearErrorStock", () => {
     expect(mapearErrorStock("").status).toBe(500);
   });
 });
+
+// Fase 1b — granel (migraciones 077/078): prefijos de las funciones de saco.
+describe("mapearErrorStock — granel", () => {
+  it.each([
+    ["Saco abierto insuficiente: quedan 200 g, se requieren 500 g — confirme la apertura de un saco nuevo", 409],
+    ["Saco abierto con gramos restantes (700 g): registre la merma del resto antes de abrir otro", 409],
+    ["No hay saco abierto para este producto", 409],
+    ["El saco no se puede deshacer: tiene ventas asociadas", 409],
+    ["No se puede cambiar el peso del saco con un saco abierto: registre la merma o termine el saco primero", 409],
+    ["Producto no habilitado para granel (requiere precio por kg y peso del saco)", 400],
+    ["El motivo de la merma es obligatorio (mínimo 5 caracteres)", 400],
+  ])("U-163: '%s' → %i con el mensaje de la BD", (msg, status) => {
+    expect(mapearErrorStock(msg)).toEqual({ status, error: msg });
+  });
+});

@@ -24,7 +24,7 @@ export const GET = withErrorLogging(async (req: NextRequest,
       id, store_id, numero_comprobante, total, subtotal, descuento, impuesto,
       created_at, estado, worker_clerk_id,
       clientes(id, nombre, telefono, email, rut),
-      venta_items(cantidad, precio_unitario, subtotal, productos(nombre, sku), servicios(nombre))
+      venta_items(cantidad, precio_unitario, subtotal, es_granel, gramos, productos(nombre, sku), servicios(nombre))
     `
     )
     .eq("id", ventaId)

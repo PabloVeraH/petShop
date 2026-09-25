@@ -16,7 +16,8 @@ export interface CartItem {
   stock?: number;            // unidades disponibles en el momento de agregar (guard de sobrestock)
   // Campos granel:
   es_granel?: boolean;       // true si la venta es a granel
-  gramos?: number;           // gramos indicados por el vendedor (solo display/recibo)
+  gramos?: number;           // gramos vendidos (enteros): la fuente de verdad del descuento de stock
+  abrir_saco?: boolean;      // granel: el cajero confirmó abrir un saco nuevo si el abierto no alcanza (G1)
 }
 
 // ─────────────────────────────────────────────────────────────────────────

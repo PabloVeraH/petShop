@@ -53,7 +53,11 @@ export const NotaCreditoPostSchema = z.object({
   ventaId: UUIDSchema,
   items: z.array(z.object({
     ventaItemId: UUIDSchema,
-    cantidadDevuelta: z.number().int().positive(),
+    // Líneas granel se devuelven en kg (hasta 3 decimales = gramos exactos,
+    // migración 078). Las líneas por unidad siguen exigiendo enteros: lo
+    // valida crear_nota_credito_tx, que conoce el tipo de la línea.
+    cantidadDevuelta: z.number().positive()
+      .refine((v) => Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6, "Máximo 3 decimales"),
     restituirStock: z.boolean().optional(),
   })).min(1),
   tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),

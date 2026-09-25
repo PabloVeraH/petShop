@@ -34,7 +34,7 @@ export const GET = withErrorLogging(async (_req: NextRequest,
 
   const { data: items } = await supabase
     .from("venta_items")
-    .select("id, cantidad, precio_unitario, subtotal, productos(nombre, sku), servicios(nombre)")
+    .select("id, cantidad, precio_unitario, subtotal, es_granel, gramos, productos(nombre, sku), servicios(nombre)")
     .eq("venta_id", id);
 
   const { data: pagos } = await supabase

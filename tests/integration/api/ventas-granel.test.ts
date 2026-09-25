@@ -62,6 +62,30 @@ describe("createVenta — propagación es_granel al backend", () => {
     });
   });
 
+  // GR-U-21 (Fase 1b, G1): la confirmación de apertura de saco del cajero
+  // llega al body; sin ella el backend responde 409 (I-589).
+  it("GR-U-21: abrir_saco:true se incluye en el body enviado a POST /api/ventas", async () => {
+    const bodyPromise = captureBody();
+
+    createVenta({
+      items: [{
+        producto_id: PRODUCTO_ID,
+        cantidad: 0.5,
+        precio_unitario: 10000,
+        subtotal: 5000,
+        es_granel: true,
+        gramos: 500,
+        abrir_saco: true,
+      }],
+      metodoPago: "efectivo",
+      descuentoPct: 0,
+      procedencia: "presencial",
+    });
+
+    const body = await bodyPromise as { items: Array<{ abrir_saco?: boolean }> };
+    expect(body.items[0].abrir_saco).toBe(true);
+  });
+
   // GR-U-02: item normal (sin granel) no incluye es_granel ni gramos
   it("GR-U-02: item normal sin es_granel envía es_granel:undefined al backend", async () => {
     const bodyPromise = captureBody();

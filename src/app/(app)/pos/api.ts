@@ -1,4 +1,22 @@
-import type { Producto, Cliente, Mascota } from "@/types";
+import type { Producto, Cliente, Mascota, SacoAccionResultado } from "@/types";
+
+// Granel (§4.6): abrir saco (D18), merma del resto (G6) o deshacer apertura
+// (G2, solo admin — lo valida el servidor).
+export type AccionSaco =
+  | { accion: "abrir"; nota?: string }
+  | { accion: "merma"; motivo: string }
+  | { accion: "deshacer" };
+
+export async function accionSaco(productoId: string, body: AccionSaco): Promise<SacoAccionResultado> {
+  const res = await fetch(`/api/productos/${productoId}/saco`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
+  return data as SacoAccionResultado;
+}
 
 export async function getProductos(search: string): Promise<Producto[]> {
   const params = new URLSearchParams({ search });
@@ -42,6 +60,7 @@ export async function createVenta({
     mascota_id?: string;
     es_granel?: boolean;
     gramos?: number;
+    abrir_saco?: boolean;   // granel: el cajero confirmó abrir un saco nuevo (G1)
   }[];
   clienteId?: string;
   workerClerkId?: string;

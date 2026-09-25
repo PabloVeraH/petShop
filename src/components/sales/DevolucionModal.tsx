@@ -16,6 +16,10 @@ interface DevolucionItem {
   // en null y servicios con su nombre — sin este campo, un ítem de servicio
   // se mostraba como "Producto" genérico en vez de su nombre real.
   servicios?: { nombre: string } | null;
+  // Granel (migración 077/078): cantidad en kg. La línea se devuelve completa
+  // (lo pendiente); los gramos vuelven al saco abierto (G7).
+  es_granel?: boolean;
+  gramos?: number | null;
 }
 
 interface DevolucionModalProps {
@@ -225,7 +229,7 @@ export function DevolucionModal({
                                 {" "}${Math.round(Number(item.precio_unitario) * descuentoFactor).toLocaleString("es-CL")} c/u ({descuento}% desc.)
                               </>
                             ) : (
-                              <>${Math.round(Number(item.precio_unitario)).toLocaleString("es-CL")} c/u</>
+                              <>${Math.round(Number(item.precio_unitario)).toLocaleString("es-CL")} {item.es_granel ? "/kg" : "c/u"}</>
                             )}
                           </p>
                         </div>
@@ -233,6 +237,11 @@ export function DevolucionModal({
 
                       {selected && (
                         <div className="ml-6 space-y-2">
+                          {item.es_granel ? (
+                            <p className="text-xs text-gray-600">
+                              Granel: se devuelven {Math.round(item.cantidad * 1000).toLocaleString("es-CL")} g (línea completa)
+                            </p>
+                          ) : (
                           <div className="flex items-center gap-2">
                             <label className="text-xs text-gray-600">Cantidad:</label>
                             <Input
@@ -252,6 +261,7 @@ export function DevolucionModal({
                             />
                             <span className="text-xs text-gray-500">/ {item.cantidad}</span>
                           </div>
+                          )}
                           <label className="flex items-center gap-2 text-xs">
                             <input
                               type="checkbox"

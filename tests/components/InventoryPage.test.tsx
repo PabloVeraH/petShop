@@ -1066,3 +1066,33 @@ describe("InventoryPage — conteo físico y gates de stock", () => {
     expect(screen.getAllByRole("button", { name: "−" })).toHaveLength(2);
   });
 });
+
+// ── Fase 1b (granel, migración 077): "N sacos + X kg" (G11) y gate de UX de
+// "Deshacer apertura" (G2). El control real es el servidor: POST
+// /api/productos/[id]/saco con accion "deshacer" exige admin (I-575).
+describe("InventoryPage — granel", () => {
+  const GRANEL_ABIERTO = {
+    ...PRODUCTO, id: "pg", nombre: "Granel Abierto", stock: 9.967,
+    precio_venta_kg: 5000, peso_gramos: 15000, saco_abierto_gramos: 14500,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupFetch([PRODUCTO, GRANEL_ABIERTO]);
+  });
+
+  it("IV-19: muestra 'N sacos + X kg'; 'Deshacer apertura' solo para admin y solo con saco abierto", async () => {
+    mockAsAdmin();
+    const { unmount } = render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Granel Abierto")).toBeInTheDocument());
+    expect(screen.getByText("9 sacos + 14,5 kg")).toBeInTheDocument();
+    // Solo el producto con saco abierto ofrece deshacer.
+    expect(screen.getAllByRole("button", { name: "Deshacer apertura" })).toHaveLength(1);
+    unmount();
+
+    mockAsWorker();
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Granel Abierto")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Deshacer apertura" })).not.toBeInTheDocument();
+  });
+});

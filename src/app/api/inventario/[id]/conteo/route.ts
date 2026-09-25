@@ -38,7 +38,7 @@ export const POST = withErrorLogging(async (req: NextRequest,
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { stock_contado, lote_id, motivo } = parsed.data;
+  const { stock_contado, lote_id, motivo, gramos_saco_abierto } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -51,6 +51,8 @@ export const POST = withErrorLogging(async (req: NextRequest,
     p_stock_contado: stock_contado,
     p_motivo:        motivo,
     p_user_id:       userId,
+    // Granel: gramos del saco abierto (null = no se contaron → sin cambio).
+    p_gramos_saco_abierto: gramos_saco_abierto ?? null,
   });
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
@@ -82,9 +84,9 @@ export const POST = withErrorLogging(async (req: NextRequest,
     action: "UPDATE",
     entityType: "inventario",
     entityId: id,
-    oldValues: { stock: resultado.stock_anterior, cantidad: resultado.cantidad_anterior, lote_id: resultado.lote_id },
-    newValues: { stock: resultado.stock_nuevo, cantidad: resultado.cantidad_contada, lote_id: resultado.lote_id },
-    changeDescription: `Conteo físico${resultado.lote_id ? " (lote)" : ""}: ${resultado.cantidad_anterior} → ${resultado.cantidad_contada} (delta ${resultado.delta}). Motivo: ${motivo}`,
+    oldValues: { stock: resultado.stock_anterior, cantidad: resultado.cantidad_anterior, lote_id: resultado.lote_id, gramos_saco_abierto: resultado.gramos_anterior ?? null },
+    newValues: { stock: resultado.stock_nuevo, cantidad: resultado.cantidad_contada, lote_id: resultado.lote_id, gramos_saco_abierto: resultado.gramos_contados ?? null },
+    changeDescription: `Conteo físico${resultado.lote_id ? " (lote)" : ""}: ${resultado.cantidad_anterior} → ${resultado.cantidad_contada} (delta ${resultado.delta})${resultado.gramos_contados != null ? `, saco abierto ${resultado.gramos_anterior ?? 0} → ${resultado.gramos_contados} g` : ""}. Motivo: ${motivo}`,
     ipAddress,
     userAgent,
     result: "success",

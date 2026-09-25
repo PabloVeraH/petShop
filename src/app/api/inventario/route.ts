@@ -20,7 +20,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   let query = supabase
     .from("productos")
-    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, imagen_url, imagen_url_2")
+    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, precio_venta_kg, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, imagen_url, imagen_url_2")
     .eq("store_id", store_id)
     .eq("activo", true)
     .order("nombre");
@@ -64,6 +64,24 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       ...p,
       lotes: lotesPorProducto[p.id] ?? [],
     }));
+  }
+
+  // Granel (G11): gramos del saco abierto para mostrar "N sacos + X kg" y
+  // para el conteo físico / deshacer apertura.
+  const granelIds = result.filter((p) => Number(p.precio_venta_kg) > 0).map((p) => p.id);
+  if (granelIds.length > 0) {
+    const { data: sacos, error: sacosError } = await supabase
+      .from("sacos_abiertos")
+      .select("producto_id, gramos_restantes")
+      .eq("store_id", store_id)
+      .in("producto_id", granelIds)
+      .is("cerrado_at", null);
+    if (sacosError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+
+    const gramosPorProducto = new Map((sacos ?? []).map((s) => [s.producto_id, Number(s.gramos_restantes)]));
+    result = result.map((p) =>
+      granelIds.includes(p.id) ? { ...p, saco_abierto_gramos: gramosPorProducto.get(p.id) ?? null } : p
+    );
   }
 
   return NextResponse.json(result);

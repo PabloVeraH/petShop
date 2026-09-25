@@ -71,6 +71,7 @@ export default function POSPage() {
           mascota_id: i.mascota_id,
           es_granel: i.es_granel,
           gramos: i.gramos,
+          abrir_saco: i.abrir_saco,
         })),
         clienteId,
         workerClerkId,
