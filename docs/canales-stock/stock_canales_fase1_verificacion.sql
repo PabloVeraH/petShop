@@ -12,6 +12,10 @@
 -- Si alguna verificación falla, el DO lanza 'Tn FALLÓ: …' y las consultas
 -- siguientes dan "current transaction is aborted" — igual se hace ROLLBACK.
 --
+-- Las ventas de prueba usan p_worker_clerk_id => NULL: ventas.worker_clerk_id
+-- tiene FK a clerk_users (ON DELETE SET NULL, nullable) y no se crean
+-- usuarios falsos. user_id de stock_movements es texto libre ('verif').
+--
 -- NO cubre (requiere dos sesiones simultáneas): concurrencia real de dos
 -- ventas por el último stock. Ver instrucciones al final.
 -- ============================================================================
@@ -142,7 +146,7 @@ BEGIN
   r := crear_venta_tx(
     p_store_id => s,
     p_items => jsonb_build_array(jsonb_build_object('producto_id', p4, 'cantidad', 3, 'precio_unitario', 1000, 'subtotal', 3000)),
-    p_cliente_id => NULL, p_worker_clerk_id => 'verif', p_subtotal => 3000, p_descuento_pct => 0,
+    p_cliente_id => NULL, p_worker_clerk_id => NULL, p_subtotal => 3000, p_descuento_pct => 0,
     p_impuesto => 479, p_total => 3000, p_metodo_pago => 'efectivo', p_canal => 'pos',
     p_procedencia => 'presencial', p_numero_comprobante => 'VERIF-T7', p_pago_nc => NULL,
     p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]'::jsonb, p_dias_aviso => 5
@@ -178,7 +182,7 @@ BEGIN
     PERFORM crear_venta_tx(
       p_store_id => s,
       p_items => jsonb_build_array(jsonb_build_object('producto_id', p5, 'cantidad', 6, 'precio_unitario', 1000, 'subtotal', 6000)),
-      p_cliente_id => NULL, p_worker_clerk_id => 'verif', p_subtotal => 6000, p_descuento_pct => 0,
+      p_cliente_id => NULL, p_worker_clerk_id => NULL, p_subtotal => 6000, p_descuento_pct => 0,
       p_impuesto => 958, p_total => 6000, p_metodo_pago => 'efectivo', p_canal => 'pos',
       p_procedencia => 'presencial', p_numero_comprobante => 'VERIF-T8a', p_pago_nc => NULL,
       p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]'::jsonb, p_dias_aviso => 5
@@ -190,7 +194,7 @@ BEGIN
   r := crear_venta_tx(
     p_store_id => s,
     p_items => jsonb_build_array(jsonb_build_object('producto_id', p5, 'cantidad', 2, 'precio_unitario', 1000, 'subtotal', 2000)),
-    p_cliente_id => NULL, p_worker_clerk_id => 'verif', p_subtotal => 2000, p_descuento_pct => 0,
+    p_cliente_id => NULL, p_worker_clerk_id => NULL, p_subtotal => 2000, p_descuento_pct => 0,
     p_impuesto => 319, p_total => 2000, p_metodo_pago => 'efectivo', p_canal => 'pos',
     p_procedencia => 'presencial', p_numero_comprobante => 'VERIF-T8b', p_pago_nc => NULL,
     p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]'::jsonb, p_dias_aviso => 5
@@ -207,7 +211,7 @@ BEGIN
   r := crear_venta_tx(
     p_store_id => s,
     p_items => jsonb_build_array(jsonb_build_object('producto_id', p6, 'cantidad', 4, 'precio_unitario', 1000, 'subtotal', 4000)),
-    p_cliente_id => NULL, p_worker_clerk_id => 'verif', p_subtotal => 4000, p_descuento_pct => 0,
+    p_cliente_id => NULL, p_worker_clerk_id => NULL, p_subtotal => 4000, p_descuento_pct => 0,
     p_impuesto => 639, p_total => 4000, p_metodo_pago => 'efectivo', p_canal => 'pos',
     p_procedencia => 'presencial', p_numero_comprobante => 'VERIF-T9', p_pago_nc => NULL,
     p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]'::jsonb, p_dias_aviso => 5
