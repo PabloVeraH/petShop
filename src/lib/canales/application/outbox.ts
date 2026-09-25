@@ -4,13 +4,17 @@ import { esCanalExterno } from "../domain/types";
 import { obtenerAdaptador } from "../adapters/registry";
 import { PlataformaError } from "../adapters/port";
 import { CanalNoConfiguradoError, CredencialesInvalidasError, loadChannelContext } from "../infrastructure/context";
+import { publicarDisponibilidad } from "./disponibilidad";
+import { CatalogoVacioError, publicarCatalogo } from "./catalogo";
 
 // Outbox de canales (§5.3, paso 3.4). Toda llamada saliente a una plataforma
 // (confirmar, rechazar, lista para retiro) se ENCOLA y la ejecuta el worker:
 // nunca fire-and-forget (C11 — antes el error de confirmar se tragaba con un
-// console.error y no había reintento).
+// console.error y no había reintento). Fase 4: también la publicación de
+// catálogo y de disponibilidad.
 
 export type TipoOutboxOrden = "confirm" | "reject" | "ready";
+export type TipoOutboxTienda = "availability" | "catalog";
 
 export const OUTBOX_MAX_INTENTOS = 8;
 
@@ -47,6 +51,38 @@ export async function encolarOutbox(
   }
 }
 
+// Trabajos de tienda (no de una orden). dedupe_key explícita:
+//   catalog:{store}:{canal}      — un "Publicar catálogo" vivo a la vez
+//   avail-full:{store}:{canal}   — disponibilidad completa (tras publicar el
+//                                  catálogo y en la reconciliación diaria)
+//   avail:{store}:{canal}        — la encola el trigger de la migración 082
+// Devuelve false si ya había uno vivo igual (coalescencia, no es error).
+export async function encolarTrabajoTienda(
+  supabase: SupabaseClient,
+  job: {
+    storeId: string;
+    canalId: CanalExternoId;
+    tipo: TipoOutboxTienda;
+    payload: Record<string, unknown>;
+    dedupeKey: string;
+  }
+): Promise<boolean> {
+  const { error } = await supabase.from("canal_outbox").insert({
+    store_id: job.storeId,
+    canal_id: job.canalId,
+    tipo: job.tipo,
+    payload: job.payload,
+    dedupe_key: job.dedupeKey,
+  });
+  if (!error) return true;
+  if (error.code === "23505") return false;
+  throw new Error(`No se pudo encolar ${job.tipo} de la tienda: ${error.code ?? error.message}`);
+}
+
+export function claveDisponibilidadCompleta(storeId: string, canalId: CanalExternoId): string {
+  return `avail-full:${storeId}:${canalId}`;
+}
+
 interface FilaOutbox {
   id: string;
   store_id: string;
@@ -67,7 +103,12 @@ export interface ResultadoOutbox {
 // Mensaje de error apto para guardar (sin secretos: los adaptadores no
 // incluyen credenciales ni cuerpos de respuesta en sus errores).
 function mensajeError(e: unknown): string {
-  if (e instanceof PlataformaError || e instanceof CredencialesInvalidasError || e instanceof CanalNoConfiguradoError) {
+  if (
+    e instanceof PlataformaError ||
+    e instanceof CredencialesInvalidasError ||
+    e instanceof CanalNoConfiguradoError ||
+    e instanceof CatalogoVacioError
+  ) {
     return e.message;
   }
   return e instanceof Error ? e.name : "Error desconocido";
@@ -90,10 +131,37 @@ async function despachar(supabase: SupabaseClient, fila: FilaOutbox): Promise<vo
       return adapter.rejectOrder(ctx, externalOrderId, (fila.payload?.motivo as MotivoRechazo) ?? "OTHER");
     case "ready":
       return adapter.markReady(ctx, externalOrderId);
+    case "availability":
+      await publicarDisponibilidad(supabase, adapter, ctx, fila.payload?.completo === true);
+      return;
+    case "catalog":
+      await publicarCatalogo(supabase, adapter, ctx);
+      // §4.5: después del catálogo, disponibilidad completa (la plataforma
+      // recién conoce los productos; sin esto quedarían con su estado por
+      // defecto hasta el próximo cambio de stock).
+      await encolarTrabajoTienda(supabase, {
+        storeId: fila.store_id,
+        canalId: fila.canal_id,
+        tipo: "availability",
+        payload: { completo: true },
+        dedupeKey: claveDisponibilidadCompleta(fila.store_id, fila.canal_id),
+      });
+      return;
     default:
-      // availability / catalog: Fase 4.
-      throw new Error(`Tipo de trabajo no implementado: ${fila.tipo}`);
+      throw new Error(`Tipo de trabajo desconocido: ${fila.tipo}`);
   }
+}
+
+// Un cambio de stock ocurrido MIENTRAS se procesaba un trabajo de
+// disponibilidad no pudo encolarse (el trabajo seguía vivo y la dedupe_key lo
+// coalesció). Al terminar, se vuelve a comparar el estado actual con lo
+// publicado. Si falla, lo corrige la reconciliación diaria (4.6).
+async function reencolarDisponibilidadSiCambio(supabase: SupabaseClient, fila: FilaOutbox): Promise<void> {
+  const { error } = await supabase.rpc("encolar_disponibilidad_canal", {
+    p_store_id: fila.store_id,
+    p_canal_id: fila.canal_id,
+  });
+  if (error) console.error(`[canales/outbox] no se pudo re-verificar la disponibilidad (${error.code ?? "error"})`);
 }
 
 // Worker: reclama un lote (FOR UPDATE SKIP LOCKED en claim_canal_outbox,
@@ -115,8 +183,11 @@ export async function procesarOutbox(supabase: SupabaseClient, limite = 20): Pro
         .eq("id", fila.id)
         .eq("estado", "processing");
       resultado.hechos++;
+      if (fila.tipo === "availability") await reencolarDisponibilidadSiCambio(supabase, fila);
     } catch (e) {
-      const muerto = fila.intentos >= OUTBOX_MAX_INTENTOS;
+      // Un catálogo vacío no se arregla reintentando: requiere que el admin
+      // habilite productos y vuelva a publicar.
+      const muerto = fila.intentos >= OUTBOX_MAX_INTENTOS || e instanceof CatalogoVacioError;
       await supabase
         .from("canal_outbox")
         .update({

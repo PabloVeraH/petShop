@@ -7,8 +7,9 @@ import { RappiAdapter } from "./rappi/adapter";
 // Las otras capas (canales_externos.habilitado global, canal_config.activo por
 // tienda) las valida infrastructure/context.ts.
 //
-// Transitorio: src/lib/canales/registry.ts (IExternalChannel) sigue sirviendo
-// a las rutas heredadas de catálogo y rechazo manual hasta las Fases 3–4.
+// src/lib/canales/registry.ts (IExternalChannel, heredado) ya no tiene
+// llamadores de producción desde la Fase 4 (POST /api/canales/catalog pasó a
+// la outbox); solo lo usan sus tests. Eliminarlo es limpieza pendiente.
 
 // 2.7: PedidosYa y UberEats no tienen adaptador — sus implementaciones
 // anteriores son placeholders con endpoints que no coinciden con la

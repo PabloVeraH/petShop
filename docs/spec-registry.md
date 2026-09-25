@@ -2089,7 +2089,7 @@ I-626..I-637), `RappiOrdenesPage/PedidosYaOrdenesPage/UberEatsOrdenesPage`
 | I-642 | Inexistente, terminal o entregada → ignorada | cancelarOrdenCanal | integration |
 | I-643 | claim_canal_outbox + despacho confirm/reject/ready con contexto de la tienda | procesarOutbox | integration |
 | I-644 | Error de plataforma → pending con backoff; agotado → dead (C11) | procesarOutbox | integration |
-| I-645 | Canal deshabilitado o tipo no implementado → nunca éxito silencioso | procesarOutbox | integration |
+| I-645 | Canal deshabilitado o tipo desconocido → nunca éxito silencioso (Fase 4: ya no usa availability) | procesarOutbox | integration |
 | I-646 | Backoff exponencial acotado a 60 min | procesarOutbox | integration |
 | I-647 | storeWorker marca lista: accepted → ready atómico + outbox ready (D8) | POST /api/canales/orders/[id]/ready | integration |
 | I-648 | Otra tienda / inexistente / no UUID → 404 | POST /api/canales/orders/[id]/ready | integration |
@@ -2122,3 +2122,60 @@ I-626..I-637), `RappiOrdenesPage/PedidosYaOrdenesPage/UberEatsOrdenesPage`
 | PCN-09 | Error de carga visible | PedidosCanales | component |
 | PCA-01 | Aviso del POS enlaza a /pos/pedidos con contador | PedidosCanalesAviso | component |
 | PCA-02 | Sin conexión: enlace disponible sin contador | PedidosCanalesAviso | component |
+
+## Fase 4 — Catálogo, precios y disponibilidad (plan `docs/canales-stock/stock_canales_externos.md` §6)
+
+Migración 082 (`canal_producto_config.precio_override`, estado publicado,
+`unidades_vendibles_canal`, `estado_disponibilidad_canal`,
+`cupos_canal_tienda`, `encolar_disponibilidad_canal` y triggers de
+disponibilidad); verificación real en
+`docs/canales-stock/stock_canales_fase4_verificacion.sql` (M1–M14: el trigger
+encola al cruzar el mínimo en ambos sentidos, no encola sin cambio,
+coalescencia, lotes vencidos, licencia, tenant, grants).
+
+### Integración — worker, rutas y cron
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| I-661 | Lee el estado actual por tienda/canal, envía solo cambios y registra lo publicado | publicarDisponibilidad | integration |
+| I-662 | Sin cambios → sin llamada ni escritura; completo → republica todo | publicarDisponibilidad | integration |
+| I-663 | Criterio de salida: venta al mínimo → 1 "apagar"; OC → 1 "encender" | publicarDisponibilidad + RappiAdapter | integration |
+| I-664 | availability → publica y re-verifica cambios ocurridos durante el proceso | procesarOutbox | integration |
+| I-665 | catalog → habilitados con precio del canal, marca/retira publicados y encola disponibilidad completa | procesarOutbox | integration |
+| I-666 | Catálogo vacío → sin llamada y dead sin reintentos | procesarOutbox | integration |
+| I-667 | Lista productos con precio del canal, cupo y estado; todo filtrado por tienda | GET /api/canales/[canal]/productos | integration |
+| I-668 | 401 / 403 storeWorker (D8) / 404 canal desconocido o sin configurar | GET /api/canales/[canal]/productos | integration |
+| I-669 | Habilitar producto nuevo → INSERT con store_id de la sesión + auditoría | PUT /api/canales/[canal]/productos | integration |
+| I-670 | Existente → UPDATE por tienda; override ausente no se toca, null lo quita | PUT /api/canales/[canal]/productos | integration |
+| I-671 | Producto de otra tienda (IDOR) → 404 sin escrituras | PUT /api/canales/[canal]/productos | integration |
+| I-672 | store_id en body, precio inválido, id inválido → 400; 401; 403 | PUT /api/canales/[canal]/productos | integration |
+| I-673 | Encola catalog con dedupe → 202; ya vivo → ya_en_curso | POST /api/canales/catalog | integration |
+| I-674 | 401 / 403 / 400 / 409 no desplegado o inactivo / 404 / 422 sin habilitados | POST /api/canales/catalog | integration |
+| I-675 | recargo_pct por tienda; rechaza negativo, > 100, > 2 decimales; 403 worker | PATCH /api/canales/config | integration |
+| I-676 | Sin Bearer CRON_SECRET → 401 sin tocar la BD | POST /api/cron/canales-reconciliar | integration |
+| I-677 | Encola disponibilidad completa por tienda/canal publicada, activa y desplegada | POST /api/cron/canales-reconciliar | integration |
+
+### Unitarios
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-177 | Modo toggle: solo cambios; completo → todo; sin cantidad | itemsAPublicar | unit |
+| U-178 | Modo quantity: envía cupo, 0 si no disponible; cambio de cupo cuenta | itemsAPublicar | unit |
+| U-179 | Precio: override ?? base (oferta) × recargo, hacia arriba a la decena | armarCatalogo | unit |
+| U-180 | Omite sin precio, inactivo y producto de otra tienda | armarCatalogo | unit |
+| U-181 | Sin CRON_SECRET siempre rechaza; solo el Bearer exacto | cronAutorizado | unit |
+
+### Componentes — catálogo por canal (4.4)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CTC-01 | Carga y muestra stock, mínimo, cupo, precios y estado publicado | CatalogoCanal | component |
+| CTC-02 | Sin productos: vacío y "Publicar" deshabilitado | CatalogoCanal | component |
+| CTC-03 | Toggle "Vender" → PUT con habilitado y recarga | CatalogoCanal | component |
+| CTC-04 | Precio fijo → PUT con override; vacío → null; inválido → error sin request | CatalogoCanal | component |
+| CTC-05 | "Publicar catálogo" → POST /api/canales/catalog y aviso | CatalogoCanal | component |
+| CTC-06 | "Guardar recargo" → PATCH config; fuera de rango → error sin request | CatalogoCanal | component |
+| CTC-07 | 403 al cargar → mensaje de solo administradores (UX) | CatalogoCanal | component |
+| CTC-08 | Error de la API en una mutación visible | CatalogoCanal | component |
+| CTC-09 | Las tres páginas de catálogo usan el componente con su canal | canales/*/catalogo | component |
+| CC-20 | Enlace "Catálogo y precios" solo con canal configurado e integración disponible | CanalConfigPage | component |

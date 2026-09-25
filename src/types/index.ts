@@ -336,3 +336,24 @@ export interface CanalOutboxRow {
   updated_at: string;
   processed_at: string | null;
 }
+
+// canal_producto_config (migración 082, Fase 4): catálogo por canal.
+// activo = "habilitado en este canal"; precio_override NULL = precio base ×
+// recargo del canal (D7). publicado_at NULL = no va en el último catálogo
+// publicado (la plataforma no lo conoce).
+export interface CanalProductoConfigRow {
+  id: string;
+  store_id: string;
+  canal_id: CanalExternoId;
+  producto_id: string;
+  precio_override: number | null;
+  activo: boolean;
+  categoria_canal: string | null;
+  descripcion_canal: string | null;
+  external_product_id: string | null;
+  publicado_at: string | null;
+  ultimo_disponible_publicado: boolean | null;
+  ultima_cantidad_publicada: number | null; // NULL en canales "toggle"
+  disponibilidad_publicada_at: string | null;
+  updated_at: string;
+}

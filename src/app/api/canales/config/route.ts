@@ -165,6 +165,11 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     canal_id: z.enum(["rappi", "pedidosya", "ubereats", "instagram"]),
     credenciales: z.record(z.string(), z.string()).optional(),
     activo: z.boolean().optional(),
+    // D7: recargo del canal sobre el precio base (%, hasta 2 decimales; la
+    // columna es NUMERIC(5,2) con CHECK >= 0). Tope 100 %: un recargo mayor
+    // casi seguro es un error de tipeo. Afecta al catálogo recién al
+    // volver a publicarlo.
+    recargo_pct: z.number().min(0).max(100).multipleOf(0.01).optional(),
   });
 
   const body = await req.json();
@@ -174,7 +179,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { canal_id, credenciales, activo } = parsed.data;
+  const { canal_id, credenciales, activo, recargo_pct } = parsed.data;
 
   const wantsActive = activo === true;
 
@@ -232,6 +237,10 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     updateData.activo = activo;
   }
 
+  if (recargo_pct !== undefined) {
+    updateData.recargo_pct = recargo_pct;
+  }
+
   const { data, error } = await supabase
     .from("canal_config")
     .update(updateData)
@@ -257,5 +266,10 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     result: "success",
   });
 
-  return NextResponse.json({ id: data.id, canal_id: data.canal_id, activo: data.activo });
+  return NextResponse.json({
+    id: data.id,
+    canal_id: data.canal_id,
+    activo: data.activo,
+    recargo_pct: data.recargo_pct != null ? Number(data.recargo_pct) : 0,
+  });
 }, { endpoint: "PATCH /api/canales/config" });

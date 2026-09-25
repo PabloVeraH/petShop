@@ -166,13 +166,18 @@ describe("procesarOutbox", () => {
     expect(upd(c2.ops)).toMatchObject({ estado: "dead" });
   });
 
-  it("I-645: canal deshabilitado o tipo no implementado en esta fase → reintento, nunca éxito silencioso", async () => {
+  // Fase 4: 'availability'/'catalog' ya están implementados (I-664..I-666);
+  // la invariante "tipo desconocido nunca termina como éxito" se prueba con un
+  // tipo inexistente.
+  it("I-645: canal deshabilitado o tipo desconocido → reintento, nunca éxito silencioso", async () => {
     process.env.ENABLED_CHANNELS = "";
     const r = await procesarOutbox(montar([fila("confirm")]).client);
     expect(r.hechos).toBe(0);
     process.env.ENABLED_CHANNELS = "rappi";
-    const r2 = await procesarOutbox(montar([fila("availability", 1, {})]).client);
-    expect(r2.hechos).toBe(0);
+    const fake = montar([fila("tipo-inexistente", 1, {})]);
+    const r2 = await procesarOutbox(fake.client);
+    expect(r2).toMatchObject({ hechos: 0, reintentos: 1 });
+    expect(upd(fake.consultas[0].ops)).toMatchObject({ estado: "pending", last_error: "Error" });
   });
 
   it("I-646: backoff exponencial acotado a 60 minutos", () => {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
 import { procesarOrden } from "@/lib/canales/application/procesar-orden";
 import { procesarOutbox } from "@/lib/canales/application/outbox";
+import { cronAutorizado } from "@/lib/cron-auth";
 
 // Barrido de canales externos (paso 3.4). NO está en vercel.json: el plan
 // Hobby rechaza crons de más de 1 vez/día (D12). Lo invoca pg_cron + pg_net
@@ -23,17 +23,8 @@ const MIN_PENDIENTE_OLVIDADA = 1;
 const LOTE_ORDENES = 20;
 const LOTE_OUTBOX = 20;
 
-function autorizado(req: NextRequest): boolean {
-  const secreto = process.env.CRON_SECRET;
-  const header = req.headers.get("authorization") ?? "";
-  if (!secreto) return false;
-  const a = Buffer.from(header);
-  const b = Buffer.from(`Bearer ${secreto}`);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 async function barrer(req: NextRequest) {
-  if (!autorizado(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!cronAutorizado(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServiceClient();
   const ahora = Date.now();

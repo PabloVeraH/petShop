@@ -177,6 +177,8 @@ export default function CanalConfigPage() {
   if (!canalInfo) return null;
 
   const isDashboardAvailable = canalId === "instagram" && configExists && activo;
+  // Fase 4 (4.4): catálogo y precios del canal (la página valida el rol en el servidor).
+  const isCatalogoAvailable = canalId !== "instagram" && configExists && !integracionPendiente;
 
   return (
     <div className="max-w-xl">
@@ -296,6 +298,15 @@ export default function CanalConfigPage() {
               className="px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600"
             >
               Gestionar publicaciones
+            </button>
+          )}
+          {isCatalogoAvailable && (
+            <button
+              type="button"
+              onClick={() => router.push(`/canales/${canalId}/catalogo`)}
+              className="px-5 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600"
+            >
+              Catálogo y precios
             </button>
           )}
         </div>

@@ -522,3 +522,40 @@ describe("CanalConfigPage — integración pendiente", () => {
     expect(screen.queryByText("API Key")).not.toBeInTheDocument();
   });
 });
+
+// ── Fase 4 (4.4): acceso al catálogo del canal ──────────────────────────────
+// Gate de UX: el control real es el servidor (I-668: storeWorker → 403).
+describe("CanalConfigPage — catálogo y precios", () => {
+  function configurado(canalId: string) {
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      return Promise.resolve({ ok: true, json: async () => [{ canal_id: canalId, activo: true, tiene_credenciales: true }] });
+    });
+  }
+  beforeEach(() => {
+    jest.clearAllMocks();
+    fetchCalls = [];
+  });
+  afterEach(() => { mockCanal = "rappi"; });
+
+  it("CC-20: Rappi configurado muestra 'Catálogo y precios' y navega a su catálogo; PedidosYa (pendiente) y un canal sin configurar no", async () => {
+    configurado("rappi");
+    const { unmount } = await renderPage();
+    fireEvent.click(await screen.findByText("Catálogo y precios"));
+    expect(mockPush).toHaveBeenCalledWith("/canales/rappi/catalogo");
+    unmount();
+
+    mockCanal = "pedidosya";
+    configurado("pedidosya");
+    const r2 = await renderPage();
+    await screen.findByText("PedidosYa");
+    expect(screen.queryByText("Catálogo y precios")).not.toBeInTheDocument();
+    r2.unmount();
+
+    mockCanal = "rappi";
+    mockFetch.mockImplementation(() => Promise.resolve({ ok: true, json: async () => [] }));
+    await renderPage();
+    await screen.findByText("Rappi");
+    expect(screen.queryByText("Catálogo y precios")).not.toBeInTheDocument();
+  });
+});
