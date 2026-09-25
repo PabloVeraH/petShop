@@ -270,7 +270,7 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
 
       {/* Popup modal for pin position change confirmation */}
       {showPinMovedDialog && (
-        <ModalOverlay open onClose={() => handlePinMovedResponse(false)}>
+        <ModalOverlay open onClose={() => handlePinMovedResponse(false)} labelledBy="pin-moved-title">
         <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 m-4">
             <h3 id="pin-moved-title" className="text-base font-semibold text-gray-800 mb-2">
               Posición modificada

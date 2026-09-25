@@ -42,7 +42,11 @@ const config: Config = {
       displayName: "components",
       preset: "ts-jest",
       testEnvironment: "jsdom",
-      testMatch: ["<rootDir>/tests/components/**/*.test.tsx"],
+      // Todo *.test.tsx bajo tests/ (no solo tests/components/): un test de
+      // componente puesto en otra carpeta (ej. tests/unit/components/) quedaba
+      // fuera de todos los proyectos y nunca se ejecutaba — así ocultó una
+      // regresión de accesibilidad en StoreLocationPicker (UI-13).
+      testMatch: ["<rootDir>/tests/**/*.test.tsx"],
       moduleNameMapper,
       transform,
       testPathIgnorePatterns,

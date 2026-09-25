@@ -7,9 +7,11 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  // id del título del diálogo (aria-labelledby) — nombre accesible del modal.
+  labelledBy?: string;
 };
 
-export function ModalOverlay({ open, onClose, children, className = "" }: Props) {
+export function ModalOverlay({ open, onClose, children, className = "", labelledBy }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
 
@@ -34,6 +36,7 @@ export function ModalOverlay({ open, onClose, children, className = "" }: Props)
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={labelledBy}
       className={`fixed inset-0 z-50 flex items-center justify-center bg-black/30 outline-none ${className}`}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
