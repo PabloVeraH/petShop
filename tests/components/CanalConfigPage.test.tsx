@@ -559,6 +559,13 @@ describe("CanalConfigPage — catálogo y precios", () => {
     expect(screen.queryByText("Catálogo y precios")).not.toBeInTheDocument();
   });
 
+  it("CC-22: Rappi configurado muestra la preparación para producción (GET del checklist del canal)", async () => {
+    configurado("rappi");
+    await renderPage();
+    expect(await screen.findByRole("region", { name: "Preparación Rappi" })).toBeInTheDocument();
+    await waitFor(() => expect(fetchCalls.some((c) => c.url === "/api/canales/rappi/preparacion")).toBe(true));
+  });
+
   it("CC-21: Rappi configurado muestra la sección de liquidaciones (carga GET por canal); sin configurar no", async () => {
     configurado("rappi");
     const { unmount } = await renderPage();

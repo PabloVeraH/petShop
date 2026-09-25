@@ -97,6 +97,16 @@ export class RappiAdapter implements ChannelAdapter {
     eventoEnUrl: true,
   };
   readonly credentialsSchema = rappiCredencialesSchema;
+  // Los que la integración procesa; los demás eventos de Rappi se ignoran.
+  readonly eventosWebhook = [
+    "NEW_ORDER",
+    "ORDER_EVENT_CANCEL",
+    "ORDER_OTHER_EVENT",
+    "MENU_APPROVED",
+    "MENU_REJECTED",
+    "PING",
+  ] as const;
+  readonly variablesProduccion = { apiBase: "RAPPI_API_BASE", authBase: "RAPPI_AUTH_BASE" };
 
   verifyWebhook(req: WebhookRequest, ctx: ChannelContext, ahoraMs = Date.now()): boolean {
     if (!esRappiEvento(req.evento)) return false;

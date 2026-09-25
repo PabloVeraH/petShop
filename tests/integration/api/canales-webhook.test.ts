@@ -35,6 +35,8 @@ jest.mock("@/lib/canales/application/cancelar-orden", () => ({ cancelarOrdenCana
 jest.mock("@/lib/canales/application/procesar-orden", () => ({ procesarOrden: (...a: unknown[]) => mockProcesar(...a) }));
 jest.mock("@/lib/canales/application/outbox", () => ({ procesarOutbox: (...a: unknown[]) => mockOutbox(...a) }));
 const mockMenu = jest.fn();
+const eventoSpy = jest.fn();
+const eventoFilters: [string, unknown][] = [];
 jest.mock("@/lib/canales/application/menu", () => ({ registrarEstadoMenu: (...a: unknown[]) => mockMenu(...a) }));
 
 import { POST } from "@/app/api/canales/webhook/[canal]/route";
@@ -92,6 +94,14 @@ function setupSupabase() {
       c.select = jest.fn(() => c);
       c.eq = jest.fn((k: string, v: unknown) => { configFilters.push([k, v]); return c; });
       c.maybeSingle = jest.fn(async () => ({ data: config, error: null }));
+      // 6.2: registro del último evento autenticado (cadena propia para no
+      // mezclar sus filtros con los de la búsqueda de la config).
+      c.update = jest.fn((row: unknown) => {
+        const u: Record<string, jest.Mock> = {};
+        u.eq = jest.fn((k: string, v: unknown) => { eventoFilters.push([k, v]); return u; });
+        eventoSpy(row);
+        return u;
+      });
       return c;
     }
     if (table === "canal_ordenes") {
@@ -110,6 +120,7 @@ const envOriginal = process.env.ENABLED_CHANNELS;
 beforeEach(() => {
   jest.clearAllMocks();
   configFilters.length = 0;
+  eventoFilters.length = 0;
   updateFilters.length = 0;
   process.env.ENABLED_CHANNELS = "rappi";
   habilitado = true;
@@ -293,6 +304,15 @@ describe("POST /api/canales/webhook/[canal] — eventos", () => {
     mockMenu.mockClear();
     expect((await post({ evento: "MENU_REJECTED", body: fixture("MENU_REJECTED"), signature: null })).status).toBe(401);
     expect(mockMenu).not.toHaveBeenCalled();
+  });
+
+  it("I-692: un evento con firma válida registra ultimo_evento_at/tipo de ESTA tienda y canal; sin firma válida no", async () => {
+    expect((await post({ evento: "PING", body: fixture("PING") })).status).toBe(200);
+    expect(eventoSpy).toHaveBeenCalledWith(expect.objectContaining({ ultimo_evento_tipo: "PING", ultimo_evento_at: expect.any(String) }));
+    expect(eventoFilters).toEqual([["store_id", STORE_ID], ["canal_id", "rappi"]]);
+    eventoSpy.mockClear();
+    expect((await post({ evento: "PING", body: fixture("PING"), signature: null })).status).toBe(401);
+    expect(eventoSpy).not.toHaveBeenCalled();
   });
 
   it("I-620: la firma se verifica con el secreto del evento cuando existe webhook_secret_<EVENTO>", async () => {

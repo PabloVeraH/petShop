@@ -50,6 +50,11 @@ export interface ChannelAdapter {
     eventoEnUrl: boolean;
   };
   readonly credentialsSchema: z.ZodType<Record<string, string>>;
+  // Fase 6 (checklist de salida, 6.2): eventos cuyo webhook hay que
+  // registrar en la plataforma (si eventoEnUrl, una URL por evento) y
+  // nombres de las variables de entorno obligatorias en producción.
+  readonly eventosWebhook?: readonly string[];
+  readonly variablesProduccion?: { apiBase: string; authBase: string };
 
   verifyWebhook(req: WebhookRequest, ctx: ChannelContext, ahoraMs?: number): boolean;
   // Lanza PayloadInvalidoError si el evento o el cuerpo no son válidos.

@@ -2232,3 +2232,40 @@ verificación real en `docs/canales-stock/stock_canales_fase5_verificacion.sql` 
 | LQC-04 | Incompleto o comisión > bruto → error sin request | LiquidacionesCanal | component |
 | LQC-05 | Error de la API visible | LiquidacionesCanal | component |
 | CC-21 | Sección de liquidaciones solo con canal configurado | CanalConfigPage | component |
+
+## Fase 6 — Salida a producción por canal (plan `docs/canales-stock/stock_canales_externos.md` §6)
+
+Migraciones 084 (`canal_config.ultimo_evento_*`, `estado_cron_canales`) y 085
+(pg_cron + pg_net, aplicar tras el despliegue). Runbook:
+`docs/canales-stock/rappi_salida_produccion.md`.
+
+### Integración
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| I-692 | Evento con firma válida registra último evento de la tienda/canal; sin firma no | POST /api/canales/webhook/[canal] | integration |
+| I-693 | Checklist con datos de la tienda y URLs del webhook por evento | GET /api/canales/[canal]/preparacion | integration |
+| I-694 | Nunca expone credenciales, secretos ni valores de env | GET /api/canales/[canal]/preparacion | integration |
+| I-695 | Credenciales inválidas, sin config, sin pg_cron → estados, no 500 | GET /api/canales/[canal]/preparacion | integration |
+| I-696 | 401 / 403 deshabilitado o worker / 404 / 409 sin adaptador | GET /api/canales/[canal]/preparacion | integration |
+
+### Unitarios
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-190 | Todo configurado → listo | evaluarPreparacion | unit |
+| U-191 | Webhook: sin eventos / reciente / más de 15 min | evaluarPreparacion | unit |
+| U-192 | Menú enviado/rechazado; stock mínimo 0 con nombres | evaluarPreparacion | unit |
+| U-193 | Entorno (prod vs dev), credenciales, crons, outbox, catálogo | evaluarPreparacion | unit |
+| U-194 | El simulador firma y arma eventos que el adaptador real acepta | scripts/canales/simular-rappi.mjs | unit |
+
+### Componentes
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| PRC-01 | Ítems con estado, "Faltan pasos" y URLs del webhook | PreparacionCanal | component |
+| PRC-02 | Todo ok → "Listo" | PreparacionCanal | component |
+| PRC-03 | Copiar URL y "Volver a verificar" | PreparacionCanal | component |
+| PRC-04 | Error de la API visible | PreparacionCanal | component |
+| PRC-05 | Respuesta con otra forma → error sin romper el render | PreparacionCanal | component |
+| CC-22 | La página del canal muestra la preparación | CanalConfigPage | component |

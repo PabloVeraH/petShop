@@ -67,6 +67,16 @@ export async function recibirEventoWebhook(e: EntradaWebhook): Promise<Respuesta
     return { status: 401, body: { error: "Firma inválida" } };
   }
 
+  // 6.2: último evento AUTENTICADO — prueba de que el webhook quedó
+  // registrado con la URL y el secreto correctos (Rappi envía PING cada 3
+  // min). No bloquea: un fallo aquí no debe rechazar el evento.
+  const { error: errEvento } = await e.supabase
+    .from("canal_config")
+    .update({ ultimo_evento_at: new Date().toISOString(), ultimo_evento_tipo: (e.evento ?? "desconocido").slice(0, 60) })
+    .eq("store_id", ctx.storeId)
+    .eq("canal_id", canalId);
+  if (errEvento) console.error(`[canales/webhook] ${canalId}: no se pudo registrar el último evento (${errEvento.code ?? "error"})`);
+
   // 5. Traducción a EventoCanal (Zod dentro del adaptador).
   let evento: EventoCanal;
   try {

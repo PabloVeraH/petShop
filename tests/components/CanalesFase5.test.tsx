@@ -1,5 +1,5 @@
 /**
- * Tests ALC-01 a ALC-05 y LQC-01 a LQC-05: UI de la Fase 5 de
+ * Tests ALC-01..05, LQC-01..05 (Fase 5) y PRC-01..05 (Fase 6): UI de
  * docs/canales-stock/stock_canales_externos.md — alertas de canales (5.3) y
  * liquidaciones (5.2). Ocultar las alertas ante 403 es UX: el control real
  * está en el servidor (I-680..I-682).
@@ -166,5 +166,60 @@ describe("LiquidacionesCanal", () => {
     llenar(COMPLETO);
     fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("El período 2026-09 ya está cerrado.");
+  });
+});
+
+// ─── Fase 6 (6.2): preparación para producción ─────────────────────────────
+import PreparacionCanal from "@/app/(app)/canales/components/PreparacionCanal";
+
+describe("PreparacionCanal", () => {
+  const PREP = {
+    listo: false,
+    items: [
+      { id: "webhook", titulo: "Webhook registrado y recibiendo eventos", estado: "ok", detalle: "Último evento (PING) hace 1 min." },
+      { id: "menu", titulo: "Menú aprobado por la plataforma", estado: "pendiente", detalle: "En revisión (la plataforma tarda 24–72 h)." },
+      { id: "credenciales", titulo: "Credenciales válidas e ID de tienda", estado: "error", detalle: "Las credenciales guardadas no son válidas: vuelve a ingresarlas." },
+    ],
+    webhook: { urls: [{ evento: "PING", url: "https://app/api/canales/webhook/rappi?store_id=s&evento=PING" }] },
+  };
+
+  it("PRC-01: muestra los ítems con su estado, 'Faltan pasos' y las URLs del webhook", async () => {
+    responder({ ok: true, body: PREP });
+    render(<PreparacionCanal canalId="rappi" nombre="Rappi" />);
+    expect(await screen.findByText("Faltan pasos")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/canales/rappi/preparacion");
+    expect(screen.getByLabelText("requiere acción")).toBeInTheDocument();
+    expect(screen.getByLabelText("pendiente")).toBeInTheDocument();
+    expect(screen.getByText(PREP.webhook.urls[0].url)).toBeInTheDocument();
+  });
+
+  it("PRC-02: todo ok → 'Listo'", async () => {
+    responder({ ok: true, body: { ...PREP, listo: true, items: [PREP.items[0]] } });
+    render(<PreparacionCanal canalId="rappi" nombre="Rappi" />);
+    expect(await screen.findByText("Listo")).toBeInTheDocument();
+  });
+
+  it("PRC-03: 'Copiar' copia la URL y 'Volver a verificar' vuelve a consultar", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    responder({ ok: true, body: PREP });
+    render(<PreparacionCanal canalId="rappi" nombre="Rappi" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Copiar URL PING" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(PREP.webhook.urls[0].url));
+    expect(await screen.findByText("Copiada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Volver a verificar" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("PRC-05: respuesta con otra forma → mensaje de error, sin romper el render", async () => {
+    responder({ ok: true, body: [] });
+    render(<PreparacionCanal canalId="rappi" nombre="Rappi" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo cargar la preparación del canal");
+  });
+
+  it("PRC-04: error de la API (ej. 403 o 409) visible", async () => {
+    responder({ ok: false, status: 409, body: { error: "Integración pendiente: este canal aún no tiene adaptador" } });
+    render(<PreparacionCanal canalId="pedidosya" nombre="PedidosYa" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Integración pendiente");
   });
 });

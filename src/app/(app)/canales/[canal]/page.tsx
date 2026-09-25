@@ -9,6 +9,7 @@ import {
   type CanalConfigurableId,
 } from "@/lib/canales/campos";
 import LiquidacionesCanal from "../components/LiquidacionesCanal";
+import PreparacionCanal from "../components/PreparacionCanal";
 
 interface CanalInfo {
   id: CanalConfigurableId;
@@ -313,6 +314,7 @@ export default function CanalConfigPage() {
         </div>
       </form>
 
+      {isCatalogoAvailable && <PreparacionCanal canalId={canalInfo.id} nombre={canalInfo.nombre} />}
       {isCatalogoAvailable && <LiquidacionesCanal canalId={canalInfo.id} nombre={canalInfo.nombre} />}
     </div>
   );
