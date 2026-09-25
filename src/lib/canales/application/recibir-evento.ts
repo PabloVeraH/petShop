@@ -3,6 +3,7 @@ import { UUIDSchema } from "@/lib/validation";
 import { esCanalExterno, type CanalExternoId, type EventoCanal } from "../domain/types";
 import { obtenerAdaptador } from "../adapters/registry";
 import { PayloadInvalidoError, type ChannelContext } from "../adapters/port";
+import { cancelarOrdenCanal } from "./cancelar-orden";
 import {
   CanalNoConfiguradoError,
   CredencialesInvalidasError,
@@ -12,6 +13,9 @@ import {
 export interface RespuestaWebhook {
   status: number;
   body: unknown;
+  // Orden recién creada que el handler debe procesar DESPUÉS de responder
+  // (after() — §4.2 paso 5). El cron la reintenta si after() no llega a correr.
+  procesarOrden?: { storeId: string; ordenId: string };
 }
 
 export interface EntradaWebhook {
@@ -118,20 +122,24 @@ export async function recibirEventoWebhook(e: EntradaWebhook): Promise<Respuesta
       }
       const fila = data?.[0];
       if (!fila) return { status: 200, body: { status: "ok", duplicada: true } };
-      return { status: 201, body: { status: "ok", ordenId: fila.id } };
+      return {
+        status: 201,
+        body: { status: "ok", ordenId: fila.id },
+        procesarOrden: { storeId: ctx.storeId, ordenId: fila.id },
+      };
     }
 
     case "orden_cancelada": {
-      // Fase 2: solo una orden aún 'pending' pasa a 'cancelled' (transición
-      // válida según domain/estados). Cancelar una orden ya aceptada exige
-      // anular la venta (anular_venta_tx) — Fase 3.5 — así que aquí no se toca.
-      await e.supabase
-        .from("canal_ordenes")
-        .update({ estado: "cancelled", updated_at: new Date().toISOString() })
-        .eq("store_id", ctx.storeId)
-        .eq("canal_id", canalId)
-        .eq("external_order_id", evento.externalOrderId)
-        .eq("estado", "pending");
+      // 3.5: pending → cancelled; aceptada/lista → anular la venta y cancelar.
+      const r = await cancelarOrdenCanal(e.supabase, ctx.storeId, canalId, evento.externalOrderId, evento.motivo);
+      if (r.resultado === "en_proceso") {
+        // La orden se está procesando: la plataforma reintenta la entrega.
+        return { status: 503, body: { error: "Orden en proceso, reintentar" } };
+      }
+      if (r.resultado === "error") {
+        console.error(`[canales/webhook] ${canalId} store=${e.storeId}: no se pudo anular la venta de la orden cancelada`);
+        return { status: 500, body: { error: "No se pudo procesar la cancelación" } };
+      }
       return { status: 200, body: { status: "ok" } };
     }
 

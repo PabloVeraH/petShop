@@ -25,6 +25,16 @@ describe("POST /api/cron/audit-cleanup", () => {
     delete process.env.CRON_SECRET;
   });
 
+  // I-660 — /api/cron/* pasó a ruta pública del middleware (Fase 3): sin
+  // CRON_SECRET configurado, "Bearer undefined" ya no autoriza.
+  it("I-660: sin CRON_SECRET configurado, 'Bearer undefined' → 401", async () => {
+    delete process.env.CRON_SECRET;
+    const { POST } = await import("@/app/api/cron/audit-cleanup/route");
+    const res = await POST(makeRequest("undefined"));
+    expect(res.status).toBe(401);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
   it("I-268: retorna 401 sin token de autorización", async () => {
     const { POST } = await import("@/app/api/cron/audit-cleanup/route");
     const res = await POST(makeRequest());

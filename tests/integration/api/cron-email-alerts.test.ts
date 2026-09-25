@@ -29,6 +29,16 @@ describe("GET /api/cron/email-alerts", () => {
     delete process.env.CRON_SECRET;
   });
 
+  // I-659 — /api/cron/* pasó a ruta pública del middleware (Fase 3): sin
+  // CRON_SECRET configurado, "Bearer undefined" ya no autoriza.
+  it("I-659: sin CRON_SECRET configurado, 'Bearer undefined' → 401", async () => {
+    delete process.env.CRON_SECRET;
+    const { GET } = await import("@/app/api/cron/email-alerts/route");
+    const res = await GET(makeRequest("undefined"));
+    expect(res.status).toBe(401);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it("I-271: retorna 401 sin token de autorización", async () => {
     const { GET } = await import("@/app/api/cron/email-alerts/route");
     const res = await GET(makeRequest());

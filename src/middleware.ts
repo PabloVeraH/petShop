@@ -49,6 +49,10 @@ export const publicRoutes = createRouteMatcher([
   "/api/webhooks/(.*)",
   "/api/whatsapp/webhook",
   "/api/canales/webhook/(.*)",
+  // Crons (Vercel Cron / pg_cron + pg_net) llegan sin sesión Clerk; cada
+  // handler exige Authorization: Bearer $CRON_SECRET (AGENTS.md §14). Antes no
+  // estaban aquí y auth.protect() los rechazaba antes de llegar al handler.
+  "/api/cron/(.*)",
   "/sistema-suspendido",
   "/landing",
 ]);

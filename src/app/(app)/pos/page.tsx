@@ -10,6 +10,7 @@ import Carrito from "./components/Carrito";
 import ModalCliente from "./components/ModalCliente";
 import ModalPago from "./components/ModalPago";
 import RecomendacionesIA from "./components/RecomendacionesIA";
+import PedidosCanalesAviso from "./components/PedidosCanalesAviso";
 import { Button } from "@/components/ui/button";
 
 export default function POSPage() {
@@ -115,7 +116,10 @@ export default function POSPage() {
   return (
     <div className="flex flex-col h-full gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Punto de Venta</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-gray-900">Punto de Venta</h1>
+          <PedidosCanalesAviso />
+        </div>
         {ventaExito && (
           <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
             ✓ Venta registrada

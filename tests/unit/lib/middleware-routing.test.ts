@@ -398,3 +398,13 @@ describe("Middleware — webhook de canales público (MW-30/MW-31)", () => {
     expect(esPublica("/api/canales/catalog")).toBe(false);
   });
 });
+
+// ── Fase 3 (3.4): los crons llegan sin sesión Clerk (Vercel Cron, pg_net) ───
+describe("Middleware — crons públicos (MW-32)", () => {
+  it("MW-32: /api/cron/* es pública (cada handler exige Bearer CRON_SECRET, I-656/I-659/I-660)", () => {
+    const esPublica = (p: string) => publicRoutes(new NextRequest(`http://localhost${p}`));
+    expect(esPublica("/api/cron/canales-outbox")).toBe(true);
+    expect(esPublica("/api/cron/email-alerts")).toBe(true);
+    expect(esPublica("/api/cronometro")).toBe(false);
+  });
+});

@@ -287,21 +287,21 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-321 | POST /api/canales/config activo=true con credenciales parciales (solo 1 de N campos) → 422 | POST /api/canales/config | integration |
 | I-322 | PATCH /api/canales/config activo=true con credenciales parciales → 422 | PATCH /api/canales/config | integration |
 | I-443 | REGRESIÓN (ticket Trello 6a5f9b146418dc26e56d7274): GET /api/canales/config expone `tiene_credenciales` derivado por canal y nunca `credenciales_encriptada` | GET /api/canales/config | integration |
-| I-519 | RPC crear_venta_tx recibe p_total/p_subtotal/p_impuesto correctos (extracción, no aditiva) al aceptar orden de canal | POST /api/canales/orders/[id]/accept | integration |
-| I-520 | Items enviados al RPC usan producto_id resuelto por SKU y precio_unitario (no `precio`) | POST /api/canales/orders/[id]/accept | integration |
-| I-521 | Aceptar orden de canal responde accepted, vincula venta_id y confirma al canal externo | POST /api/canales/orders/[id]/accept | integration |
-| I-522 | REGRESIÓN: aceptar orden de canal genera asiento contable vía crearAsiento(lineasVentaCanal) — antes nunca se llamaba | POST /api/canales/orders/[id]/accept | integration |
-| I-523 | idempotency_key enviado al RPC es determinístico (`canal:<canalId>:<external_order_id>`) | POST /api/canales/orders/[id]/accept | integration |
-| I-524 | REGRESIÓN: reintento idempotente (RPC created=false) no repite auditoría, confirmación al canal ni asiento contable | POST /api/canales/orders/[id]/accept | integration |
-| I-525 | REGRESIÓN: SKU no encontrado en el catálogo → 422 sin invocar el RPC (antes: el item se saltaba en silencio) | POST /api/canales/orders/[id]/accept | integration |
-| I-526 | Stock insuficiente → 422 sin invocar el RPC | POST /api/canales/orders/[id]/accept | integration |
-| I-527 | Orden ya procesada (estado accepted) → 400, sin efectos secundarios | POST /api/canales/orders/[id]/accept | integration |
-| I-528 | Sin sesión → 401 | POST /api/canales/orders/[id]/accept | integration |
-| I-529 | Orden inexistente o de otra tienda (filtro store_id sin match) → 404 | POST /api/canales/orders/[id]/accept | integration |
-| I-530 | p_procedencia usa el canalId real (rappi/pedidosya/ubereats), no 'presencial' — distingue canales con conexión sistémica de los manuales (whatsapp/instagram/etc., sin API en Chile) | POST /api/canales/orders/[id]/accept | integration |
-| CO-01 a CO-04 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | PedidosYaOrdenesPage | component |
-| CO-05 a CO-08 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | RappiOrdenesPage | component |
-| CO-09 a CO-12 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | UberEatsOrdenesPage | component |
+| I-519 | RPC crear_venta_tx recibe p_total/p_subtotal/p_impuesto correctos (extracción, no aditiva) al aceptar orden de canal | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-520 | Items enviados al RPC usan producto_id resuelto por SKU y precio_unitario (no `precio`) | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-521 | Aceptar orden de canal responde accepted, vincula venta_id y confirma al canal externo | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-522 | REGRESIÓN: aceptar orden de canal genera asiento contable vía crearAsiento(lineasVentaCanal) — antes nunca se llamaba | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-523 | idempotency_key enviado al RPC es determinístico (`canal:<canalId>:<external_order_id>`) | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-524 | REGRESIÓN: reintento idempotente (RPC created=false) no repite auditoría, confirmación al canal ni asiento contable | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-525 | REGRESIÓN: SKU no encontrado en el catálogo → 422 sin invocar el RPC (antes: el item se saltaba en silencio) | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-526 | Stock insuficiente → 422 sin invocar el RPC | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-527 | Orden ya procesada (estado accepted) → 400, sin efectos secundarios | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-528 | Sin sesión → 401 | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-529 | Orden inexistente o de otra tienda (filtro store_id sin match) → 404 | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| I-530 | p_procedencia usa el canalId real (rappi/pedidosya/ubereats), no 'presencial' — distingue canales con conexión sistémica de los manuales (whatsapp/instagram/etc., sin API en Chile) | POST /api/canales/orders/[id]/accept | integration | **Reemplazado (Fase 3, D5): ver I-626..I-637 (procesarOrden).**
+| CO-01 a CO-04 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | PedidosYaOrdenesPage | component | **Reemplazado (Fase 3): PCN-01..09 (PedidosCanales).**
+| CO-05 a CO-08 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | RappiOrdenesPage | component | **Reemplazado (Fase 3): PCN-01..09 (PedidosCanales).**
+| CO-09 a CO-12 | Banner de error visible al operador cuando accept/reject falla (antes: sin feedback) | UberEatsOrdenesPage | component | **Reemplazado (Fase 3): PCN-01..09 (PedidosCanales).**
 | CC-05 | Activar toggle con credencial de solo espacios → muestra error, no envía request | CanalConfigPage | component |
 | CC-06 | Activar toggle con solo 1 de 4 campos Rappi → muestra error, no envía request | CanalConfigPage | component |
 | CC-07 | REGRESIÓN: campos type="password" (API Key, API Secret, Webhook Secret) tienen autoComplete="new-password" — evita que el navegador ofrezca autocompletar con credenciales guardadas de otro contexto | CanalConfigPage | component |
@@ -394,8 +394,8 @@ I-406/I-407/I-408.
 | I-270 | POST cron/audit-cleanup limpia logs con token válido | POST /api/cron/audit-cleanup | integration |
 | I-271 | GET cron/email-alerts retorna 401 sin token | GET /api/cron/email-alerts | integration |
 | I-273 | GET cron/email-alerts procesa cada tienda habilitada | GET /api/cron/email-alerts | integration |
-| I-274 | POST cron/stock-reservas-expiry retorna 401 sin token | POST /api/cron/stock-reservas-expiry | integration |
-| I-276 | POST cron/stock-reservas-expiry marca reservas expiradas | POST /api/cron/stock-reservas-expiry | integration |
+| I-274 | POST cron/stock-reservas-expiry retorna 401 sin token | POST /api/cron/stock-reservas-expiry | integration | **Retirado (Fase 3, D6): cron y tabla stock_reservas eliminados.**
+| I-276 | POST cron/stock-reservas-expiry marca reservas expiradas | POST /api/cron/stock-reservas-expiry | integration | **Retirado (Fase 3, D6).**
 | I-277 | GET analytics/recompras-avanzadas retorna 401 sin auth | GET /api/analytics/recompras-avanzadas | integration |
 | I-278 | GET analytics/recompras-avanzadas delega a getReorderSuggestions | GET /api/analytics/recompras-avanzadas | integration |
 | I-279 | Venta incluye asiento COGS (Dr COGS, Cr Inventario) con costoTotal = cantidad × producto.costo | POST /api/ventas | integration |
@@ -2048,3 +2048,77 @@ cubiertos por I-609, I-613/I-614 e I-617.
 | CC-17 | PedidosYa/UberEats: aviso "Integración pendiente" y activar no envía request | CanalConfigPage | component |
 | CC-18 | PedidosYa puede guardar credenciales sin activar | CanalConfigPage | component |
 | CC-19 | Rappi sin aviso y con los campos de la fuente única | CanalConfigPage | component |
+
+---
+
+## Fase 3 — Aceptación automática y ciclo de vida (plan `docs/canales-stock/stock_canales_externos.md` §6)
+
+Migraciones 080 (`claim_canal_outbox`, FOR UPDATE SKIP LOCKED) y 081 (DROP
+`stock_reservas`); verificación real en
+`docs/canales-stock/stock_canales_fase3_verificacion.sql` (L1–L7). Tests
+retirados: `canales-accept.test.ts` (I-519..I-530, aceptación manual → ahora
+I-626..I-637), `RappiOrdenesPage/PedidosYaOrdenesPage/UberEatsOrdenesPage`
+(CO-01..CO-12 → PCN-01..09), `cron-stock-reservas-expiry.test.ts`
+(I-274..I-276, reservas eliminadas por D6).
+
+### Integración — procesarOrden (3.2, 3.6)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| I-626 | Orden de otra tienda / no pending → omitida sin efectos | procesarOrden | integration |
+| I-627 | Reclamo atómico pending → processing; perdido → omitida | procesarOrden | integration |
+| I-628 | crear_venta_tx: SKU de la tienda, precio de la plataforma, IVA extraído, procedencia = canal, idempotency key por tienda | procesarOrden | integration |
+| I-629 | accepted + venta_id desde processing; outbox confirm con dedupe | procesarOrden | integration |
+| I-630 | Asientos de ingreso y COGS, auditoría y sync al Hub (C18) | procesarOrden | integration |
+| I-631 | Reintento idempotente (created=false) sin repetir efectos | procesarOrden | integration |
+| I-632 | SKU sin producto activo → rejected ITEM_NOT_FOUND + outbox reject | procesarOrden | integration |
+| I-633 | Sin stock físico (D16) → rejected ITEM_OUT_OF_STOCK | procesarOrden | integration |
+| I-634 | Confirmación ya encolada (23505) no es error | procesarOrden | integration |
+| I-635 | Orden sin ítems → rejected OTHER | procesarOrden | integration |
+| I-636 | Error transitorio → pending con ultimo_error | procesarOrden | integration |
+| I-637 | Intentos agotados → failed | procesarOrden | integration |
+
+### Integración — cancelación, outbox, rutas y cron
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| I-638 | pending → cancelled sin venta, tenant + canal + orden | cancelarOrdenCanal | integration |
+| I-639 | accepted/ready → anularVenta + cancelled + outbox descartada (C10) | cancelarOrdenCanal | integration |
+| I-640 | Venta ya anulada (409) sigue; otro error no cancela | cancelarOrdenCanal | integration |
+| I-641 | processing o carrera perdida → en_proceso | cancelarOrdenCanal | integration |
+| I-642 | Inexistente, terminal o entregada → ignorada | cancelarOrdenCanal | integration |
+| I-643 | claim_canal_outbox + despacho confirm/reject/ready con contexto de la tienda | procesarOutbox | integration |
+| I-644 | Error de plataforma → pending con backoff; agotado → dead (C11) | procesarOutbox | integration |
+| I-645 | Canal deshabilitado o tipo no implementado → nunca éxito silencioso | procesarOutbox | integration |
+| I-646 | Backoff exponencial acotado a 60 min | procesarOutbox | integration |
+| I-647 | storeWorker marca lista: accepted → ready atómico + outbox ready (D8) | POST /api/canales/orders/[id]/ready | integration |
+| I-648 | Otra tienda / inexistente / no UUID → 404 | POST /api/canales/orders/[id]/ready | integration |
+| I-649 | Ya lista u otro estado → 409 sin outbox | POST /api/canales/orders/[id]/ready | integration |
+| I-650 | Sin sesión → 401 | POST /api/canales/orders/[id]/ready | integration |
+| I-651 | Admin reintenta failed → pending y reprocesa | POST /api/canales/orders/[id]/retry | integration |
+| I-652 | storeWorker / admin de otra tienda → 403 | POST /api/canales/orders/[id]/retry | integration |
+| I-653 | No failed → 409; inexistente → 404 | POST /api/canales/orders/[id]/retry | integration |
+| I-654 | Lista órdenes activas de la tienda; filtros validados (sin reserved) | GET /api/canales/orders | integration |
+| I-655 | Sin sesión → 401 | GET /api/canales/orders | integration |
+| I-656 | Cron sin Bearer válido o sin CRON_SECRET → 401 | POST /api/cron/canales-outbox | integration |
+| I-657 | Cron recupera processing atascadas, procesa pending y corre la outbox | POST /api/cron/canales-outbox | integration |
+| I-658 | NEW_ORDER nueva agenda procesarOrden + outbox en after(); duplicada no | POST /api/canales/webhook/[canal] | integration |
+| I-659 | Sin CRON_SECRET, "Bearer undefined" → 401 | GET /api/cron/email-alerts | integration |
+| I-660 | Sin CRON_SECRET, "Bearer undefined" → 401 | POST /api/cron/audit-cleanup | integration |
+| MW-32 | /api/cron/* es ruta pública (auth por CRON_SECRET) | middleware | unit |
+
+### Componentes — pedidos de canales en el POS (3.8)
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| PCN-01 | Muestra canal, número, ítems, total y estado | PedidosCanales | component |
+| PCN-02 | Estados de carga y vacío | PedidosCanales | component |
+| PCN-03 | Filtro de canal viaja a la API | PedidosCanales | component |
+| PCN-04 | "Marcar lista" llama POST .../ready y recarga | PedidosCanales | component |
+| PCN-05 | Error de la API visible | PedidosCanales | component |
+| PCN-06 | "Reintentar" solo admin (gate de UX) y llama POST .../retry | PedidosCanales | component |
+| PCN-07 | processing sin acciones | PedidosCanales | component |
+| PCN-08 | Aviso visual de pedido nuevo entre refrescos | PedidosCanales | component |
+| PCN-09 | Error de carga visible | PedidosCanales | component |
+| PCA-01 | Aviso del POS enlaza a /pos/pedidos con contador | PedidosCanalesAviso | component |
+| PCA-02 | Sin conexión: enlace disponible sin contador | PedidosCanalesAviso | component |

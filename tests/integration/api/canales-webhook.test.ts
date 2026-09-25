@@ -28,6 +28,13 @@ const mockDecrypt = jest.fn();
 jest.mock("@/lib/supabase", () => ({ createServiceClient: () => ({ from: mockFrom }) }));
 jest.mock("@/lib/canales/encryption", () => ({ decryptJSON: (...a: unknown[]) => mockDecrypt(...a) }));
 
+const mockCancelar = jest.fn();
+const mockProcesar = jest.fn();
+const mockOutbox = jest.fn();
+jest.mock("@/lib/canales/application/cancelar-orden", () => ({ cancelarOrdenCanal: (...a: unknown[]) => mockCancelar(...a) }));
+jest.mock("@/lib/canales/application/procesar-orden", () => ({ procesarOrden: (...a: unknown[]) => mockProcesar(...a) }));
+jest.mock("@/lib/canales/application/outbox", () => ({ procesarOutbox: (...a: unknown[]) => mockOutbox(...a) }));
+
 import { POST } from "@/app/api/canales/webhook/[canal]/route";
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
@@ -237,16 +244,29 @@ describe("POST /api/canales/webhook/[canal] — eventos", () => {
     expect(await res.json()).toEqual({ status: "OK", description: "Store on" });
   });
 
-  it("I-618: ORDER_EVENT_CANCEL → cancela solo la orden PENDING de esta tienda y canal", async () => {
+  // Fase 3 (3.5): la cancelación delega en cancelarOrdenCanal (probado en
+  // canales-ciclo-orden.test.ts: pending → cancelled, aceptada → anular venta).
+  it("I-618: ORDER_EVENT_CANCEL → cancelarOrdenCanal con tienda, canal, orden y motivo; en proceso → 503; error → 500", async () => {
+    mockCancelar.mockResolvedValue({ resultado: "cancelada" });
     const res = await post({ evento: "ORDER_EVENT_CANCEL", body: fixture("ORDER_EVENT_CANCEL") });
     expect(res.status).toBe(200);
-    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ estado: "cancelled" }));
-    expect(updateFilters).toEqual(expect.arrayContaining([
-      ["eq", "store_id", STORE_ID],
-      ["eq", "canal_id", "rappi"],
-      ["eq", "external_order_id", "2150558091"],
-      ["eq", "estado", "pending"],
-    ]));
+    expect(mockCancelar).toHaveBeenCalledWith(expect.anything(), STORE_ID, "rappi", "2150558091", "canceled_with_charge");
+
+    mockCancelar.mockResolvedValue({ resultado: "en_proceso" });
+    expect((await post({ evento: "ORDER_EVENT_CANCEL", body: fixture("ORDER_EVENT_CANCEL") })).status).toBe(503);
+    mockCancelar.mockResolvedValue({ resultado: "error", error: "x" });
+    expect((await post({ evento: "ORDER_EVENT_CANCEL", body: fixture("ORDER_EVENT_CANCEL") })).status).toBe(500);
+  });
+
+  // Fase 3 (3.3): la orden nueva se procesa DESPUÉS de responder (after()).
+  it("I-658: NEW_ORDER nueva agenda procesarOrden + outbox tras responder; una duplicada no", async () => {
+    await post({ body: fixture("NEW_ORDER") });
+    expect(mockProcesar).toHaveBeenCalledWith(expect.anything(), STORE_ID, "orden-1");
+    expect(mockOutbox).toHaveBeenCalled();
+    mockProcesar.mockClear();
+    upsertResult = { data: [], error: null };
+    await post({ body: fixture("NEW_ORDER") });
+    expect(mockProcesar).not.toHaveBeenCalled();
   });
 
   it("I-619: ORDER_OTHER_EVENT, MENU_APPROVED y eventos ignorados → 200 sin escribir", async () => {
