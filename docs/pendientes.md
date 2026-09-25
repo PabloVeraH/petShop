@@ -184,3 +184,56 @@ tags:
 - [ ] HTTPS en producción (Vercel by default)
 - [ ] GDPR compliance (data export, deletion)
 - [ ] Cifrado de datos sensibles
+
+---
+
+## 🧾 Contabilidad de mermas y ajustes de stock (pendiente — decidir con el contador)
+
+**Estado al 2026-09-24:** las bajas de inventario se registran en stock
+(`stock_movements`, con el usuario), pero **no generan asiento contable**.
+El libro diario sigue mostrando ese inventario como activo aunque ya no exista.
+
+### Qué operaciones faltan
+
+| Operación | Dónde vive | Qué registra hoy | Asiento contable |
+|-----------|-----------|-------------------|------------------|
+| Merma de lote vencido (D23) | `POST /api/lotes/[id]/merma` → RPC `merma_lote_vencido` (migración 076) | lote `activo=false`, `stock_movements.tipo='merma'` con `cantidad = −unidades` y `user_id` | ❌ ninguno |
+| Merma del resto de un saco granel abierto (G6) | `POST /api/productos/[id]/saco` `{accion:"merma"}` → RPC `cerrar_saco_merma` (migración 077) | `sacos_abiertos` cerrado con `motivo_cierre='merma'`, `gramos_merma`, `cerrado_por`; `stock_movements.tipo='merma'` con `cantidad = −gramos/peso_gramos` | ❌ ninguno |
+| Ajuste por conteo físico (D22), relacionado | `POST /api/inventario/[id]/conteo` → RPC `ajustar_stock_conteo` | `stock_movements.tipo='ajuste_conteo'` con el delta (±) | ❌ ninguno |
+
+(Abrir un saco y deshacer una apertura no necesitan asiento: no cambian el
+stock total, solo mueven un saco de "cerrado" a "abierto" — G5 del plan.)
+
+### Qué habría que hacer
+
+1. **Decisión contable (contador):** qué cuenta de gasto usar para la merma.
+   Hoy `src/lib/contabilidad/types.ts` (`CUENTAS`) **no tiene** una cuenta de
+   merma/pérdida de inventario; las candidatas son crear una nueva (ej. "Merma
+   de inventario", tipo GASTO, código 5102xx) o usar `COGS` (510101).
+   También decidir si el ajuste por conteo **positivo** (aparecen unidades)
+   va a la misma cuenta con signo contrario o a otra.
+2. **Monto:** valorizar a costo.
+   - Lote: `unidades × productos.costo` (costo por unidad/saco).
+   - Saco granel: `gramos_merma / peso_gramos × productos.costo` — mismo
+     criterio proporcional que el COGS de la venta a granel (G5).
+   - Conteo: `|delta| × productos.costo`.
+3. **Asiento propuesto:** Debe *Gasto de merma* / Haber *Inventario*
+   (`INVENTARIO` 111001), por el monto del punto 2. Conteo positivo: al revés.
+4. **Implementación (patrón existente):** en cada endpoint, después de la RPC
+   exitosa, `crearAsiento()` dentro de `after()` de `next/server` (igual que
+   `POST /api/ventas` y `POST /api/notas-credito`; ver AGENTS.md §10.1). Hace
+   falta una función `lineasMerma(monto)` en
+   `src/lib/contabilidad/generador-asientos.ts` y probablemente un nuevo
+   `tipoMovimiento` (revisar los valores permitidos). Las RPC ya devuelven lo
+   necesario (`cantidad_baja`, `gramos_merma`, `delta`), pero el costo hay que
+   leerlo de `productos` o hacer que la RPC lo retorne.
+5. **Datos históricos:** las mermas y conteos hechos antes de implementar esto
+   no tienen asiento. Si el contador lo pide, el backfill se hace con
+   `stock_movements` (`tipo IN ('merma','ajuste_conteo')`) — requiere
+   autorización explícita (AGENTS.md §0.1).
+6. **Tests:** backend (asiento creado con cuentas y monto correctos; sin
+   asiento si costo = 0; fallo de contabilidad no rompe la merma) y el
+   contrato de `lineasMerma` (debe = haber).
+
+Referencias: `docs/canales-stock/stock_canales_externos.md` §4.6 (G5, G6) y
+D22/D23; `migrations/076_lotes_conteo_merma.sql`, `migrations/077_granel_sacos_abiertos.sql`.
