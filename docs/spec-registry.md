@@ -2269,3 +2269,89 @@ Migraciones 084 (`canal_config.ultimo_evento_*`, `estado_cron_canales`) y 085
 | PRC-04 | Error de la API visible | PreparacionCanal | component |
 | PRC-05 | Respuesta con otra forma → error sin romper el render | PreparacionCanal | component |
 | CC-22 | La página del canal muestra la preparación | CanalConfigPage | component |
+
+## Auditoría de cobertura de feat/stockCanales (2026-09-26)
+
+Cruce de las líneas cambiadas en la rama (vs `main`) con la cobertura real de
+`jest --coverage`: ramas de error y caminos alternativos que ningún test
+ejecutaba. `tests/integration/api/canales-instagram.test.ts` tenía 8
+placeholders `expect(true).toBe(true)` (sin ID) que no ejecutaban ninguna ruta:
+se reemplazaron por I-722..I-729.
+
+Regresión incluida: `esCanalConfigurable` y `canalImplementado` usaban `in`,
+que acepta claves del prototipo ("toString", "__proto__", "constructor");
+corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
+
+### Integración
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| I-697 | Canal desconocido en la orden → reintento/fallida, nunca venta ni rechazo | procesarOrden | integration |
+| I-698 | Error leyendo productos → reintento sin venta | procesarOrden | integration |
+| I-699 | CHECK de procedencia (23514) → reintento + error de configuración logueado | procesarOrden | integration |
+| I-700 | Costo 0 → sin asiento COGS; asiento de ingreso no creado se loguea; sin Hub si no hay productos | procesarOrden | integration |
+| I-701 | COGS no creado se loguea; productos actualizados → Hub sincronizado | procesarOrden | integration |
+| I-702 | Orden accepted/ready sin venta → cancela, descarta outbox y audita sin anular | cancelarOrdenCanal | integration |
+| I-703 | Error inesperado en contexto o parseo se propaga (no se convierte en 4xx) | recibirEventoWebhook | integration |
+| I-704 | Falla al registrar el último evento no bloquea el evento autenticado | recibirEventoWebhook | integration |
+| I-705 | GET: error de BD → 500; sin precio → precio_canal null | GET /api/canales/[canal]/productos | integration |
+| I-706 | PUT: update falla → 500; insert 23505 → 409; otro → 500; sin auditoría | PUT /api/canales/[canal]/productos | integration |
+| I-707 | GET con error de BD → 500; POST con error ≠ 23505 → 500 | /api/canales/alertas | integration |
+| I-708 | GET filtra por canal y tienda; error → 500 | GET /api/canales/liquidacion | integration |
+| I-709 | Asiento creado pero vínculo falla → 201 + log, sin borrar la liquidación | POST /api/canales/liquidacion | integration |
+| I-710 | ?canal= filtra además de la tienda; error → 500 | GET /api/canales/orders | integration |
+| I-711 | Error de BD → 500; canal sin flujo externo → lista sin outbox | POST /api/canales/orders/[id]/ready | integration |
+| I-712 | Id no UUID → 404 sin BD; error → 500 sin reprocesar | POST /api/canales/orders/[id]/retry | integration |
+| I-713 | Error leyendo lo publicado → 500 sin encolar | cron canales-reconciliar | integration |
+| I-714 | 23505 no cuenta como encolado; un error al encolar no corta el resto | cron canales-reconciliar | integration |
+| I-715 | Error de BD en config o catálogo → 500 sin datos parciales | GET /api/canales/[canal]/preparacion | integration |
+| I-716 | increment_stock falla → error mapeado (409/500) sin stock_movements | PATCH /api/ordenes-compra/[id] (recibir) | integration |
+| I-717 | Error leyendo sacos_abiertos → 500 | GET /api/inventario | integration |
+| I-718 | Error leyendo sacos_abiertos → 500; sin granel no se consulta | GET /api/productos | integration |
+| I-719 | Conversión a LOTE-0 falla → 200 + auditoría de fallo | PATCH /api/productos/[id] | integration |
+| I-720 | Conversión no-op → sin auditoría de lote; lote creado → auditoría con su id | PATCH /api/productos/[id] | integration |
+| I-721 | Producto no releíble tras merma/conteo → responde igual sin sincronizar al Hub | POST saco / POST conteo | integration |
+| I-722 | Lista por tienda, filtro status; error → 500 | GET /api/canales/instagram/posts | integration |
+| I-723 | store_id de la sesión (body ignorado); published vs scheduled | POST /api/canales/instagram/posts | integration |
+| I-724 | Carrusel en orden; errores → 500; payload inválido → 400 sin BD | POST /api/canales/instagram/posts | integration |
+| I-725 | Edita post programado (solo campos enviados, por store_id) | PATCH /api/canales/instagram/posts/[id] | integration |
+| I-726 | Otra tienda/inexistente → 404 sin escribir; publicado → 409; inválido → 400 | PATCH/DELETE /api/canales/instagram/posts/[id] | integration |
+| I-727 | DELETE por id + store_id; error de BD → 500 | PATCH/DELETE /api/canales/instagram/posts/[id] | integration |
+| I-728 | Sube bajo la carpeta de la tienda y devuelve URL pública | POST /api/canales/instagram/upload | integration |
+| I-729 | Sin archivo / tipo no permitido / > 10 MB → 400; error del Storage → 500 | POST /api/canales/instagram/upload | integration |
+
+### Unitarios
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| U-195 | Solo canales con adaptador; nunca claves del prototipo; sin ENABLED_CHANNELS → null | registry | unit |
+| U-196 | Solo ids conocidos (ni prototipo ni no-strings) — regresión `in` | esCanalConfigurable | unit |
+| U-197 | Token 200 sin access_token → PlataformaError, sin caché | rappiFetch | unit |
+| U-198 | Error ≠ 401 no invalida el token cacheado | rappiFetch | unit |
+| U-199 | Config activa sin credenciales → CredencialesInvalidasError | loadChannelContext | unit |
+| U-200 | 23505 idempotente; otro error lanza con código | encolarOutbox | unit |
+| U-201 | Nuevo → true; 23505 → false; otro error lanza | encolarTrabajoTienda | unit |
+| U-202 | Error al reclamar lanza; canal desconocido → reintento | procesarOutbox | unit |
+| U-203 | Re-verificación de disponibilidad falla → sigue contando como hecho | procesarOutbox | unit |
+| U-204 | Catálogo: error de lectura sin push; error al registrar publicado/retirado lanza | publicarCatalogo | unit |
+| U-205 | Disponibilidad: error del RPC sin push; error al registrar lanza | publicarDisponibilidad | unit |
+| U-206 | POST a /api/productos/{id}/saco; errores con mensaje, status o sin JSON | accionSaco (pos/api.ts) | unit |
+| CTR-15 | Header Rappi-Signature malformado → false, nunca lanza | firmaRappiValida | unit |
+| CTR-16 | Header con espacios/segmentos extra válido; sin secreto o firma truncada → false | firmaRappiValida | unit |
+| CTR-17 | ORDER_EVENT_CANCEL / ORDER_OTHER_EVENT sin order_id válido → PayloadInvalidoError | RappiAdapter.parseEvent | unit |
+| CTR-18 | El mensaje de error nombra el campo, no el contenido del cuerpo | RappiAdapter.parseEvent | unit |
+
+### Componentes
+
+| ID | Descripción | Dónde | Tipo |
+|----|-------------|-------|------|
+| CTC-10 | Guardar producto: error de la API visible sin recargar; red → mensaje de red | CatalogoCanal | component |
+| CTC-11 | Guardar recargo: error genérico o de red visible; nunca "guardado" | CatalogoCanal | component |
+| LQC-06 | Carga de liquidaciones falla (HTTP o red) → mensaje visible | LiquidacionesCanal | component |
+| PRC-06 | Falla de red al cargar la preparación → mensaje visible | PreparacionCanal | component |
+| PCA-03 | Ignora no-OK; se actualiza por intervalo y se detiene al desmontar | PedidosCanalesAviso | component |
+| CNP-01 | Cargando y estado por canal (POS siempre activo) con alertas | CanalesPage (/canales) | component |
+| CNP-02 | Navegación a configuración; Instagram activo → publicaciones | CanalesPage (/canales) | component |
+| CNP-03 | Config no-lista o falla de red → todos sin configurar, sin romper | CanalesPage (/canales) | component |
+| PPD-01 | /pos/pedidos pasa el canal (solo string) y enlaza al POS | pos/pedidos/page | component |
+| PPD-02 | Rutas antiguas /canales/*/ordenes redirigen a /pos/pedidos?canal= | canales/*/ordenes/page | component |

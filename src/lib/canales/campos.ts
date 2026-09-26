@@ -56,6 +56,8 @@ export const CAMPO_EXTERNAL_STORE_ID: Partial<Record<CanalConfigurableId, string
 // placeholders (C20). Se pueden guardar credenciales pero no activar.
 export const CANALES_INTEGRACION_PENDIENTE: readonly CanalConfigurableId[] = ["pedidosya", "ubereats"];
 
+// Propiedad PROPIA: `in` también acepta claves del prototipo ("toString",
+// "__proto__", "constructor"…).
 export function esCanalConfigurable(valor: unknown): valor is CanalConfigurableId {
-  return typeof valor === "string" && valor in CAMPOS_CREDENCIALES;
+  return typeof valor === "string" && Object.prototype.hasOwnProperty.call(CAMPOS_CREDENCIALES, valor);
 }

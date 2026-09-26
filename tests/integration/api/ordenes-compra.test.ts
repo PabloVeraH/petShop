@@ -307,6 +307,56 @@ describe("Órdenes de Compra API", () => {
         p_cantidad: 5,
       });
     });
+
+    // Desde la migración 074 increment_stock rechaza productos con lotes y el
+    // error ya no se ignora (antes la OC quedaba recibida sin stock sumado).
+    it("I-716: increment_stock falla → error mapeado (409 producto con lotes / 500 desconocido) y NO se registra el movimiento de stock", async () => {
+      for (const [mensaje, status] of [
+        ["Producto con lotes: use registrar_lote", 409],
+        ["deadlock detected", 500],
+      ] as const) {
+        type Resolver = (v: { data: unknown; error: unknown }) => unknown;
+        const ordenChain = {
+          select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), update: jest.fn().mockReturnThis(),
+          single: jest.fn().mockReturnThis(),
+          then: (resolve: Resolver) => resolve({ data: mockOrden, error: null }),
+        };
+        const productos = productosChainFactory([{ id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5", nombre: "Arena", stock: 3, fecha_vencimiento: null }]);
+        const lotes = lotesChainFactory([]);
+        const movimientosInsert = jest.fn().mockReturnThis();
+        const fromMock = jest.fn((table: string) => {
+          if (table === "ordenes_compra") return ordenChain;
+          if (table === "productos") return productos.factory();
+          if (table === "lotes_producto") return lotes.factory();
+          if (table === "stock_movements") {
+            return { insert: movimientosInsert, then: (resolve: Resolver) => resolve({ data: {}, error: null }) };
+          }
+          return {
+            select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), update: jest.fn().mockReturnThis(),
+            single: jest.fn().mockReturnThis(), insert: jest.fn().mockReturnThis(),
+            then: (resolve: Resolver) => resolve({ data: null, error: null }),
+          };
+        });
+        const rpcMock = jest.fn().mockResolvedValue({ data: null, error: { message: mensaje } });
+        (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: fromMock, rpc: rpcMock });
+
+        const req = new NextRequest("http://localhost/api/ordenes-compra/a57ace69-a5f4-4089-83e9-04d92c27dd43", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "recibir",
+            items: [{ id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 5, precio_unitario: 20, producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5" }],
+          }),
+        });
+        const res = await PATCH(req, { params: Promise.resolve({ id: "a57ace69-a5f4-4089-83e9-04d92c27dd43" }) });
+
+        expect(res.status).toBe(status);
+        const body = await res.json();
+        // Un error desconocido de la BD no se filtra al cliente.
+        expect(body.error).toBe(status === 500 ? "Error interno del servidor" : mensaje);
+        expect(movimientosInsert).not.toHaveBeenCalled();
+      }
+    });
   });
 
   describe("PATCH /api/ordenes-compra/[id] — recibir con lotes", () => {

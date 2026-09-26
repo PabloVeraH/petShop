@@ -19,7 +19,8 @@ const ADAPTADORES: Partial<Record<CanalExternoId, ChannelAdapter>> = {
 };
 
 export function canalImplementado(canal: CanalExternoId): boolean {
-  return canal in ADAPTADORES;
+  // Propiedad propia: `in` aceptaría claves del prototipo si llegara un string sin validar.
+  return Object.prototype.hasOwnProperty.call(ADAPTADORES, canal);
 }
 
 // Se lee en cada llamada (no al importar) para que un cambio de entorno en
