@@ -34,9 +34,18 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
   const canCreate = canCreateUser(role);
   const canDelete = canDeleteUser(role);
 
-  const { data: users, isLoading } = useQuery<StoreUser[]>({
+  // Una respuesta de error ({ error }) no es una lista: se convierte en error
+  // de la query en vez de llegar al .map() del render.
+  const { data: users, isLoading, error: usersError } = useQuery<StoreUser[]>({
     queryKey: ["store-users", store.id],
-    queryFn: () => fetch(`/api/admin/users?storeId=${store.id}`).then((r) => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users?storeId=${store.id}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(data)) {
+        throw new Error(data?.error ?? `Error al cargar usuarios (${res.status})`);
+      }
+      return data;
+    },
   });
 
   const editUserMutation = useMutation({
@@ -113,6 +122,8 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
       <div className="space-y-2">
         {isLoading ? (
           <p className="text-xs text-[#999]">Cargando usuarios...</p>
+        ) : usersError ? (
+          <p role="alert" className="text-xs text-red-600">{usersError.message}</p>
         ) : (users ?? []).length === 0 ? (
           <p className="text-xs text-[#999]">Sin usuarios</p>
         ) : (

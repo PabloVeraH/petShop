@@ -137,4 +137,29 @@ describe("UsuariosCard — autoComplete en formularios (C-41, C-44)", () => {
     });
     expect(screen.queryByText(/Clerk/i)).not.toBeInTheDocument();
   });
+
+  // C-68 — REGRESIÓN: la query no revisaba res.ok; una respuesta de error
+  // ({ error }) llegaba al render como "lista" y rompía la página con
+  // "(users ?? []).map is not a function".
+  it.each([
+    [403, { error: "Forbidden" }, "Forbidden"],
+    [500, { error: "Error interno del servidor" }, "Error interno del servidor"],
+  ])("C-68: REGRESIÓN — respuesta %i de /api/admin/users muestra el error sin romper", async (status, body, mensaje) => {
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({ ok: false, status, json: () => Promise.resolve(body) })
+    );
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(mensaje);
+    expect(screen.queryByText("Sin usuarios")).not.toBeInTheDocument();
+  });
+
+  it("C-68: REGRESIÓN — respuesta 200 que no es una lista se trata como error", async () => {
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ foo: 1 }) })
+    );
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Error al cargar usuarios (200)");
+  });
 });
