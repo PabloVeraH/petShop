@@ -211,4 +211,28 @@ describe("ConteoFisicoModal — granel", () => {
     expect(await screen.findByLabelText(/Cantidad contada/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Gramos en el saco abierto/)).not.toBeInTheDocument();
   });
+
+  // CF-11 — REGRESIÓN (QA 2026-09-27): el input tenía step 0.001 y aceptaba
+  // decimales en productos por unidad. La cantidad contada es siempre un
+  // entero; en granel la fracción va en gramos del saco abierto.
+  it("CF-11: REGRESIÓN — cantidad con decimales en producto por unidad bloquea el envío con mensaje", async () => {
+    mockFetch([]);
+    renderGranel({ id: "prod-u", nombre: "Cama", stock: 3, precio_venta_kg: null, peso_gramos: null });
+    const input = await screen.findByLabelText(/Cantidad contada/);
+    expect(input).toHaveAttribute("step", "1");
+    fireEvent.change(input, { target: { value: "1.5" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo QA dec" } });
+    expect(screen.getByText("La cantidad contada debe ser un número entero")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar conteo" })).toBeDisabled();
+  });
+
+  it("CF-11: granel con sacos cerrados decimales bloquea el envío y remite a los gramos", async () => {
+    mockFetch([]);
+    renderGranel();
+    fireEvent.change(await screen.findByLabelText(/Sacos cerrados contados/), { target: { value: "2.5" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo mensual" } });
+    expect(screen.getByText(/se cuenta en gramos del saco abierto/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar conteo" })).toBeDisabled();
+    expect(postConteo()).toBeUndefined();
+  });
 });

@@ -198,9 +198,29 @@ describe("POST /api/inventario/[id]/conteo", () => {
     expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({ result: "failure", errorMessage: "deadlock detected" }));
   });
 
-  it("I-563b: acepta 3 decimales (1.005)", async () => {
-    const res = await post({ stock_contado: 1.005, motivo: "Conteo mensual" });
+  // I-730 — REGRESIÓN (QA 2026-09-27): el conteo aceptaba decimales en un
+  // producto por unidad (1.5 → stock 1.5). Reemplaza a I-563b ("acepta 3
+  // decimales"), contrato anterior a la migración 077: desde entonces
+  // stock_contado son unidades o sacos CERRADOS y la fracción de un granel se
+  // cuenta en gramos del saco abierto.
+  it.each([
+    ["por unidad: 1.5", { stock_contado: 1.5, motivo: "Conteo QA dec" }],
+    ["tres decimales: 1.005", { stock_contado: 1.005, motivo: "Conteo mensual" }],
+    ["granel: sacos cerrados 2.5 aunque vengan gramos", { stock_contado: 2.5, gramos_saco_abierto: 500, motivo: "Conteo saco" }],
+  ])("I-730: REGRESIÓN — %s → 400 sin llamar al RPC", async (_desc, body) => {
+    const res = await post(body);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/entero/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("I-730: granel entero + gramos sigue funcionando (la fracción va en gramos)", async () => {
+    const res = await post({ stock_contado: 2, gramos_saco_abierto: 7500, motivo: "Conteo saco" });
     expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("ajustar_stock_conteo", expect.objectContaining({
+      p_stock_contado: 2,
+      p_gramos_saco_abierto: 7500,
+    }));
   });
 
   // I-594 — granel (077): los gramos del saco abierto viajan al RPC y quedan

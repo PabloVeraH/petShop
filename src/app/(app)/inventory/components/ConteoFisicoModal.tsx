@@ -54,7 +54,9 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
 
   const motivoValido = motivo.trim().length >= 5;
   const contadoNum = Number(contado);
-  const contadoValido = contado !== "" && Number.isFinite(contadoNum) && contadoNum >= 0;
+  // Unidades o sacos cerrados: siempre enteros (la fracción va en gramos).
+  const contadoEntero = contado === "" || Number.isInteger(contadoNum);
+  const contadoValido = contado !== "" && contadoEntero && contadoNum >= 0;
   const gramosNum = Number(gramos);
   const gramosValido = gramos === "" || (Number.isInteger(gramosNum) && gramosNum >= 0);
   const puedeEnviar = contadoValido && motivoValido && gramosValido && (!tieneLotes || !!loteId);
@@ -125,11 +127,18 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
                 id="conteo-cantidad"
                 type="number"
                 min={0}
-                step="0.001"
+                step="1"
                 value={contado}
                 onChange={(e) => { setContado(e.target.value); reset(); }}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               />
+              {!contadoEntero && (
+                <p className="text-xs text-red-500 mt-1">
+                  {sacos
+                    ? "Los sacos cerrados deben ser un número entero; la fracción se cuenta en gramos del saco abierto"
+                    : "La cantidad contada debe ser un número entero"}
+                </p>
+              )}
             </div>
             {sacos && (
               <div>

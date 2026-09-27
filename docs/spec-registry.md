@@ -1830,7 +1830,8 @@ expectativa se eliminó.
 | I-561 | Producto con lotes sin lote_id → 409 | POST /api/inventario/[id]/conteo | integration |
 | I-562 | id no UUID → 404 | POST /api/inventario/[id]/conteo | integration |
 | I-563 | Error inesperado del RPC → 500 genérico + auditoría de fallo | POST /api/inventario/[id]/conteo | integration |
-| I-563b | Acepta 3 decimales (1.005) | POST /api/inventario/[id]/conteo | integration |
+| I-563b | ~~Acepta 3 decimales (1.005)~~ — reemplazado por I-730 (contrato anterior a 077) | POST /api/inventario/[id]/conteo | integration |
+| I-730 | REGRESIÓN (QA 2026-09-27): `stock_contado` con decimales (1.5, 1.005, granel 2.5 + gramos) → 400 sin RPC; granel entero + gramos sigue OK | POST /api/inventario/[id]/conteo | integration |
 
 ### Integración — POST /api/lotes/[id]/merma (D23)
 
@@ -1967,6 +1968,7 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | CF-08 | Granel: "N sacos + X kg", pide cerrados + gramos del saco abierto | ConteoFisicoModal | component |
 | CF-09 | Envía gramos_saco_abierto solo si se contaron | ConteoFisicoModal | component |
 | CF-10 | Gramos con decimales bloquean el envío; no granel sin campo (CF-10b) | ConteoFisicoModal | component |
+| CF-11 | REGRESIÓN (QA 2026-09-27): cantidad contada con decimales (unidad o sacos cerrados) bloquea el envío con mensaje; input step 1 | ConteoFisicoModal | component |
 | DV-21 | Línea granel muestra los gramos a devolver, sin editar cantidad | DevolucionModal | component |
 | DV-22 | Confirmar envía la cantidad pendiente en kg | DevolucionModal | component |
 | DAB-01 | Clic → POST /api/productos/[id]/saco accion 'deshacer' | DeshacerAperturaButton | component |

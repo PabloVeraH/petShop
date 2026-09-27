@@ -127,15 +127,16 @@ export const LoteCreateSchema = z.object({
   { message: "La cantidad actual no puede superar la inicial", path: ["cantidad_actual"] }
 );
 
-// D22 — ajuste por conteo físico. 3 decimales como máximo (misma escala que
-// productos.stock NUMERIC(10,3)); permite corregir stocks fraccionarios
-// heredados de S9. Si el producto tiene lotes, el conteo es por lote.
+// D22 — ajuste por conteo físico. Si el producto tiene lotes, el conteo es
+// por lote. stock_contado son unidades o sacos CERRADOS (o el lote contado):
+// siempre enteros. Desde la migración 077 la fracción de un granel se cuenta
+// aparte, en gramos del saco abierto; un stock con decimales heredado de S9 se
+// corrige fijando el entero contado.
 export const ConteoFisicoSchema = z.object({
   stock_contado: z.number()
+    .int("La cantidad contada debe ser un número entero de unidades o sacos cerrados (la fracción del saco abierto se cuenta en gramos)")
     .nonnegative("La cantidad contada no puede ser negativa")
-    .max(9_999_999, "Cantidad fuera de rango")
-    // Tolerancia de punto flotante: 1.005 * 1000 = 1004.9999999999999.
-    .refine((v) => Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6, "Máximo 3 decimales"),
+    .max(9_999_999, "Cantidad fuera de rango"),
   lote_id: UUIDSchema.optional().nullable(),
   motivo: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(255),
   // Granel (migración 077): gramos contados en el saco abierto. Con granel,
