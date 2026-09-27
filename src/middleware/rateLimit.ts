@@ -69,10 +69,20 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
   };
 }
 
+// Límite leído de una variable de entorno: entero positivo o, si falta o es
+// inválido, el valor por defecto (un typo no debe desactivar el límite).
+export function maxRequestsDesdeEnv(valor: string | undefined, porDefecto: number): number {
+  if (!valor || !/^\d+$/.test(valor.trim())) return porDefecto;
+  const n = Number(valor.trim());
+  return n > 0 ? n : porDefecto;
+}
+
 // Rate limiters específicos por endpoint
+// RATE_LIMIT_API_MAX permite subirlo en local: sin x-forwarded-for todas las
+// requests caen en la clave "unknown" y 100 / 15 min se agotan en minutos.
 export const apiGeneralLimit = createRateLimit({
   windowMs: 900000,  // 15 min
-  maxRequests: 100,
+  maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_API_MAX, 100),
 });
 
 export const authLimit = createRateLimit({

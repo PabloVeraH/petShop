@@ -104,6 +104,7 @@ Mapa de IDs de test → requisito de negocio. Cada test debe poder trazarse a ex
 | C-52 | ClerkDevWarning con publishableKey vacío NO muestra advertencia | ClerkDevWarning | component |
 | C-53 | ClerkDevWarning con clave test_ (legacy) muestra advertencia de modo desarrollo | ClerkDevWarning | component |
 | C-54 | REGRESIÓN (ticket 6a76c861779de90209ed8ba3): crear usuario con email duplicado muestra el mensaje claro del backend ("Ya existe un usuario con este email") en pantalla, sin exponer "Clerk" — la UI no silencia ni transforma el error de la API | UsuariosCard | component |
+| C-68 | REGRESIÓN: `GET /api/admin/users` con error (403/500) o respuesta que no es lista muestra el mensaje en pantalla (`role="alert"`) en vez de romper con "users.map is not a function" | UsuariosCard | component |
 | C-55 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): el dropdown de eventos de Sesiones de usuarios NO ofrece session.ended (evento que nunca se registra; el sign-out real llega como session.removed) — solo session.created y session.removed | AuditoriaCard | component |
 | C-56 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): HoverPrefetchLink renderiza un link con prefetch=false al montar (no dispara prefetch RSC en viewport) y activa el prefetch (prefetch=null, comportamiento por defecto) solo tras mouseEnter — evita la ráfaga de peticiones de precarga que saturaba el servidor | HoverPrefetchLink | component |
 | C-57 | REGRESIÓN (ticket 6a76ccfa629628db21ebbe60): UltimasVentas renderiza vacío/sin datos y lista de ventas, y su link a /sales/[id] nace con prefetch=false y se activa solo tras mouseEnter | UltimasVentas | component |
@@ -2326,6 +2327,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 |----|-------------|-------|------|
 | U-195 | Solo canales con adaptador; nunca claves del prototipo; sin ENABLED_CHANNELS → null | registry | unit |
 | U-196 | Solo ids conocidos (ni prototipo ni no-strings) — regresión `in` | esCanalConfigurable | unit |
+| U-207 | `maxRequestsDesdeEnv`: entero positivo de la env; ausente o inválido ("0", "-5", "abc", "1e3") → valor por defecto (un typo no desactiva el límite) | rateLimit | unit |
+| U-208 | `apiGeneralLimit`: sin `RATE_LIMIT_API_MAX` sigue en 100/15 min (la 101 → 429); con 150 permite 150; valor inválido vuelve a 100 | rateLimit | unit |
 | U-197 | Token 200 sin access_token → PlataformaError, sin caché | rappiFetch | unit |
 | U-198 | Error ≠ 401 no invalida el token cacheado | rappiFetch | unit |
 | U-199 | Config activa sin credenciales → CredencialesInvalidasError | loadChannelContext | unit |
