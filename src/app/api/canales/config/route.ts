@@ -158,7 +158,13 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     // columna es NUMERIC(5,2) con CHECK >= 0). Tope 100 %: un recargo mayor
     // casi seguro es un error de tipeo. Afecta al catálogo recién al
     // volver a publicarlo.
-    recargo_pct: z.number().min(0).max(100).multipleOf(0.01).optional(),
+    // Mensajes de negocio: la UI los muestra tal cual (BUG 7 QA).
+    recargo_pct: z
+      .number({ error: "El recargo debe ser un número" })
+      .min(0, "El recargo no puede ser negativo")
+      .max(100, "El recargo no puede superar el 100 %")
+      .multipleOf(0.01, "El recargo admite hasta 2 decimales")
+      .optional(),
   });
 
   const body = await req.json();

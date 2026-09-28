@@ -106,7 +106,14 @@ const putSchema = z
   .object({
     producto_id: UUIDSchema,
     habilitado: z.boolean(),
-    precio_override: z.number().int().positive().max(100_000_000).nullable().optional(),
+    // Mensajes de negocio: la UI los muestra tal cual (BUG 7 QA).
+    precio_override: z
+      .number({ error: "El precio fijo debe ser un número" })
+      .int("El precio fijo debe ser un entero en CLP")
+      .positive("El precio fijo debe ser mayor que 0")
+      .max(100_000_000, "El precio fijo está fuera de rango")
+      .nullable()
+      .optional(),
   })
   .strict();
 

@@ -341,6 +341,20 @@ describe("PUT /api/canales/[canal]/productos", () => {
     expect(upd(u.ops)).toMatchObject({ precio_override: null });
   });
 
+  // I-732 — REGRESIÓN (QA 2026-09-27, BUG 7): la UI mostraba el mensaje crudo de
+  // zod ("Entrada inválida: se esperaba int, recibido número").
+  it.each([
+    [5990.5, "El precio fijo debe ser un entero en CLP"],
+    [0, "El precio fijo debe ser mayor que 0"],
+    [-10, "El precio fijo debe ser mayor que 0"],
+    ["1000", "El precio fijo debe ser un número"],
+  ])("I-732: PUT precio_override %p → 400 con mensaje de negocio", async (precio_override, mensaje) => {
+    montar();
+    const res = await put({ producto_id: P1, habilitado: true, precio_override });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(mensaje);
+  });
+
   it("I-671: producto de OTRA tienda (IDOR) → 404 sin escribir nada", async () => {
     const fake = montar({ producto: false });
     const res = await put({ producto_id: P1, habilitado: true });
@@ -444,6 +458,20 @@ describe("PATCH /api/canales/config — recargo_pct", () => {
     }
     soloWorker();
     expect((await patch({ canal_id: "rappi", recargo_pct: 5 })).status).toBe(403);
+  });
+
+  // I-732 — REGRESIÓN (QA 2026-09-27, BUG 7): "Número inválido: debe ser
+  // múltiplo de 0.01" → mensaje de negocio.
+  it.each([
+    [10.125, "El recargo admite hasta 2 decimales"],
+    [-1, "El recargo no puede ser negativo"],
+    [100.01, "El recargo no puede superar el 100 %"],
+    ["10", "El recargo debe ser un número"],
+  ])("I-732: PATCH recargo_pct %p → 400 con mensaje de negocio", async (recargo_pct, mensaje) => {
+    montar();
+    const res = await patch({ canal_id: "rappi", recargo_pct });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(mensaje);
   });
 });
 
