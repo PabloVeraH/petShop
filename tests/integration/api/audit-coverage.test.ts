@@ -40,6 +40,11 @@ const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
+// usuarioDeshabilitado lo consulta autorizarCanales (PATCH /api/ventas/[id] y
+// POST /api/notas-credito exigen admin desde QA 2026-09-27): usuario habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
+
 // requireStoreAdmin es el real: desde Fase 1 (S11) PATCH /api/productos/[id]
 // lo exige; se simula solo getAdminStatus (la sesión decodificada).
 jest.mock("@/lib/admin-check", () => ({
@@ -147,6 +152,9 @@ describe("I-233: POST /api/notas-credito → logAudit", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: USER_ID, storeId: STORE_ID, systemAdmin: false });
+    // POST /api/notas-credito exige storeAdmin desde QA 2026-09-27.
+    mockAuth.mockResolvedValue({ userId: USER_ID, sessionClaims: { sub: USER_ID, publicMetadata: { storeId: STORE_ID, storeAdmin: true } } });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: true, storeId: STORE_ID, userId: USER_ID });
     mockLogAudit.mockResolvedValue(undefined);
   });
 
@@ -414,6 +422,9 @@ describe("I-238: error en route → logAudit con result: failure", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: USER_ID, storeId: STORE_ID, systemAdmin: false });
+    // POST /api/notas-credito exige storeAdmin desde QA 2026-09-27.
+    mockAuth.mockResolvedValue({ userId: USER_ID, sessionClaims: { sub: USER_ID, publicMetadata: { storeId: STORE_ID, storeAdmin: true } } });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: true, storeId: STORE_ID, userId: USER_ID });
     mockLogAudit.mockResolvedValue(undefined);
   });
 

@@ -2,6 +2,14 @@ import { GET, PATCH } from "@/app/api/ventas/[id]/route";
 import { NextRequest, after } from "next/server";
 
 jest.mock("@/lib/auth");
+// Sesión de Clerk: storeAdmin de la tienda (el helper real de admin-check).
+let mockClaims: Record<string, unknown> = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => Promise.resolve({ sessionClaims: mockClaims }) }));
+// usuarioDeshabilitado lo consulta autorizarCanales (PATCH /api/ventas/[id] y
+// POST /api/notas-credito exigen admin desde QA 2026-09-27): usuario habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
+
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   crearAsiento: jest.fn().mockResolvedValue("asiento-id"),
@@ -500,6 +508,56 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
     expect(res.status).toBe(401);
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  // SEC-11 — REGRESIÓN (QA 2026-09-27): con la sesión de un storeWorker el PATCH
+  // anulaba la venta (200) y restituía stock, aunque /sales le está negada.
+  // Regla del negocio: anular es solo storeAdmin/systemAdmin de la tienda.
+  describe("SEC-11: anular exige storeAdmin/systemAdmin", () => {
+    afterEach(() => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+      mockDeshabilitado.mockResolvedValue(false);
+    });
+
+    it("SEC-11: storeWorker → 403 sin llamar a anular_venta_tx", async () => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeWorker: true } };
+      const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-11: sesión sin publicMetadata → 403", async () => {
+      mockClaims = { sub: "user-1" };
+      const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-11: storeAdmin de OTRA tienda → 403", async () => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-2", storeAdmin: true } };
+      const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-11: admin deshabilitado → 403", async () => {
+      mockDeshabilitado.mockResolvedValue(true);
+      const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-11: storeAdmin y systemAdmin de la tienda → 200 y anula", async () => {
+      let res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith("anular_venta_tx", expect.objectContaining({ p_store_id: mockStoreId }));
+
+      mockClaims = { sub: "user-1", publicMetadata: { systemAdmin: true } };
+      mockRpc.mockClear();
+      res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith("anular_venta_tx", expect.anything());
+    });
   });
 
   // I-412: cualquier error del RPC que no sea "no encontrada" ni "ya está

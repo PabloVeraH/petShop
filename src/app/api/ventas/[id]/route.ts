@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { anularVenta } from "@/lib/ventas/anular-venta";
 import { withErrorLogging } from "@/lib/audit";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 export const GET = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
@@ -47,8 +48,12 @@ export const GET = withErrorLogging(async (_req: NextRequest,
 
 export const PATCH = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Anular (única acción del PATCH): solo storeAdmin/systemAdmin de la tienda
+  // (regla del negocio, QA 2026-09-27). Antes bastaba una sesión de la tienda:
+  // un worker anulaba ventas por API aunque la UI (/sales) le está negada.
+  // Mismo helper que /api/canales/** (401 sin sesión, 403 deshabilitado o no admin).
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
 
   const { id } = await params;

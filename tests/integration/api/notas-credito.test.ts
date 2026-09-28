@@ -33,6 +33,14 @@ const mockFrom = jest.fn();
 const mockRpc = jest.fn().mockResolvedValue({ data: null, error: null });
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+// Sesión de Clerk: storeAdmin de la tienda (el helper real de admin-check).
+let mockClaims: Record<string, unknown> = { sub: "user-1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } };
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => Promise.resolve({ sessionClaims: mockClaims }) }));
+// usuarioDeshabilitado lo consulta autorizarCanales (PATCH /api/ventas/[id] y
+// POST /api/notas-credito exigen admin desde QA 2026-09-27): usuario habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
+
 jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
@@ -186,6 +194,52 @@ describe("POST /api/notas-credito", () => {
       p_venta_id: VENTA_ID,
       p_tipo_reembolso: "reembolso_directo",
     }));
+  });
+
+  // SEC-12 — REGRESIÓN (QA 2026-09-27): cualquier usuario de la tienda podía
+  // crear NC por API. Regla del negocio: devoluciones solo storeAdmin/systemAdmin.
+  describe("SEC-12: crear NC exige storeAdmin/systemAdmin", () => {
+    const BODY = {
+      ventaId: VENTA_ID,
+      items: [{ ventaItemId: NC_ID, cantidadDevuelta: 1, restituirStock: true }],
+      tipoReembolso: "saldo_a_favor",
+    };
+    const post = async () => {
+      const { POST } = await import("@/app/api/notas-credito/route");
+      return POST(new NextRequest("http://localhost/api/notas-credito", { method: "POST", body: JSON.stringify(BODY) }));
+    };
+    afterEach(() => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } };
+      mockDeshabilitado.mockResolvedValue(false);
+    });
+
+    it("SEC-12: storeWorker → 403 sin llamar a crear_nota_credito_tx", async () => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeWorker: true } };
+      const res = await post();
+      expect(res.status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-12: storeAdmin de otra tienda o usuario deshabilitado → 403", async () => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "999e4567-e89b-12d3-a456-426614174999", storeAdmin: true } };
+      expect((await post()).status).toBe(403);
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } };
+      mockDeshabilitado.mockResolvedValue(true);
+      expect((await post()).status).toBe(403);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-12: sin sesión → 401", async () => {
+      mockGetStoreId.mockResolvedValueOnce(null);
+      expect((await post()).status).toBe(401);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("SEC-12: storeAdmin de la tienda → 200", async () => {
+      const res = await post();
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith("crear_nota_credito_tx", expect.objectContaining({ p_venta_id: VENTA_ID }));
+    });
   });
 
   it("sin ventaId → 400", async () => {

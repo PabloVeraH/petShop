@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { NotaCreditoPostSchema } from "@/lib/validation";
 import { crearAsiento, lineasNotaCredito, lineasNotaCreditoCOGS } from "@/lib/contabilidad/generador-asientos";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -56,8 +57,12 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 }, { endpoint: "GET /api/notas-credito" });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Devoluciones: solo storeAdmin/systemAdmin de la tienda (regla del
+  // negocio, QA 2026-09-27). Antes bastaba una sesión de la tienda: un worker
+  // podía crear NC por API aunque la UI (/sales) le está negada. Mismo helper
+  // que /api/canales/** (401 sin sesión, 403 deshabilitado o no admin).
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 

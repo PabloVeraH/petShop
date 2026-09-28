@@ -42,6 +42,11 @@ jest.mock("@clerk/nextjs/server", () => ({
   }),
 }));
 
+// usuarioDeshabilitado lo consulta autorizarCanales (PATCH /api/ventas/[id] y
+// POST /api/notas-credito exigen admin desde QA 2026-09-27): usuario habilitado.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
+
 jest.mock("@/lib/whatsapp", () => ({
   sendWhatsAppText:    jest.fn().mockResolvedValue(undefined),
   buildReceiptMessage: jest.fn().mockReturnValue("receipt"),
