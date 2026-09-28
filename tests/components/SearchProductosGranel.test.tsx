@@ -205,3 +205,24 @@ describe("SearchProductos — granel", () => {
     expect(screen.getByText(/Stock máximo alcanzado: 0/)).toBeInTheDocument();
   });
 });
+
+// GR-U-22 — REGRESIÓN (QA 2026-09-27, BUG 8): detalles de la tarjeta granel.
+describe("SearchProductos — granel, maquetación (GR-U-22)", () => {
+  it("GR-U-22: la fila de gramos hace wrap (Cancelar no se sale) y el motivo de merma ocupa su propia fila", async () => {
+    renderSearch();
+    fireEvent.click(await screen.findByText("Vender a granel"));
+    fireEvent.change(screen.getByPlaceholderText("Gramos"), { target: { value: "500" } });
+    expect(screen.getByPlaceholderText("Gramos").parentElement).toHaveClass("flex-wrap");
+    fireEvent.click(screen.getByText("Cancelar"));
+
+    fireEvent.click(await screen.findByText("Registrar merma"));
+    const motivo = screen.getByLabelText("Motivo de la merma");
+    expect(motivo).toHaveClass("w-full");
+    expect(motivo).not.toHaveClass("min-w-0");
+  });
+
+  it("GR-U-22: stock con decimales sin saco abierto muestra el residuo, no '0 sacos + 0 kg' a secas", async () => {
+    renderSearch([{ ...GRANEL, id: "g2", nombre: "Bravery", stock: 0.2, peso_gramos: 7000, saco_abierto_gramos: null }]);
+    expect(await screen.findByText("0 sacos + 0 kg (+0,2 saco sin asignar)")).toBeInTheDocument();
+  });
+});

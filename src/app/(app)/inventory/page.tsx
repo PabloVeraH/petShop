@@ -462,7 +462,7 @@ export default function InventoryPage() {
                       {p.stock}
                       {(p.precio_venta_kg ?? 0) > 0 && (p.peso_gramos ?? 0) > 0 && (() => {
                         const s = estadoSacos(p);
-                        return <span className="block text-[11px] font-normal text-blue-600">{formatoSacos(s.cerrados, s.gramosAbiertos)}</span>;
+                        return <span className="block text-[11px] font-normal text-blue-600" title={s.residuo > 0 ? "Stock con decimales sin saco abierto: corrígelo con Conteo físico" : undefined}>{formatoSacos(s.cerrados, s.gramosAbiertos, s.residuo)}</span>;
                       })()}
                     </TableCell>
                     <TableCell className="text-right text-gray-500">{p.stock_minimo}</TableCell>
@@ -726,7 +726,8 @@ export default function InventoryPage() {
                           {new Date(m.created_at).toLocaleDateString("es-CL")}
                         </td>
                         <td className="py-1.5">
-                          <span className={`text-xs font-medium ${m.tipo === "entrada" ? "text-green-600" : "text-red-500"}`}>
+                          {/* Color por el signo, no por el tipo: un ajuste_conteo positivo no es una salida. */}
+                          <span className={`text-xs font-medium ${m.cantidad > 0 ? "text-green-600" : m.cantidad < 0 ? "text-red-500" : "text-gray-500"}`}>
                             {m.tipo}
                           </span>
                         </td>

@@ -2380,3 +2380,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-70 | REGRESIÓN BUG 5: en "Devoluciones registradas" una NC anulada muestra "Anulada" atenuada (no "Saldo a favor"); usada y activa conservan su etiqueta | SalesTicketPage | component |
 | LQC-09 | REGRESIÓN BUG 6: "Depositado" muestra "—" con montos inválidos (bruto ≤ 0, comisión > bruto o negativa, decimales), nunca un valor negativo; comisión = bruto → $0 | LiquidacionesCanal | component |
 | I-732 | REGRESIÓN BUG 7: PATCH recargo_pct (10.125, -1, 100.01, "10") y PUT precio_override (5990.5, 0, -10, "1000") → 400 con mensaje de negocio en español, no el de zod | /api/canales/config, /api/canales/[canal]/productos | integration |
+| U-213 | REGRESIÓN BUG 8: `estadoSacos` informa `residuo` (stock con decimales sin saco abierto, ej. 0.2) y `formatoSacos` lo muestra "(+0,2 saco sin asignar)"; stock consistente sin residuo | granel | unit |
+| GR-U-22 | REGRESIÓN BUG 8: fila de gramos con flex-wrap (Cancelar no se sale), motivo de merma en fila propia (w-full), residuo visible en la tarjeta | SearchProductos | component |
+| I-733 | REGRESIÓN BUG 8: movimiento de venta sin user_id muestra al vendedor de la venta (buscada con store_id de la sesión); venta de canal sin vendedor y ajustes sin usuario siguen "Sistema" | GET /api/stock-movements | integration |
+| IV-21 | REGRESIÓN BUG 8: en el historial el color del tipo sigue el signo de la cantidad (ajuste_conteo positivo verde, salida roja, 0 gris) | InventoryPage | component |

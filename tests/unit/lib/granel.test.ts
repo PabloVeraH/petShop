@@ -9,7 +9,7 @@ import { estadoSacos, formatoSacos } from "@/lib/granel";
 describe("estadoSacos", () => {
   it("U-164: 9,967 con 14 500 g abiertos de un saco de 15 000 g → 9 cerrados", () => {
     expect(estadoSacos({ stock: 9.967, peso_gramos: 15000, saco_abierto_gramos: 14500 }))
-      .toEqual({ peso: 15000, gramosAbiertos: 14500, cerrados: 9 });
+      .toEqual({ peso: 15000, gramosAbiertos: 14500, cerrados: 9, residuo: 0 });
   });
 
   it.each([
@@ -33,5 +33,23 @@ describe("formatoSacos", () => {
     expect(formatoSacos(9, 14500)).toBe("9 sacos + 14,5 kg");
     expect(formatoSacos(1, 0)).toBe("1 saco + 0 kg");
     expect(formatoSacos(0, 250)).toBe("0 sacos + 0,25 kg");
+  });
+});
+
+// U-213 — REGRESIÓN (QA 2026-09-27, BUG 8): BRV-003 (stock 0.2, peso 7000 g,
+// sin saco abierto) se mostraba "0 sacos + 0 kg": la fracción heredada de S9
+// no es ni saco cerrado ni gramos abiertos. Ahora se informa como residuo.
+describe("residuo de stock (U-213)", () => {
+  it("U-213: stock 0.2 sin saco abierto → 0 cerrados, residuo 0.2 y aviso en el texto", () => {
+    const s = estadoSacos({ stock: 0.2, peso_gramos: 7000, saco_abierto_gramos: null });
+    expect(s).toEqual({ peso: 7000, gramosAbiertos: 0, cerrados: 0, residuo: 0.2 });
+    expect(formatoSacos(s.cerrados, s.gramosAbiertos, s.residuo)).toBe("0 sacos + 0 kg (+0,2 saco sin asignar)");
+  });
+
+  it("U-213: stock consistente no tiene residuo y el texto no cambia", () => {
+    const s = estadoSacos({ stock: 9.967, peso_gramos: 15000, saco_abierto_gramos: 14500 });
+    expect(s.residuo).toBe(0);
+    expect(formatoSacos(s.cerrados, s.gramosAbiertos, s.residuo)).toBe("9 sacos + 14,5 kg");
+    expect(estadoSacos({ stock: 10, peso_gramos: 15000, saco_abierto_gramos: null }).residuo).toBe(0);
   });
 });

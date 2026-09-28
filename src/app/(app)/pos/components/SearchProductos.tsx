@@ -379,7 +379,7 @@ export default function SearchProductos() {
                         )}
                       </div>
                       <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                        {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos) : `Stock: ${prod.stock}`}
+                        {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos, sacos.residuo) : `Stock: ${prod.stock}`}
                       </Badge>
                     </div>
                     {tieneGranel && (
@@ -461,7 +461,8 @@ export default function SearchProductos() {
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    // flex-wrap: con el total "= $X" el botón Cancelar se salía de la tarjeta.
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <input
                         type="number"
                         min={1}
@@ -506,7 +507,8 @@ export default function SearchProductos() {
                         aria-label="Motivo de la merma"
                         value={mermaMotivo}
                         onChange={(e) => setMermaMotivo(e.target.value)}
-                        className="flex-1 min-w-0 text-sm border border-gray-300 rounded px-2 py-1"
+                        // Fila propia: con flex-1 + min-w-0 se encogía y cortaba el placeholder.
+                        className="w-full text-sm border border-gray-300 rounded px-2 py-1"
                       />
                       <button
                         type="button"

@@ -280,6 +280,42 @@ describe("GET /api/stock-movements", () => {
     expect(data[0].notas).not.toMatch(/^Venta [0-9a-f]{8}-[0-9a-f]{4}-/i);
   });
 
+  // I-733 — REGRESIÓN (QA 2026-09-27, BUG 8): la venta por unidad registra el
+  // movimiento sin user_id y el historial mostraba "Sistema". El usuario es el
+  // vendedor de la venta referenciada, buscada SOLO en la tienda del usuario.
+  it("I-733: movimiento de venta sin user_id muestra al vendedor; venta sin vendedor (canal) sigue 'Sistema'", async () => {
+    const prodChain = buildProdChain();
+    const movChain = buildMovChain([
+      { id: "m-pos", tipo: "salida", cantidad: -1, notas: "Venta", created_at: "2026-09-27T10:00:00Z", user_id: null, referencia_id: "venta-pos" },
+      { id: "m-canal", tipo: "salida", cantidad: -1, notas: "Venta", created_at: "2026-09-27T09:00:00Z", user_id: null, referencia_id: "venta-canal" },
+      { id: "m-conteo", tipo: "ajuste_conteo", cantidad: 2, notas: "Conteo", created_at: "2026-09-27T08:00:00Z", user_id: null, referencia_id: null },
+    ]);
+    const ventasChain: any = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis() };
+    ventasChain.then = (resolve: any) => resolve({
+      data: [{ id: "venta-pos", worker_clerk_id: "user_vendedor" }, { id: "venta-canal", worker_clerk_id: null }],
+      error: null,
+    });
+    const usersChain: any = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis() };
+    usersChain.then = (resolve: any) => resolve({ data: [{ clerk_id: "user_vendedor", nombre: "Ana Caja", email: "ana@x.cl" }], error: null });
+    makeClient(jest.fn((table: string) => {
+      if (table === "productos") return prodChain;
+      if (table === "stock_movements") return movChain;
+      if (table === "ventas") return ventasChain;
+      if (table === "clerk_users") return usersChain;
+    }));
+
+    const res = await GET(new NextRequest(`http://localhost/api/stock-movements?productoId=${mockProductId}`));
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.find((m: any) => m.id === "m-pos").user_name).toBe("Ana Caja");
+    expect(data.find((m: any) => m.id === "m-canal").user_name).toBe("Sistema");
+    expect(data.find((m: any) => m.id === "m-conteo").user_name).toBe("Sistema");
+    // Tenant: la venta se busca filtrada por la tienda de la sesión.
+    expect(ventasChain.in).toHaveBeenCalledWith("id", ["venta-pos", "venta-canal"]);
+    expect(ventasChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+    expect(data[0]).not.toHaveProperty("referencia_id");
+  });
+
   it("retorna 500 si hay error en Supabase", async () => {
     const prodChain = {
       select: jest.fn().mockReturnThis(),

@@ -15,11 +15,17 @@ export function estadoSacos(prod: ProductoGranel) {
   const gramosAbiertos = Number(prod.saco_abierto_gramos ?? 0);
   const fraccion = peso > 0 ? Math.round((gramosAbiertos / peso) * 1000) / 1000 : 0;
   const cerrados = Math.max(0, Math.floor(Number(prod.stock) - fraccion + 1e-9));
-  return { peso, gramosAbiertos, cerrados };
+  // Stock que no es saco cerrado ni gramos del saco abierto: decimal heredado
+  // de S9 (ej. stock 0.2 sin saco abierto). Se corrige con conteo físico (D22);
+  // sin mostrarlo, el producto aparecía como "0 sacos + 0 kg".
+  const residuo = Math.max(0, Math.round((Number(prod.stock) - cerrados - fraccion) * 1000) / 1000);
+  return { peso, gramosAbiertos, cerrados, residuo };
 }
 
-// "9 sacos + 14,5 kg" (G11).
-export function formatoSacos(cerrados: number, gramosAbiertos: number): string {
+// "9 sacos + 14,5 kg" (G11). Con residuo: "0 sacos + 0 kg (+0,2 saco sin asignar)".
+export function formatoSacos(cerrados: number, gramosAbiertos: number, residuo = 0): string {
   const kg = (gramosAbiertos / 1000).toLocaleString("es-CL", { maximumFractionDigits: 3 });
-  return `${cerrados} saco${cerrados !== 1 ? "s" : ""} + ${kg} kg`;
+  const base = `${cerrados} saco${cerrados !== 1 ? "s" : ""} + ${kg} kg`;
+  if (!(residuo > 0)) return base;
+  return `${base} (+${residuo.toLocaleString("es-CL", { maximumFractionDigits: 3 })} saco sin asignar)`;
 }

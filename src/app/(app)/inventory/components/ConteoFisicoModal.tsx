@@ -90,7 +90,7 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4">
         <h3 className="text-base font-semibold text-gray-800 mb-1">Conteo físico</h3>
         <p className="text-sm text-gray-500 mb-4">
-          {producto.nombre} — stock en sistema: {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos) : producto.stock}
+          {producto.nombre} — stock en sistema: {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos, sacos.residuo) : producto.stock}
         </p>
 
         {isLoading && <p className="text-sm text-gray-400">Cargando lotes...</p>}

@@ -1119,3 +1119,32 @@ describe("InventoryPage — errores de la API (IV-20)", () => {
     expect(screen.queryByText("Sin productos")).not.toBeInTheDocument();
   });
 });
+
+// IV-21 — REGRESIÓN (QA 2026-09-27, BUG 8): "ajuste_conteo" salía en rojo aun
+// con cantidad positiva (el color dependía solo de tipo === "entrada").
+describe("InventoryPage — historial de movimientos (IV-21)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+  });
+
+  it("IV-21: el color del tipo sigue el signo de la cantidad (+ verde, − rojo, 0 gris)", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL) => {
+      const u = url.toString();
+      if (u.includes("/api/stock-movements")) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([
+          { id: "m1", tipo: "ajuste_conteo", cantidad: 2, notas: "Conteo", created_at: "2026-09-27T10:00:00Z", user_id: null, user_name: "Sistema" },
+          { id: "m2", tipo: "salida", cantidad: -1, notas: "Venta", created_at: "2026-09-27T09:00:00Z", user_id: null, user_name: "Ana" },
+          { id: "m3", tipo: "apertura_saco", cantidad: 0, notas: "Apertura", created_at: "2026-09-27T08:00:00Z", user_id: null, user_name: "Ana" },
+        ]) } as Response);
+      }
+      if (u.includes("/api/inventario")) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([PRODUCTO]) } as Response);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) } as Response);
+    });
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByText("Historial"));
+    expect(await screen.findByText("ajuste_conteo")).toHaveClass("text-green-600");
+    expect(screen.getByText("salida")).toHaveClass("text-red-500");
+    expect(screen.getByText("apertura_saco")).toHaveClass("text-gray-500");
+  });
+});
