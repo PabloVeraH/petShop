@@ -373,19 +373,25 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="bg-white rounded-lg shadow-sm p-4 print:hidden space-y-3">
           <h3 className="font-bold text-sm">Devoluciones registradas</h3>
           <div className="space-y-2">
-            {notasCredito.data.map((nc: any) => (
-              <div key={nc.id} className="border rounded-lg p-3 bg-gray-50">
+            {notasCredito.data.map((nc: any) => {
+              // Una NC anulada (al anular la venta) ya no vale como saldo ni
+              // reembolso: la etiqueta refleja el estado, no el tipo.
+              const anulada = nc.estado === "anulada";
+              return (
+              <div key={nc.id} className={`border rounded-lg p-3 bg-gray-50 ${anulada ? "opacity-60" : ""}`}>
                 <div className="flex justify-between items-start gap-2 mb-1">
                   <p className="font-mono text-xs text-gray-600">{nc.numero_nc}</p>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    nc.tipo_reembolso === "saldo_a_favor"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-green-100 text-green-700"
+                    anulada
+                      ? "bg-gray-200 text-gray-600"
+                      : nc.tipo_reembolso === "saldo_a_favor"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-green-100 text-green-700"
                   }`}>
-                    {nc.tipo_reembolso === "saldo_a_favor" ? "Saldo a favor" : "Reembolso directo"}
+                    {anulada ? "Anulada" : nc.tipo_reembolso === "saldo_a_favor" ? "Saldo a favor" : "Reembolso directo"}
                   </span>
                 </div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className={`text-sm font-medium text-gray-700 ${anulada ? "line-through" : ""}`}>
                   ${Math.round(Number(nc.monto_total)).toLocaleString("es-CL")}
                 </p>
                 {nc.motivo && (
@@ -395,7 +401,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                   {new Date(nc.created_at).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

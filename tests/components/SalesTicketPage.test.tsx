@@ -669,3 +669,30 @@ describe("SalesTicketPage — errores de la API (C-69)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Venta no encontrada.");
   });
 });
+
+// C-70 — REGRESIÓN (QA 2026-09-27, BUG 5): una NC anulada (al anular la venta)
+// seguía con la etiqueta "Saldo a favor". Una NC usada sí la conserva.
+describe("SalesTicketPage — estado de las devoluciones (C-70)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("C-70: NC anulada muestra 'Anulada' atenuada; usada y activa siguen como 'Saldo a favor'", async () => {
+    mockFetch(
+      { ...VENTA_BASE, estado: "anulada", items: [makeItem("i1", "Producto", 3, 5000)] },
+      [
+        { ...makeNc("nc-a", "i1", 1), estado: "anulada" },
+        { ...makeNc("nc-u", "i1", 1), estado: "usada" },
+        { ...makeNc("nc-v", "i1", 1), estado: "activa" },
+      ]
+    );
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+
+    const tarjeta = (numero: string) => screen.getByText(numero).closest("div.border") as HTMLElement;
+    await waitFor(() => expect(screen.getByText("NC-TEST-nc-a")).toBeInTheDocument());
+    expect(tarjeta("NC-TEST-nc-a")).toHaveTextContent("Anulada");
+    expect(tarjeta("NC-TEST-nc-a")).not.toHaveTextContent("Saldo a favor");
+    expect(tarjeta("NC-TEST-nc-a")).toHaveClass("opacity-60");
+    expect(tarjeta("NC-TEST-nc-u")).toHaveTextContent("Saldo a favor");
+    expect(tarjeta("NC-TEST-nc-v")).toHaveTextContent("Saldo a favor");
+    expect(tarjeta("NC-TEST-nc-v")).not.toHaveClass("opacity-60");
+  });
+});

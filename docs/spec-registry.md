@@ -2377,3 +2377,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | U-212 | BUG 4: `LiquidacionCanalSchema` rechaza de forma aislada fechas invertidas (path periodo_hasta) y comisión > bruto (path comision); comisión = bruto y período de un día válidos | LiquidacionCanalSchema | unit |
 | LQC-07 | REGRESIÓN BUG 4: formulario vacío → mensaje por cada campo requerido (aria-invalid), sin request | LiquidacionesCanal | component |
 | LQC-08 | REGRESIÓN BUG 4: período invertido → mensaje en «Período hasta» y sin request; al corregir se envía | LiquidacionesCanal | component |
+| C-70 | REGRESIÓN BUG 5: en "Devoluciones registradas" una NC anulada muestra "Anulada" atenuada (no "Saldo a favor"); usada y activa conservan su etiqueta | SalesTicketPage | component |
