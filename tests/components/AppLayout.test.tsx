@@ -211,3 +211,28 @@ describe("AppLayout — prefetch del sidebar solo en hover (AL-05)", () => {
     expect(link.dataset.prefetch).toBe("null");
   });
 });
+
+// AL-06 — REGRESIÓN (QA 2026-09-27, BUG 2): con /api en 429 el layout guardaba
+// { error } como datos de "store-name" y del catálogo precargado del POS (5 min
+// de nombre por defecto y un catálogo que no era una lista).
+describe("AppLayout — errores de la API (AL-06)", () => {
+  const { useAuth } = require("@clerk/nextjs");
+
+  it("AL-06: un 429 no queda en la caché como nombre de tienda ni como catálogo", async () => {
+    (useAuth as jest.Mock).mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeAdmin") } });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ "Retry-After": "60" }),
+      json: async () => ({ error: "Too many requests. Please try again later." }),
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}><AppLayout><div>contenido</div></AppLayout></QueryClientProvider>
+    );
+    await waitFor(() => expect(qc.getQueryState(["store-name"])?.status).toBe("error"));
+    await waitFor(() => expect(qc.getQueryState(["productos", ""])?.status).toBe("error"));
+    expect(qc.getQueryData(["store-name"])).toBeUndefined();
+    expect(qc.getQueryData(["productos", ""])).toBeUndefined();
+  });
+});

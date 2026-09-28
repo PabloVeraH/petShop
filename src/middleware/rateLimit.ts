@@ -6,8 +6,6 @@ interface RateLimitStore {
   [key: string]: { count: number; resetTime: number };
 }
 
-const store: RateLimitStore = {};
-
 export interface RateLimitConfig {
   windowMs: number;      // 900000 = 15 min
   maxRequests: number;   // 100 requests
@@ -26,6 +24,11 @@ const defaultConfig: RateLimitConfig = {
 
 export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
   const finalConfig = { ...defaultConfig, ...config };
+  // Contadores propios de cada limitador. Con un diccionario compartido, la
+  // misma IP sumaba en una sola entrada para todos los limitadores: el tráfico
+  // del navegador agotaba el cupo del webhook de canales y la ventana la fijaba
+  // el primero que creaba la entrada.
+  const store: RateLimitStore = {};
 
   return async (req: NextRequest): Promise<NextResponse | null> => {
     const key = finalConfig.keyGenerator!(req);

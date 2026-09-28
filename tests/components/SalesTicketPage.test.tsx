@@ -636,3 +636,36 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-08)", () => {
   });
 
 });
+
+// C-69 — REGRESIÓN (QA 2026-09-27, BUG 2): un 429 o 5xx al cargar la venta no
+// es "Venta no encontrada"; solo el 404 lo es.
+describe("SalesTicketPage — errores de la API (C-69)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function mockVentaStatus(status: number, body: object, headers: Record<string, string> = {}) {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes("/api/ventas/")) {
+        return Promise.resolve({ ok: false, status, headers: new Headers(headers), json: () => Promise.resolve(body) });
+      }
+      return Promise.resolve({ ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve({ data: [] }) });
+    });
+  }
+
+  it("C-69: 429 muestra 'Demasiadas solicitudes', no 'Venta no encontrada'", async () => {
+    mockVentaStatus(429, { error: "Too many requests. Please try again later." }, { "Retry-After": "120" });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Demasiadas solicitudes. Reintenta en 120 s.");
+    expect(screen.queryByText("Venta no encontrada.")).not.toBeInTheDocument();
+  });
+
+  it("C-69: 500 muestra error del servidor; 404 sigue mostrando 'Venta no encontrada.'", async () => {
+    mockVentaStatus(500, { error: "boom" });
+    const { unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Error del servidor");
+    unmount();
+
+    mockVentaStatus(404, { error: "Venta no encontrada" });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Venta no encontrada.");
+  });
+});

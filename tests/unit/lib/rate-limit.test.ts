@@ -73,3 +73,29 @@ describe("apiGeneralLimit con RATE_LIMIT_API_MAX (U-208)", () => {
     expect(await contarPermitidas(limiter, 101)).toBe(100);
   });
 });
+
+// U-209 — REGRESIÓN (QA 2026-09-27, BUG 2): todos los limitadores compartían
+// un único diccionario por IP; el tráfico del navegador agotaba el cupo del
+// webhook de canales (y la ventana la fijaba el primero que creaba la entrada).
+describe("limitadores independientes (U-209)", () => {
+  it("U-209: agotar el límite general no bloquea el webhook, y viceversa", async () => {
+    jest.resetModules();
+    const { apiGeneralLimit, webhookLimit } = await import("@/middleware/rateLimit");
+
+    expect(await contarPermitidas(apiGeneralLimit, 100)).toBe(100);
+    expect(((await apiGeneralLimit(req())) as Response).status).toBe(429);
+    expect(await webhookLimit(req())).toBeNull();
+
+    expect(await contarPermitidas(webhookLimit, 49)).toBe(49);
+    expect(((await webhookLimit(req())) as Response).status).toBe(429);
+  });
+
+  it("U-209: dos limitadores creados con createRateLimit no comparten contador", async () => {
+    const { createRateLimit } = await import("@/middleware/rateLimit");
+    const a = createRateLimit({ windowMs: 60_000, maxRequests: 1 });
+    const b = createRateLimit({ windowMs: 60_000, maxRequests: 1 });
+    expect(await a(req())).toBeNull();
+    expect(await b(req())).toBeNull();
+    expect(((await a(req())) as Response).status).toBe(429);
+  });
+});

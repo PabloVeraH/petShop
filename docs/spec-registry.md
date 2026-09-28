@@ -2360,3 +2360,13 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | CNP-03 | Config no-lista o falla de red → todos sin configurar, sin romper | CanalesPage (/canales) | component |
 | PPD-01 | /pos/pedidos pasa el canal (solo string) y enlaza al POS | pos/pedidos/page | component |
 | PPD-02 | Rutas antiguas /canales/*/ordenes redirigen a /pos/pedidos?canal= | canales/*/ordenes/page | component |
+
+## Correcciones de la sesión de QA manual (2026-09-27)
+
+| ID | Descripción | Ruta / dónde | Tipo |
+|----|-------------|--------------|------|
+| U-209 | REGRESIÓN BUG 2: cada limitador tiene su propio contador; agotar el general no bloquea el webhook de canales y viceversa | rateLimit | unit |
+| U-210 | `fetchJson`: 429 → ApiError con Retry-After y "Demasiadas solicitudes…"; 5xx sin mensaje interno; 4xx con mensaje de negocio; `reintentarQuery` no reintenta 429/4xx | api-client | unit |
+| IV-20 | REGRESIÓN BUG 2: 429 en /api/inventario muestra "Demasiadas solicitudes. Reintenta en N s." y no "Sin productos" | InventoryPage | component |
+| C-69 | REGRESIÓN BUG 2: 429/500 al cargar la venta muestran su mensaje; solo el 404 es "Venta no encontrada." | SalesTicketPage | component |
+| AL-06 | REGRESIÓN BUG 2: un 429 no queda en caché como nombre de tienda ni como catálogo precargado del POS | AppLayout | component |

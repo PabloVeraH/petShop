@@ -23,6 +23,7 @@ import { CategoriasTab } from "./components/CategoriasTab";
 import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientosTab";
 import { ProductoImagenesField } from "./components/ProductoImagenesField";
 import { ProductoCreateSchema } from "@/lib/validation";
+import { fetchJson } from "@/lib/api-client";
 
 type Producto = {
   id: string;
@@ -106,9 +107,7 @@ async function getInventario(search: string, soloAlertas: boolean, soloVencimien
   const params = new URLSearchParams({ search });
   if (soloAlertas) params.set("alertas", "1");
   if (soloVencimientos) params.set("vencimiento", "1");
-  const res = await fetch(`/api/inventario?${params}`);
-  if (!res.ok) throw new Error("Error al cargar inventario");
-  return res.json();
+  return fetchJson<Producto[]>(`/api/inventario?${params}`);
 }
 
 type VencimientoStatus = 'sin-fecha' | 'vigente' | 'proximo' | 'vencido';
@@ -161,7 +160,7 @@ export default function InventoryPage() {
   const [soloDecimales, setSoloDecimales] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error: inventarioError } = useQuery({
     queryKey: ["inventario", search, soloAlertas, soloVencimientos],
     queryFn: () => getInventario(search, soloAlertas, soloVencimientos),
   });
@@ -174,7 +173,7 @@ export default function InventoryPage() {
 
   const { data: movimientos, isLoading: loadingMovimientos } = useQuery<StockMovement[]>({
     queryKey: ["stock-movements", historial?.id],
-    queryFn: () => fetch(`/api/stock-movements?productoId=${historial!.id}`).then((r) => r.json()),
+    queryFn: () => fetchJson<StockMovement[]>(`/api/stock-movements?productoId=${historial!.id}`),
     enabled: !!historial,
   });
 
@@ -422,7 +421,11 @@ export default function InventoryPage() {
 
       <div className="flex-1 overflow-auto rounded-lg bg-white shadow-sm">
         {isLoading && <p className="text-sm text-gray-400 p-4 text-center">Cargando...</p>}
-        {isError && <p className="text-sm text-red-500 p-4 text-center">Error al cargar inventario.</p>}
+        {isError && (
+          <p role="alert" className="text-sm text-red-500 p-4 text-center">
+            Error al cargar inventario. {inventarioError?.message}
+          </p>
+        )}
         {!isLoading && !isError && productos.length === 0 && (
           <p className="text-sm text-gray-400 p-4 text-center">
             {soloDecimales ? "Sin productos con stock decimal" : soloAlertas ? "Sin productos en alerta" : soloVencimientos ? "Sin productos con vencimiento" : "Sin productos"}

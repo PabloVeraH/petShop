@@ -1096,3 +1096,26 @@ describe("InventoryPage — granel", () => {
     expect(screen.queryByRole("button", { name: "Deshacer apertura" })).not.toBeInTheDocument();
   });
 });
+
+// IV-20 — REGRESIÓN (QA 2026-09-27, BUG 2): con /api en 429 la pantalla debe
+// decir que hay demasiadas solicitudes, no "Sin productos".
+describe("InventoryPage — errores de la API (IV-20)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+  });
+
+  it("IV-20: 429 muestra 'Demasiadas solicitudes' con el tiempo de espera y no 'Sin productos'", async () => {
+    (global.fetch as jest.Mock).mockImplementation(() =>
+      Promise.resolve({
+        ok: false,
+        status: 429,
+        headers: new Headers({ "Retry-After": "300" }),
+        json: () => Promise.resolve({ error: "Too many requests. Please try again later." }),
+      } as unknown as Response)
+    );
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Demasiadas solicitudes. Reintenta en 300 s.");
+    expect(screen.queryByText("Sin productos")).not.toBeInTheDocument();
+  });
+});

@@ -6,6 +6,7 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LicenseProvider } from "@/components/LicenseProvider";
 import HoverPrefetchLink from "@/components/ui/HoverPrefetchLink";
+import { fetchJson } from "@/lib/api-client";
 
 const navItems = [
   { href: "/pos", label: "POS", roles: ["storeWorker", "storeAdmin", "systemAdmin"] },
@@ -34,7 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Fallback al DB cuando el JWT no trae rol (ej: usuario recién onboarding sin re-login)
   const { data: dbMeta } = useQuery<Record<string, boolean>>({
     queryKey: ["user-me"],
-    queryFn: () => fetch("/api/me").then((r) => r.json()),
+    queryFn: () => fetchJson<Record<string, boolean>>("/api/me"),
     enabled: !jwtHasRole,
     staleTime: 60_000,
   });
@@ -44,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: storeData } = useQuery<{ name: string }>({
     queryKey: ["store-name"],
-    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    queryFn: () => fetchJson<{ name: string }>("/api/settings"),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -54,7 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     queryClient.prefetchQuery({
       queryKey: ["productos", ""],
-      queryFn: () => fetch("/api/productos?search=").then((r) => r.json()),
+      queryFn: () => fetchJson("/api/productos?search="),
       staleTime: 30_000,
     });
   }, [queryClient]);

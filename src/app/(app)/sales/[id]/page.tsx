@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
+import { ApiError, fetchJson } from "@/lib/api-client";
 
 type VentaDetalle = {
   id: string;
@@ -40,9 +41,7 @@ type VentaDetalle = {
 };
 
 async function getVenta(id: string): Promise<VentaDetalle> {
-  const res = await fetch(`/api/ventas/${id}`);
-  if (!res.ok) throw new Error("Venta no encontrada");
-  return res.json();
+  return fetchJson<VentaDetalle>(`/api/ventas/${id}`);
 }
 
 export default function TicketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,14 +54,14 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error: ventaError } = useQuery({
     queryKey: ["venta", id],
     queryFn: () => getVenta(id),
   });
 
   const { data: storeData } = useQuery<{ name: string }>({
     queryKey: ["store-name"],
-    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    queryFn: () => fetchJson<{ name: string }>("/api/settings"),
     staleTime: 5 * 60 * 1000,
   });
   const storeName = storeData?.name ?? "PetShop";
@@ -156,7 +155,15 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   }, [autoPrint, data]);
 
   if (isLoading) return <p className="p-8 text-gray-400 text-sm">Cargando...</p>;
-  if (isError || !data) return <p className="p-8 text-red-500 text-sm">Venta no encontrada.</p>;
+  // Solo un 404 es "no encontrada"; un 429 o un 5xx muestra su propio mensaje.
+  if (isError || !data) {
+    const noEncontrada = !isError || (ventaError instanceof ApiError && ventaError.status === 404);
+    return (
+      <p role="alert" className="p-8 text-red-500 text-sm">
+        {noEncontrada ? "Venta no encontrada." : `No se pudo cargar la venta. ${ventaError?.message ?? ""}`}
+      </p>
+    );
+  }
 
   const cliente = data.clientes as unknown as { id: string; nombre: string; rut: string; telefono?: string } | null;
   const vendedor = data.worker as unknown as { nombre: string | null; email: string } | null;
