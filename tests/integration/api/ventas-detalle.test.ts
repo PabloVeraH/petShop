@@ -589,10 +589,14 @@ describe("SEC-14: GET /api/ventas/[id] — alcance del worker", () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { id: "venta-1", estado: "completada", total: 1000, ...venta }, error: null }),
     };
+    let columnas = "";
     const vendedor = {
-      select: jest.fn().mockReturnThis(),
+      select: jest.fn((cols: string) => { columnas = cols; return vendedor; }),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: { nombre: "X", email: "x@x.cl" }, error: null }),
+      single: jest.fn(async () => ({
+        data: columnas.includes("email") ? { nombre: "Ana Admin", email: "ana@x.cl" } : { nombre: "Ana Admin" },
+        error: null,
+      })),
     };
     const lista = {
       select: jest.fn().mockReturnThis(),
@@ -639,6 +643,20 @@ describe("SEC-14: GET /api/ventas/[id] — alcance del worker", () => {
     mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
     montar({ created_at: ANTIGUA, worker_clerk_id: "otro-vendedor" });
     expect((await get()).status).toBe(200);
+  });
+
+  // SEC-15 — QA 2026-09-27: el worker leía el email del vendedor. Solo el
+  // nombre (lo que muestra el recibo); el admin sigue viendo el email.
+  it("SEC-15: el worker recibe el vendedor sin email; el admin, con email", async () => {
+    montar({ created_at: new Date().toISOString(), worker_clerk_id: "otro-vendedor" });
+    let body = await (await get()).json();
+    expect(body.worker).toEqual({ nombre: "Ana Admin" });
+    expect(JSON.stringify(body)).not.toContain("ana@x.cl");
+
+    mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+    montar({ created_at: new Date().toISOString(), worker_clerk_id: "otro-vendedor" });
+    body = await (await get()).json();
+    expect(body.worker).toEqual({ nombre: "Ana Admin", email: "ana@x.cl" });
   });
 
   it("SEC-14: worker deshabilitado → 403", async () => {

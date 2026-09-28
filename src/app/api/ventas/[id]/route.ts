@@ -42,11 +42,13 @@ export const GET = withErrorLogging(async (_req: NextRequest,
     if (!deHoy && !esSuya) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
   }
 
+  // Vendedor: el worker solo recibe el nombre (lo que muestra el recibo); el
+  // email de otro usuario es dato personal que no necesita (QA 2026-09-27).
   let worker = null;
   if (venta.worker_clerk_id) {
     const { data: workerData } = await supabase
       .from("clerk_users")
-      .select("nombre, email")
+      .select(esAdmin ? "nombre, email" : "nombre")
       .eq("clerk_id", venta.worker_clerk_id)
       .single();
     worker = workerData;

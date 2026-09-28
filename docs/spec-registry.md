@@ -2396,3 +2396,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | LQC-10 | QA 2026-09-27: fecha de depósito anterior a «Período desde» → mensaje en el campo y resumen, sin request | LiquidacionesCanal | component |
 | I-734 | REGRESIÓN (QA 2026-09-27): GET /api/tienda/nombre → SOLO `{ name }` de la tienda de la sesión para cualquier usuario de la tienda; sin sesión 401, deshabilitado 403, error de BD 500 genérico (/api/settings sigue solo admin, SEC-07) | GET /api/tienda/nombre | integration |
 | AL-07 | REGRESIÓN (QA 2026-09-27): el sidebar del worker muestra el nombre de la tienda pidiéndolo a /api/tienda/nombre, sin llamar a /api/settings | AppLayout | component |
+| SEC-15 | QA 2026-09-27: GET /api/ventas/[id] — el worker recibe el vendedor solo con nombre (sin email); el admin, con nombre y email | GET /api/ventas/[id] | integration |
+| C-72 | QA 2026-09-27: el recibo muestra "Atendido por: {nombre}" o "Vendedor" si no hay nombre ni email (nunca undefined) | SalesTicketPage | component |

@@ -725,3 +725,19 @@ describe("SalesTicketPage — worker (C-71)", () => {
   });
 });
 
+// C-72 — QA 2026-09-27: el worker recibe el vendedor sin email (SEC-15). El
+// recibo muestra el nombre y, si no tiene nombre, "Vendedor" (nunca undefined).
+describe("SalesTicketPage — vendedor sin email (C-72)", () => {
+  it("C-72: 'Atendido por' usa el nombre, o 'Vendedor' si no hay nombre ni email", async () => {
+    mockFetch({ ...VENTA_BASE, worker: { nombre: "Ana Caja" }, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const { unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByText("Atendido por: Ana Caja")).toBeInTheDocument();
+    unmount();
+
+    mockFetch({ ...VENTA_BASE, worker: { nombre: null }, items: [makeItem("i1", "Producto", 1, 5000)] });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByText("Atendido por: Vendedor")).toBeInTheDocument();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+});
+

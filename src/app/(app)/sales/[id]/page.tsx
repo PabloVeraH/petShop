@@ -19,7 +19,7 @@ type VentaDetalle = {
   estado: string;
   created_at: string;
   clientes: { id: string; nombre: string; rut: string; telefono?: string } | null;
-  worker: { nombre: string | null; email: string } | null;
+  worker: { nombre: string | null; email?: string } | null;
   items: Array<{
     id: string;
     cantidad: number;
@@ -173,7 +173,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   }
 
   const cliente = data.clientes as unknown as { id: string; nombre: string; rut: string; telefono?: string } | null;
-  const vendedor = data.worker as unknown as { nombre: string | null; email: string } | null;
+  const vendedor = data.worker as unknown as { nombre: string | null; email?: string } | null;
   const fecha = new Date(data.created_at).toLocaleString("es-CL", { dateStyle: "long", timeStyle: "short" });
 
   // Subtotal (sin IVA) del monto efectivamente cobrado — NO netoDesdeBruto(data.subtotal),
@@ -304,7 +304,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
         {vendedor && (
-          <p className="text-xs text-gray-400">Atendido por: {vendedor.nombre ?? vendedor.email}</p>
+          <p className="text-xs text-gray-400">Atendido por: {vendedor.nombre ?? vendedor.email ?? "Vendedor"}</p>
         )}
 
         <div className="space-y-1">
