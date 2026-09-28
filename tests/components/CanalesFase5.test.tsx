@@ -194,6 +194,30 @@ describe("LiquidacionesCanal", () => {
     expect(mutaciones()).toHaveLength(1);
   });
 
+  // LQC-09 — REGRESIÓN (QA 2026-09-27, BUG 6): con ventas -100 y comisión 1500
+  // mostraba "Depositado: $-1.600".
+  it.each([
+    ["-100", "1500"],
+    ["1000", "1500"],
+    ["1000", "-5"],
+    ["100.5", "10"],
+  ])("LQC-09: ventas %s y comisión %s → Depositado '—', nunca negativo", async (monto_bruto, comision) => {
+    responder({ ok: true, body: [] });
+    render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);
+    await screen.findByText("Sin liquidaciones registradas");
+    llenar({ monto_bruto, comision });
+    expect(screen.getByText(/Depositado:/)).toHaveTextContent("Depositado: —");
+    expect(screen.queryByText(/$-/)).not.toBeInTheDocument();
+  });
+
+  it("LQC-09: montos válidos siguen mostrando la vista previa (comisión = bruto → $0)", async () => {
+    responder({ ok: true, body: [] });
+    render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);
+    await screen.findByText("Sin liquidaciones registradas");
+    llenar({ monto_bruto: "5000", comision: "5000" });
+    expect(screen.getByText(/Depositado:/)).toHaveTextContent("Depositado: $0");
+  });
+
   it("LQC-05: error de la API (ej. período cerrado) visible", async () => {
     responder({ ok: true, body: [] }, { ok: false, status: 409, body: { error: "El período 2026-09 ya está cerrado." } });
     render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);

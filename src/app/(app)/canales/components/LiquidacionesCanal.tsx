@@ -77,7 +77,13 @@ export default function LiquidacionesCanal({ canalId, nombre }: { canalId: strin
 
   const bruto = Number(form.monto_bruto);
   const comision = Number(form.comision);
-  const netoPrevio = form.monto_bruto !== "" && form.comision !== "" ? bruto - comision : null;
+  // Vista previa del depósito solo con montos válidos (enteros, bruto > 0 y
+  // comisión entre 0 y el bruto): nunca un depositado negativo.
+  const montosValidos =
+    form.monto_bruto !== "" && form.comision !== "" &&
+    Number.isInteger(bruto) && bruto > 0 &&
+    Number.isInteger(comision) && comision >= 0 && comision <= bruto;
+  const netoPrevio = montosValidos ? bruto - comision : null;
 
   async function registrar(e: React.FormEvent) {
     e.preventDefault();

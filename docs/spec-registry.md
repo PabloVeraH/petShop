@@ -2378,3 +2378,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | LQC-07 | REGRESIÓN BUG 4: formulario vacío → mensaje por cada campo requerido (aria-invalid), sin request | LiquidacionesCanal | component |
 | LQC-08 | REGRESIÓN BUG 4: período invertido → mensaje en «Período hasta» y sin request; al corregir se envía | LiquidacionesCanal | component |
 | C-70 | REGRESIÓN BUG 5: en "Devoluciones registradas" una NC anulada muestra "Anulada" atenuada (no "Saldo a favor"); usada y activa conservan su etiqueta | SalesTicketPage | component |
+| LQC-09 | REGRESIÓN BUG 6: "Depositado" muestra "—" con montos inválidos (bruto ≤ 0, comisión > bruto o negativa, decimales), nunca un valor negativo; comisión = bruto → $0 | LiquidacionesCanal | component |
