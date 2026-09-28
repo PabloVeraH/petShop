@@ -7,11 +7,14 @@ import { sendBoletaEmail } from "@/lib/email";
 import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { crearAsiento, lineasVentaCanal, lineasVentaConNc, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Listado de ventas de la tienda: solo storeAdmin/systemAdmin (QA 2026-09-27). El worker no
+  // lo usa en ninguna pantalla y exponía datos que la UI le oculta.
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 

@@ -1,12 +1,14 @@
-import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { withErrorLogging } from "@/lib/audit";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Listado de inventario (incluye costo): solo storeAdmin/systemAdmin (QA 2026-09-27). El worker no
+  // lo usa en ninguna pantalla y exponía datos que la UI le oculta.
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 

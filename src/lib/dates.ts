@@ -12,3 +12,14 @@ export function parseDateOnlyLocal(isoDate: string): Date {
 export function formatDateOnlyEsCL(isoDate: string): string {
   return parseDateOnlyLocal(isoDate).toLocaleDateString("es-CL");
 }
+// Fecha YYYY-MM-DD de un instante en el huso del negocio (America/Santiago),
+// sin depender del TZ del proceso (Vercel corre en UTC). Mismo criterio que
+// hoyISO() de src/lib/validation/citas.ts.
+export function fechaNegocioISO(instante: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instante);
+}

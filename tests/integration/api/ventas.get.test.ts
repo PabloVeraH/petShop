@@ -7,6 +7,12 @@ const mockFrom = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+// Sesión storeAdmin de la tienda + usuario habilitado: el GET exige admin
+// desde QA 2026-09-27 (autorizarCanales({ soloAdmin: true })).
+let mockClaims: Record<string, unknown> = { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } };
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => Promise.resolve({ sessionClaims: mockClaims }) }));
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
 
 const MOCK_VENTAS = [
   {
@@ -182,3 +188,22 @@ describe("GET /api/ventas", () => {
     expect(body.count).toBe(0);
   });
 });
+
+// SEC-13 — REGRESIÓN (QA 2026-09-27): el worker recibía el listado completo de
+// ventas de la tienda aunque /sales le está negada. Solo admin.
+describe("SEC-13: GET /api/ventas exige storeAdmin/systemAdmin", () => {
+  afterEach(() => {
+    mockClaims = { sub: "u1", publicMetadata: { storeId: STORE_ID, storeAdmin: true } };
+  });
+
+  it("SEC-13: storeWorker → 403 sin consultar ventas", async () => {
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockClaims = { sub: "u1", publicMetadata: { storeId: STORE_ID, storeWorker: true } };
+    mockFrom.mockClear();
+    const { GET } = await import("@/app/api/ventas/route");
+    const res = await GET(new NextRequest("http://localhost/api/ventas"));
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+});
+

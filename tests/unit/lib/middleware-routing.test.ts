@@ -408,3 +408,31 @@ describe("Middleware — crons públicos (MW-32)", () => {
     expect(esPublica("/api/cronometro")).toBe(false);
   });
 });
+
+// ── QA 2026-09-27: el recibo del POS (/sales/{id}?autoPrint=1) ─────────────
+// El worker era redirigido a /acceso-denegado al abrir su recibo. Solo se le
+// permite el detalle /sales/:id; el listado /sales sigue negado.
+import { workerAllowedRoutes } from "@/middleware";
+
+describe("Middleware — rutas del storeWorker (MW-33)", () => {
+  const permitida = (p: string) => workerAllowedRoutes(new NextRequest("http://localhost" + p));
+
+  it("MW-33: el detalle /sales/:id (recibo) está permitido, con o sin query", () => {
+    expect(permitida("/sales/8e377e02-1111-2222-3333-444455556666")).toBe(true);
+    expect(permitida("/sales/8e377e02-1111-2222-3333-444455556666?autoPrint=1")).toBe(true);
+  });
+
+  it("MW-33: el listado /sales y subrutas más profundas siguen negadas", () => {
+    expect(permitida("/sales")).toBe(false);
+    expect(permitida("/sales/abc/editar")).toBe(false);
+    expect(permitida("/inventory")).toBe(false);
+    expect(permitida("/canales/rappi")).toBe(false);
+  });
+
+  it("MW-33: las rutas que ya tenía siguen permitidas", () => {
+    for (const p of ["/pos", "/pos/pedidos", "/customers", "/dashboard", "/acceso-denegado", "/api/productos"]) {
+      expect(permitida(p)).toBe(true);
+    }
+  });
+});
+

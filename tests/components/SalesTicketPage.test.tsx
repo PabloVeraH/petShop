@@ -45,6 +45,10 @@ jest.mock("@/components/sales/DevolucionModal", () => ({
   DevolucionModal: () => null,
 }));
 
+// Sesión de Clerk en el cliente: admin por defecto (Anular/Devolución visibles).
+let mockUserMeta: Record<string, unknown> = { storeAdmin: true };
+jest.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: { publicMetadata: mockUserMeta } }) }));
+
 global.fetch = jest.fn();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -696,3 +700,28 @@ describe("SalesTicketPage — estado de las devoluciones (C-70)", () => {
     expect(tarjeta("NC-TEST-nc-v")).not.toHaveClass("opacity-60");
   });
 });
+
+// C-71 — QA 2026-09-27: el worker abre /sales/{id} solo para imprimir su
+// recibo. Ocultarle Anular/Devolución es conveniencia de UX: el control real
+// es el servidor (SEC-11 / SEC-12 → 403).
+describe("SalesTicketPage — worker (C-71)", () => {
+  afterEach(() => {
+    mockUserMeta = { storeAdmin: true };
+  });
+
+  it("C-71: el worker ve Imprimir pero no Anular venta ni Devolución parcial; el admin sí", async () => {
+    mockUserMeta = { storeWorker: true };
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const { unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByText("Imprimir")).toBeInTheDocument();
+    expect(screen.queryByText("Anular venta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Devolución parcial")).not.toBeInTheDocument();
+    unmount();
+
+    mockUserMeta = { storeAdmin: true };
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    expect(await screen.findByText("Anular venta")).toBeInTheDocument();
+    expect(screen.getByText("Devolución parcial")).toBeInTheDocument();
+  });
+});
+

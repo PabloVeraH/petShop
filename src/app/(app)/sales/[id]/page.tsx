@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
 import { ApiError, fetchJson } from "@/lib/api-client";
@@ -49,6 +50,12 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const searchParams = useSearchParams();
   const autoPrint = searchParams.get("autoPrint") === "1";
   const queryClient = useQueryClient();
+  // El worker llega aquí solo para su recibo (/sales/{id} desde el POS).
+  // Ocultarle Anular/Devolución es conveniencia de UX: el control real es el
+  // servidor (PATCH /api/ventas/[id] y POST /api/notas-credito → 403, SEC-11/12).
+  const { user } = useUser();
+  const meta = user?.publicMetadata as Record<string, unknown> | undefined;
+  const isAdmin = !!(meta?.storeAdmin || meta?.systemAdmin);
   const router = useRouter();
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
@@ -211,7 +218,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
             WhatsApp
           </Button>
         </a>
-        {data.estado !== "anulada" && (
+        {isAdmin && data.estado !== "anulada" && (
           <>
             <Button
               variant="outline"

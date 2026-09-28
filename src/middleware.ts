@@ -57,6 +57,20 @@ export const publicRoutes = createRouteMatcher([
   "/landing",
 ]);
 
+// Rutas de página permitidas a un storeWorker (las /api tienen sus propios
+// guards). /sales/:id es el recibo que abre el POS tras cobrar
+// (/sales/{id}?autoPrint=1): sin él, el recibo del worker terminaba en
+// /acceso-denegado (QA 2026-09-27). El listado /sales sigue negado; qué
+// ventas puede leer lo decide GET /api/ventas/[id].
+export const workerAllowedRoutes = createRouteMatcher([
+  "/pos(.*)",
+  "/customers(.*)",
+  "/dashboard(.*)",
+  "/sales/:id",
+  "/api/(.*)",
+  "/acceso-denegado",
+]);
+
 // Requieren auth pero no deben ser bloqueadas por licencia vencida
 // (el systemAdmin necesita /api/admin/license para re-habilitar usuarios)
 const skipLicenseCheck = createRouteMatcher([
@@ -174,7 +188,6 @@ export default clerkMiddleware(async (auth, req) => {
   // storeWorker puede acceder a /pos, /customers, /dashboard y /acceso-denegado — todo lo demás
   // redirige a la página de acceso denegado. Las rutas /api tienen sus propios guards.
   const isStoreWorker = Boolean(meta?.storeWorker) && !Boolean(meta?.storeAdmin) && !isSystemAdmin;
-  const workerAllowedRoutes = createRouteMatcher(["/pos(.*)", "/customers(.*)", "/dashboard(.*)", "/api/(.*)", "/acceso-denegado"]);
   if (isStoreWorker && !workerAllowedRoutes(req)) {
     const blockedPath = encodeURIComponent(req.nextUrl.pathname);
     return NextResponse.redirect(new URL(`/acceso-denegado?from=${blockedPath}`, req.url));

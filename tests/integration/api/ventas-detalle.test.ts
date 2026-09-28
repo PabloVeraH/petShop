@@ -574,3 +574,77 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     expect(data.error).toContain("Error interno del servidor");
   });
 });
+
+// SEC-14 — QA 2026-09-27: GET /api/ventas/[id] para el worker (recibo del
+// POS). Regla del negocio: ventas de su tienda creadas HOY (en el POS puede
+// elegirse otro vendedor) o, si son antiguas, aquellas en que él es el
+// vendedor. Otra venta → 404 (no confirma que exista). Admin: cualquiera.
+describe("SEC-14: GET /api/ventas/[id] — alcance del worker", () => {
+  const WORKER = "user-worker";
+  const ANTIGUA = "2025-01-15T15:00:00Z";
+
+  function montar(venta: Record<string, unknown>) {
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: "venta-1", estado: "completada", total: 1000, ...venta }, error: null }),
+    };
+    const vendedor = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { nombre: "X", email: "x@x.cl" }, error: null }),
+    };
+    const lista = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? ventaChain : t === "clerk_users" ? vendedor : lista)),
+    });
+    return ventaChain;
+  }
+  const get = () => GET(new NextRequest("http://localhost/api/ventas/venta-1"), { params: Promise.resolve({ id: "venta-1" }) });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: "store-1", userId: WORKER });
+    mockClaims = { sub: WORKER, publicMetadata: { storeId: "store-1", storeWorker: true } };
+  });
+  afterEach(() => {
+    mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+    mockDeshabilitado.mockResolvedValue(false);
+  });
+
+  it("SEC-14: venta de hoy de OTRO vendedor → 200 (recibo del cajero)", async () => {
+    const chain = montar({ created_at: new Date().toISOString(), worker_clerk_id: "otro-vendedor" });
+    expect((await get()).status).toBe(200);
+    expect(chain.eq).toHaveBeenCalledWith("store_id", "store-1");
+  });
+
+  it("SEC-14: venta antigua en que él es el vendedor → 200", async () => {
+    montar({ created_at: ANTIGUA, worker_clerk_id: WORKER });
+    expect((await get()).status).toBe(200);
+  });
+
+  it("SEC-14: venta antigua de otro vendedor (o sin vendedor) → 404 genérico", async () => {
+    montar({ created_at: ANTIGUA, worker_clerk_id: "otro-vendedor" });
+    const res = await get();
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Venta no encontrada" });
+    montar({ created_at: ANTIGUA, worker_clerk_id: null });
+    expect((await get()).status).toBe(404);
+  });
+
+  it("SEC-14: admin lee cualquier venta de su tienda, aunque sea antigua y de otro", async () => {
+    mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+    montar({ created_at: ANTIGUA, worker_clerk_id: "otro-vendedor" });
+    expect((await get()).status).toBe(200);
+  });
+
+  it("SEC-14: worker deshabilitado → 403", async () => {
+    mockDeshabilitado.mockResolvedValue(true);
+    montar({ created_at: new Date().toISOString(), worker_clerk_id: WORKER });
+    expect((await get()).status).toBe(403);
+  });
+});
+

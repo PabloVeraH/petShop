@@ -1,15 +1,28 @@
-import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { anularVenta } from "@/lib/ventas/anular-venta";
 import { withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
+import { auth } from "@clerk/nextjs/server";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
+import { fechaNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Admin: cualquier venta de su tienda. Worker (QA 2026-09-27): solo ventas
+  // de su tienda creadas hoy (recibo del POS recién cobrado; en el POS se
+  // puede elegir otro vendedor) o, si son antiguas, aquellas en que él figura
+  // como vendedor. Otra venta → 404 (no confirma que exista).
+  const ctx = await autorizarCanales({ soloAdmin: false });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
+  const { sessionClaims } = await auth();
+  let esAdmin = true;
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), store_id);
+  } catch {
+    esAdmin = false;
+  }
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -22,6 +35,12 @@ export const GET = withErrorLogging(async (_req: NextRequest,
     .single();
 
   if (error || !venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
+
+  if (!esAdmin) {
+    const deHoy = fechaNegocioISO(new Date(venta.created_at)) === fechaNegocioISO(new Date());
+    const esSuya = venta.worker_clerk_id === ctx.userId;
+    if (!deHoy && !esSuya) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
+  }
 
   let worker = null;
   if (venta.worker_clerk_id) {

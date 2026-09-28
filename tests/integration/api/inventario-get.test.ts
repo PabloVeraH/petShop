@@ -14,6 +14,12 @@ jest.mock("next/server", () => {
 });
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+// Sesión storeAdmin de la tienda + usuario habilitado: el GET exige admin
+// desde QA 2026-09-27 (autorizarCanales({ soloAdmin: true })).
+let mockClaims: Record<string, unknown> = { sub: "u1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => Promise.resolve({ sessionClaims: mockClaims }) }));
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
@@ -371,3 +377,23 @@ describe("GET /api/inventario — saco abierto de granel", () => {
     expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
   });
 });
+
+// SEC-13 — REGRESIÓN (QA 2026-09-27): el worker recibía el costo de cada
+// producto por GET /api/inventario (Inventario le está negado; el POS usa
+// /api/productos, sin costo). Solo admin.
+describe("SEC-13: GET /api/inventario exige storeAdmin/systemAdmin", () => {
+  afterEach(() => {
+    mockClaims = { sub: "u1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+  });
+
+  it("SEC-13: storeWorker → 403 sin consultar productos", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: "store-1", userId: "u1" });
+    mockClaims = { sub: "u1", publicMetadata: { storeId: "store-1", storeWorker: true } };
+    const from = jest.fn();
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from });
+    const res = await GET(new NextRequest("http://localhost/api/inventario?search="));
+    expect(res.status).toBe(403);
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
