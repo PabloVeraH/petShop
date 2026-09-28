@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { apiGeneralLimit, webhookLimit } from "@/middleware/rateLimit";
+import { aplicarRateLimit } from "@/middleware/rateLimit";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
 
@@ -79,13 +79,12 @@ export default clerkMiddleware(async (auth, req) => {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-nonce", nonce);
 
-  // Rate limiting para todas las rutas /api
+  // Rate limiting para todas las rutas /api: webhook de canales con límite
+  // propio por IP; con sesión, por usuario; sin sesión, por IP (ver
+  // aplicarRateLimit).
   if (req.nextUrl.pathname.startsWith("/api")) {
-    // Webhooks de canales: límite propio (50/min por IP). Con el general
-    // (100/15 min) los PING de Rappi (cada 3 min por tienda) más las órdenes
-    // de varias tiendas, que llegan desde las mismas IPs, lo agotarían.
-    const limiter = req.nextUrl.pathname.startsWith("/api/canales/webhook/") ? webhookLimit : apiGeneralLimit;
-    const rateLimitResponse = await limiter(req);
+    const { userId: usuarioLimite } = await auth();
+    const rateLimitResponse = await aplicarRateLimit(req, usuarioLimite);
     if (rateLimitResponse) return rateLimitResponse;
   }
 

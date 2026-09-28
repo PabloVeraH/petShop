@@ -30,8 +30,9 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
   // el primero que creaba la entrada.
   const store: RateLimitStore = {};
 
-  return async (req: NextRequest): Promise<NextResponse | null> => {
-    const key = finalConfig.keyGenerator!(req);
+  // clave: opcional; si no se pasa, se usa keyGenerator (IP).
+  return async (req: NextRequest, clave?: string): Promise<NextResponse | null> => {
+    const key = clave ?? finalConfig.keyGenerator!(req);
     const now = Date.now();
 
     // Limpiar entrada expirada
@@ -51,8 +52,8 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
       logSecurityAlert({
         type: "rate_limit_exceeded",
         severity: "MEDIUM",
-        message: `Rate limit exceeded for IP ${key}: ${store[key].count} requests`,
-        metadata: { ip: key, count: store[key].count, limit: finalConfig.maxRequests },
+        message: `Rate limit exceeded for ${key}: ${store[key].count} requests`,
+        metadata: { clave: key, count: store[key].count, limit: finalConfig.maxRequests },
       });
 
       return NextResponse.json(
@@ -81,11 +82,19 @@ export function maxRequestsDesdeEnv(valor: string | undefined, porDefecto: numbe
 }
 
 // Rate limiters específicos por endpoint
-// RATE_LIMIT_API_MAX permite subirlo en local: sin x-forwarded-for todas las
-// requests caen en la clave "unknown" y 100 / 15 min se agotan en minutos.
+// Sin sesión: por IP. RATE_LIMIT_API_MAX permite subirlo en local: sin
+// x-forwarded-for todas las requests caen en la clave "unknown".
 export const apiGeneralLimit = createRateLimit({
   windowMs: 900000,  // 15 min
   maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_API_MAX, 100),
+});
+
+// Con sesión de Clerk: por usuario. Por IP, toda una tienda (varias cajas
+// detrás de la misma IP pública) compartía 100 req / 15 min, y solo el polling
+// de pedidos de canales de un POS consume 45–90 en esa ventana.
+export const apiUsuarioLimit = createRateLimit({
+  windowMs: 300000,  // 5 min
+  maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_USER_MAX, 600),
 });
 
 export const authLimit = createRateLimit({
@@ -102,3 +111,12 @@ export const webhookLimit = createRateLimit({
   windowMs: 60000,
   maxRequests: 50,
 });
+
+// Elige el limitador de una request a /api: el webhook de canales tiene el
+// suyo (por IP, lo llama la plataforma sin sesión); con usuario de Clerk, por
+// usuario; sin sesión, por IP.
+export async function aplicarRateLimit(req: NextRequest, userId: string | null | undefined): Promise<NextResponse | null> {
+  if (req.nextUrl.pathname.startsWith("/api/canales/webhook/")) return webhookLimit(req);
+  if (userId) return apiUsuarioLimit(req, `user:${userId}`);
+  return apiGeneralLimit(req);
+}

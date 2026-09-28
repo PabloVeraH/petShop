@@ -99,3 +99,48 @@ describe("limitadores independientes (U-209)", () => {
     expect(((await a(req())) as Response).status).toBe(429);
   });
 });
+
+// U-214 — REGRESIÓN (QA 2026-09-27): con 100 req / 15 min por IP, una tienda
+// (varias cajas detrás de una IP) y el polling de pedidos del POS (cada 10–20 s)
+// agotaban el límite. Con sesión el límite es por usuario (600 / 5 min).
+describe("aplicarRateLimit — por usuario con sesión (U-214)", () => {
+  const reqA = (path = "/api/canales/orders?estado=accepted") => new NextRequest(`http://localhost${path}`);
+
+  beforeEach(() => jest.resetModules());
+
+  it("U-214: con sesión permite 600 requests por usuario y bloquea la 601 con 429", async () => {
+    delete process.env.RATE_LIMIT_USER_MAX;
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+    let permitidas = 0;
+    for (let i = 0; i < 600; i++) if ((await aplicarRateLimit(reqA(), "user_a")) === null) permitidas++;
+    expect(permitidas).toBe(600);
+    expect(((await aplicarRateLimit(reqA(), "user_a")) as Response).status).toBe(429);
+  });
+
+  it("U-214: dos usuarios detrás de la misma IP no comparten cupo; el tráfico con sesión no gasta el cupo por IP", async () => {
+    process.env.RATE_LIMIT_USER_MAX = "5";
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+    for (let i = 0; i < 5; i++) await aplicarRateLimit(reqA(), "user_a");
+    expect(((await aplicarRateLimit(reqA(), "user_a")) as Response).status).toBe(429);
+    expect(await aplicarRateLimit(reqA(), "user_b")).toBeNull();
+    // Sin sesión (misma IP "unknown"): contador por IP intacto.
+    expect(await aplicarRateLimit(reqA(), null)).toBeNull();
+    delete process.env.RATE_LIMIT_USER_MAX;
+  });
+
+  it("U-214: sin sesión sigue el límite por IP (100 / 15 min)", async () => {
+    delete process.env.RATE_LIMIT_API_MAX;
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+    for (let i = 0; i < 100; i++) await aplicarRateLimit(reqA(), undefined);
+    expect(((await aplicarRateLimit(reqA(), undefined)) as Response).status).toBe(429);
+  });
+
+  it("U-214: el webhook de canales usa su propio límite aunque traiga usuario y aunque el general esté agotado", async () => {
+    process.env.RATE_LIMIT_USER_MAX = "1";
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+    await aplicarRateLimit(reqA(), "user_a");
+    expect(((await aplicarRateLimit(reqA(), "user_a")) as Response).status).toBe(429);
+    expect(await aplicarRateLimit(reqA("/api/canales/webhook/rappi"), "user_a")).toBeNull();
+    delete process.env.RATE_LIMIT_USER_MAX;
+  });
+});

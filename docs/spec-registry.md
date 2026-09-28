@@ -2384,3 +2384,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | GR-U-22 | REGRESIÓN BUG 8: fila de gramos con flex-wrap (Cancelar no se sale), motivo de merma en fila propia (w-full), residuo visible en la tarjeta | SearchProductos | component |
 | I-733 | REGRESIÓN BUG 8: movimiento de venta sin user_id muestra al vendedor de la venta (buscada con store_id de la sesión); venta de canal sin vendedor y ajustes sin usuario siguen "Sistema" | GET /api/stock-movements | integration |
 | IV-21 | REGRESIÓN BUG 8: en el historial el color del tipo sigue el signo de la cantidad (ajuste_conteo positivo verde, salida roja, 0 gris) | InventoryPage | component |
+| U-214 | REGRESIÓN: `aplicarRateLimit` — con sesión, límite por usuario (600 / 5 min; dos usuarios de la misma IP no comparten cupo); sin sesión, por IP (100 / 15 min); webhook de canales con su propio límite | rateLimit / middleware | unit |
