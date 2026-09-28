@@ -159,6 +159,41 @@ describe("LiquidacionesCanal", () => {
     expect(mutaciones()).toHaveLength(0);
   });
 
+  // LQC-07 — REGRESIÓN (QA 2026-09-27, BUG 4): el formulario vacío solo daba un
+  // mensaje global; ahora cada campo requerido muestra el suyo.
+  it("LQC-07: formulario vacío → mensaje por cada campo requerido, sin request", async () => {
+    responder({ ok: true, body: [] });
+    render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);
+    await screen.findByText("Sin liquidaciones registradas");
+    fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Completa el período y la fecha de depósito.");
+    expect(screen.getByText("Indica el inicio del período")).toBeInTheDocument();
+    expect(screen.getByText("Indica el fin del período")).toBeInTheDocument();
+    expect(screen.getByText("Indica la fecha de depósito")).toBeInTheDocument();
+    expect(screen.getByText("Ingresa un monto entero mayor que 0")).toBeInTheDocument();
+    expect(screen.getByLabelText("Período desde")).toHaveAttribute("aria-invalid", "true");
+    expect(mutaciones()).toHaveLength(0);
+  });
+
+  // LQC-08 — REGRESIÓN (QA 2026-09-27, BUG 4): con fechas invertidas la UI
+  // enviaba el POST (lo rechazaba recién el servidor).
+  it("LQC-08: período invertido → mensaje en «Período hasta», sin request; al corregir se envía", async () => {
+    responder({ ok: true, body: [] }, { ok: true, status: 201, body: { id: "l3" } });
+    render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);
+    await screen.findByText("Sin liquidaciones registradas");
+    llenar({ ...COMPLETO, periodo_desde: "2026-09-20", periodo_hasta: "2026-09-10" });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("El período está invertido");
+    expect(screen.getByText("Debe ser igual o posterior a «Período desde»")).toBeInTheDocument();
+    expect(mutaciones()).toHaveLength(0);
+
+    llenar({ periodo_hasta: "2026-09-25" });
+    expect(screen.queryByText("Debe ser igual o posterior a «Período desde»")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Liquidación registrada");
+    expect(mutaciones()).toHaveLength(1);
+  });
+
   it("LQC-05: error de la API (ej. período cerrado) visible", async () => {
     responder({ ok: true, body: [] }, { ok: false, status: 409, body: { error: "El período 2026-09 ya está cerrado." } });
     render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);

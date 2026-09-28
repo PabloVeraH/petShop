@@ -177,3 +177,31 @@ describe("rappiFetch — token expirado", () => {
     expect(tokens()).toBe(2); // y ese sí se reutiliza
   });
 });
+
+// U-212 — BUG 4 (QA 2026-09-27): el servidor rechaza cada regla de forma
+// aislada (una liquidación válida genera un asiento: no se prueba contra la BD).
+describe("LiquidacionCanalSchema — reglas aisladas (U-212)", () => {
+  const OK = { canal_id: "rappi", periodo_desde: "2026-09-01", periodo_hasta: "2026-09-15", fecha_deposito: "2026-09-20", monto_bruto: 100000, comision: 23800 };
+  const issue = (d: object) => {
+    const r = LiquidacionCanalSchema.safeParse(d);
+    expect(r.success).toBe(false);
+    return r.error!.issues[0];
+  };
+
+  it("U-212: fechas invertidas (solo eso) → error en periodo_hasta", () => {
+    const i = issue({ ...OK, periodo_desde: "2026-09-20", periodo_hasta: "2026-09-10" });
+    expect(i.path).toEqual(["periodo_hasta"]);
+    expect(i.message).toMatch(/anterior o igual/);
+  });
+
+  it("U-212: comisión mayor que el bruto (solo eso) → error en comision", () => {
+    const i = issue({ ...OK, comision: 100001 });
+    expect(i.path).toEqual(["comision"]);
+    expect(i.message).toBe("La comisión no puede superar el monto bruto");
+  });
+
+  it("U-212: comisión igual al bruto y período de un día siguen siendo válidos", () => {
+    expect(LiquidacionCanalSchema.safeParse({ ...OK, comision: 100000 }).success).toBe(true);
+    expect(LiquidacionCanalSchema.safeParse({ ...OK, periodo_hasta: "2026-09-01" }).success).toBe(true);
+  });
+});

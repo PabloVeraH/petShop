@@ -2374,3 +2374,6 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-731 | REGRESIÓN BUG 3: GET y PATCH de /api/canales/config informan inactivo un canal pendiente con fila activo=true, sin tocar la columna | /api/canales/config | integration |
 | CNP-04 | REGRESIÓN BUG 3: /canales muestra PedidosYa y Uber Eats "Inactivo" aunque la config diga activo=true | CanalesPage | component |
 | CC-23 | REGRESIÓN BUG 3: /canales/pedidosya con fila activo=true muestra "Canal inactivo" junto al aviso de integración pendiente | CanalConfigPage | component |
+| U-212 | BUG 4: `LiquidacionCanalSchema` rechaza de forma aislada fechas invertidas (path periodo_hasta) y comisión > bruto (path comision); comisión = bruto y período de un día válidos | LiquidacionCanalSchema | unit |
+| LQC-07 | REGRESIÓN BUG 4: formulario vacío → mensaje por cada campo requerido (aria-invalid), sin request | LiquidacionesCanal | component |
+| LQC-08 | REGRESIÓN BUG 4: período invertido → mensaje en «Período hasta» y sin request; al corregir se envía | LiquidacionesCanal | component |

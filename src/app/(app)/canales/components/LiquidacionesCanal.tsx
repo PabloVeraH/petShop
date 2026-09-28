@@ -20,6 +20,36 @@ interface Liquidacion {
 
 const clp = (n: number) => `$${Math.round(Number(n)).toLocaleString("es-CL")}`;
 const VACIO = { periodo_desde: "", periodo_hasta: "", fecha_deposito: "", monto_bruto: "", comision: "", referencia: "" };
+type FormLiquidacion = typeof VACIO;
+type ErroresLiquidacion = Partial<Record<keyof FormLiquidacion, string>>;
+
+// Validación del formulario, por campo (misma regla que LiquidacionCanalSchema
+// en el servidor, que es el control real). Devuelve {} si es válido.
+export function validarLiquidacion(form: FormLiquidacion): ErroresLiquidacion {
+  const errores: ErroresLiquidacion = {};
+  if (!form.periodo_desde) errores.periodo_desde = "Indica el inicio del período";
+  if (!form.periodo_hasta) errores.periodo_hasta = "Indica el fin del período";
+  else if (form.periodo_desde && form.periodo_hasta < form.periodo_desde) {
+    errores.periodo_hasta = "Debe ser igual o posterior a «Período desde»";
+  }
+  if (!form.fecha_deposito) errores.fecha_deposito = "Indica la fecha de depósito";
+  const bruto = Number(form.monto_bruto);
+  const comision = Number(form.comision);
+  const brutoValido = form.monto_bruto !== "" && Number.isInteger(bruto) && bruto > 0;
+  if (!brutoValido) errores.monto_bruto = "Ingresa un monto entero mayor que 0";
+  if (form.comision === "" || !Number.isInteger(comision) || comision < 0) {
+    errores.comision = "Ingresa un monto entero mayor o igual a 0";
+  } else if (brutoValido && comision > bruto) {
+    errores.comision = "La comisión no puede superar las ventas del período";
+  }
+  return errores;
+}
+
+function resumenErrores(e: ErroresLiquidacion): string {
+  if (e.periodo_hasta?.startsWith("Debe ser")) return "El período está invertido: «hasta» es anterior a «desde».";
+  if (e.periodo_desde || e.periodo_hasta || e.fecha_deposito) return "Completa el período y la fecha de depósito.";
+  return "Montos inválidos: enteros, bruto mayor que 0 y comisión entre 0 y el bruto.";
+}
 
 export default function LiquidacionesCanal({ canalId, nombre }: { canalId: string; nombre: string }) {
   const [lista, setLista] = useState<Liquidacion[]>([]);
@@ -27,6 +57,9 @@ export default function LiquidacionesCanal({ canalId, nombre }: { canalId: strin
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
   const [guardando, setGuardando] = useState(false);
+  // Los errores por campo se muestran tras el primer intento de envío y se
+  // recalculan mientras el usuario corrige.
+  const [intentado, setIntentado] = useState(false);
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/canales/liquidacion?canal=${canalId}`);
@@ -50,12 +83,10 @@ export default function LiquidacionesCanal({ canalId, nombre }: { canalId: strin
     e.preventDefault();
     setError("");
     setAviso("");
-    if (!form.periodo_desde || !form.periodo_hasta || !form.fecha_deposito) {
-      setError("Completa el período y la fecha de depósito");
-      return;
-    }
-    if (!(Number.isInteger(bruto) && bruto > 0) || !(Number.isInteger(comision) && comision >= 0) || comision > bruto) {
-      setError("Montos inválidos: enteros, bruto mayor que 0 y comisión entre 0 y el bruto");
+    setIntentado(true);
+    const errores = validarLiquidacion(form);
+    if (Object.keys(errores).length > 0) {
+      setError(resumenErrores(errores));
       return;
     }
     setGuardando(true);
@@ -79,6 +110,7 @@ export default function LiquidacionesCanal({ canalId, nombre }: { canalId: strin
         return;
       }
       setForm(VACIO);
+      setIntentado(false);
       setAviso("Liquidación registrada y contabilizada.");
       await cargar();
     } catch {
@@ -88,16 +120,25 @@ export default function LiquidacionesCanal({ canalId, nombre }: { canalId: strin
     }
   }
 
+  const erroresCampo = intentado ? validarLiquidacion(form) : {};
+  // El mensaje de error va fuera del <label> para no cambiar el nombre
+  // accesible del campo; se asocia con aria-describedby.
   const campo = (k: keyof typeof VACIO, label: string, type: string) => (
-    <label className="text-xs text-gray-600">
-      {label}
+    <div className="text-xs text-gray-600">
+      <label htmlFor={`liq-${k}`}>{label}</label>
       <input
+        id={`liq-${k}`}
         type={type}
         value={form[k]}
         onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-        className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+        aria-invalid={erroresCampo[k] ? true : undefined}
+        aria-describedby={erroresCampo[k] ? `liq-error-${k}` : undefined}
+        className={`mt-1 block w-full border rounded-md px-2 py-1 text-sm ${erroresCampo[k] ? "border-red-400" : "border-gray-300"}`}
       />
-    </label>
+      {erroresCampo[k] && (
+        <span id={`liq-error-${k}`} className="mt-1 block text-xs text-red-600">{erroresCampo[k]}</span>
+      )}
+    </div>
   );
 
   return (
