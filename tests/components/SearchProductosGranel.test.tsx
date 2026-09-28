@@ -226,3 +226,35 @@ describe("SearchProductos — granel, maquetación (GR-U-22)", () => {
     expect(await screen.findByText("0 sacos + 0 kg (+0,2 saco sin asignar)")).toBeInTheDocument();
   });
 });
+
+// GR-U-23 — REGRESIÓN (QA 2026-09-27): con /api/productos en 429 la grilla del
+// POS quedaba en blanco. Ahora avisa con el Retry-After (no "Sin resultados"),
+// se recupera sola al vencer el plazo, y el escaneo muestra el error en vez de
+// fallar en silencio.
+import { ApiError } from "@/lib/api-client";
+
+describe("SearchProductos — 429 (GR-U-23)", () => {
+  const MSG = "Demasiadas solicitudes. Reintenta en 1 s.";
+
+  it("GR-U-23: muestra 'Demasiadas solicitudes' y no 'Sin resultados'; al vencer el Retry-After vuelve a cargar", async () => {
+    mockGetProductos.mockRejectedValueOnce(new ApiError(MSG, 429, 1)).mockResolvedValue([GRANEL]);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={qc}><SearchProductos /></QueryClientProvider>);
+    expect(await screen.findByRole("alert")).toHaveTextContent(MSG);
+    expect(screen.queryByText("Sin resultados")).not.toBeInTheDocument();
+    expect(await screen.findByText("Alimento granel", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText(MSG)).not.toBeInTheDocument();
+  });
+
+  it("GR-U-23: un escaneo con la API en 429 muestra el error (antes: promesa rechazada sin manejar)", async () => {
+    renderSearch();
+    // renderSearch fija una lista válida; el 429 llega en la búsqueda del escaneo.
+    mockGetProductos.mockRejectedValue(new ApiError(MSG, 429, 60));
+    const input = screen.getByPlaceholderText("Buscar por nombre, SKU o código de barra...");
+    fireEvent.change(input, { target: { value: "7801234567890" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(screen.getAllByText(new RegExp(MSG.replace(/[.]/g, "\\.")))).toHaveLength(2));
+    expect(mockAddItem).not.toHaveBeenCalled();
+  });
+});
+

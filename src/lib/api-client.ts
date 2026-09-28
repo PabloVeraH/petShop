@@ -33,14 +33,19 @@ function leerRetryAfter(res: Response): number | null {
   return Number.isFinite(n) && n > 0 ? Math.ceil(n) : null;
 }
 
+// ApiError de una respuesta no-ok (status, Retry-After y mensaje para el
+// usuario). `body` es el JSON ya leído, o null si no había.
+export function errorDeRespuesta(res: Response, body: unknown): ApiError {
+  const retryAfter = res.status === 429 ? leerRetryAfter(res) : null;
+  const error = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
+  const mensajeApi = typeof error === "string" ? error : null;
+  return new ApiError(mensajeErrorApi(res.status, mensajeApi, retryAfter), res.status, retryAfter);
+}
+
 export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const retryAfter = res.status === 429 ? leerRetryAfter(res) : null;
-    const mensajeApi = body && typeof body.error === "string" ? body.error : null;
-    throw new ApiError(mensajeErrorApi(res.status, mensajeApi, retryAfter), res.status, retryAfter);
-  }
+  if (!res.ok) throw errorDeRespuesta(res, body);
   return body as T;
 }
 

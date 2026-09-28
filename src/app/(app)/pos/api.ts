@@ -1,4 +1,9 @@
 import type { Producto, Cliente, Mascota, SacoAccionResultado } from "@/types";
+import { errorDeRespuesta, fetchJson } from "@/lib/api-client";
+
+// Todas las llamadas del POS distinguen 429/5xx de "sin datos": un error
+// lanza ApiError con un mensaje para el cajero ("Demasiadas solicitudes.
+// Reintenta en N s."), nunca se toma como resultado vacío (QA 2026-09-27).
 
 // Granel (§4.6): abrir saco (D18), merma del resto (G6) o deshacer apertura
 // (G2, solo admin — lo valida el servidor).
@@ -8,35 +13,26 @@ export type AccionSaco =
   | { accion: "deshacer" };
 
 export async function accionSaco(productoId: string, body: AccionSaco): Promise<SacoAccionResultado> {
-  const res = await fetch(`/api/productos/${productoId}/saco`, {
+  return fetchJson<SacoAccionResultado>(`/api/productos/${productoId}/saco`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
-  return data as SacoAccionResultado;
 }
 
 export async function getProductos(search: string): Promise<Producto[]> {
   const params = new URLSearchParams({ search });
-  const res = await fetch(`/api/productos?${params}`);
-  if (!res.ok) throw new Error("Error al cargar productos");
-  return res.json();
+  return fetchJson<Producto[]>(`/api/productos?${params}`);
 }
 
 export async function getClienteByRUT(rut: string): Promise<Cliente | null> {
   const params = new URLSearchParams({ rut });
-  const res = await fetch(`/api/clientes?${params}`);
-  if (!res.ok) throw new Error("Error al buscar cliente");
-  return res.json();
+  return fetchJson<Cliente | null>(`/api/clientes?${params}`);
 }
 
 export async function getMascotasByCliente(clienteId: string): Promise<Mascota[]> {
   const params = new URLSearchParams({ clienteId });
-  const res = await fetch(`/api/mascotas?${params}`);
-  if (!res.ok) throw new Error("Error al cargar mascotas");
-  return res.json();
+  return fetchJson<Mascota[]>(`/api/mascotas?${params}`);
 }
 
 export async function createVenta({
@@ -82,6 +78,9 @@ export async function createVenta({
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, notas, enviarEmail, idempotencyKey }),
   });
+  // 429: la venta NO se registró; mensaje con Retry-After. La idempotencyKey
+  // se conserva en pos/page.tsx, así que reintentar el cobro es seguro.
+  if (res.status === 429) throw errorDeRespuesta(res, await res.json().catch(() => null));
   if (!res.ok) {
     const ct = res.headers.get("content-type") ?? "";
     if (ct.includes("application/json")) {

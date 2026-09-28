@@ -36,7 +36,8 @@ describe("accionSaco", () => {
     await expect(accionSaco(PROD, { accion: "deshacer" })).rejects.toThrow("Error 403");
 
     // Respuesta no-JSON (ej. página de error del proxy): no revienta con un SyntaxError.
+    // 5xx: mensaje genérico del helper compartido (lib/api-client, QA 2026-09-27).
     fetchMock.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new SyntaxError("Unexpected token <"); } });
-    await expect(accionSaco(PROD, { accion: "merma", motivo: "Resto húmedo" })).rejects.toThrow("Error 502");
+    await expect(accionSaco(PROD, { accion: "merma", motivo: "Resto húmedo" })).rejects.toThrow("Error del servidor. Intenta de nuevo en unos momentos.");
   });
 });

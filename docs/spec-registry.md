@@ -2398,3 +2398,6 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | AL-07 | REGRESIÓN (QA 2026-09-27): el sidebar del worker muestra el nombre de la tienda pidiéndolo a /api/tienda/nombre, sin llamar a /api/settings | AppLayout | component |
 | SEC-15 | QA 2026-09-27: GET /api/ventas/[id] — el worker recibe el vendedor solo con nombre (sin email); el admin, con nombre y email | GET /api/ventas/[id] | integration |
 | C-72 | QA 2026-09-27: el recibo muestra "Atendido por: {nombre}" o "Vendedor" si no hay nombre ni email (nunca undefined) | SalesTicketPage | component |
+| U-217 | REGRESIÓN (QA 2026-09-27): el cliente HTTP del POS (getProductos, getClienteByRUT, getMascotasByCliente, accionSaco) ante 429 lanza ApiError con Retry-After y "Demasiadas solicitudes. Reintenta en N s."; createVenta con 429 rechaza (la venta no se da por hecha) | pos/api | unit |
+| U-218 | `useReintentoTrasLimite`: tras un 429 vuelve a pedir al vencer el Retry-After (o la espera por defecto); no para 5xx ni sin error; se cancela al desmontar | hooks | unit |
+| GR-U-23 | REGRESIÓN (QA 2026-09-27): el POS con /api/productos en 429 muestra "Demasiadas solicitudes…" (no "Sin resultados"), se recupera solo al vencer el Retry-After, y el escaneo muestra el error sin agregar al carrito | SearchProductos | component |

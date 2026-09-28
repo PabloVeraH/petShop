@@ -11,6 +11,7 @@ import { getProductos, accionSaco } from "../api";
 import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estadoSacos, formatoSacos } from "@/lib/granel";
+import { useReintentoTrasLimite } from "@/hooks/useReintentoTrasLimite";
 
 export default function SearchProductos() {
   const [search, setSearch] = useState("");
@@ -36,11 +37,14 @@ export default function SearchProductos() {
   // Timestamp of the first character typed — used to detect pistola vs teclado
   const inputStartRef = useRef<number | null>(null);
 
-  const { data: productos, isLoading, isError } = useQuery({
+  const { data: productos, isLoading, isError, error: productosError, refetch } = useQuery({
     queryKey: ["productos", search],
     queryFn: () => getProductos(search),
     staleTime: 30_000,
   });
+  // 429: no se reintenta de inmediato (reintentarQuery); se vuelve a pedir al
+  // vencer el Retry-After.
+  useReintentoTrasLimite(productosError, refetch);
 
   // Unidades vendibles por unidad: para granel, solo los sacos cerrados (el
   // abierto se vende por gramos). La BD aplica la misma regla (I5, 077).
@@ -171,12 +175,20 @@ export default function SearchProductos() {
 
   async function handleBarcodeEnter(barcode: string) {
     setScanError(null);
-    // Fetch with barcode as search — API searches codigo_barra exact match
-    const results: Producto[] = await queryClient.fetchQuery({
-      queryKey: ["productos", barcode],
-      queryFn: () => getProductos(barcode),
-      staleTime: 10_000,
-    });
+    // Fetch with barcode as search — API searches codigo_barra exact match.
+    // Un error (429, 5xx, red) se muestra: antes quedaba como promesa
+    // rechazada sin manejar y el escaneo fallaba en silencio.
+    let results: Producto[];
+    try {
+      results = await queryClient.fetchQuery({
+        queryKey: ["productos", barcode],
+        queryFn: () => getProductos(barcode),
+        staleTime: 10_000,
+      });
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : "Error al buscar el producto");
+      return;
+    }
 
     const exact = results.find(
       (p) => p.codigo_barra === barcode || p.sku === barcode
@@ -286,7 +298,9 @@ export default function SearchProductos() {
       )}
 
       {isError && (
-        <p className="text-sm text-red-500 py-4 text-center">Error al cargar productos. Intenta de nuevo.</p>
+        <p role="alert" className="text-sm text-red-500 py-4 text-center">
+          Error al cargar productos. {productosError?.message ?? "Intenta de nuevo."}
+        </p>
       )}
 
       {!isLoading && !isError && productos?.length === 0 && search.trim() && (

@@ -166,7 +166,7 @@ export default function ModalCliente({ onClose }: ModalClienteProps) {
           {loadingCliente && <p className="text-sm text-gray-400">Buscando...</p>}
 
           {error && (
-            <p className="text-sm text-red-500">Error al buscar cliente</p>
+            <p role="alert" className="text-sm text-red-500">Error al buscar cliente. {error.message}</p>
           )}
 
           {rutValido && !loadingCliente && cliente === null && !showRegister && (
