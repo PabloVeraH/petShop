@@ -236,3 +236,25 @@ describe("AppLayout — errores de la API (AL-06)", () => {
     expect(qc.getQueryData(["productos", ""])).toBeUndefined();
   });
 });
+
+// AL-07 — REGRESIÓN (QA 2026-09-27): con la sesión del worker el sidebar
+// mostraba "PetShop": el nombre salía de GET /api/settings, que es solo admin
+// (SEC-07). Ahora sale de GET /api/tienda/nombre (I-734).
+describe("AppLayout — nombre de la tienda (AL-07)", () => {
+  const { useAuth } = require("@clerk/nextjs");
+
+  it("AL-07: el worker ve el nombre de su tienda, pedido a /api/tienda/nombre (no a /api/settings)", async () => {
+    (useAuth as jest.Mock).mockReturnValue({ sessionClaims: { publicMetadata: buildMeta("storeWorker") } });
+    (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url === "/api/tienda/nombre") return { ok: true, status: 200, headers: new Headers(), json: async () => ({ name: "PetShop La Huella" }) };
+      if (url === "/api/settings") return { ok: false, status: 403, headers: new Headers(), json: async () => ({ error: "Forbidden" }) };
+      return { ok: true, status: 200, headers: new Headers(), json: async () => [] };
+    });
+    render(<AppLayout><div>contenido</div></AppLayout>, { wrapper: makeWrapper() });
+    expect((await screen.findAllByText("PetShop La Huella")).length).toBeGreaterThan(0);
+    const urls = (global.fetch as jest.Mock).mock.calls.map((c) => c[0]);
+    expect(urls).toContain("/api/tienda/nombre");
+    expect(urls).not.toContain("/api/settings");
+  });
+});
+

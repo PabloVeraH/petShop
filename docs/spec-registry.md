@@ -2394,3 +2394,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-71 | QA 2026-09-27: en /sales/[id] el worker ve Imprimir pero no Anular venta ni Devolución parcial (UX; el control real es SEC-11/12); el admin sí | SalesTicketPage | component |
 | U-216 | Regla del negocio (QA 2026-09-27): `LiquidacionCanalSchema` rechaza fecha_deposito anterior a periodo_desde (path fecha_deposito); mismo día o dentro del período válido | LiquidacionCanalSchema | unit |
 | LQC-10 | QA 2026-09-27: fecha de depósito anterior a «Período desde» → mensaje en el campo y resumen, sin request | LiquidacionesCanal | component |
+| I-734 | REGRESIÓN (QA 2026-09-27): GET /api/tienda/nombre → SOLO `{ name }` de la tienda de la sesión para cualquier usuario de la tienda; sin sesión 401, deshabilitado 403, error de BD 500 genérico (/api/settings sigue solo admin, SEC-07) | GET /api/tienda/nombre | integration |
+| AL-07 | REGRESIÓN (QA 2026-09-27): el sidebar del worker muestra el nombre de la tienda pidiéndolo a /api/tienda/nombre, sin llamar a /api/settings | AppLayout | component |

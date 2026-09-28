@@ -68,7 +68,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
 
   const { data: storeData } = useQuery<{ name: string }>({
     queryKey: ["store-name"],
-    queryFn: () => fetchJson<{ name: string }>("/api/settings"),
+    queryFn: () => fetchJson<{ name: string }>("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
   });
   const storeName = storeData?.name ?? "PetShop";

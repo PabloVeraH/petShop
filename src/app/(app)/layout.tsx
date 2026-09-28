@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: storeData } = useQuery<{ name: string }>({
     queryKey: ["store-name"],
-    queryFn: () => fetchJson<{ name: string }>("/api/settings"),
+    queryFn: () => fetchJson<{ name: string }>("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
   });
 
