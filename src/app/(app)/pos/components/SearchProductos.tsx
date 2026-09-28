@@ -10,7 +10,7 @@ import { usePOSStore } from "@/stores/pos";
 import { getProductos, accionSaco } from "../api";
 import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { estadoSacos, formatoSacos } from "@/lib/granel";
+import { estadoSacos, formatoSacos, textoResiduoSacos } from "@/lib/granel";
 import { useReintentoTrasLimite } from "@/hooks/useReintentoTrasLimite";
 
 export default function SearchProductos() {
@@ -329,7 +329,7 @@ export default function SearchProductos() {
           const enMerma = mermaProductoId === prod.id;
 
           return (
-            <div key={prod.id} className="relative rounded border bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div key={prod.id} className="relative min-w-0 rounded border bg-white shadow-sm hover:shadow-md transition-shadow">
               <button
                 onClick={() => {
                   if (isGranelActivo) return; // si granel abierto, ignorar click en fondo
@@ -373,8 +373,8 @@ export default function SearchProductos() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">SKU: {prod.sku}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex flex-col">
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <div className="flex flex-col min-w-0">
                         {sinPrecio ? (
                           <span className="text-sm text-gray-400">—</span>
                         ) : prod.en_oferta && prod.precio_oferta ? (
@@ -393,9 +393,17 @@ export default function SearchProductos() {
                         )}
                       </div>
                       <Badge variant={prod.stock <= prod.stock_minimo ? "destructive" : "secondary"}>
-                        {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos, sacos.residuo) : `Stock: ${prod.stock}`}
+                        {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos) : `Stock: ${prod.stock}`}
                       </Badge>
                     </div>
+                    {sacos && sacos.residuo > 0 && (
+                      <span
+                        className="block mt-1 text-[11px] text-amber-700 text-right break-words"
+                        title="Stock con decimales sin saco abierto: corrígelo con Conteo físico"
+                      >
+                        ({textoResiduoSacos(sacos.residuo)})
+                      </span>
+                    )}
                     {tieneGranel && (
                       <span className="text-xs text-blue-600 mt-2 block">
                         Granel: ${prod.precio_venta_kg!.toLocaleString("es-CL")}/kg

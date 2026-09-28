@@ -22,10 +22,17 @@ export function estadoSacos(prod: ProductoGranel) {
   return { peso, gramosAbiertos, cerrados, residuo };
 }
 
+// "+0,2 saco sin asignar" (vacío si no hay residuo). El POS lo muestra en una
+// línea aparte: dentro del badge desbordaba la tarjeta.
+export function textoResiduoSacos(residuo: number): string {
+  if (!(residuo > 0)) return "";
+  return `+${residuo.toLocaleString("es-CL", { maximumFractionDigits: 3 })} saco sin asignar`;
+}
+
 // "9 sacos + 14,5 kg" (G11). Con residuo: "0 sacos + 0 kg (+0,2 saco sin asignar)".
 export function formatoSacos(cerrados: number, gramosAbiertos: number, residuo = 0): string {
   const kg = (gramosAbiertos / 1000).toLocaleString("es-CL", { maximumFractionDigits: 3 });
   const base = `${cerrados} saco${cerrados !== 1 ? "s" : ""} + ${kg} kg`;
-  if (!(residuo > 0)) return base;
-  return `${base} (+${residuo.toLocaleString("es-CL", { maximumFractionDigits: 3 })} saco sin asignar)`;
+  const extra = textoResiduoSacos(residuo);
+  return extra ? `${base} (${extra})` : base;
 }

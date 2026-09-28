@@ -223,7 +223,9 @@ describe("SearchProductos — granel, maquetación (GR-U-22)", () => {
 
   it("GR-U-22: stock con decimales sin saco abierto muestra el residuo, no '0 sacos + 0 kg' a secas", async () => {
     renderSearch([{ ...GRANEL, id: "g2", nombre: "Bravery", stock: 0.2, peso_gramos: 7000, saco_abierto_gramos: null }]);
-    expect(await screen.findByText("0 sacos + 0 kg (+0,2 saco sin asignar)")).toBeInTheDocument();
+    // Desde GR-U-24 el residuo va en una línea aparte del badge.
+    expect(await screen.findByText("0 sacos + 0 kg")).toBeInTheDocument();
+    expect(screen.getByText("(+0,2 saco sin asignar)")).toBeInTheDocument();
   });
 });
 
@@ -255,6 +257,31 @@ describe("SearchProductos — 429 (GR-U-23)", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(screen.getAllByText(new RegExp(MSG.replace(/[.]/g, "\\.")))).toHaveLength(2));
     expect(mockAddItem).not.toHaveBeenCalled();
+  });
+});
+
+// GR-U-24 — REGRESIÓN (QA 2026-09-27): el badge (whitespace-nowrap, shrink-0)
+// con "0 sacos + 0 kg (+0,2 saco sin asignar)" desbordaba la tarjeta y la
+// grilla mostraba scroll horizontal. jsdom no calcula anchos: se verifica la
+// estructura que lo evita (el ancho real se revisa a mano, ~375 px).
+describe("SearchProductos — badge granel sin desborde (GR-U-24)", () => {
+  it("GR-U-24: el badge lleva solo 'N sacos + X kg'; el residuo va en una línea aparte que puede partirse; la tarjeta no empuja la grilla", async () => {
+    renderSearch([{ ...GRANEL, id: "g2", nombre: "Bravery Cerdo", stock: 0.2, peso_gramos: 7000, saco_abierto_gramos: null }]);
+    const badge = await screen.findByText("0 sacos + 0 kg");
+    expect(badge.textContent).toBe("0 sacos + 0 kg");
+    const residuo = screen.getByText("(+0,2 saco sin asignar)");
+    expect(residuo).not.toBe(badge);
+    expect(badge.contains(residuo)).toBe(false);
+    expect(residuo).toHaveClass("break-words");
+    expect(residuo).toHaveAttribute("title", expect.stringMatching(/Conteo físico/));
+    const tarjeta = screen.getByText("Bravery Cerdo").closest("div.relative") as HTMLElement;
+    expect(tarjeta).toHaveClass("min-w-0");
+  });
+
+  it("GR-U-24: sin residuo no se agrega la línea extra", async () => {
+    renderSearch();
+    expect(await screen.findByText("9 sacos + 14,5 kg")).toBeInTheDocument();
+    expect(screen.queryByText(/saco sin asignar/)).not.toBeInTheDocument();
   });
 });
 

@@ -4,7 +4,7 @@
  * Misma fórmula que fraccion_gramos() de migrations/077; la BD es la fuente
  * de verdad (verificada con stock_canales_fase1b_verificacion.sql).
  */
-import { estadoSacos, formatoSacos } from "@/lib/granel";
+import { estadoSacos, formatoSacos, textoResiduoSacos } from "@/lib/granel";
 
 describe("estadoSacos", () => {
   it("U-164: 9,967 con 14 500 g abiertos de un saco de 15 000 g → 9 cerrados", () => {
@@ -53,3 +53,15 @@ describe("residuo de stock (U-213)", () => {
     expect(estadoSacos({ stock: 10, peso_gramos: 15000, saco_abierto_gramos: null }).residuo).toBe(0);
   });
 });
+
+// U-219 — textoResiduoSacos: el texto del residuo que el POS muestra aparte
+// del badge (GR-U-24); formatoSacos (Inventario) conserva el texto combinado.
+describe("textoResiduoSacos (U-219)", () => {
+  it("U-219: residuo > 0 → '+0,2 saco sin asignar'; 0 → vacío; formatoSacos sin cambios", () => {
+    expect(textoResiduoSacos(0.2)).toBe("+0,2 saco sin asignar");
+    expect(textoResiduoSacos(0)).toBe("");
+    expect(formatoSacos(0, 0, 0.2)).toBe("0 sacos + 0 kg (+0,2 saco sin asignar)");
+    expect(formatoSacos(9, 14500)).toBe("9 sacos + 14,5 kg");
+  });
+});
+
