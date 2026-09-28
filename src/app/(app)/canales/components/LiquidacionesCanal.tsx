@@ -33,6 +33,9 @@ export function validarLiquidacion(form: FormLiquidacion): ErroresLiquidacion {
     errores.periodo_hasta = "Debe ser igual o posterior a «Período desde»";
   }
   if (!form.fecha_deposito) errores.fecha_deposito = "Indica la fecha de depósito";
+  else if (form.periodo_desde && form.fecha_deposito < form.periodo_desde) {
+    errores.fecha_deposito = "No puede ser anterior a «Período desde»";
+  }
   const bruto = Number(form.monto_bruto);
   const comision = Number(form.comision);
   const brutoValido = form.monto_bruto !== "" && Number.isInteger(bruto) && bruto > 0;
@@ -47,6 +50,7 @@ export function validarLiquidacion(form: FormLiquidacion): ErroresLiquidacion {
 
 function resumenErrores(e: ErroresLiquidacion): string {
   if (e.periodo_hasta?.startsWith("Debe ser")) return "El período está invertido: «hasta» es anterior a «desde».";
+  if (e.fecha_deposito?.startsWith("No puede")) return "La fecha de depósito no puede ser anterior al inicio del período.";
   if (e.periodo_desde || e.periodo_hasta || e.fecha_deposito) return "Completa el período y la fecha de depósito.";
   return "Montos inválidos: enteros, bruto mayor que 0 y comisión entre 0 y el bruto.";
 }

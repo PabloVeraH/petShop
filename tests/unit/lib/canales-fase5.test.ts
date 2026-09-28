@@ -205,3 +205,22 @@ describe("LiquidacionCanalSchema — reglas aisladas (U-212)", () => {
     expect(LiquidacionCanalSchema.safeParse({ ...OK, periodo_hasta: "2026-09-01" }).success).toBe(true);
   });
 });
+
+// U-216 — Regla del negocio (QA 2026-09-27): la fecha de depósito no puede ser
+// anterior al inicio del período que liquida.
+describe("LiquidacionCanalSchema — fecha de depósito (U-216)", () => {
+  const OK = { canal_id: "rappi", periodo_desde: "2026-09-01", periodo_hasta: "2026-09-15", fecha_deposito: "2026-09-20", monto_bruto: 100000, comision: 23800 };
+
+  it("U-216: depósito anterior a periodo_desde → error en fecha_deposito", () => {
+    const r = LiquidacionCanalSchema.safeParse({ ...OK, fecha_deposito: "2026-08-31" });
+    expect(r.success).toBe(false);
+    expect(r.error!.issues[0].path).toEqual(["fecha_deposito"]);
+    expect(r.error!.issues[0].message).toBe("La fecha de depósito no puede ser anterior al inicio del período");
+  });
+
+  it("U-216: depósito el mismo día que periodo_desde o dentro del período sigue siendo válido", () => {
+    expect(LiquidacionCanalSchema.safeParse({ ...OK, fecha_deposito: "2026-09-01" }).success).toBe(true);
+    expect(LiquidacionCanalSchema.safeParse({ ...OK, fecha_deposito: "2026-09-10" }).success).toBe(true);
+  });
+});
+

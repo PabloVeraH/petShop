@@ -218,6 +218,18 @@ describe("LiquidacionesCanal", () => {
     expect(screen.getByText(/Depositado:/)).toHaveTextContent("Depositado: $0");
   });
 
+  // LQC-10 — Regla del negocio (QA 2026-09-27): depósito anterior al período.
+  it("LQC-10: fecha de depósito anterior a «Período desde» → mensaje en el campo, sin request", async () => {
+    responder({ ok: true, body: [] });
+    render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);
+    await screen.findByText("Sin liquidaciones registradas");
+    llenar({ ...COMPLETO, fecha_deposito: "2026-08-25" });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar liquidación" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("La fecha de depósito no puede ser anterior al inicio del período.");
+    expect(screen.getByText("No puede ser anterior a «Período desde»")).toBeInTheDocument();
+    expect(mutaciones()).toHaveLength(0);
+  });
+
   it("LQC-05: error de la API (ej. período cerrado) visible", async () => {
     responder({ ok: true, body: [] }, { ok: false, status: 409, body: { error: "El período 2026-09 ya está cerrado." } });
     render(<LiquidacionesCanal canalId="rappi" nombre="Rappi" />);

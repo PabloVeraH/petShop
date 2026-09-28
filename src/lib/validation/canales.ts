@@ -22,6 +22,12 @@ export const LiquidacionCanalSchema = z
     message: "periodo_desde debe ser anterior o igual a periodo_hasta",
     path: ["periodo_hasta"],
   })
+  // Regla del negocio (QA 2026-09-27): un depósito no puede ser anterior al
+  // inicio del período que liquida.
+  .refine((d) => d.fecha_deposito >= d.periodo_desde, {
+    message: "La fecha de depósito no puede ser anterior al inicio del período",
+    path: ["fecha_deposito"],
+  })
   .refine((d) => d.comision <= d.monto_bruto, {
     message: "La comisión no puede superar el monto bruto",
     path: ["comision"],

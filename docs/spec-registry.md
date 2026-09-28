@@ -2392,3 +2392,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | U-215 | `fechaNegocioISO`: fecha en America/Santiago sin depender del TZ del proceso (02:00Z → día anterior; invierno UTC-4) | dates | unit |
 | MW-33 | REGRESIÓN (QA 2026-09-27): el worker puede abrir /sales/:id (recibo del POS con ?autoPrint=1); /sales, subrutas más profundas, /inventory y /canales siguen negadas | workerAllowedRoutes (middleware) | unit |
 | C-71 | QA 2026-09-27: en /sales/[id] el worker ve Imprimir pero no Anular venta ni Devolución parcial (UX; el control real es SEC-11/12); el admin sí | SalesTicketPage | component |
+| U-216 | Regla del negocio (QA 2026-09-27): `LiquidacionCanalSchema` rechaza fecha_deposito anterior a periodo_desde (path fecha_deposito); mismo día o dentro del período válido | LiquidacionCanalSchema | unit |
+| LQC-10 | QA 2026-09-27: fecha de depósito anterior a «Período desde» → mensaje en el campo y resumen, sin request | LiquidacionesCanal | component |
