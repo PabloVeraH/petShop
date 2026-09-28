@@ -669,3 +669,54 @@ describe("POST/PATCH /api/canales/config — Fase 2", () => {
     expect((await POST(authReq("POST", { canal_id: "rappi", credenciales: { ...RAPPI, webhook_secret_NEW_ORDER: "s2" }, activo: true }))).status).toBe(201);
   });
 });
+
+// I-731 — REGRESIÓN (QA 2026-09-27, BUG 3): una fila antigua de PedidosYa con
+// activo=true se mostraba "Activo" aunque la integración está pendiente. La
+// API informa el estado efectivo (inactivo) sin modificar la fila.
+describe("GET/PATCH /api/canales/config — integración pendiente siempre inactiva (I-731)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
+  });
+
+  it("I-731: GET informa pedidosya/ubereats con activo=true como inactivos; rappi conserva su valor", async () => {
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn(() => {
+        const c = buildChain();
+        c.select.mockReturnValue(c);
+        c.eq.mockReturnValue(c);
+        (c as any).then = (resolve: any) =>
+          resolve({
+            data: [
+              { id: CONFIG_ID, canal_id: "rappi", activo: true, created_at: "x", updated_at: "y", credenciales_encriptada: "c" },
+              { id: "cfg-2", canal_id: "pedidosya", activo: true, created_at: "x", updated_at: "y", credenciales_encriptada: "c" },
+              { id: "cfg-3", canal_id: "ubereats", activo: true, created_at: "x", updated_at: "y", credenciales_encriptada: null },
+            ],
+            error: null,
+          });
+        return c;
+      }),
+    });
+    const body = await (await GET(authReq("GET"))).json();
+    const activo = (id: string) => body.find((c: { canal_id: string }) => c.canal_id === id).activo;
+    expect(activo("rappi")).toBe(true);
+    expect(activo("pedidosya")).toBe(false);
+    expect(activo("ubereats")).toBe(false);
+  });
+
+  it("I-731: PATCH de credenciales de PedidosYa (fila con activo=true) responde activo=false y no toca la columna", async () => {
+    let updateData: Record<string, unknown> = {};
+    const c = buildChain();
+    c.update.mockImplementation((d: Record<string, unknown>) => { updateData = d; return c; });
+    c.select.mockReturnValue(c);
+    c.eq.mockReturnValue(c);
+    mockSingle.mockResolvedValue({ data: { id: "cfg-2", canal_id: "pedidosya", activo: true }, error: null });
+    (c as any).then = (resolve: any) => resolve({ data: { id: "cfg-2", canal_id: "pedidosya", activo: true }, error: null });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
+
+    const res = await PATCH(authReq("PATCH", { canal_id: "pedidosya", credenciales: { client_id: "a", client_secret: "b", business_id: "1" } }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).activo).toBe(false);
+    expect(updateData).not.toHaveProperty("activo");
+  });
+});

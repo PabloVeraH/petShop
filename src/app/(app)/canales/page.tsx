@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AlertasCanales from "./components/AlertasCanales";
+import { canalActivoEfectivo } from "@/lib/canales/campos";
 
 interface CanalConfig {
   id: string;
@@ -70,7 +71,7 @@ export default function CanalesPage() {
   const getCanalActivo = (canalId: string): boolean => {
     if (canalId === "pos") return true;
     const config = configs.find((c) => c.canal_id === canalId);
-    return config?.activo ?? false;
+    return canalActivoEfectivo(canalId, config?.activo);
   };
 
   const isCanalConfigured = (canalId: string): boolean => {

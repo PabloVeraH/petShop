@@ -56,6 +56,13 @@ export const CAMPO_EXTERNAL_STORE_ID: Partial<Record<CanalConfigurableId, string
 // placeholders (C20). Se pueden guardar credenciales pero no activar.
 export const CANALES_INTEGRACION_PENDIENTE: readonly CanalConfigurableId[] = ["pedidosya", "ubereats"];
 
+// Estado que se muestra y se informa de un canal: con integración pendiente
+// es siempre inactivo, aunque la fila de canal_config diga activo=true (filas
+// anteriores a la Fase 2). No modifica la BD.
+export function canalActivoEfectivo(canalId: string, activo: boolean | null | undefined): boolean {
+  return !!activo && !(CANALES_INTEGRACION_PENDIENTE as readonly string[]).includes(canalId);
+}
+
 // Propiedad PROPIA: `in` también acepta claves del prototipo ("toString",
 // "__proto__", "constructor"…).
 export function esCanalConfigurable(valor: unknown): valor is CanalConfigurableId {

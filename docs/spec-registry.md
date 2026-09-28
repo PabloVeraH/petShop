@@ -2370,3 +2370,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | IV-20 | REGRESIÓN BUG 2: 429 en /api/inventario muestra "Demasiadas solicitudes. Reintenta en N s." y no "Sin productos" | InventoryPage | component |
 | C-69 | REGRESIÓN BUG 2: 429/500 al cargar la venta muestran su mensaje; solo el 404 es "Venta no encontrada." | SalesTicketPage | component |
 | AL-06 | REGRESIÓN BUG 2: un 429 no queda en caché como nombre de tienda ni como catálogo precargado del POS | AppLayout | component |
+| U-211 | REGRESIÓN BUG 3: `canalActivoEfectivo` — integración pendiente siempre inactiva; sin adaptador para pedidosya/ubereats aunque estén en ENABLED_CHANNELS | campos / registry | unit |
+| I-731 | REGRESIÓN BUG 3: GET y PATCH de /api/canales/config informan inactivo un canal pendiente con fila activo=true, sin tocar la columna | /api/canales/config | integration |
+| CNP-04 | REGRESIÓN BUG 3: /canales muestra PedidosYa y Uber Eats "Inactivo" aunque la config diga activo=true | CanalesPage | component |
+| CC-23 | REGRESIÓN BUG 3: /canales/pedidosya con fila activo=true muestra "Canal inactivo" junto al aviso de integración pendiente | CanalConfigPage | component |

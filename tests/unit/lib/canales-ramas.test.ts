@@ -26,7 +26,7 @@ jest.mock("@/lib/canales/infrastructure/context", () => {
 const { loadChannelContext: loadChannelContextReal } = jest.requireActual("@/lib/canales/infrastructure/context");
 
 import { canalImplementado, obtenerAdaptador } from "@/lib/canales/adapters/registry";
-import { esCanalConfigurable } from "@/lib/canales/campos";
+import { canalActivoEfectivo, esCanalConfigurable } from "@/lib/canales/campos";
 import { PayloadInvalidoError, PlataformaError, type ChannelAdapter, type ChannelContext } from "@/lib/canales/adapters/port";
 import { RappiAdapter, firmaRappiValida } from "@/lib/canales/adapters/rappi/adapter";
 import { limpiarCacheTokens, rappiFetch } from "@/lib/canales/adapters/rappi/client";
@@ -329,5 +329,28 @@ describe("publicarCatalogo / publicarDisponibilidad — errores de BD", () => {
       "No se pudo registrar la disponibilidad publicada: 40P01"
     );
     expect(a2.pushAvailability).toHaveBeenCalledWith(CTX, [{ sku: "S1", disponible: false }]);
+  });
+});
+
+// U-211 — REGRESIÓN (QA 2026-09-27, BUG 3): estado efectivo de un canal.
+describe("canalActivoEfectivo (U-211)", () => {
+  it("U-211: integración pendiente siempre inactiva; el resto respeta el valor guardado", () => {
+    expect(canalActivoEfectivo("pedidosya", true)).toBe(false);
+    expect(canalActivoEfectivo("ubereats", true)).toBe(false);
+    expect(canalActivoEfectivo("rappi", true)).toBe(true);
+    expect(canalActivoEfectivo("instagram", true)).toBe(true);
+    expect(canalActivoEfectivo("rappi", false)).toBe(false);
+    expect(canalActivoEfectivo("rappi", null)).toBe(false);
+  });
+
+  it("U-211: aunque ENABLED_CHANNELS incluya pedidosya, no hay adaptador (webhook, outbox y catálogo lo descartan)", () => {
+    const antes = process.env.ENABLED_CHANNELS;
+    process.env.ENABLED_CHANNELS = "rappi,pedidosya,ubereats";
+    try {
+      expect(obtenerAdaptador("pedidosya")).toBeFalsy();
+      expect(obtenerAdaptador("ubereats")).toBeFalsy();
+    } finally {
+      if (antes === undefined) delete process.env.ENABLED_CHANNELS; else process.env.ENABLED_CHANNELS = antes;
+    }
   });
 });

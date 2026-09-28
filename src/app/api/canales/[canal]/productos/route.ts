@@ -6,6 +6,7 @@ import { UUIDSchema } from "@/lib/validation";
 import { esCanalExterno, type CanalExternoId } from "@/lib/canales/domain/types";
 import { precioBase, precioCanal } from "@/lib/canales/domain/precio";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
+import { canalActivoEfectivo } from "@/lib/canales/campos";
 
 // Catálogo por canal (paso 4.3). Configurar catálogo y precios es solo para
 // storeAdmin/systemAdmin no deshabilitados (D8, 5.1), validado aquí. Tenant: todo filtra por el
@@ -96,7 +97,7 @@ export const GET = withErrorLogging(async (_req: NextRequest, { params }: Params
       };
     });
 
-  return NextResponse.json({ canal, activo: !!config.activo, recargo_pct: recargoPct, productos });
+  return NextResponse.json({ canal, activo: canalActivoEfectivo(canal, config.activo), recargo_pct: recargoPct, productos });
 }, { endpoint: "GET /api/canales/canal/productos" });
 
 // precio_override: CLP entero con IVA (AGENTS.md §23.3); null = usar el

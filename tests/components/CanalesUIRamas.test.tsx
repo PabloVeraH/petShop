@@ -244,3 +244,24 @@ describe("/pos/pedidos y rutas antiguas de órdenes", () => {
     ]);
   });
 });
+
+// CNP-04 — REGRESIÓN (QA 2026-09-27, BUG 3): un canal con integración
+// pendiente se muestra Inactivo aunque la config llegue con activo=true.
+describe("CanalesPage — integración pendiente (CNP-04)", () => {
+  it("CNP-04: PedidosYa y Uber Eats con activo=true se muestran Inactivo; Rappi sigue Activo", async () => {
+    responder({
+      "/api/canales/config": { ok: true, body: [
+        { id: "c1", canal_id: "rappi", activo: true },
+        { id: "c2", canal_id: "pedidosya", activo: true },
+        { id: "c3", canal_id: "ubereats", activo: true },
+      ] },
+      "/api/canales/alertas": { ok: true, body: { alertas: [], total: 0 } },
+    });
+    render(<CanalesPage />);
+    await screen.findByRole("heading", { name: "Canales de Venta" });
+    const tarjeta = (nombre: string) => screen.getByRole("heading", { name: nombre }).closest("div.bg-white") as HTMLElement;
+    expect(tarjeta("Rappi")).toHaveTextContent("Activo");
+    expect(tarjeta("PedidosYa")).toHaveTextContent("Inactivo");
+    expect(tarjeta("Uber Eats")).toHaveTextContent("Inactivo");
+  });
+});

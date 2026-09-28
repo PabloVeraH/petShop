@@ -579,3 +579,19 @@ describe("CanalConfigPage — catálogo y precios", () => {
     expect(screen.queryByRole("region", { name: "Liquidaciones Rappi" })).not.toBeInTheDocument();
   });
 });
+
+// CC-23 — REGRESIÓN (QA 2026-09-27, BUG 3): el banner decía "Integración
+// pendiente" pero el toggle mostraba Activo con una fila antigua activo=true.
+describe("CanalConfigPage — integración pendiente (CC-23)", () => {
+  it("CC-23: PedidosYa con activo=true en la config se muestra Inactivo junto al aviso", async () => {
+    mockCanal = "pedidosya";
+    mockFetch.mockImplementation(() =>
+      Promise.resolve({ ok: true, json: async () => [{ id: "cfg-2", canal_id: "pedidosya", activo: true, tiene_credenciales: true }] })
+    );
+    await renderPage();
+    expect(await screen.findByText(/Integración pendiente/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Canal inactivo")).toBeInTheDocument());
+    expect(screen.queryByText("Canal activo, recibe pedidos")).not.toBeInTheDocument();
+    mockCanal = "rappi";
+  });
+});

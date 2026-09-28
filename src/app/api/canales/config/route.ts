@@ -5,6 +5,7 @@ import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import {
   CAMPO_EXTERNAL_STORE_ID,
   CANALES_INTEGRACION_PENDIENTE,
+  canalActivoEfectivo,
   type CanalConfigurableId,
 } from "@/lib/canales/campos";
 import { credencialesValidas } from "@/lib/canales/credenciales";
@@ -53,6 +54,8 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const result = (data ?? []).map(({ credenciales_encriptada, ...rest }) => ({
     ...rest,
     tiene_credenciales: !!credenciales_encriptada,
+    // Integración pendiente → inactivo aunque la fila diga activo=true (BUG 3 QA).
+    activo: canalActivoEfectivo(rest.canal_id, rest.activo),
   }));
 
   return NextResponse.json(result);
@@ -136,7 +139,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   });
 
   return NextResponse.json(
-    { id: data.id, canal_id: data.canal_id, activo: data.activo },
+    { id: data.id, canal_id: data.canal_id, activo: canalActivoEfectivo(data.canal_id, data.activo) },
     { status: 201 }
   );
 }, { endpoint: "POST /api/canales/config" });
@@ -255,7 +258,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
   return NextResponse.json({
     id: data.id,
     canal_id: data.canal_id,
-    activo: data.activo,
+    activo: canalActivoEfectivo(data.canal_id, data.activo),
     recargo_pct: data.recargo_pct != null ? Number(data.recargo_pct) : 0,
   });
 }, { endpoint: "PATCH /api/canales/config" });

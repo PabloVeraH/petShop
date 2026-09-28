@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import {
   CAMPOS_CREDENCIALES,
   CANALES_INTEGRACION_PENDIENTE,
+  canalActivoEfectivo,
   type CampoCredencial,
   type CanalConfigurableId,
 } from "@/lib/canales/campos";
@@ -90,7 +91,7 @@ export default function CanalConfigPage() {
         if (Array.isArray(data)) {
           const config = data.find((c: { canal_id: string }) => c.canal_id === canalId);
           if (config) {
-            setActivo(config.activo);
+            setActivo(canalActivoEfectivo(canalId, config.activo));
             setConfigExists(true);
             setTieneCredencialesGuardadas(!!config.tiene_credenciales);
           }
