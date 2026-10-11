@@ -84,45 +84,57 @@ Reglas de la rama:
 ### 3.1 Crear el proyecto
 Región cercana a Chile (ej. São Paulo) ⚠️. Guardar la contraseña de la BD.
 
-### 3.2 Esquema base: dump del demo, NO `migrations/`
+### 3.2 Esquema base: `migrations/000_baseline.sql`
 
-✅ `migrations/` **no reproduce** el esquema real: el historial del demo tiene
-migraciones con nombres que no están en el repo (`hub_initial_schema`,
-`increment_stock`, `021a…021o`, …), 001–005 en vez de `000_base_schema.sql`, y
-074–084 aplicadas sin registro. La fuente fiel es el propio demo.
+✅ El esquema base está versionado en `migrations/000_baseline.sql`: `pg_dump
+--schema-only --schema=public --no-owner` del demo (2026-10-11, hasta la
+086), ya ajustado para el SQL Editor y con las extensiones y el bucket
+`instagram-media` incluidos. Las migraciones anteriores están en
+`migrations/historico/` solo como referencia: **no se ejecutan** (no
+reproducían el esquema real). Ver `migrations/README.md`.
 
-```bash
-# conexión del DEMO (Settings → Database → Connection string, modo session)
-npx supabase db dump --db-url "<url demo>" --schema public -f base_schema.sql
-```
+Aplicar en la BD **nueva** (nunca en el demo):
 
-- Solo lectura sobre el demo, pero confirma antes de ejecutarlo (AGENTS.md §7.2).
-- **No** uses `--no-privileges`/equivalentes: los `REVOKE` sobre funciones
-  `SECURITY DEFINER` (migraciones 021l, 034, 069) son controles de seguridad.
-- ⚠️ Requiere Docker en algunas versiones del CLI; alternativa: `pg_dump
-  --schema-only --schema=public --no-owner`.
+1. Supabase de la tienda → **SQL Editor** → *New query*.
+2. Pegar el contenido completo de `000_baseline.sql` → **Run**.
+3. Si falla, leer el error antes de reintentar: el SQL Editor puede dejar
+   aplicada la parte anterior al error. Ante "already exists", empezar con un
+   proyecto vacío en vez de parchear.
+
 - No incluye datos: la tienda arranca vacía (correcto).
+- Conserva los `GRANT`/`REVOKE`: los `REVOKE` sobre funciones
+  `SECURITY DEFINER` son controles de seguridad.
 
-Aplicar en la BD **nueva** (SQL editor o `psql "<url tienda>" -f base_schema.sql`).
+**Regenerar el baseline** (solo si el demo cambió fuera de las migraciones
+numeradas): `pg_dump` ≥ versión del servidor (17), conexión *Session pooler*,
+mismos flags; quitar las líneas `\restrict`/`\unrestrict`, cambiar `CREATE
+SCHEMA public` por `IF NOT EXISTS` y conservar el encabezado y el bloque de
+Storage del archivo actual.
 
-### 3.3 Lo que el dump de `public` no trae
-- **Extensiones** `uuid-ossp` y `pgcrypto` ⚠️ (suelen venir activas en
-  `extensions`; si el dump falla por ellas, activarlas en Database → Extensions).
-- **Bucket de Storage** `instagram-media` (público) ✅ y sus políticas — no
-  está en `migrations/`. Crear el bucket y copiar sus políticas desde el demo:
-  ```sql
-  -- en el DEMO (lectura):
-  select policyname, cmd, roles, qual, with_check
-  from pg_policies where schemaname = 'storage';
-  ```
-- **pg_cron de canales (085)**: ✅ no aplicada ni en el demo. Va en §8.4,
-  después de desplegar.
+### 3.3 Lo que el baseline no trae
+- **pg_cron de canales (`migrations/085`)**: ✅ no aplicada ni en el demo. Va
+  en §8.4, después de desplegar.
+- **Edge Functions del hub** (`sync-catalog`, `sync-purchase`,
+  `supabase/functions/`): desplegadas en el demo; desplegarlas en la tienda
+  solo si esa instalación tendrá su propio hub ⚠️.
+- Auth de Supabase, Realtime, webhooks de BD, Vault: ✅ el demo no los usa
+  (verificado 2026-10-11).
 
 ### 3.4 Verificar
+En el SQL Editor de la tienda (valores esperados al 2026-10-11):
+```sql
+select
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public')                                       as funciones,  -- 46
+  (select count(*) from pg_tables where schemaname = 'public')        as tablas,     -- 49
+  (select count(*) from pg_tables where schemaname = 'public'
+    and not rowsecurity)                                              as sin_rls,    -- 0
+  (select count(*) from pg_policies where schemaname = 'public')      as politicas,  -- 125
+  (select count(*) from storage.buckets where id = 'instagram-media') as bucket;     -- 1
+```
 - Database → Advisors (security): sin errores nuevos respecto del demo.
-- `select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public';` → mismo número que el demo (46 al 2026-10-09).
-- Registrar en la tabla de §10 la última migración incluida (ej. `086`).
+- Registrar en la tabla de §10 la última migración incluida (`000_baseline`
+  = hasta 086).
 
 ---
 

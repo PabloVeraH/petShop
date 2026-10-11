@@ -39,9 +39,9 @@ describe("máquina de estados de canal_ordenes (§4.3)", () => {
     expect(esTerminal("failed")).toBe(false);
   });
 
-  it("U-170: los estados del dominio son exactamente los del CHECK de migrations/079 (sin 'reserved', D6)", () => {
-    const sql = fs.readFileSync(path.join(process.cwd(), "migrations/079_canales_nucleo.sql"), "utf8");
-    const bloque = sql.match(/canal_ordenes_estado_check CHECK \(estado IN \(([\s\S]*?)\)\)/)?.[1] ?? "";
+  it("U-170: los estados del dominio son exactamente los del CHECK de la BD (000_baseline, ex-079) (sin 'reserved', D6)", () => {
+    const sql = fs.readFileSync(path.join(process.cwd(), "migrations/000_baseline.sql"), "utf8");
+    const bloque = sql.match(/canal_ordenes_estado_check CHECK \(\(estado = ANY \(ARRAY\[([\s\S]*?)\]\)\)\)/)?.[1] ?? "";
     const enSql = [...bloque.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
     expect(enSql).toEqual([...ESTADOS_ORDEN].sort());
     expect(esEstadoOrden("reserved")).toBe(false);

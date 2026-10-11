@@ -25,9 +25,12 @@ Crea migraciones SQL para petShop siguiendo la convención del proyecto:
 
 ## Procedimiento
 
-1. **Listar migraciones existentes** para obtener el número siguiente:
+1. **Obtener el número siguiente**: el mayor entre `migrations/`,
+   `migrations/historico/` y lo ya aplicado en el demo (`list_migrations`), + 1.
+   El esquema base es `migrations/000_baseline.sql` (incluye hasta la 086);
+   ver `migrations/README.md`.
    ```bash
-   ls migrations/ | sort | tail -3
+   ls migrations/ migrations/historico/ | grep -E '^[0-9]{3}' | sort | tail -3
    ```
 
 2. **Crear el archivo** con el nombre correcto:

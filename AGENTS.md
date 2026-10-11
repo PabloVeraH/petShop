@@ -432,7 +432,10 @@ y expectativas de los tests.
 ## 11. Base de datos y migraciones
 
 Migraciones en `migrations/` — **no** en `supabase/migrations/` (no existe;
-`supabase/` solo contiene `functions/`).
+`supabase/` solo contiene `functions/`). El esquema base es
+`migrations/000_baseline.sql` (dump del demo hasta la 086); lo anterior está en
+`migrations/historico/` solo como referencia y no se ejecuta. Siguiente número
+libre y reglas: `migrations/README.md`.
 
 ### 11.1 Crear una migración
 
