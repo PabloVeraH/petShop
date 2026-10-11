@@ -469,3 +469,59 @@ describe("Settings API — control de acceso por rol", () => {
     expect(body.error).toBe("Forbidden");
   });
 });
+
+// I-736 — RUT y dirección de la tienda obligatorios: un PATCH puede omitirlos
+// (actualización parcial) pero nunca vaciarlos ni guardar un RUT inválido.
+describe("PATCH /api/settings — RUT y dirección obligatorios (I-736)", () => {
+  let c: ReturnType<typeof chain>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    c = chain();
+    mockFrom.mockReturnValue(c);
+    mockAsAdmin();
+    mockSingle.mockResolvedValue({ data: { id: STORE_ID }, error: null });
+  });
+
+  async function patch(body: object) {
+    const { PATCH } = await import("@/app/api/settings/route");
+    return PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  }
+
+  it.each([
+    ["rut vacío", { rut: "" }, "El RUT de la tienda es obligatorio"],
+    ["rut solo espacios", { rut: "   " }, "El RUT de la tienda es obligatorio"],
+    ["rut null", { rut: null }, "El RUT de la tienda es obligatorio"],
+    ["rut con DV incorrecto", { rut: "76.123.456-7" }, "RUT de la tienda inválido"],
+    ["address vacía", { address: "" }, "La dirección de la tienda es obligatoria"],
+    ["address solo espacios", { address: "   " }, "La dirección de la tienda es obligatoria"],
+    ["address null", { address: null }, "La dirección de la tienda es obligatoria"],
+  ])("I-736: %s → 400 sin escribir en la BD", async (_caso, body, mensaje) => {
+    const res = await patch({ name: "Mi Tienda", ...body });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe(mensaje);
+    expect(c.update).not.toHaveBeenCalled();
+  });
+
+  it("I-736: RUT válido se guarda normalizado y la dirección sin espacios sobrantes", async () => {
+    const res = await patch({ rut: "761234560", address: "  Av. Ossa 123  " });
+    expect(res.status).toBe(200);
+    expect(c.update).toHaveBeenCalledWith(
+      expect.objectContaining({ rut: "76.123.456-0", address: "Av. Ossa 123" }),
+    );
+    expect(c.eq).toHaveBeenCalledWith("id", STORE_ID);
+  });
+
+  it("I-736: PATCH parcial sin rut ni address no los toca", async () => {
+    const res = await patch({ name: "Otro nombre" });
+    expect(res.status).toBe(200);
+    const updateData = c.update.mock.calls[0][0];
+    expect(updateData).not.toHaveProperty("rut");
+    expect(updateData).not.toHaveProperty("address");
+  });
+});

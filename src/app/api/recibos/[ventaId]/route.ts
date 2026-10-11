@@ -55,7 +55,7 @@ export const GET = withErrorLogging(async (req: NextRequest,
   // Obtener información de tienda
   const { data: store } = await supabase
     .from("stores")
-    .select("name, rut, email, telefono, whatsapp_phone")
+    .select("name, rut, address")
     .eq("id", store_id)
     .single();
 
@@ -319,6 +319,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     <div class="header">
       <div class="titulo">${store?.name ?? "Tienda"}</div>
       <div class="subtitulo">RUT: ${store?.rut ?? "N/A"}</div>
+      ${store?.address ? `<div class="subtitulo">${store.address}</div>` : ""}
       <div class="numero-comprobante">${venta.numero_comprobante}</div>
       <div class="fecha-hora">${fechaFormato} ${horaFormato}</div>
     </div>

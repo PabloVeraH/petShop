@@ -224,7 +224,7 @@ describe("S-06: POST /api/onboarding/complete dos veces mismo user → segunda r
     const res = await POST(new NextRequest("http://localhost/api/onboarding/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeName: "Mi Store" }),
+      body: JSON.stringify({ storeName: "Mi Store", rut: "76.123.456-0", address: "Av. Ossa 123" }),
     }));
     expect(res.status).toBe(409);
   });

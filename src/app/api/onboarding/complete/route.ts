@@ -3,9 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { withErrorLogging } from "@/lib/audit";
+import { StoreRutSchema, StoreAddressSchema } from "@/lib/validation";
 
 const BodySchema = z.object({
   storeName: z.string().min(3).max(100),
+  rut: StoreRutSchema,
+  address: StoreAddressSchema,
 });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
@@ -17,10 +20,10 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   const body = await req.json();
   const parsed = BodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { storeName } = parsed.data;
+  const { storeName, rut, address } = parsed.data;
   const supabase = createServiceClient();
 
   // Prevent a user from creating multiple stores
@@ -39,7 +42,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 
   const { data: store, error: storeError } = await supabase
     .from("stores")
-    .insert({ name: storeName })
+    .insert({ name: storeName, rut, address })
     .select()
     .single();
 

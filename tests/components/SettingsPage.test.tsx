@@ -8,7 +8,7 @@
  * C-49  storeAdmin NO ve enlace a /admin
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -255,5 +255,54 @@ describe("SettingsPage — Licencia section", () => {
     expect(screen.getByText("31-12-2026")).toBeInTheDocument();
     expect(screen.queryByText("30-04-2026")).not.toBeInTheDocument();
     expect(screen.queryByText("30-12-2026")).not.toBeInTheDocument();
+  });
+});
+
+// C-73 — RUT y dirección de la tienda obligatorios en la UI. El `required` es
+// conveniencia de UX; el control real es el servidor (I-736).
+describe("SettingsPage — datos obligatorios de la tienda (C-73)", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: false, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth = { userId: "admin-1", sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } } };
+  });
+
+  it("C-73: nombre, RUT y dirección son campos requeridos", async () => {
+    await renderPage(base);
+    expect(await screen.findByLabelText("Nombre *")).toBeRequired();
+    expect(screen.getByLabelText("RUT *")).toBeRequired();
+    expect(screen.getByLabelText("Dirección *")).toBeRequired();
+  });
+
+  it("C-73: Guardar envía PATCH /api/settings con el RUT y la dirección editados", async () => {
+    await renderPage(base);
+    fireEvent.change(await screen.findByLabelText("RUT *"), { target: { value: "11.111.111-1" } });
+    fireEvent.change(screen.getByLabelText("Dirección *"), { target: { value: "Av. Ossa 123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => {
+      const patch = (global.fetch as jest.Mock).mock.calls.find(([, init]) => init?.method === "PATCH");
+      expect(patch).toBeDefined();
+      expect(patch[0]).toBe("/api/settings");
+      expect(JSON.parse(patch[1].body)).toMatchObject({ rut: "11.111.111-1", address: "Av. Ossa 123" });
+    });
+  });
+
+  it("C-73: el error del servidor (RUT inválido) se muestra en pantalla", async () => {
+    (global.fetch as jest.Mock).mockImplementation((_url: string, init?: RequestInit) =>
+      Promise.resolve(init?.method === "PATCH"
+        ? { ok: false, json: () => Promise.resolve({ error: "RUT de la tienda inválido" }) }
+        : { ok: true, json: () => Promise.resolve(base) }));
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("RUT de la tienda inválido")).toBeInTheDocument();
   });
 });

@@ -118,18 +118,24 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Datos de la tienda</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+              <label htmlFor="store-name" className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
               <input
+                id="store-name"
                 type="text"
+                required
+                minLength={2}
                 value={settings.name ?? ""}
                 onChange={(e) => setSettings({ ...settings, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
+              <label htmlFor="store-rut" className="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
               <input
+                id="store-rut"
                 type="text"
+                required
+                placeholder="76.123.456-0"
                 value={settings.rut ?? ""}
                 onChange={(e) => setSettings({ ...settings, rut: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -154,9 +160,11 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+              <label htmlFor="store-address" className="block text-sm font-medium text-gray-700 mb-1">Dirección *</label>
               <input
+                id="store-address"
                 type="text"
+                required
                 value={settings.address ?? ""}
                 onChange={(e) => setSettings({ ...settings, address: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"

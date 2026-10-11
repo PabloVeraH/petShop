@@ -1,5 +1,19 @@
 import { z } from "zod";
-import { UUIDSchema, validateRUT } from "./primitives";
+import { UUIDSchema, validateRUT, formatRUT } from "./primitives";
+
+// RUT y dirección de la tienda son obligatorios (recibos, reportes contables,
+// órdenes de compra): se pueden omitir en un PATCH parcial, nunca vaciar.
+export const StoreRutSchema = z
+  .string({ error: "El RUT de la tienda es obligatorio" })
+  .trim()
+  .min(1, "El RUT de la tienda es obligatorio")
+  .refine((v) => validateRUT(v), { message: "RUT de la tienda inválido" })
+  .transform(formatRUT);
+export const StoreAddressSchema = z
+  .string({ error: "La dirección de la tienda es obligatoria" })
+  .trim()
+  .min(1, "La dirección de la tienda es obligatoria")
+  .max(200);
 
 export const FidelizacionNivelSchema = z.object({
   monto: z.number().int().positive("El monto debe ser mayor a 0"),
@@ -8,8 +22,8 @@ export const FidelizacionNivelSchema = z.object({
 
 export const SettingsUpdateSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
-  rut: z.string().max(20).optional(),
-  address: z.string().max(200).optional(),
+  rut: StoreRutSchema.optional(),
+  address: StoreAddressSchema.optional(),
   phone: z.string().max(20).optional(),
   email: z.string().email("Correo electrónico inválido").optional(),
   whatsapp_enabled: z.boolean().optional(),

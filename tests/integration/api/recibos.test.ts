@@ -480,4 +480,55 @@ describe("GET /api/recibos/[ventaId]", () => {
     // NO debe aparecer como si 10 fuera pesos
     expect(data.html).not.toContain(">-$10<");
   });
+
+  // I-735 — REGRESIÓN: el recibo pedía `telefono` y `whatsapp_phone`, columnas
+  // que no existen en `stores`; PostgREST rechaza la consulta, `store` queda
+  // null y el recibo salía con "Tienda" / "RUT: N/A". El mock de `stores`
+  // emula ese rechazo ante columnas inexistentes.
+  it("I-735: el recibo muestra nombre, RUT y dirección reales de la tienda", async () => {
+    // Columnas reales de stores relevantes (information_schema, 2026-10-11)
+    const COLUMNAS_STORES = new Set(["id", "name", "rut", "address", "phone", "email", "direccion", "ciudad"]);
+    const ventaChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: {
+          id: mockVentaId, store_id: mockStoreId, numero_comprobante: "20261011-REC0001",
+          total: 11900, subtotal: 10000, descuento: 0, impuesto: 1900, estado: "pagada",
+          created_at: "2026-10-11T10:00:00Z", worker_clerk_id: null, clientes: null, venta_items: [],
+        },
+        error: null,
+      }),
+    };
+    let columnas = "";
+    const storeChain = {
+      select: jest.fn((cols: string) => { columnas = cols; return storeChain; }),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(() => {
+        const invalidas = columnas.split(",").map((c) => c.trim()).filter((c) => !COLUMNAS_STORES.has(c));
+        return Promise.resolve(invalidas.length
+          ? { data: null, error: { message: `column stores.${invalidas[0]} does not exist` } }
+          : { data: { name: "Tienda Real", rut: "76.123.456-0", address: "Av. Ossa 123" }, error: null });
+      }),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) =>
+        table === "stores" ? storeChain : table === "pagos" ? pagosChain : ventaChain),
+    });
+
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: { ventaId: mockVentaId } });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(storeChain.eq).toHaveBeenCalledWith("id", mockStoreId);
+    expect(data.html).toContain("Tienda Real");
+    expect(data.html).toContain("RUT: 76.123.456-0");
+    expect(data.html).toContain("Av. Ossa 123");
+    expect(data.html).not.toContain("RUT: N/A");
+  });
 });
