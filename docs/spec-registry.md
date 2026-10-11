@@ -2408,3 +2408,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-737 | (2026-10-11): POST /api/onboarding/complete exige RUT válido y dirección → 400 sin crear tienda; inserta solo nombre, RUT normalizado y dirección (campos ajenos ignorados); sin sesión 401 | POST /api/onboarding/complete | integration |
 | C-73 | (2026-10-11): /settings marca nombre, RUT y dirección como requeridos (UX), envía rut/address en el PATCH y muestra el error del servidor | SettingsPage | component |
 | C-74 | (2026-10-11): /auth/onboarding pide nombre, RUT y dirección; RUT inválido no llama a la API; datos válidos → POST con los tres campos; error de API visible | OnboardingPage | component |
+| MW-34 | (2026-10-11): `clerkProdFrontendApi` decodifica el Frontend API de una `pk_live_` (ej. clerk.mascotaspetshop.ammapet.cl); sin clave, `pk_test_`, base64 inválido, sin `$`, host sin punto o con espacios/`;` → null | middleware | unit |
+| MW-35 | (2026-10-11): con `pk_live_` el host de Clerk va en script-src y connect-src; con `pk_test_` (demo) el CSP es idéntico al de antes; una clave manipulada no agrega directivas | buildCsp (middleware) | unit |

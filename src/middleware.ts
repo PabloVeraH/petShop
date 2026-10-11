@@ -4,7 +4,33 @@ import { aplicarRateLimit } from "@/middleware/rateLimit";
 import { createServiceClient } from "@/lib/supabase";
 import { computeLicenseStatus } from "@/lib/license";
 
-export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "development"): string {
+// Frontend API de una instancia de PRODUCCIÓN de Clerk (ej.
+// "clerk.mascotaspetshop.ammapet.cl"), decodificado de la publishable key:
+// pk_live_<base64("<host>$")>. Cada tienda tiene su propia app de Clerk, así
+// que el host sale de su variable de entorno en vez de estar fijo en el código.
+// Misma validación que parsePublishableKey de @clerk/shared (termina en "$")
+// más un host estricto, para no inyectar nada raro en el header CSP. Las
+// claves de desarrollo (pk_test_) ya están cubiertas por *.clerk.accounts.dev.
+export function clerkProdFrontendApi(publishableKey: string | undefined): string | null {
+  if (!publishableKey?.startsWith("pk_live_")) return null;
+  let decoded: string;
+  try {
+    decoded = atob(publishableKey.slice("pk_live_".length));
+  } catch {
+    return null;
+  }
+  if (!decoded.endsWith("$")) return null;
+  const host = decoded.slice(0, -1);
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host) ? host : null;
+}
+
+export function buildCsp(
+  nonce: string,
+  isDev = process.env.NODE_ENV === "development",
+  clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+): string {
+  const clerkProdHost = clerkProdFrontendApi(clerkPublishableKey);
+  const clerkProd = clerkProdHost ? `https://${clerkProdHost}` : "";
   const directives = [
     "default-src 'self'",
     // nonce + strict-dynamic: sin 'unsafe-inline' en producción
@@ -13,6 +39,7 @@ export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "develo
       `script-src 'nonce-${nonce}' 'strict-dynamic'`,
       isDev ? "'unsafe-eval'" : "",
       "https://clerk.accounts.dev https://*.clerk.accounts.dev",
+      clerkProd,
     ].filter(Boolean).join(" "),
     // style-src mantiene unsafe-inline: necesario para Tailwind + Next.js inline styles
     "style-src 'self' 'unsafe-inline'",
@@ -27,10 +54,11 @@ export function buildCsp(nonce: string, isDev = process.env.NODE_ENV === "develo
       "connect-src 'self'",
       "https://*.supabase.co wss://*.supabase.co",
       "https://api.clerk.com https://*.clerk.accounts.dev",
+      clerkProd,
       "https://clerk-telemetry.com",
       "https://graph.facebook.com",
       "https://photon.komoot.io",
-    ].join(" "),
+    ].filter(Boolean).join(" "),
     "worker-src 'self' blob:",
     "frame-src https://challenges.cloudflare.com",
     "object-src 'none'",

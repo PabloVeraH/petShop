@@ -43,19 +43,18 @@ que paga, considerar Vercel Pro y Supabase Pro (con backups). Clerk gratis:
 
 ---
 
-## 1. Bloqueante antes de la primera instalación (código en `main`)
+## 1. CSP y Clerk de producción (resuelto en `main`, 2026-10-11)
 
-**La CSP no permite Clerk de producción.** ✅ El demo usa claves de
-desarrollo (`pk_test_`, verificado en el HTML de demo.ammapet.cl) y
-`buildCsp()` en `src/middleware.ts` solo permite `*.clerk.accounts.dev` en
-`script-src`/`connect-src`. Una instancia de producción sirve su Frontend API
-desde un subdominio propio (ej. `clerk.<nombre>.ammapet.cl`, el que indique
-Clerk → Domains) ⚠️, que el navegador bloquearía → el login no carga.
+Una instancia de producción de Clerk sirve su Frontend API desde un
+subdominio propio de la tienda (ej. `clerk.mascotaspetshop.ammapet.cl`, app
+*Secondary* en Clerk). `buildCsp()` (`src/middleware.ts`) lo decodifica de
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_live_<base64("clerk.dominio$")>`) y
+lo agrega a `script-src` y `connect-src`: **no hay variable nueva** y no
+puede quedar desalineado con la clave. Con `pk_test_` (demo) el CSP no
+cambia. Tests MW-34/MW-35.
 
-Solución pendiente (cambio en `main`, con tests): agregar a la CSP el host
-del Frontend API, que viene codificado en la publishable key
-(`pk_live_<base64("clerk.dominio$")>`), sin variable nueva. Hasta hacerlo,
-no instales ninguna tienda con claves `pk_live_`.
+Regla general: el código es el mismo en `main` y en todas las ramas de
+tienda; lo que distingue a una tienda va en sus variables de entorno.
 
 ---
 
@@ -311,7 +310,7 @@ Vuelta atrás: Vercel → Deployments → *Instant Rollback* al deploy anterior
 | Tienda | Rama | Dominio | Versión | Última migración | Supabase | Notas |
 |---|---|---|---|---|---|---|
 | (demo) | `main` | demo.ammapet.cl | — | 086 (085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
-| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | `000_baseline` (hasta 086; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Pendiente: CSP `pk_live_` (§1), Vercel |
+| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | `000_baseline` (hasta 086; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Pendiente: Vercel |
 
 ---
 

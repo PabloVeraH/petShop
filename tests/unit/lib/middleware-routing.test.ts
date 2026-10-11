@@ -5,7 +5,7 @@
  */
 
 import { computeLicenseStatus } from "@/lib/license";
-import { buildCsp } from "@/middleware";
+import { buildCsp, clerkProdFrontendApi } from "@/middleware";
 
 // Replica la lógica de routing del middleware sin depender de Clerk ni Next.js
 function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker" | "none") {
@@ -357,6 +357,53 @@ describe("Middleware — CSP worker-src (MW-18/MW-19)", () => {
     const imgDirective = csp.split(";").find((d) => d.trim().startsWith("img-src"));
     expect(imgDirective).toBeDefined();
     expect(imgDirective).toContain("https://imgs.ammapet.cl");
+  });
+});
+
+// MW-34/MW-35 — Clerk de producción por tienda: cada tienda tiene su propia
+// app de Clerk con su Frontend API (ej. clerk.mascotaspetshop.ammapet.cl). El
+// host sale de NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY; sin esto el navegador
+// bloquea Clerk y el login no carga.
+describe("Middleware — CSP con Clerk de producción (MW-34, MW-35)", () => {
+  const pkLive = (decoded: string) => `pk_live_${btoa(decoded)}`;
+  const directiva = (csp: string, nombre: string) =>
+    csp.split(";").map((d) => d.trim()).find((d) => d.startsWith(nombre)) ?? "";
+
+  it("MW-34: clerkProdFrontendApi decodifica el host de una pk_live_ válida", () => {
+    expect(clerkProdFrontendApi(pkLive("clerk.mascotaspetshop.ammapet.cl$"))).toBe("clerk.mascotaspetshop.ammapet.cl");
+  });
+
+  it.each([
+    ["sin clave", undefined],
+    ["vacía", ""],
+    ["de desarrollo", `pk_test_${btoa("foo-bar-1.clerk.accounts.dev$")}`],
+    ["base64 inválido", "pk_live_%%%"],
+    ["sin $ final", pkLive("clerk.tienda.cl")],
+    ["host sin punto", pkLive("localhost$")],
+    ["intento de inyectar directivas", pkLive("evil.com; script-src *$")],
+    ["host con espacio", pkLive("clerk.tienda.cl https://evil.com$")],
+  ])("MW-34: clave %s → null (no agrega nada al CSP)", (_caso, clave) => {
+    expect(clerkProdFrontendApi(clave)).toBeNull();
+  });
+
+  it("MW-35: con pk_live_ el host de Clerk va en script-src y connect-src", () => {
+    const csp = buildCsp(NONCE, false, pkLive("clerk.mascotaspetshop.ammapet.cl$"));
+    expect(directiva(csp, "script-src")).toContain("https://clerk.mascotaspetshop.ammapet.cl");
+    expect(directiva(csp, "connect-src")).toContain("https://clerk.mascotaspetshop.ammapet.cl");
+    expect(csp).not.toMatch(/\s{2,}/);
+  });
+
+  it("MW-35: con pk_test_ (demo) el CSP queda igual que sin clave", () => {
+    const demo = buildCsp(NONCE, false, `pk_test_${btoa("foo-bar-1.clerk.accounts.dev$")}`);
+    expect(demo).toBe(buildCsp(NONCE, false, ""));
+    expect(directiva(demo, "connect-src")).toBe(
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.clerk.com https://*.clerk.accounts.dev https://clerk-telemetry.com https://graph.facebook.com https://photon.komoot.io",
+    );
+  });
+
+  it("MW-35: una clave manipulada no agrega directivas al CSP", () => {
+    const csp = buildCsp(NONCE, false, pkLive("evil.com; script-src *$"));
+    expect(csp).toBe(buildCsp(NONCE, false, ""));
   });
 });
 
