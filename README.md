@@ -9,43 +9,43 @@ Sistema integral de gestión para tiendas de mascotas con autenticación, punto 
 ## 🚀 Inicio Rápido
 
 ### Requisitos
-- **Node.js** ≥ 18
-- **npm** o **yarn**
+- **Node.js** ≥ 20.9 (requisito de Next.js 16)
+- **npm**
 - **Clerk** (autenticación) — [obtener credenciales](https://dashboard.clerk.com)
 - **Supabase** (base de datos) — [crear proyecto](https://app.supabase.com)
+
+> **Instalar el sistema a una tienda nueva** (rama, Supabase, Clerk y Vercel
+> propios, y cómo actualizarla desde `main`): ver
+> [`docs/INSTALACION_TIENDA.md`](docs/INSTALACION_TIENDA.md).
 
 ### Instalación Local
 
 ```bash
-cd app
 npm install
 ```
 
 ### Variables de Entorno
 
-Copia `.env.example` a `.env.local` y completa:
+Crea `.env.local` en la raíz del repo. La lista completa de variables está en
+[`docs/INSTALACION_TIENDA.md` — Anexo A](docs/INSTALACION_TIENDA.md#anexo-a-variables-de-entorno).
+Mínimo para levantar en local:
 
-```bash
-cp .env.example .env.local
-```
-
-**Variables necesarias:**
 ```env
-# Clerk (obtener en dashboard.clerk.com)
+# Clerk (instancia de desarrollo)
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/auth/login
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/auth/signup
 CLERK_WEBHOOK_SECRET=whsec_...
 
-# Supabase (obtener en app.supabase.com → Settings → API)
+# Supabase (Settings → API)
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# Integración Hub (opcional)
-HUB_URL=http://tu_url
-HUB_SYNC_SECRET=store-...
+# openssl rand -hex 32
+ENCRYPTION_KEY=
+CRON_SECRET=
 ```
 
 ### Desarrollo Local
@@ -108,7 +108,7 @@ npm start
 ## 🏗️ Arquitectura
 
 ```
-app/
+petShop/
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── (app)/                    # Protected routes (requieren auth)
@@ -136,9 +136,9 @@ app/
 │   └── types/                        # TypeScript types
 ├── public/                           # Static assets
 ├── tests/                            # Jest test suite
+├── migrations/                       # SQL (ver nota en Base de Datos)
 ├── package.json
-├── tsconfig.json
-└── tailwind.config.ts
+└── tsconfig.json
 ```
 
 ---
@@ -153,72 +153,32 @@ app/
 - `ventas` — Transacciones de venta
 - `clerk_users` — Sincronización de usuarios Clerk
 
-Ver `migrations/` para schema completo.
+`migrations/` contiene el historial de cambios, pero **no reproduce el
+esquema completo desde cero** (hay cambios aplicados fuera de esa carpeta).
+Una base nueva se crea con un dump del esquema del demo: ver
+`docs/INSTALACION_TIENDA.md` §3.
 
 ---
 
-## 🔑 Variables & Configuración
+## 🔑 Configuración y despliegue
 
-### Clerk Setup
-1. Ve a [dashboard.clerk.com](https://dashboard.clerk.com)
-2. Crea una aplicación
-3. En **API Keys**, copia:
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-   - `CLERK_SECRET_KEY`
-4. En **Webhooks**, crea uno para `user.created` y `user.updated` → `POST /api/webhooks/clerk`
+El paso a paso completo (Supabase, Clerk, Vercel, servicios externos,
+verificación y actualización) está en
+[`docs/INSTALACION_TIENDA.md`](docs/INSTALACION_TIENDA.md). Resumen:
 
-### Supabase Setup
-1. Ve a [app.supabase.com](https://app.supabase.com)
-2. Crea un proyecto
-3. En **Settings → API**, copia:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-4. Ejecuta migraciones: `psql -h ... < migrations/schema.sql`
-
----
-
-## 📦 Despliegue en Vercel
-
-### 1. Conectar Repositorio
-```bash
-# Push a GitHub/GitLab
-git push origin develop
-```
-
-Ve a [vercel.com](https://vercel.com) → New Project → Importa tu repo
-
-### 2. Configurar Variables de Entorno
-En Vercel Dashboard → Settings → Environment Variables, agrega:
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-CLERK_SECRET_KEY
-NEXT_PUBLIC_CLERK_SIGN_IN_URL
-NEXT_PUBLIC_CLERK_SIGN_UP_URL
-CLERK_WEBHOOK_SECRET
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-HUB_URL (opcional)
-HUB_SYNC_SECRET (opcional)
-```
-
-### 3. Build Settings
-- **Framework**: Next.js
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Root Directory**: `app/`
-
-### 4. Desplegar
-Vercel detecta automáticamente cambios en `develop` y despliega.
-
-**URL de producción**: `https://your-app.vercel.app`
-
-### 5. Actualizar Webhooks
-En Clerk Dashboard → Webhooks, actualiza la URL de webhook:
-```
-https://your-app.vercel.app/api/webhooks/clerk
-```
+- **Entornos**: `main` se despliega automáticamente al demo
+  (`demo.ammapet.cl`). Cada tienda cliente tiene su rama `tienda/<nombre>`,
+  su proyecto de Vercel (*Production Branch* = esa rama), su proyecto de
+  Supabase y su aplicación de Clerk. Las novedades de `main` bajan a una
+  tienda solo por PR manual.
+- **Clerk**: el session token debe incluir
+  `{ "publicMetadata": "{{user.public_metadata}}" }`; webhook a
+  `/api/webhooks/clerk` con `user.created`, `user.updated`, `user.deleted`,
+  `session.created`, `session.ended`, `session.removed`.
+- **Supabase**: base nueva a partir de un dump del esquema del demo (no de
+  `migrations/`).
+- **Vercel**: framework Next.js, build `npm run build`, raíz del repo (sin
+  Root Directory).
 
 ---
 
@@ -229,7 +189,7 @@ https://your-app.vercel.app/api/webhooks/clerk
 npm test
 
 # Coverage report
-npm test:coverage
+npm run test:coverage
 ```
 
 Tests en `tests/` cubriendo:
@@ -250,7 +210,7 @@ Tests en `tests/` cubriendo:
 ## 🤝 Convenciones de Código
 
 - **Commits**: Semantic versioning (`feat:`, `fix:`, `refactor:`, etc.)
-- **Branches**: `develop` (main), feature branches para nuevas features
+- **Branches**: `main` (demo, deploy automático), `feat/*` para nuevas features, `tienda/<nombre>` por tienda cliente
 - **TypeScript**: Tipos explícitos en todas las interfaces públicas
 - **Componentes**: Modular, reutilizable, props tipadas
 - **Naming**: camelCase (variables/funciones), PascalCase (componentes)
@@ -261,18 +221,20 @@ Tests en `tests/` cubriendo:
 
 ### "Unauthorized" en `/admin`
 - Verifica que estés logueado con un usuario que tenga `systemAdmin` o `storeAdmin`
-- En Clerk Dashboard, edita el usuario → Custom Attributes → set `systemAdmin: true`
+- En Clerk Dashboard, edita el usuario → Public metadata → `{ "systemAdmin": true }`
+- Verifica que el session token incluya `publicMetadata` (ver Configuración)
 
 ### Variables de entorno no cargan
 - Reinicia el servidor: `npm run dev`
-- Verifica que `.env.local` esté en `app/.env.local` (no en raíz)
+- Verifica que `.env.local` esté en la raíz del repo
 
 ### Webhook de Clerk no funciona
-- En producción: Verifica que la URL es `https://your-app.vercel.app/api/webhooks/clerk`
+- En producción: Verifica que la URL es `https://<dominio>/api/webhooks/clerk`
 - Asegúrate que el CLERK_WEBHOOK_SECRET coincide en Clerk Dashboard
 
 ### Base de datos desincronizada
-- Ejecuta migraciones: `psql -h ... < migrations/schema.sql`
+- Compara las migraciones nuevas de `migrations/` con las aplicadas en el
+  proyecto (Supabase → Database → Migrations) y aplica las faltantes en orden
 - Verifica que SUPABASE_SERVICE_ROLE_KEY es correcto (no ANON_KEY)
 
 ---
@@ -283,4 +245,4 @@ Para reportar bugs o sugerencias, abre un issue en GitHub o contacta al equipo d
 
 ---
 
-**Última actualización**: Abril 2026
+**Última actualización**: Octubre 2026
