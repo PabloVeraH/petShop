@@ -93,7 +93,19 @@ Región cercana a Chile (ej. São Paulo) ⚠️. Guardar la contraseña de la BD
 `migrations/historico/` solo como referencia: **no se ejecutan** (no
 reproducían el esquema real). Ver `migrations/README.md`.
 
-Aplicar en la BD **nueva** (nunca en el demo):
+Aplicar en la BD **nueva** (nunca en el demo). Preferido: `psql` (≥ 17) con
+conexión *Session pooler* de la tienda, en una sola transacción (si algo
+falla no queda nada aplicado):
+
+```powershell
+$env:PGPASSWORD = "<contraseña BD tienda>"
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h <host pooler> -p 5432 `
+  -U postgres.<id tienda> -d postgres `
+  -v ON_ERROR_STOP=1 --single-transaction -f migrations\000_baseline.sql
+Remove-Item Env:PGPASSWORD
+```
+
+Alternativa con el SQL Editor:
 
 1. Supabase de la tienda → **SQL Editor** → *New query*.
 2. Pegar el contenido completo de `000_baseline.sql` → **Run**.
@@ -107,9 +119,10 @@ Aplicar en la BD **nueva** (nunca en el demo):
 
 **Regenerar el baseline** (solo si el demo cambió fuera de las migraciones
 numeradas): `pg_dump` ≥ versión del servidor (17), conexión *Session pooler*,
-mismos flags; quitar las líneas `\restrict`/`\unrestrict`, cambiar `CREATE
-SCHEMA public` por `IF NOT EXISTS` y conservar el encabezado y el bloque de
-Storage del archivo actual.
+mismos flags; quitar las líneas `\restrict`/`\unrestrict` y las
+`ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin` (el rol `postgres` no puede
+cambiarlas), cambiar `CREATE SCHEMA public` por `IF NOT EXISTS` y conservar el
+encabezado y el bloque de Storage del archivo actual.
 
 ### 3.3 Lo que el baseline no trae
 - **pg_cron de canales (`migrations/085`)**: ✅ no aplicada ni en el demo. Va
