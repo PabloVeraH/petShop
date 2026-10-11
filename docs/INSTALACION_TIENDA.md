@@ -145,6 +145,10 @@ select
   (select count(*) from pg_policies where schemaname = 'public')      as politicas,  -- 125
   (select count(*) from storage.buckets where id = 'instagram-media') as bucket;     -- 1
 ```
+- `funciones` = **47** es normal si al crear el proyecto se activó el RLS
+  automático: Supabase agrega `public.rls_auto_enable()` (event trigger que
+  activa RLS en tablas nuevas). Es inofensiva y se deja. ✅ visto en
+  `mascotaspetshop` (2026-10-11). Cualquier otra función extra: revisar.
 - Database → Advisors (security): sin errores nuevos respecto del demo.
 - Registrar en la tabla de §10 la última migración incluida (`000_baseline`
   = hasta 086).
