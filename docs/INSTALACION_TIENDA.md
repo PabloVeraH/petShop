@@ -104,6 +104,14 @@ $env:PGPASSWORD = "<contraseña BD tienda>"
 Remove-Item Env:PGPASSWORD
 ```
 
+Linux / macOS (bash):
+```bash
+read -rsp "Contraseña BD tienda: " PGPASSWORD && export PGPASSWORD && echo
+psql -h <host pooler> -p 5432 -U postgres.<id tienda> -d postgres \
+  -v ON_ERROR_STOP=1 --single-transaction -f migrations/000_baseline.sql
+unset PGPASSWORD
+```
+
 Alternativa con el SQL Editor:
 
 1. Supabase de la tienda → **SQL Editor** → *New query*.
@@ -224,8 +232,8 @@ Functions solo con autorización.
 | `CLERK_WEBHOOK_SECRET` | §4.4 |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` / `_SIGN_UP_URL` | `/auth/login` / `/auth/signup` |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | del proyecto Supabase **de la tienda** |
-| `ENCRYPTION_KEY` | **nueva**: `openssl rand -hex 32` (64 hex) ✅ |
-| `CRON_SECRET` | nuevo: `openssl rand -hex 32` |
+| `ENCRYPTION_KEY` | **nueva**: 64 hex (comando en Anexo A) ✅ |
+| `CRON_SECRET` | nuevo: 64 hex (comando en Anexo A) |
 | `ENABLED_CHANNELS` | ej. `rappi,pedidosya` |
 | `R2_*`, `RESEND_*`, `OPENROUTER_*`, `RAPPI_*`… | §5 |
 
@@ -330,11 +338,15 @@ Reglas:
   con el nombre `petshop-<nombre>`, para ver su gasto y revocarla sin
   afectar al resto.
 
-Generar un secreto aleatorio (64 hex) en PowerShell:
+Generar un secreto aleatorio (64 hex), uno distinto por variable:
 ```powershell
--join ((1..32) | % { '{0:x2}' -f (Get-Random -Max 256) })
+# Windows (PowerShell) — generador criptográfico; no usar Get-Random
+$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | % { '{0:x2}' -f $_ })
 ```
-(o `openssl rand -hex 32` en bash).
+```bash
+# Linux / macOS
+openssl rand -hex 32
+```
 
 ### A.1 Obligatorias
 
@@ -389,13 +401,23 @@ desapareció en 2026-10); verificar en https://openrouter.ai/models. Los
 `:free` tienen un límite diario de requests (1000/día con créditos cargados,
 según `GET /api/v1/key`).
 
-Probar la clave sin la app (PowerShell; la clave se pide sin mostrarla):
+Probar la clave sin la app (la clave se pide sin mostrarla):
 ```powershell
+# Windows (PowerShell)
 $k = (Read-Host "Pega la clave").Trim()
 (Invoke-RestMethod -Uri "https://openrouter.ai/api/v1/key" -Headers @{ Authorization = "Bearer $k" }).data
 $h = @{ Authorization = "Bearer $k"; "Content-Type" = "application/json" }
 $b = '{"model":"openrouter/free","messages":[{"role":"user","content":"Responde solo: ok"}]}'
 (Invoke-RestMethod -Uri "https://openrouter.ai/api/v1/chat/completions" -Method Post -Headers $h -Body $b).choices[0].message.content
+```
+```bash
+# Linux / macOS
+read -rsp "Pega la clave: " K && echo
+curl -s https://openrouter.ai/api/v1/key -H "Authorization: Bearer $K"; echo
+curl -s https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer $K" -H "Content-Type: application/json" \
+  -d '{"model":"openrouter/free","messages":[{"role":"user","content":"Responde solo: ok"}]}'; echo
+unset K
 ```
 401 = clave mal pegada (típico: prefijo `sk-or-v1-` duplicado o espacio).
 
