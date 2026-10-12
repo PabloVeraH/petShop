@@ -24,17 +24,21 @@ export const SettingsUpdateSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).optional(),
   rut: StoreRutSchema.optional(),
   address: StoreAddressSchema.optional(),
-  phone: z.string().max(20).optional(),
-  email: z.string().email("Correo electrónico inválido").optional(),
+  // /settings reenvía lo que leyó del GET: en una tienda recién creada estas
+  // columnas (nullable) vienen null, y un campo de email vaciado llega como "".
+  phone: z.string().max(20).nullable().optional(),
+  email: z.literal("").transform(() => null)
+    .or(z.string().email("Correo electrónico inválido")).nullable().optional(),
   whatsapp_enabled: z.boolean().optional(),
   whatsapp_phone_number_id: z.string().max(50).nullable().optional(),
   whatsapp_access_token: z.string().max(200).optional(),
   whatsapp_webhook_verify_token: z.string().max(100).nullable().optional(),
   email_reminder_enabled: z.boolean().optional(),
   email_reminder_dias_aviso: z.number().int().min(1).max(30).optional(),
-  resend_from_email: z.string().email("Correo electrónico inválido").nullable().optional(),
+  resend_from_email: z.literal("").transform(() => null)
+    .or(z.string().email("Correo electrónico inválido")).nullable().optional(),
   fidelizacion_niveles: z.array(FidelizacionNivelSchema).max(5).optional(),
-  ciudad: z.string().max(100).optional(),
+  ciudad: z.string().max(100).nullable().optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lon: z.number().min(-180).max(180).nullable().optional(),
   direccion: z.string().max(300).nullable().optional(),

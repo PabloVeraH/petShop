@@ -524,4 +524,25 @@ describe("PATCH /api/settings — RUT y dirección obligatorios (I-736)", () => 
     expect(updateData).not.toHaveProperty("rut");
     expect(updateData).not.toHaveProperty("address");
   });
+
+  // I-738 — la página reenvía el GET completo: en una tienda recién creada
+  // phone/email/ciudad/resend_from_email vienen null (antes → 400 "se
+  // esperaba texto, recibido nulo"), y un email vaciado llega como "".
+  it("I-738: campos opcionales null o email vacío se guardan como null", async () => {
+    const res = await patch({
+      name: "Mi Tienda", rut: "761234560", address: "Av. Ossa 123",
+      phone: null, email: null, ciudad: null, resend_from_email: "",
+    });
+    expect(res.status).toBe(200);
+    expect(c.update).toHaveBeenCalledWith(expect.objectContaining({
+      phone: null, email: null, ciudad: null, resend_from_email: null,
+    }));
+  });
+
+  it("I-738: email con formato inválido sigue rechazándose", async () => {
+    const res = await patch({ email: "no-es-email" });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Correo electrónico inválido");
+    expect(c.update).not.toHaveBeenCalled();
+  });
 });
