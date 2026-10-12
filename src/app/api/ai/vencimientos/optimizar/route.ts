@@ -152,7 +152,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     .single();
   const model = store?.openrouter_model
     ?? process.env.OPENROUTER_MODEL
-    ?? "z-ai/glm-4.5-air:free";
+    ?? "openrouter/free";
 
   // 5. Obtener productos próximos a vencer con stock > 0
   const hoy = new Date();

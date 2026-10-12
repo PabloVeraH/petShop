@@ -27,7 +27,7 @@ export function IAConfigSection({ stores }: IAConfigSectionProps) {
     // Initialize models from stores data
     const initialModels: Record<string, string> = {};
     stores.forEach(store => {
-      initialModels[store.id] = store.openrouter_model || "z-ai/glm-4.5-air:free";
+      initialModels[store.id] = store.openrouter_model || "openrouter/free";
     });
     setModels(initialModels);
   }, [stores]);
@@ -90,9 +90,9 @@ export function IAConfigSection({ stores }: IAConfigSectionProps) {
         <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
           <p><strong>Nota:</strong> Los modelos disponibles en OpenRouter incluyen:</p>
           <ul className="list-disc list-inside mt-2 space-y-1">
-            <li><code>z-ai/glm-4.5-air:free</code> - Gratuito (recomendado para empezar)</li>
+            <li><code>openrouter/free</code> - Gratuito: OpenRouter elige un modelo gratis disponible (recomendado para empezar)</li>
             <li><code>openai/gpt-4o</code> - De pago (más potente)</li>
-            <li><code>anthropic/claude-3-haiku</code> - De pago (rápido y económico)</li>
+            <li><code>anthropic/claude-haiku-4.5</code> - De pago (rápido y económico)</li>
           </ul>
           <p className="mt-2">Solo los modelos de OpenRouter son compatibles.</p>
         </div>
@@ -106,7 +106,7 @@ export function IAConfigSection({ stores }: IAConfigSectionProps) {
                   <Input
                     value={model}
                     onChange={(e) => setModels(prev => ({ ...prev, [storeId]: e.target.value }))}
-                    placeholder="z-ai/glm-4.5-air:free"
+                    placeholder="openrouter/free"
                     className="h-8 text-sm"
                   />
                   <Button
