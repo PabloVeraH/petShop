@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { clerkClient } from "@clerk/nextjs/server";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
 
@@ -54,24 +55,41 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   }
 
   const supabase = createServiceClient();
-  const meta = event.data.public_metadata;
 
   if (event.type === "user.created" || event.type === "user.updated") {
-    const nombre = [event.data.first_name, event.data.last_name].filter(Boolean).join(" ") || null;
-    await supabase.from("clerk_users").upsert(
+    // Clerk no garantiza el orden de entrega: un user.created (sin metadata)
+    // que llega después del user.updated pisaba store_id/rol con null y el
+    // usuario desaparecía de /admin (mascotaspetshop, 2026-10-12). Se escribe
+    // el estado ACTUAL del usuario en Clerk, no el del evento.
+    let cu;
+    try {
+      const client = await clerkClient();
+      cu = await client.users.getUser(event.data.id);
+    } catch (err) {
+      // Borrado en Clerk después del evento: no recrear la fila.
+      if (isClerkAPIResponseError(err) && err.status === 404) {
+        return NextResponse.json({ received: true });
+      }
+      // Sin estado confiable no se escribe: el 500 hace que Svix reintente.
+      throw err;
+    }
+    const meta = cu.publicMetadata as Record<string, unknown>;
+    const nombre = [cu.firstName, cu.lastName].filter(Boolean).join(" ") || null;
+    const { error } = await supabase.from("clerk_users").upsert(
       {
-        clerk_id: event.data.id,
-        email: event.data.email_addresses[0]?.email_address ?? null,
+        clerk_id: cu.id,
+        email: cu.emailAddresses[0]?.emailAddress ?? null,
         ...(nombre ? { nombre } : {}),
         system_admin: Boolean(meta?.systemAdmin),
         store_admin: Boolean(meta?.storeAdmin),
         store_worker: Boolean(meta?.storeWorker),
         store_id: (meta?.storeId as string) ?? null,
-        is_disabled: event.data.banned ?? false,
+        is_disabled: cu.banned ?? false,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "clerk_id" }
     );
+    if (error) throw new Error(`clerk_users upsert failed: ${error.message}`);
   }
 
   if (event.type === "user.deleted") {
