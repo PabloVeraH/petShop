@@ -148,6 +148,8 @@ it("UI-04: llama a Photon API al escribir más de 2 caracteres (debounced)", asy
       expect.stringContaining("photon.komoot.io")
     );
   });
+  // Photon responde 400 a lang=es (solo default/de/en/fr): sin sugerencias.
+  expect((global.fetch as jest.Mock).mock.calls[0][0]).not.toMatch(/[?&]lang=/);
   jest.useRealTimers();
 });
 
