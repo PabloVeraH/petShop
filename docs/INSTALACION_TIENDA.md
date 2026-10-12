@@ -177,9 +177,11 @@ select
    `user.created`, `user.updated`, `user.deleted`, `session.created`,
    `session.ended`, `session.removed` ✅. Copiar el signing secret →
    `CLERK_WEBHOOK_SECRET`.
-5. *Restrictions* → registro **restringido** (solo invitación) ⚠️: el
-   onboarding (`/api/onboarding/complete`) deja a cualquier usuario nuevo sin
-   tienda crear una ✅.
+5. *Configure → User & authentication → Access mode* → **Invite-only** →
+   *Save* (antes se llamaba "Restrictions"; enlace directo
+   `https://dashboard.clerk.com/~/user-authentication/access-mode`). Sin esto
+   el onboarding (`/api/onboarding/complete`) deja a cualquier usuario nuevo
+   sin tienda crear una ✅.
 6. Organizations: desactivadas (no se usan).
 7. Claves `pk_live_…` / `sk_live_…` → Vercel (§6).
 
@@ -253,20 +255,47 @@ Functions solo con autorización.
 
 ## 7. Datos iniciales
 
-1. En Clerk (prod de la tienda) crear tu usuario y ponerle en *Public
-   metadata*: `{ "systemAdmin": true }`.
-2. Crear el usuario del dueño (invitación). Al entrar pasa por
-   `/auth/onboarding`, nombra la tienda y queda como `storeAdmin` ✅ (el
-   trigger de la 086 crea su negocio automáticamente).
-3. Licencia: con `MULTI_SUCURSAL` apagado, /admin → Licencia es solo
-   lectura. Definirla en `businesses` (el trigger la copia a `stores`) ✅:
+La tienda se deja **creada antes de entregarla**; el dueño entra directo,
+sin onboarding. La app no tiene un botón para crear tiendas: se crea con SQL
+y el resto se hace desde la app ✅.
+
+1. **Tu systemAdmin** — Clerk (Production) → *Users → Create user* (tu
+   correo y contraseña) → *Metadata → Public*: `{ "systemAdmin": true }` →
+   *Save*. El webhook (`user.updated`) marca `clerk_users.system_admin`; el
+   middleware exige ambos (JWT y BD) para `/admin` ✅.
+2. **Crear la tienda** — SQL Editor del Supabase **de la tienda** (nunca el
+   demo):
+   ```sql
+   insert into stores (name, rut, address, license_start_date, license_end_date)
+   values ('<Nombre>', '<RUT con DV, ej. 76.123.456-0>', '<Dirección>',
+           '<inicio AAAA-MM-DD>', '<término AAAA-MM-DD>')
+   returning id;
+   ```
+   El trigger `stores_asignar_negocio` crea su fila en `businesses` con esas
+   fechas de licencia ✅. Copiar el `id` devuelto.
+3. **Asociar tu systemAdmin a la tienda** — Clerk → tu usuario → *Public
+   metadata*: `{ "systemAdmin": true, "storeId": "<id del paso 2>" }`.
+   Cerrar sesión y volver a entrar (el rol y la tienda viajan en el token).
+   Sin `storeId`, `/settings` y el resto de pantallas de tienda responden
+   401: `getStoreId()` no encuentra tienda ✅.
+4. **Configurar la tienda** — `/settings`: ubicación en el mapa, teléfono,
+   email remitente (`@ammapet.cl`, A.4), fidelización.
+5. **Crear al dueño** — `/admin → Usuarios` → crear usuario con rol
+   **storeAdmin**: queda con el `storeId` de la tienda y entra sin pasar por
+   el onboarding ✅. (`/admin` muestra "Sin tienda asignada" hasta que exista
+   la tienda del paso 2.)
+6. Licencia: ya quedó definida en el paso 2. Para cambiarla después,
+   actualizar `businesses` (el trigger `businesses_propagar_licencia` la copia
+   a `stores`) ✅:
    ```sql
    update businesses set license_start_date = '2026-10-15',
                          license_end_date   = '2027-10-15'
    where id = (select business_id from stores where name = '<nombre tienda>');
    ```
-4. Plan de cuentas: no requiere carga, está en código (`CUENTAS`) ✅.
-5. Configuración de la tienda (dirección, fidelización, etc.) desde /admin.
+7. Plan de cuentas: no requiere carga, está en código (`CUENTAS`) ✅.
+
+No hacer el onboarding con el systemAdmin: crearía la tienda a su nombre y
+el onboarding del dueño crearía una segunda tienda separada.
 
 ---
 
@@ -317,7 +346,7 @@ Vuelta atrás: Vercel → Deployments → *Instant Rollback* al deploy anterior
 | Tienda | Rama | Dominio | Versión | Última migración | Supabase | Notas |
 |---|---|---|---|---|---|---|
 | (demo) | `main` | demo.ammapet.cl | — | 086 (085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
-| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | `000_baseline` (hasta 086; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Pendiente: Vercel |
+| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | `000_baseline` (hasta 086; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Vercel y tienda creados 2026-10-12 |
 
 ---
 
