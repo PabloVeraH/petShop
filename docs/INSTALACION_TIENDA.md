@@ -183,7 +183,37 @@ select
    el onboarding (`/api/onboarding/complete`) deja a cualquier usuario nuevo
    sin tienda crear una ✅.
 6. Organizations: desactivadas (no se usan).
-7. Claves `pk_live_…` / `sk_live_…` → Vercel (§6).
+7. **Login social (Google, etc.)** ⚠️: en *Production* Clerk **no** trae
+   credenciales compartidas como en desarrollo. Un proveedor activado sin
+   credenciales propias falla en Google con *"Error 400: invalid_request —
+   Missing required parameter: client_id"* (visto 2026-10-12). Elegir una:
+   - **A. Desactivarlo** (recomendado si nadie lo pide): *Configure → SSO
+     connections* → desactivar Google y cualquier otro proveedor social. Con
+     Invite-only basta email + contraseña.
+   - **B. Configurar Google:**
+     1. Clerk → *Configure → SSO connections* → Google (o *Add connection →
+        For all users → Google*) → **Use custom credentials** → copiar el
+        **Authorized Redirect URI** (forma
+        `https://clerk.<nombre>.ammapet.cl/v1/oauth_callback`; usar el que
+        muestre Clerk).
+     2. Google Cloud Console → proyecto "petShop" (uno para todas las
+        tiendas) → *APIs & Services → OAuth consent screen*: User type
+        **External** (dueños con Gmail u otro dominio), nombre, email de
+        soporte, dominio autorizado `ammapet.cl`.
+     3. *APIs & Services → Credentials → Create Credentials → OAuth client
+        ID* → **Web application**: *Authorized JavaScript origins*
+        `https://<nombre>.ammapet.cl`; *Authorized redirect URIs* la URI del
+        paso 1 → *Create* → copiar Client ID y Client Secret.
+     4. Pegarlos en la conexión Google de Clerk → *Save*.
+     5. *OAuth consent screen* → **Publish app** (*In production*). En
+        *Testing* solo entran los *test users* agregados (máx. 100).
+     6. Probar en Clerk → *Account Portal* → *Sign-in*; si falla, *Logs* →
+        evento `oauth_callback.failed`.
+
+     Tiendas siguientes: reutilizar el mismo cliente OAuth agregando su
+     origin y su redirect URI. Con Invite-only, Google solo deja entrar a
+     quien ya tenga usuario o invitación **con ese mismo correo**.
+8. Claves `pk_live_…` / `sk_live_…` → Vercel (§6).
 
 ---
 
