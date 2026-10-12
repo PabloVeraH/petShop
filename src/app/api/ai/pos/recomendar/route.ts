@@ -45,7 +45,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     .select("openrouter_model, ciudad, lat, lon")
     .eq("id", store_id)
     .single();
-  const model    = store?.openrouter_model ?? process.env.OPENROUTER_MODEL ?? "z-ai/glm-4.5-air:free";
+  const model    = store?.openrouter_model ?? process.env.OPENROUTER_MODEL ?? "openrouter/free";
   const ciudad   = store?.ciudad ?? "Santiago";
   const storeLat = (store?.lat as number | null) ?? SANTIAGO_LAT;
   const storeLon = (store?.lon as number | null) ?? SANTIAGO_LON;
