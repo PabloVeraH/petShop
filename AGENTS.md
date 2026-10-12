@@ -506,6 +506,11 @@ si agregas lógica no idempotente a ese handler, agrega deduplicación
 explícita. Conserva la verificación Svix y procesa el body en la forma exacta
 que la verificación de firma requiere.
 
+Clerk **no garantiza el orden** de entrega: `user.created`/`user.updated`
+escriben en `clerk_users` el estado actual (`users.getUser`), nunca el
+payload del evento — un `user.created` atrasado sin metadata borraba
+`store_id` y rol (I-739). No vuelvas a leer roles ni `storeId` del evento.
+
 ## 14. Cron jobs
 
 Rutas existentes (solo estas tres):
