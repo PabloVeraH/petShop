@@ -103,7 +103,9 @@ export default function StoreLocationPicker({ direccion, ciudad, lat, lon, onCha
     setLoadingSuggestions(true);
     try {
       const res = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=es`
+        // Sin `lang`: Photon solo acepta default/de/en/fr y con "es" responde
+        // 400 (verificado 2026-10-11); "default" ya da los nombres locales.
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5`
       );
       const data = await res.json();
       setSuggestions(data.features ?? []);
