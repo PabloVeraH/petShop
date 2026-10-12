@@ -215,8 +215,8 @@ Functions solo con autorización.
 
 1. *Add New → Project* → importar `PabloVeraH/petShop`.
 2. *Settings → Git → Production Branch*: `tienda/<nombre>`.
-3. *Environment Variables* (Production) — plantilla completa en el
-   Anexo A:
+3. *Environment Variables* (Production) — resumen; qué es cada una, cómo
+   obtenerla y qué pasa si falta: **Anexo A**:
 
 | Variable | Valor |
 |---|---|
@@ -226,7 +226,6 @@ Functions solo con autorización.
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | del proyecto Supabase **de la tienda** |
 | `ENCRYPTION_KEY` | **nueva**: `openssl rand -hex 32` (64 hex) ✅ |
 | `CRON_SECRET` | nuevo: `openssl rand -hex 32` |
-| `MULTI_SUCURSAL` | `true` solo si la tienda tiene sucursales |
 | `ENABLED_CHANNELS` | ej. `rappi,pedidosya` |
 | `R2_*`, `RESEND_*`, `OPENROUTER_*`, `RAPPI_*`… | §5 |
 
@@ -317,46 +316,161 @@ Vuelta atrás: Vercel → Deployments → *Instant Rollback* al deploy anterior
 ## Anexo A. Variables de entorno
 
 Todas las que lee el código ✅ (`grep -rn "process.env" src supabase
-next.config.ts`, 2026-10-09). Copiar a `.env.local` (local) o a Vercel.
+next.config.ts`, 2026-10-12). Se cargan en Vercel → *Settings →
+Environment Variables*, entorno **Production** (ver §6.7 sobre Preview), o
+en `.env.local` para desarrollo. **Toda variable nueva o cambiada exige
+Redeploy**: un deploy existente no las toma.
+
+Reglas:
+- Pegar solo el valor: sin comillas, sin espacios ni saltos de línea al
+  final, sin `Bearer ` (el código lo agrega). Un espacio sobrante da 401.
+- Nunca copiar del demo `CRON_SECRET`, `ENCRYPTION_KEY` ni nada de Supabase
+  o Clerk: cada tienda tiene los suyos.
+- Claves de servicios externos (OpenRouter, Resend, R2): una **por tienda**,
+  con el nombre `petshop-<nombre>`, para ver su gasto y revocarla sin
+  afectar al resto.
+
+Generar un secreto aleatorio (64 hex) en PowerShell:
+```powershell
+-join ((1..32) | % { '{0:x2}' -f (Get-Random -Max 256) })
+```
+(o `openssl rand -hex 32` en bash).
+
+### A.1 Obligatorias
+
+| Variable | Qué es / qué pasa si falta | Cómo obtenerla |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clave pública de Clerk (`pk_live_…`). Sin ella no hay login. También define el host de Clerk en la CSP (§1) | Clerk → app de la tienda, instancia **Production** → *Configure → API keys* |
+| `CLERK_SECRET_KEY` | Clave secreta de Clerk (`sk_live_…`), solo servidor | Mismo lugar |
+| `CLERK_WEBHOOK_SECRET` | Firma del webhook (`whsec_…`). Sin ella los usuarios y sesiones no se sincronizan a `clerk_users` | Clerk → *Webhooks* → endpoint de la tienda (§4.4) → *Signing Secret* |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/auth/login`. Sin ella Clerk manda a su propia página de login | Valor fijo |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/auth/signup` | Valor fijo |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase **de la tienda** (`https://<ref>.supabase.co`) | Supabase → proyecto de la tienda → *Connect* (o *Project Settings → Data API*) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anon/publishable | Supabase → *Project Settings → API Keys* |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave service_role: omite RLS, **solo servidor**, nunca en logs | Mismo lugar (*service_role* / *secret*) |
+| `CRON_SECRET` | Autentica los crons (`Authorization: Bearer …`). Sin ella el cron diario `email-alerts` responde 401 y no envía nada | Generarla (64 hex, arriba). Si usa canales, la misma va al Vault (§8.4) |
+| `ENCRYPTION_KEY` | Clave AES-256 que cifra las credenciales de canales. Exactamente 64 caracteres hex. Sin ella (o con otro largo) falla guardar o leer credenciales de Rappi/PedidosYa/etc. **Si se cambia, las credenciales ya guardadas quedan ilegibles** | Generarla (64 hex, arriba), una sola vez por tienda |
+| `OPENROUTER_API_KEY` | Clave de IA (`sk-or-v1-…`). Sin ella el recomendador del POS y el optimizador de vencimientos responden "OpenRouter no configurado" (503) | Ver A.3 |
+
+### A.2 Fotos de producto: Cloudflare R2
+
+La tienda comparte el bucket `demo-ammapet` y el dominio `imgs.ammapet.cl`
+del demo (§5.1); las fotos quedan bajo `productos/<storeId>/…`. Si falta
+cualquiera de las cinco, subir fotos falla con "Faltan variables de entorno
+de R2".
+
+| Variable | Valor / cómo obtenerla |
+|---|---|
+| `R2_ACCOUNT_ID` | El mismo del demo: Cloudflare → *R2 Object Storage* → panel derecho "Account ID" (también es el `<id>` de `https://<id>.r2.cloudflarestorage.com`) |
+| `R2_ACCESS_KEY_ID` | Del token propio de la tienda (pasos abajo) |
+| `R2_SECRET_ACCESS_KEY` | Del mismo token. Se muestra **una sola vez** |
+| `R2_BUCKET_NAME` | `demo-ammapet` |
+| `R2_PUBLIC_URL` | `https://imgs.ammapet.cl`, **sin `/` final** (el código arma `${R2_PUBLIC_URL}/productos/…` y además rechaza cualquier URL de imagen que no empiece con este valor). La CSP solo permite `imgs.ammapet.cl`: otro dominio exige cambiar `src/middleware.ts` |
+
+Token R2 de la tienda: Cloudflare → *R2 Object Storage* → *Manage API
+Tokens* → *Create API Token* → nombre `petshop-<nombre>`, permiso **Object
+Read & Write**, *Apply to specific buckets only* → `demo-ammapet`, TTL
+Forever → *Create* → copiar Access Key ID y Secret Access Key. Límite: R2 no
+acota un token a un prefijo; la separación entre tiendas la impone el código
+(borrar valida el prefijo `storeId`).
+
+Prueba: Inventario → subir foto a un producto → la URL debe empezar con
+`https://imgs.ammapet.cl/productos/<storeId>/`.
+
+### A.3 IA: OpenRouter
+
+| Variable | Valor / cómo obtenerla |
+|---|---|
+| `OPENROUTER_API_KEY` | https://openrouter.ai/settings/keys → *Create Key* → nombre `petshop-<nombre>` y **Credit limit** (ej. USD 5) como tope de gasto → copiar `sk-or-v1-…` (se muestra una vez) |
+| `OPENROUTER_MODEL` | Opcional. Default del código: `openrouter/free` (enruta a un modelo gratuito disponible). El modelo elegido en `/admin → IA` (`stores.openrouter_model`) tiene prioridad sobre esta variable |
+
+Los modelos de OpenRouter se retiran sin aviso (`z-ai/glm-4.5-air:free`
+desapareció en 2026-10); verificar en https://openrouter.ai/models. Los
+`:free` tienen un límite diario de requests (1000/día con créditos cargados,
+según `GET /api/v1/key`).
+
+Probar la clave sin la app (PowerShell; la clave se pide sin mostrarla):
+```powershell
+$k = (Read-Host "Pega la clave").Trim()
+(Invoke-RestMethod -Uri "https://openrouter.ai/api/v1/key" -Headers @{ Authorization = "Bearer $k" }).data
+$h = @{ Authorization = "Bearer $k"; "Content-Type" = "application/json" }
+$b = '{"model":"openrouter/free","messages":[{"role":"user","content":"Responde solo: ok"}]}'
+(Invoke-RestMethod -Uri "https://openrouter.ai/api/v1/chat/completions" -Method Post -Headers $h -Body $b).choices[0].message.content
+```
+401 = clave mal pegada (típico: prefijo `sk-or-v1-` duplicado o espacio).
+
+### A.4 Email: Resend
+
+| Variable | Valor / cómo obtenerla |
+|---|---|
+| `RESEND_API_KEY` | https://resend.com/api-keys → *Create API Key* → nombre `petshop-<nombre>`, permiso **Sending access**, dominio `ammapet.cl` → copiar `re_…` (una vez). Sin ella no sale ningún email |
+| `RESEND_FROM_DEFAULT` | Remitente, ej. `MascotasPetShop <no-reply@ammapet.cl>`. Sin ella usa `no-reply@tuapp.com`, que Resend rechaza (dominio no verificado) |
+
+Dominio remitente (una vez para todas las tiendas): https://resend.com/domains
+→ `ammapet.cl` debe estar **Verified**. Si no: *Add Domain* → crear en
+Cloudflare → DNS los registros MX/TXT (SPF, DKIM) exactamente como los
+muestra Resend (CNAME en *DNS only*) → *Verify DNS Records*.
+
+El campo "email remitente" de `/settings` (`stores.resend_from_email`) tiene
+prioridad sobre `RESEND_FROM_DEFAULT` y también debe ser `@ammapet.cl`.
+
+### A.5 Canales de venta (solo si la tienda los usa)
+
+| Variable | Valor |
+|---|---|
+| `ENABLED_CHANNELS` | Lista separada por comas, ej. `rappi,pedidosya`. Vacía = ningún canal visible |
+| `RAPPI_API_BASE` / `RAPPI_AUTH_BASE` | Obligatorias en producción si `rappi` está habilitado. Valores en `docs/canales-stock/rappi_salida_produccion.md` |
+| `PEDIDOSYA_API_BASE` / `PEDIDOSYA_AUTH_BASE` | Ídem para PedidosYa (los entrega el canal al aprobar la integración) |
+| `UBEREATS_API_BASE` / `UBEREATS_AUTH_BASE` | Ídem para Uber Eats |
+| `WHATSAPP_APP_SECRET` | Solo si usa WhatsApp: Meta for Developers → app → *App settings → Basic → App secret*. Sin ella el webhook de WhatsApp responde 500 |
+
+Las credenciales de cada canal (usuario, token) **no** son variables: se
+cargan desde la app y se guardan cifradas con `ENCRYPTION_KEY`.
+
+### A.6 Opcionales
+
+| Variable | Default si falta | Para qué |
+|---|---|---|
+| `CORS_ORIGIN` | `http://localhost:3000` | Header `Access-Control-Allow-Origin` de `/api/*` (`next.config.ts`). Poner `https://<nombre>.ammapet.cl`. La app llama a su propia API desde el mismo dominio, así que no la bloquea si falta |
+| `NEXT_PUBLIC_IVA_RATE` | `0.19` | Tasa de IVA |
+| `RATE_LIMIT_USER_MAX` | 600 / 5 min por usuario | Rate limit de `/api` con sesión |
+| `RATE_LIMIT_API_MAX` | 100 / 15 min por IP | Rate limit de `/api` sin sesión |
+| `HUB_URL`, `HUB_SYNC_SECRET`, `STORE_ID` | hub desactivado | Hub central (§5.5); también en las Edge Functions |
+| `SLACK_WEBHOOK_URL`, `PAGERDUTY_API_KEY` | sin alertas externas | Alertas de seguridad |
+
+`MULTI_SUCURSAL` existe solo en la rama `feat/sucursales`; el código de
+`main` no la lee.
+
+### A.7 Plantilla `.env`
 
 ```env
-# Clerk (aplicación propia por tienda; producción = pk_live_/sk_live_)
+# A.1 Obligatorias
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 CLERK_WEBHOOK_SECRET=
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/auth/login
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/auth/signup
-
-# Supabase (proyecto propio por tienda)
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-
-# Secretos propios de cada instalación: openssl rand -hex 32
-ENCRYPTION_KEY=
 CRON_SECRET=
+ENCRYPTION_KEY=
+OPENROUTER_API_KEY=
 
-# Funcionalidades
-MULTI_SUCURSAL=            # "true" = con sucursales
-ENABLED_CHANNELS=          # ej. rappi,pedidosya
-NEXT_PUBLIC_IVA_RATE=      # opcional, default 0.19
-
-# Fotos de producto (Cloudflare R2, §5.1)
+# A.2 R2
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-R2_PUBLIC_URL=
+R2_BUCKET_NAME=demo-ammapet
+R2_PUBLIC_URL=https://imgs.ammapet.cl
 
-# Email (Resend)
+# A.3 / A.4
+OPENROUTER_MODEL=
 RESEND_API_KEY=
 RESEND_FROM_DEFAULT=
 
-# IA (OpenRouter)
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
-
-# Canales (en producción las *_BASE son obligatorias)
+# A.5 Canales
+ENABLED_CHANNELS=
 RAPPI_API_BASE=
 RAPPI_AUTH_BASE=
 PEDIDOSYA_API_BASE=
@@ -365,15 +479,14 @@ UBEREATS_API_BASE=
 UBEREATS_AUTH_BASE=
 WHATSAPP_APP_SECRET=
 
-# Hub central (opcional)
+# A.6 Opcionales
+CORS_ORIGIN=
+NEXT_PUBLIC_IVA_RATE=
+RATE_LIMIT_USER_MAX=
+RATE_LIMIT_API_MAX=
 HUB_URL=
 HUB_SYNC_SECRET=
 STORE_ID=
-
-# Opcionales
-RATE_LIMIT_USER_MAX=       # default 600 / 5 min por usuario
-RATE_LIMIT_API_MAX=        # default 100 / 15 min por IP
-CORS_ORIGIN=
 SLACK_WEBHOOK_URL=
 PAGERDUTY_API_KEY=
 ```
