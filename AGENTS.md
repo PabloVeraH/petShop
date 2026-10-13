@@ -130,7 +130,11 @@ alguno:
    cada capa: §19.1. Que `typecheck`/`lint`/`build` pasen **no** es evidencia
    de que el módulo está probado — ninguno de los tres ejecuta el código ni
    renderiza un componente.
-7. **Cierre**: emite el formato de §22. No es opcional ni implícito.
+7. **Seguridad**: `npm run test:security` (guardas SEC-22…34, ya incluidas en
+   `npm test`) en verde, y si tocaste `package.json`/lockfile,
+   `npm run audit:deps` sin hallazgos high/critical nuevos. Repasa el
+   checklist de §24 para los puntos que tu cambio toca.
+8. **Cierre**: emite el formato de §22. No es opcional ni implícito.
 
 ## 3. Jerarquía de fuentes
 
@@ -513,15 +517,16 @@ payload del evento — un `user.created` atrasado sin metadata borraba
 
 ## 14. Cron jobs
 
-Rutas existentes (solo estas tres):
+Rutas existentes (solo estas cuatro):
 
 - `/api/cron/audit-cleanup`
 - `/api/cron/email-alerts`
-- `/api/cron/stock-reservas-expiry`
+- `/api/cron/canales-outbox` — la agenda pg_cron (`migrations/085_pg_cron_canales.sql`)
+- `/api/cron/canales-reconciliar` — ídem
 
-Todas validan `Authorization: Bearer ${CRON_SECRET}` — confirma la
-implementación concreta antes de copiarla. **Solo `email-alerts` está agendado
-en `vercel.json`**; la existencia de una ruta cron no demuestra que esté
+Todas validan `Authorization: Bearer ${CRON_SECRET}` con `cronAutorizado()`
+(`src/lib/cron-auth.ts`, tiempo constante) — úsalo en todo cron nuevo.
+**Solo `email-alerts` está agendado en `vercel.json`**; la existencia de una ruta cron no demuestra que esté
 programada. Al modificar o agregar un cron revisa: autenticación, idempotencia,
 ejecuciones simultáneas, reintentos, procesamiento parcial, aislamiento de
 tenant y la programación efectiva en `vercel.json`.
@@ -666,6 +671,8 @@ npm run test:unit          # solo tests/unit/**
 npm run test:integration   # solo tests/integration/**
 npm run test:components    # solo tests/components/**
 npm run test:coverage      # thresholds: 70% líneas/funciones, 60% ramas
+npm run test:security      # guardas estáticas del checklist §24 (SEC-22…34)
+npm run audit:deps         # npm audit de dependencias de producción (high+)
 npm run lint
 npm run typecheck          # tsc sobre tsconfig.json (src/ + tests/); el build solo verifica src/ (tsconfig.src.json)
 npm run build
@@ -1053,4 +1060,36 @@ es una condición de carrera real (lost update) bajo requests concurrentes:
   este endpoint permitía doble gasto real (dos requests concurrentes con el
   mismo saldo) sin siquiera un piso en 0.
 
+## 24. Checklist de seguridad (revisado 2026-10-13)
+
+Veinte controles que todo cambio debe preservar. La columna **Cómo se
+verifica** indica dónde vive la comprobación: los `SEC-*` corren solos en
+cada `npm test` (`tests/unit/security/security-guards.test.ts` y tests de
+endpoint); lo marcado **manual** depende de paneles externos (Clerk, Vercel,
+Supabase) y se revisa al instalar una tienda o ante un cambio en esa área.
+Si una guarda falla por un caso legítimo, agrégalo a su allowlist con la
+razón — nunca borres la guarda.
+
+| # | Control | Estado en la app | Cómo se verifica |
+|---|---------|------------------|------------------|
+| 1 | Ocultar API keys | Secretos solo en env de servidor; el navegador recibe solo `NEXT_PUBLIC_*` de la allowlist | SEC-24, SEC-25 |
+| 2 | Secretos fuera de git | `.env*` ignorado; escaneo de patrones de secretos en archivos versionados. Si aparece uno: **rotarlo** (reescribir historial no lo des-publica) | SEC-22, SEC-23 |
+| 3 | Key pública para la BD | El cliente solo conoce la anon key; ningún endpoint la usa (§0.2) y sin políticas para `anon` no lee nada | SEC-24 + SEC-28; manual: advisors de Supabase |
+| 4 | Row-level security | RLS habilitado en todas las tablas (defensa extra: el service role la omite, §6); funciones `SECURITY DEFINER` con `search_path` fijo | SEC-28; manual: `select relname from pg_class … where not relrowsecurity` en cada proyecto |
+| 5 | Encriptar datos sensibles | Credenciales de canales con AES-256-GCM (`src/lib/canales/encryption.ts`). **Pendiente**: `stores.whatsapp_access_token` sigue en claro en la BD | revisión en PR; tokens nunca vuelven al cliente (SEC-19) ni a `audit_logs` (SEC-20) |
+| 6 | Forzar autenticación | `auth.protect()` en el middleware salvo `publicRoutes`; cada `route.ts` con su guard; crons con `cronAutorizado` (tiempo constante); webhooks con firma | SEC-26, SEC-27, tests 401 por endpoint |
+| 7 | Restringir acceso a registros | Filtro `store_id` manual en cada query (§6); rol por endpoint (`exigirStoreAdmin`). El storeWorker no accede a contabilidad (mutaciones ni informes), proveedores, alta de productos ni fotos de productos; sí crea órdenes de compra | SEC-16/17/18/35 y tests IDOR por endpoint (§6.5) |
+| 8 | Bloquear manipulación de campos | Zod en el límite; `store_id`/roles salen del contexto, nunca del body (§6.2) | tests de mass assignment por endpoint (ej. I-88) |
+| 9 | Proteger session cookies | Las gestiona Clerk (`__session` de vida corta, `Secure`, `SameSite=Lax`); la app no setea cookies propias | manual: no agregar cookies sin `httpOnly`+`secure`+`sameSite` |
+| 10 | Hashear contraseñas | Clerk almacena y hashea; la app solo las reenvía al crear usuarios (`/api/admin/users/create`) y nunca las persiste ni las loguea | revisión en PR; SEC-20 redacta `password` en auditoría |
+| 11 | Rate limiting | Middleware: por usuario (`RATE_LIMIT_USER_MAX`) o IP (`RATE_LIMIT_API_MAX`); webhook de canales con límite propio. **Limitación**: contador en memoria por instancia | `tests/unit/lib/rate-limit.test.ts` |
+| 12 | Protección contra bots | Login/registro de Clerk con su bot protection (Turnstile, `frame-src challenges.cloudflare.com`) | manual: Clerk Dashboard → Attack protection activo por tienda |
+| 13 | Parametrizar queries | supabase-js (sin SQL crudo); `.or()` solo con términos saneados; SQL dinámico solo con `format()`/`USING`; `SECURITY DEFINER` con `search_path` fijo | SEC-29, SEC-30 |
+| 14 | Validar inputs | Schemas Zod en `src/lib/validation/` (§8) | tests 400 por endpoint |
+| 15 | Sanitizar contenido | React escapa; prohibido HTML crudo; correos HTML escapan datos de usuario con `esc()` | SEC-31, SEC-21 |
+| 16 | Restringir archivos | Imágenes: tipo + tamaño y re-encode con sharp; Excel: `.xlsx` ≤ 5 MB y ≤ 500 filas | SEC-33 |
+| 17 | Devolver solo datos necesarios | `select` con columnas explícitas en respuestas; 500 con mensaje genérico; tokens enmascarados | SEC-32, SEC-19 |
+| 18 | Security headers | CSP con nonce (middleware) + HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy | SEC-34, MW-* |
+| 19 | Forzar HTTPS | Vercel redirige HTTP→HTTPS; HSTS 2 años con `preload` | SEC-34; manual: dominio propio de cada tienda en Vercel |
+| 20 | Escanear dependencias | `npm run audit:deps` (prod, high+), hoy 0 vulnerabilidades. `xlsx` se instala desde el CDN oficial de SheetJS (npm quedó en 0.18.5, vulnerable): para actualizarlo, `npm i https://cdn.sheetjs.com/xlsx-<ver>/xlsx-<ver>.tgz` | `npm run audit:deps` en el gate §2.7 |
 

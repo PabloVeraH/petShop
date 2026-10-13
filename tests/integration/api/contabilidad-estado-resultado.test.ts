@@ -14,6 +14,11 @@
 import { GET } from "@/app/api/contabilidad/estado-resultado/route";
 import { NextRequest } from "next/server";
 
+// Estos endpoints exigen storeAdmin de la tienda (el storeWorker recibe 403,
+// ver SEC-35): por defecto la sesión es la de un admin de la tienda del test.
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-uuid-001" } } }),
+}));
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 

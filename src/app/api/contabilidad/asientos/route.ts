@@ -26,6 +26,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+  // Solo storeAdmin/systemAdmin de esta tienda (el storeWorker queda fuera).
+  const denegado = await exigirStoreAdmin(store_id);
+  if (denegado) return denegado;
   const supabase = createServiceClient();
 
   const desde = req.nextUrl.searchParams.get("desde") ?? "";

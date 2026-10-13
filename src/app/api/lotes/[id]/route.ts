@@ -51,7 +51,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   // MEJORA (ticket Trello 6a62eb37bfe280fc94919d5e): mismo defecto reportado
   // para "lotes_producto" — changeDescription ausente. getChangedFields ya
@@ -103,7 +103,7 @@ export const DELETE = withErrorLogging(async (req: NextRequest,
     .eq("id", id)
     .eq("store_id", storeId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
   await logAudit({

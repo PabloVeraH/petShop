@@ -145,5 +145,10 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     result: "success",
   });
 
-  return NextResponse.json(data);
+  // Mismo enmascarado que el GET: los tokens nunca vuelven al navegador.
+  return NextResponse.json({
+    ...data,
+    whatsapp_access_token: data?.whatsapp_access_token ? "••••••••" : "",
+    whatsapp_webhook_verify_token: data?.whatsapp_webhook_verify_token ? "••••••••" : "",
+  });
 }, { endpoint: "PATCH /api/settings" });

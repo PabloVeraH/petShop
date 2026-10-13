@@ -32,7 +32,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   query = query.order("fecha_vencimiento", { ascending: true });
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
   return NextResponse.json({ lotes: data ?? [] });
 }, { endpoint: "GET /api/lotes" });

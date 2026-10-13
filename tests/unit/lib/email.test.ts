@@ -149,3 +149,30 @@ describe("buildBoletaEmailHTML — Subtotal (U-122/U-123)", () => {
     expect(15126 + 2874).toBe(18000);
   });
 });
+describe("SEC-21: HTML de correos escapa datos de usuario", () => {
+  const ataque = `<a href="https://phish.example">Paga aquí</a>`;
+
+  it("recordatorio: nombre de cliente/mascota/producto no se renderiza como HTML", async () => {
+    const { buildFoodReminderHTML } = await import("@/lib/email");
+    const html = buildFoodReminderHTML({
+      to: "c@test.com",
+      clienteNombre: ataque,
+      storeName: "Tienda",
+      items: [{ mascotaNombre: ataque, productoNombre: ataque, diasRestantes: 2, precioUnitario: 1000 }],
+    });
+    expect(html).not.toContain("<a href");
+    expect(html).toContain("&lt;a href=&quot;https://phish.example&quot;&gt;");
+  });
+
+  it("orden de compra: proveedor, notas e ítems se escapan", async () => {
+    const { buildOrdenCompraHTML } = await import("@/lib/email");
+    const html = buildOrdenCompraHTML({
+      to: "p@test.com",
+      proveedorNombre: ataque,
+      storeName: "Tienda",
+      orden: { numero: "OC-1", fecha: "2026-10-13", notas: ataque },
+      items: [{ nombre: ataque, cantidad: 1 }],
+    });
+    expect(html).not.toContain("<a href");
+  });
+});

@@ -12,6 +12,18 @@ function getResend(): Resend {
 
 export const DEFAULT_FROM = process.env.RESEND_FROM_DEFAULT ?? "no-reply@tuapp.com";
 
+// Escapa texto de usuario (nombres de cliente, mascota, producto, notas…)
+// antes de insertarlo en el HTML del correo: sin esto un nombre como
+// `<a href=…>` se renderiza como enlace en el correo que envía la tienda.
+export function esc(valor: unknown): string {
+  return String(valor ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface FoodReminderEmailParams {
   to: string;
   clienteNombre: string;
@@ -48,7 +60,7 @@ export function buildFoodReminderHTML(params: FoodReminderEmailParams): string {
   const itemsHTML = params.items.map(item => `
     <tr>
       <td style="padding:8px 0;border-bottom:1px solid #eee;">
-        <strong>${item.mascotaNombre}</strong> — ${item.productoNombre}
+        <strong>${esc(item.mascotaNombre)}</strong> — ${esc(item.productoNombre)}
       </td>
       <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">
         ${item.diasRestantes <= 0 ? "Se acabó hoy" : `Queda${item.diasRestantes === 1 ? "" : "n"} ${item.diasRestantes} día${item.diasRestantes === 1 ? "" : "s"}`}
@@ -63,8 +75,8 @@ export function buildFoodReminderHTML(params: FoodReminderEmailParams): string {
     <!DOCTYPE html>
     <html lang="es">
     <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">
-      <h2 style="color:#2d6a4f;">Recordatorio de alimento — ${params.storeName}</h2>
-      <p>Hola ${params.clienteNombre},</p>
+      <h2 style="color:#2d6a4f;">Recordatorio de alimento — ${esc(params.storeName)}</h2>
+      <p>Hola ${esc(params.clienteNombre)},</p>
       <p>El alimento de tu${params.items.length > 1 ? "s mascota" : " mascota"}s está por terminarse:</p>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
@@ -76,9 +88,9 @@ export function buildFoodReminderHTML(params: FoodReminderEmailParams): string {
         </thead>
         <tbody>${itemsHTML}</tbody>
       </table>
-      <p style="margin-top:24px;">Pasa por <strong>${params.storeName}</strong> antes de que se acabe.</p>
+      <p style="margin-top:24px;">Pasa por <strong>${esc(params.storeName)}</strong> antes de que se acabe.</p>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-      <p style="font-size:12px;color:#999;">Recibiste este correo porque eres cliente de ${params.storeName}.</p>
+      <p style="font-size:12px;color:#999;">Recibiste este correo porque eres cliente de ${esc(params.storeName)}.</p>
     </body>
     </html>
   `;
@@ -127,7 +139,7 @@ export function buildBoletaEmailHTML(b: BoletaData): string {
 
   const itemsHTML = b.items.map(i => `
     <tr>
-      <td style="padding:8px 0;border-bottom:1px solid #eee;">${i.nombre}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;">${esc(i.nombre)}</td>
       <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:center;">${i.cantidad}</td>
       <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${fmt(i.precio_unitario)}</td>
       <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${fmt(i.subtotal)}</td>
@@ -140,16 +152,16 @@ export function buildBoletaEmailHTML(b: BoletaData): string {
     };
     let label = metodoLabels[p.metodo] ?? p.metodo;
     if (p.numero_transaccion) label += ` #${p.numero_transaccion}`;
-    return `<div style="display:flex;justify-content:space-between;"><span>${label}</span><span>${fmt(p.monto)}</span></div>`;
+    return `<div style="display:flex;justify-content:space-between;"><span>${esc(label)}</span><span>${fmt(p.monto)}</span></div>`;
   }).join("");
 
   return `<!DOCTYPE html>
 <html lang="es">
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">
-  <h2 style="color:#16a34a;">${b.storeName}</h2>
-  ${b.storeRut ? `<p style="color:#666;margin-top:-12px;">RUT: ${b.storeRut}</p>` : ""}
-  <p style="font-size:13px;color:#555;">Boleta <strong>${b.numeroComprobante}</strong> · ${fecha}</p>
-  ${b.cliente ? `<p style="font-size:13px;">Cliente: <strong>${b.cliente.nombre}</strong>${b.cliente.rut ? ` (${b.cliente.rut})` : ""}</p>` : ""}
+  <h2 style="color:#16a34a;">${esc(b.storeName)}</h2>
+  ${b.storeRut ? `<p style="color:#666;margin-top:-12px;">RUT: ${esc(b.storeRut)}</p>` : ""}
+  <p style="font-size:13px;color:#555;">Boleta <strong>${esc(b.numeroComprobante)}</strong> · ${fecha}</p>
+  ${b.cliente ? `<p style="font-size:13px;">Cliente: <strong>${esc(b.cliente.nombre)}</strong>${b.cliente.rut ? ` (${esc(b.cliente.rut)})` : ""}</p>` : ""}
 
   <table style="width:100%;border-collapse:collapse;margin-top:16px;">
     <thead>
@@ -226,23 +238,23 @@ export function buildOrdenCompraCancelacionHTML(params: OrdenCompraCancelacionEm
       <table width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <tr>
           <td style="background:#dc2626;padding:28px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${params.storeName}</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${esc(params.storeName)}</h1>
             <p style="margin:4px 0 0;color:#fecaca;font-size:14px;">Cancelación de Orden de Compra</p>
           </td>
         </tr>
         <tr>
           <td style="padding:28px 32px;">
-            <p style="margin:0;color:#6b7280;font-size:14px;">Estimado/a <strong style="color:#111827;">${params.proveedorNombre}</strong>,</p>
+            <p style="margin:0;color:#6b7280;font-size:14px;">Estimado/a <strong style="color:#111827;">${esc(params.proveedorNombre)}</strong>,</p>
             <p style="margin:12px 0 0;color:#374151;font-size:15px;">
-              Lamentamos informarle que la orden de compra <strong>${params.orden.numero}</strong>
-              con fecha <strong>${params.orden.fecha}</strong> ha sido
+              Lamentamos informarle que la orden de compra <strong>${esc(params.orden.numero)}</strong>
+              con fecha <strong>${esc(params.orden.fecha)}</strong> ha sido
               <strong style="color:#dc2626;">cancelada</strong>.
             </p>
             <p style="margin:12px 0 0;color:#374151;font-size:15px;">
               Si tiene consultas al respecto, no dude en contactarnos respondiendo a este correo.
             </p>
-            ${params.storeAddress ? `<p style="margin:24px 0 0;color:#9ca3af;font-size:13px;">${params.storeAddress}</p>` : ""}
-            <p style="margin:8px 0 0;color:#9ca3af;font-size:12px;">— ${params.storeName}</p>
+            ${params.storeAddress ? `<p style="margin:24px 0 0;color:#9ca3af;font-size:13px;">${esc(params.storeAddress)}</p>` : ""}
+            <p style="margin:8px 0 0;color:#9ca3af;font-size:12px;">— ${esc(params.storeName)}</p>
           </td>
         </tr>
       </table>
@@ -292,7 +304,7 @@ export function buildOrdenCompraHTML(params: OrdenCompraEmailParams): string {
     .map(
       (item) => `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;">${item.nombre}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;">${esc(item.nombre)}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;text-align:center;">${item.cantidad}</td>
       </tr>`
     )
@@ -307,15 +319,15 @@ export function buildOrdenCompraHTML(params: OrdenCompraEmailParams): string {
       <table width="600" cellpadding="0" cellspacing="0" style="margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <tr>
           <td style="background:#16a34a;padding:28px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${params.storeName}</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${esc(params.storeName)}</h1>
             <p style="margin:4px 0 0;color:#bbf7d0;font-size:14px;">Orden de Compra</p>
           </td>
         </tr>
         <tr>
           <td style="padding:28px 32px 0;">
-            <p style="margin:0;color:#6b7280;font-size:14px;">Estimado/a <strong style="color:#111827;">${params.proveedorNombre}</strong>,</p>
+            <p style="margin:0;color:#6b7280;font-size:14px;">Estimado/a <strong style="color:#111827;">${esc(params.proveedorNombre)}</strong>,</p>
             <p style="margin:12px 0 0;color:#374151;font-size:15px;">
-              Le enviamos nuestra orden de compra <strong>${params.orden.numero}</strong> con fecha <strong>${params.orden.fecha}</strong>.
+              Le enviamos nuestra orden de compra <strong>${esc(params.orden.numero)}</strong> con fecha <strong>${esc(params.orden.fecha)}</strong>.
             </p>
           </td>
         </tr>
@@ -338,15 +350,15 @@ export function buildOrdenCompraHTML(params: OrdenCompraEmailParams): string {
         <tr>
           <td style="padding:20px 32px 0;">
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;">
-              <p style="margin:0;font-size:13px;color:#92400e;"><strong>Notas:</strong> ${params.orden.notas}</p>
+              <p style="margin:0;font-size:13px;color:#92400e;"><strong>Notas:</strong> ${esc(params.orden.notas)}</p>
             </div>
           </td>
         </tr>` : ""}
         <tr>
           <td style="padding:28px 32px;border-top:1px solid #f0f0f0;margin-top:24px;">
             <p style="margin:0;color:#374151;font-size:14px;">Cualquier consulta, responda a este correo.</p>
-            ${params.storeAddress ? `<p style="margin:8px 0 0;color:#9ca3af;font-size:13px;">${params.storeAddress}</p>` : ""}
-            <p style="margin:16px 0 0;color:#9ca3af;font-size:12px;">— ${params.storeName}</p>
+            ${params.storeAddress ? `<p style="margin:8px 0 0;color:#9ca3af;font-size:13px;">${esc(params.storeAddress)}</p>` : ""}
+            <p style="margin:16px 0 0;color:#9ca3af;font-size:12px;">— ${esc(params.storeName)}</p>
           </td>
         </tr>
       </table>
