@@ -17,22 +17,33 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
   // Cross-verify systemAdmin claim against DB (stale JWT check)
   admin = await resolveAdminContext(admin) ?? admin;
 
+  // Sin storeId propio, un storeAdmin no tiene tienda que filtrar: denegar en
+  // vez de omitir el filtro (antes veía los registros de todas las tiendas).
+  if (!admin.isSystemAdmin && !admin.storeId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("error_logs")
     .update({
       resolved: true,
       resolved_at: new Date().toISOString(),
       resolved_by: userId,
     })
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
+  // storeAdmin: solo logs de su tienda (antes resolvía y leía los de cualquiera).
+  if (!admin.isSystemAdmin) query = query.eq("store_id", admin.storeId);
+
+  const { data, error } = await query.select().maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true, data });
