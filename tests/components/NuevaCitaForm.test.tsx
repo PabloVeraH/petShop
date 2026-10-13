@@ -84,12 +84,12 @@ function campoTrasLabel(texto: string): HTMLElement {
 // jsdom no encuentra ninguna <option> con ese value, el <select> queda en ""
 // y el fireEvent.change queda como no-op silencioso (causa raíz depurada:
 // ver commit — sin esta espera, todos los tests de selección fallaban).
-async function seleccionarServicio(id: string, textoOpcion: string) {
+async function seleccionarServicio(id: string, textoOpcion: string | RegExp) {
   await waitFor(() => expect(screen.getByText(textoOpcion)).toBeInTheDocument());
   fireEvent.change(campoTrasLabel("Servicio *") as HTMLSelectElement, { target: { value: id } });
 }
 
-async function seleccionarEncargado(id: string, textoOpcion: string) {
+async function seleccionarEncargado(id: string, textoOpcion: string | RegExp) {
   await waitFor(() => expect(screen.getByText(textoOpcion)).toBeInTheDocument());
   fireEvent.change(campoTrasLabel("Encargado *") as HTMLSelectElement, { target: { value: id } });
 }

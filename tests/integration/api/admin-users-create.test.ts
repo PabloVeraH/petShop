@@ -41,7 +41,7 @@ jest.mock("@clerk/nextjs/server", () => ({
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 const mockLogError = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler, logError: mockLogError }));
+  withErrorLogging: (handler: unknown) => handler, logError: mockLogError }));
 
 function upsertChain() {
   return {

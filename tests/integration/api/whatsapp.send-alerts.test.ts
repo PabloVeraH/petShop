@@ -98,7 +98,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([BASE_ALERTA], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/whatsapp/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBeGreaterThanOrEqual(0);
@@ -109,7 +109,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/whatsapp/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBe(0);
@@ -121,7 +121,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([alertaSinTelefono], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/whatsapp/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     expect(mockSendWhatsAppText).not.toHaveBeenCalled();
     const body = await res.json();

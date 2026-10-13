@@ -45,7 +45,7 @@ const NC_MOCK = {
 function mockFetchDefaultImpl(url: string, init?: RequestInit) {
   if (url.startsWith("/api/notas-credito")) return Promise.resolve({ ok: true, json: async () => NC_MOCK });
   if (url.startsWith("/api/citas/")) {
-    const ok = !(init?.body?.includes('"accion":"completar"') && JSON.parse(init.body as string).metodoPago === "debito" && !JSON.parse(init.body as string).numeroTransaccion);
+    const ok = !(typeof init?.body === "string" && init.body.includes('"accion":"completar"') && JSON.parse(init.body as string).metodoPago === "debito" && !JSON.parse(init.body as string).numeroTransaccion);
     return Promise.resolve({ ok, json: async () => ({ id: CITA.id, estado: "completada" }) });
   }
   return Promise.resolve({ ok: true, json: async () => ({}) });

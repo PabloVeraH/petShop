@@ -1,11 +1,11 @@
-const {
+import {
   lineasVenta,
   lineasVentaCOGS,
   lineasNotaCredito,
   lineasCompra,
   lineasPagoProveedor,
   lineasCierreCOGS,
-} = require("@/lib/contabilidad/generador-asientos");
+} from "@/lib/contabilidad/generador-asientos";
 
 function totalDebito(lineas: { debito: number }[]) {
   return lineas.reduce((s, l) => s + l.debito, 0);

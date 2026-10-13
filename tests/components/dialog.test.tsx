@@ -12,7 +12,7 @@ type WithChildren = { children: React.ReactNode };
 type WithClassName = { className?: string };
 
 jest.mock("@base-ui/react/dialog", () => {
-  const MockPopup = React.forwardRef<HTMLDivElement, WithChildren & WithClassName & Record<string, unknown>>(
+  const MockPopup = React.forwardRef<HTMLDivElement, WithChildren & WithClassName & React.HTMLAttributes<HTMLDivElement>>(
     ({ children, className, ...props }, ref) => (
       <div ref={ref} className={className} data-testid="mock-popup" {...props}>
         {children}

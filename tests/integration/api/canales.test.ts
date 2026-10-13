@@ -1,3 +1,5 @@
+export {};
+
 /**
  * Integration tests for multi-channel sales
  * Tests that sales correctly read prices from canal_producto_config

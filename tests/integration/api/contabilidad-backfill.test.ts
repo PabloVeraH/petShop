@@ -55,7 +55,7 @@ function chain(thenData: unknown = { data: null, error: null }) {
     lte: jest.fn(() => c),
     maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
     single: jest.fn(() => Promise.resolve({ data: null, error: null })),
-    then: function (resolve: (v: unknown) => void) { return resolve(thenData); },
+    then: jest.fn((resolve: (v: unknown) => void) => resolve(thenData)),
   };
   return c;
 }
@@ -305,7 +305,7 @@ describe("POST /api/contabilidad/backfill", () => {
           c.eq = jest.fn(() => c);
           c.not = jest.fn(() => c);
           c.ilike = jest.fn(() => c);
-          c.then = (resolve: (v: unknown) => void) => resolve({ data: [], error: null });
+          c.then = jest.fn((resolve: (v: unknown) => void) => resolve({ data: [], error: null }));
           return c;
         }
         return chain(Promise.resolve({ data: null, error: null }));
@@ -513,13 +513,13 @@ function setupMock(params: {
           if (field === "referencia_id") capturedRefId = String(value);
           return c;
         });
-        c.then = (resolve: (v: unknown) => void) => {
+        c.then = jest.fn((resolve: (v: unknown) => void) => {
           if (calledNot) {
             return resolve({ data: params.incomeEntries, error: null });
           }
           const cogs = params.cogsByVenta[capturedRefId] ?? [];
           return resolve({ data: cogs, error: null });
-        };
+        });
         return c;
       }
 
@@ -527,7 +527,7 @@ function setupMock(params: {
         const c = chain();
         c.select = jest.fn(() => c);
         c.eq = jest.fn(() => {
-          c.then = (resolve: (v: unknown) => void) => resolve({ data: params.ventaItems, error: null });
+          c.then = jest.fn((resolve: (v: unknown) => void) => resolve({ data: params.ventaItems, error: null }));
           return c;
         });
         return c;
@@ -589,12 +589,12 @@ function setupNcBackfillMock(params: {
         });
         c.not = jest.fn(() => { calledNot = true; return c; });
         c.ilike = jest.fn(() => c);
-        c.then = (resolve: (v: unknown) => void) => {
+        c.then = jest.fn((resolve: (v: unknown) => void) => {
           if (tipo === "NOTA_CREDITO") {
             return resolve({ data: calledNot ? params.ncIngresoEntries : params.ncCogsEntries, error: null });
           }
           return resolve({ data: [], error: null });
-        };
+        });
         return c;
       }
 
@@ -606,8 +606,8 @@ function setupNcBackfillMock(params: {
           if (field === "nota_credito_id") ncId = String(value);
           return c;
         });
-        c.then = (resolve: (v: unknown) => void) =>
-          resolve({ data: params.ncItemsByNc[ncId] ?? [], error: null });
+        c.then = jest.fn((resolve: (v: unknown) => void) =>
+          resolve({ data: params.ncItemsByNc[ncId] ?? [], error: null }));
         return c;
       }
 
@@ -668,12 +668,12 @@ function setupOcBackfillMock(params: {
         });
         c.not = jest.fn(() => c);
         c.ilike = jest.fn(() => c);
-        c.then = (resolve: (v: unknown) => void) => {
+        c.then = jest.fn((resolve: (v: unknown) => void) => {
           if (tipo === "COMPRA") {
             return resolve({ data: params.compraEntries, error: null });
           }
           return resolve({ data: [], error: null });
-        };
+        });
         return c;
       }
 

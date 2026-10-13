@@ -59,7 +59,7 @@ describe("POST /api/webhooks/clerk", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.CLERK_WEBHOOK_SECRET = CLERK_WEBHOOK_SECRET;
-    mockFrom.mockImplementation(makeFrom()());
+    mockFrom.mockImplementation(makeFrom());
   });
 
   // I-104

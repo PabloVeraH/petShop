@@ -31,7 +31,7 @@ describe("POS api ante 429 (U-217)", () => {
     ["accionSaco", () => accionSaco("p1", { accion: "abrir" })],
   ])("U-217: %s → ApiError 429 con Retry-After, nunca datos vacíos", async (_n, llamar) => {
     fetchMock.mockResolvedValueOnce(r429());
-    const err = await (llamar as () => Promise<unknown>)().catch((e) => e);
+    const err = (await (llamar as () => Promise<unknown>)().catch((e) => e)) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(429);
     expect(err.retryAfterSeg).toBe(42);

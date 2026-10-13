@@ -263,7 +263,7 @@ export interface Cita {
   cliente?: Pick<Cliente, "nombre" | "telefono">;
   mascota?: Pick<Mascota, "nombre">;
   servicio?: Pick<Servicio, "nombre">;
-  encargado?: Pick<Encargado, "nombre">;
+  encargado?: Pick<Encargado, "nombre"> | null;
 }
 
 export interface ServicioExcepcion {

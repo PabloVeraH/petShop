@@ -24,7 +24,7 @@ jest.mock("@/lib/audit", () => ({
 let fakeActual: ReturnType<typeof crearFakeSupabase>;
 const mockUpload = jest.fn();
 const mockGetPublicUrl = jest.fn();
-const mockStorageFrom = jest.fn(() => ({ upload: mockUpload, getPublicUrl: mockGetPublicUrl }));
+const mockStorageFrom = jest.fn((_bucket: string) => ({ upload: mockUpload, getPublicUrl: mockGetPublicUrl }));
 jest.mock("@/lib/supabase", () => ({
   createServiceClient: () => ({ ...fakeActual.client, storage: { from: (b: string) => mockStorageFrom(b) } }),
 }));

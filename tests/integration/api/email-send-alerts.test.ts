@@ -20,7 +20,7 @@ describe("POST /api/email/send-alerts", () => {
   it("I-201: retorna sent=0 cuando email_reminder_enabled=false", async () => {
     mockSendEmailAlertsForStore.mockResolvedValue({ sent: 0, skipped: 0, reason: "disabled" });
     const { POST } = await import("@/app/api/email/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/email/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBe(0);
@@ -30,14 +30,14 @@ describe("POST /api/email/send-alerts", () => {
   it("I-202: sin authorization retorna 401", async () => {
     mockGetStoreId.mockResolvedValue(null);
     const { POST } = await import("@/app/api/email/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/email/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(401);
   });
 
   it("I-203: envía correctamente y retorna sent > 0", async () => {
     mockSendEmailAlertsForStore.mockResolvedValue({ sent: 2, skipped: 0 });
     const { POST } = await import("@/app/api/email/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/email/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBe(2);
@@ -46,7 +46,7 @@ describe("POST /api/email/send-alerts", () => {
   it("I-204: skips clientes sin email", async () => {
     mockSendEmailAlertsForStore.mockResolvedValue({ sent: 1, skipped: 3 });
     const { POST } = await import("@/app/api/email/send-alerts/route");
-    const res = await POST(new NextRequest("http://localhost/api/email/send-alerts", { method: "POST" }));
+    const res = await POST();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.skipped).toBe(3);

@@ -590,7 +590,7 @@ describe("SEC-14: GET /api/ventas/[id] — alcance del worker", () => {
       single: jest.fn().mockResolvedValue({ data: { id: "venta-1", estado: "completada", total: 1000, ...venta }, error: null }),
     };
     let columnas = "";
-    const vendedor = {
+    const vendedor: Record<string, jest.Mock> = {
       select: jest.fn((cols: string) => { columnas = cols; return vendedor; }),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(async () => ({

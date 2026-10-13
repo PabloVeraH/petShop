@@ -1,4 +1,4 @@
-const {
+import {
   lineasVenta,
   lineasVentaCOGS,
   lineasNotaCredito,
@@ -13,9 +13,9 @@ const {
   lineasAporteCapital,
   lineasVentaServicio,
   lineasVentaServicioConNc,
-} = require("@/lib/contabilidad/generador-asientos");
+} from "@/lib/contabilidad/generador-asientos";
 
-const { CUENTAS } = require("@/lib/contabilidad/types");
+import { CUENTAS } from "@/lib/contabilidad/types";
 
 describe("Generador de Asientos Contables", () => {
   describe("lineasVenta - Venta Efectivo", () => {
@@ -460,38 +460,38 @@ describe("lineasAnulacionVentaCanal — reverso de asiento de venta", () => {
     const lineas = lineasAnulacionVentaCanal(PARAMS);
     const lineaVentas = lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo);
     expect(lineaVentas).toBeDefined();
-    expect(lineaVentas.debito).toBe(PARAMS.montoNeto);
-    expect(lineaVentas.credito).toBe(0);
+    expect(lineaVentas!.debito).toBe(PARAMS.montoNeto);
+    expect(lineaVentas!.credito).toBe(0);
   });
 
   it("I-ANV-03: reverso usa Dr IVA por Pagar", () => {
     const lineas = lineasAnulacionVentaCanal(PARAMS);
     const lineaIva = lineas.find((l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo);
     expect(lineaIva).toBeDefined();
-    expect(lineaIva.debito).toBe(PARAMS.iva);
-    expect(lineaIva.credito).toBe(0);
+    expect(lineaIva!.debito).toBe(PARAMS.iva);
+    expect(lineaIva!.credito).toBe(0);
   });
 
   it("I-ANV-04: reverso usa Cr Caja para efectivo (pos)", () => {
     const lineas = lineasAnulacionVentaCanal(PARAMS);
     const lineaCaja = lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
     expect(lineaCaja).toBeDefined();
-    expect(lineaCaja.debito).toBe(0);
-    expect(lineaCaja.credito).toBe(PARAMS.total);
+    expect(lineaCaja!.debito).toBe(0);
+    expect(lineaCaja!.credito).toBe(PARAMS.total);
   });
 
   it("I-ANV-05: reverso usa Cr Banco para métodos digitales", () => {
     const lineas = lineasAnulacionVentaCanal({ ...PARAMS, metodoPago: "debito" });
     const lineaBanco = lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
     expect(lineaBanco).toBeDefined();
-    expect(lineaBanco.credito).toBe(PARAMS.total);
+    expect(lineaBanco!.credito).toBe(PARAMS.total);
   });
 
   it("I-ANV-06: reverso usa Cr CxC Rappi para canal rappi", () => {
     const lineas = lineasAnulacionVentaCanal({ ...PARAMS, canal: "rappi" });
     const lineaRappi = lineas.find((l) => l.cuentaCodigo === CUENTAS.CXC_RAPPI.codigo);
     expect(lineaRappi).toBeDefined();
-    expect(lineaRappi.credito).toBe(PARAMS.total);
+    expect(lineaRappi!.credito).toBe(PARAMS.total);
   });
 
   it("I-ANV-07: es el inverso exacto de lineasVentaCanal (débitos ↔ créditos)", () => {
@@ -504,8 +504,8 @@ describe("lineasAnulacionVentaCanal — reverso de asiento de venta", () => {
     for (const lineaVenta of ventaLineas) {
       const lineaAnul = anulLineas.find((l) => l.cuentaCodigo === lineaVenta.cuentaCodigo);
       expect(lineaAnul).toBeDefined();
-      expect(lineaAnul.debito).toBe(lineaVenta.credito);
-      expect(lineaAnul.credito).toBe(lineaVenta.debito);
+      expect(lineaAnul!.debito).toBe(lineaVenta.credito);
+      expect(lineaAnul!.credito).toBe(lineaVenta.debito);
     }
   });
 });
@@ -523,16 +523,16 @@ describe("lineasAnulacionCOGS — reverso de costo de venta", () => {
     const lineas = lineasAnulacionCOGS(5000);
     const lineaInv = lineas.find((l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo);
     expect(lineaInv).toBeDefined();
-    expect(lineaInv.debito).toBe(5000);
-    expect(lineaInv.credito).toBe(0);
+    expect(lineaInv!.debito).toBe(5000);
+    expect(lineaInv!.credito).toBe(0);
   });
 
   it("I-ANV-10: Cr COGS (reverso del gasto)", () => {
     const lineas = lineasAnulacionCOGS(5000);
     const lineaCogs = lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo);
     expect(lineaCogs).toBeDefined();
-    expect(lineaCogs.debito).toBe(0);
-    expect(lineaCogs.credito).toBe(5000);
+    expect(lineaCogs!.debito).toBe(0);
+    expect(lineaCogs!.credito).toBe(5000);
   });
 
   it("I-ANV-11: es el inverso exacto de lineasVentaCOGS", () => {
@@ -541,8 +541,8 @@ describe("lineasAnulacionCOGS — reverso de costo de venta", () => {
     for (const lineaCOGS of cogsLineas) {
       const lineaAnul = anulLineas.find((l) => l.cuentaCodigo === lineaCOGS.cuentaCodigo);
       expect(lineaAnul).toBeDefined();
-      expect(lineaAnul.debito).toBe(lineaCOGS.credito);
-      expect(lineaAnul.credito).toBe(lineaCOGS.debito);
+      expect(lineaAnul!.debito).toBe(lineaCOGS.credito);
+      expect(lineaAnul!.credito).toBe(lineaCOGS.debito);
     }
   });
 });
@@ -560,16 +560,16 @@ describe("lineasNotaCreditoCOGS — reverso de costo por devolución", () => {
     const lineas = lineasNotaCreditoCOGS(5000);
     const lineaInv = lineas.find((l) => l.cuentaCodigo === CUENTAS.INVENTARIO.codigo);
     expect(lineaInv).toBeDefined();
-    expect(lineaInv.debito).toBe(5000);
-    expect(lineaInv.credito).toBe(0);
+    expect(lineaInv!.debito).toBe(5000);
+    expect(lineaInv!.credito).toBe(0);
   });
 
   it("I-NCC-03: Cr COGS (reverso del gasto)", () => {
     const lineas = lineasNotaCreditoCOGS(5000);
     const lineaCogs = lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo);
     expect(lineaCogs).toBeDefined();
-    expect(lineaCogs.debito).toBe(0);
-    expect(lineaCogs.credito).toBe(5000);
+    expect(lineaCogs!.debito).toBe(0);
+    expect(lineaCogs!.credito).toBe(5000);
   });
 
   it("I-NCC-04: es el inverso exacto de lineasVentaCOGS", () => {
@@ -578,8 +578,8 @@ describe("lineasNotaCreditoCOGS — reverso de costo por devolución", () => {
     for (const lineaCOGS of cogsLineas) {
       const lineaNc = ncLineas.find((l) => l.cuentaCodigo === lineaCOGS.cuentaCodigo);
       expect(lineaNc).toBeDefined();
-      expect(lineaNc.debito).toBe(lineaCOGS.credito);
-      expect(lineaNc.credito).toBe(lineaCOGS.debito);
+      expect(lineaNc!.debito).toBe(lineaCOGS.credito);
+      expect(lineaNc!.credito).toBe(lineaCOGS.debito);
     }
   });
 
@@ -612,8 +612,8 @@ describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
     // Crédito completo vuelve a Saldos a Favor (pasivo reacreditado)
     const sf = lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo);
     expect(sf).toBeDefined();
-    expect(sf.debito).toBe(0);
-    expect(sf.credito).toBe(10000);
+    expect(sf!.debito).toBe(0);
+    expect(sf!.credito).toBe(10000);
 
     // Ninguna línea toca Caja Operacional ni Banco Operacional
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)).toBeUndefined();
@@ -634,11 +634,11 @@ describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
     expect(totalDeb).toBe(totalCre);
     expect(totalDeb).toBe(10000);
 
-    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo).credito).toBe(6000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo)!.credito).toBe(6000);
     const banco = lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo);
     expect(banco).toBeDefined();
-    expect(banco.debito).toBe(0);
-    expect(banco.credito).toBe(4000);
+    expect(banco!.debito).toBe(0);
+    expect(banco!.credito).toBe(4000);
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)).toBeUndefined();
   });
 
@@ -653,7 +653,7 @@ describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
 
     const caja = lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo);
     expect(caja).toBeDefined();
-    expect(caja.credito).toBe(4000);
+    expect(caja!.credito).toBe(4000);
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)).toBeUndefined();
   });
 
@@ -664,8 +664,8 @@ describe("lineasAnulacionVentaConNc — reverso de venta pagada con NC", () => {
     for (const lineaOriginal of originales) {
       const lineaReverso = reverso.find((l) => l.cuentaCodigo === lineaOriginal.cuentaCodigo);
       expect(lineaReverso).toBeDefined();
-      expect(lineaReverso.debito).toBe(lineaOriginal.credito);
-      expect(lineaReverso.credito).toBe(lineaOriginal.debito);
+      expect(lineaReverso!.debito).toBe(lineaOriginal.credito);
+      expect(lineaReverso!.credito).toBe(lineaOriginal.debito);
     }
   });
 });
@@ -689,8 +689,8 @@ describe("lineasVentaServicio — cobro de cita (servicio)", () => {
 
     const servicio = lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS_SERVICIOS.codigo);
     expect(servicio).toBeDefined();
-    expect(servicio.credito).toBe(10000);
-    expect(servicio.debito).toBe(0);
+    expect(servicio!.credito).toBe(10000);
+    expect(servicio!.debito).toBe(0);
 
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo)).toBeUndefined();
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo)).toBeUndefined();

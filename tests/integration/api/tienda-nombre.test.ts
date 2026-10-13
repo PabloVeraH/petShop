@@ -22,7 +22,7 @@ jest.mock("@/lib/audit", () => ({ withErrorLogging: (fn: unknown) => fn }));
 import { GET } from "@/app/api/tienda/nombre/route";
 
 const STORE_ID = "18d5dab7-0000-4000-8000-000000000001";
-const llamar = () => GET(new NextRequest("http://localhost/api/tienda/nombre"));
+const llamar = () => GET();
 
 describe("GET /api/tienda/nombre (I-734)", () => {
   beforeEach(() => {

@@ -510,7 +510,7 @@ describe("GET /api/contabilidad/estado-resultado", () => {
     expect(body.gastos.costo_venta).toBe(8000);
 
     // La query de NCs debe filtrar por ventas.estado != 'anulada'
-    expect(db.ncChain.neq).toHaveBeenCalledWith("ventas.estado", "anulada");
+    expect(db.ncChain!.neq).toHaveBeenCalledWith("ventas.estado", "anulada");
   });
 
   // I-499: REGRESIÓN — el filtro de venta anulada en NCs no rompe el netting

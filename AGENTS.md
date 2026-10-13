@@ -667,7 +667,7 @@ npm run test:integration   # solo tests/integration/**
 npm run test:components    # solo tests/components/**
 npm run test:coverage      # thresholds: 70% líneas/funciones, 60% ramas
 npm run lint
-npm run typecheck          # tsc sobre tsconfig.src.json
+npm run typecheck          # tsc sobre tsconfig.json (src/ + tests/); el build solo verifica src/ (tsconfig.src.json)
 npm run build
 ```
 

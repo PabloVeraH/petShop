@@ -13,7 +13,7 @@ jest.mock("@/lib/validation", () => ({
   ...jest.requireActual("@/lib/validation"),
 }));
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler, logAudit: jest.fn() }));
+  withErrorLogging: (handler: unknown) => handler, logAudit: jest.fn() }));
 jest.mock("@clerk/nextjs/server", () => ({
   auth: () => mockAuth(),
 }));

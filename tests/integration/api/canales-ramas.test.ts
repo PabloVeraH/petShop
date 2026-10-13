@@ -289,7 +289,7 @@ describe("GET/PUT /api/canales/[canal]/productos — ramas", () => {
 describe("/api/canales/alertas — ramas", () => {
   it("I-707: GET con error de BD → 500; POST con error distinto de 23505 → 500 sin reprocesar ni auditar", async () => {
     fakeActual = crearFakeSupabase((tabla) => (tabla === "canal_ordenes" ? { error: { code: "57014" } } : { data: [] }));
-    expect((await ALERTAS_GET(req("/api/canales/alertas"))).status).toBe(500);
+    expect((await ALERTAS_GET()).status).toBe(500);
 
     fakeActual = crearFakeSupabase(() => ({ error: { code: "40001" } }));
     const res = await ALERTAS_POST(json("/api/canales/alertas", "POST", { id: JOB }));
