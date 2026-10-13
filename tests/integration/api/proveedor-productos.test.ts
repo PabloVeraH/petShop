@@ -8,6 +8,12 @@ const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+// Estas mutaciones exigen storeAdmin de la tienda (el storeWorker recibe 403,
+// ver SEC-18): por defecto la sesión es la de un admin de la tienda del test.
+const mockClerkClaims = () => ({ storeAdmin: true, storeId: STORE_ID });
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ sessionClaims: { publicMetadata: mockClerkClaims() } }),
+}));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 
 function makeRequest(method: string, body?: object, search = "") {

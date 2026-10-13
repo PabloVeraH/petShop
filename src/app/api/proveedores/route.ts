@@ -1,3 +1,4 @@
+import { exigirStoreAdmin } from "@/lib/admin-check";
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
@@ -27,6 +28,10 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  // Solo storeAdmin/systemAdmin de esta tienda (el storeWorker queda fuera).
+  const denegado = await exigirStoreAdmin(store_id);
+  if (denegado) return denegado;
   const supabase = createServiceClient();
 
   const body = await req.json();
@@ -66,6 +71,10 @@ export const DELETE = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId: store_id } = ctx;
+
+  // Solo storeAdmin/systemAdmin de esta tienda (el storeWorker queda fuera).
+  const denegado = await exigirStoreAdmin(store_id);
+  if (denegado) return denegado;
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
