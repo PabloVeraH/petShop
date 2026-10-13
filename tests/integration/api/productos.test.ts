@@ -27,7 +27,7 @@ const mockRpc = jest.fn();
 // Sesión Clerk: por defecto storeAdmin de STORE_ID (PATCH exige admin desde
 // Fase 1 / S11). admin-check es el real.
 const mockAuth = jest.fn(async () => ({
-  sessionClaims: { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } },
+  sessionClaims: { sub: "u1", publicMetadata: { storeId: "123e4567-e89b-12d3-a456-426614174000", storeAdmin: true } as Record<string, unknown> },
 }));
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));

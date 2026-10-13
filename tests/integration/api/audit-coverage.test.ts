@@ -53,7 +53,7 @@ jest.mock("@/lib/admin-check", () => ({
 }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler,
+  withErrorLogging: (handler: unknown) => handler,
   logAudit: mockLogAudit,
   getRequestMetadata: mockGetRequestMetadata,
 }));

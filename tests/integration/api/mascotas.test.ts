@@ -14,7 +14,7 @@ const PRODUCTO_ID = "123e4567-e89b-12d3-a456-426614174010";
 const mockSingle = jest.fn();
 const mockMaybeSingle = jest.fn();
 const mockFrom   = jest.fn();
-const mockChain  = {
+const mockChain: Record<string, jest.Mock> = {
   select: jest.fn().mockReturnThis(),
   insert: jest.fn().mockReturnThis(),
   update: jest.fn().mockReturnThis(),
@@ -35,7 +35,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler,
+  withErrorLogging: (handler: unknown) => handler,
   logAudit:           jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));

@@ -1,4 +1,4 @@
-const { getCuentaTipo, CUENTAS } = require("@/lib/contabilidad/types");
+import { getCuentaTipo, CUENTAS } from "@/lib/contabilidad/types";
 
 describe("getCuentaTipo — lookup helper", () => {
   it("U-129: retorna PASIVO para código 110502 (Saldos a Favor)", () => {

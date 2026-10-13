@@ -54,7 +54,7 @@ describe("GET /api/dashboard", () => {
   it("I-77: sin auth → 401", async () => {
     mockGetStoreId.mockResolvedValue(null);
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(401);
   });
 
@@ -62,7 +62,7 @@ describe("GET /api/dashboard", () => {
   it("I-77b: con auth → 200 y contiene clave ventasHoy", async () => {
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("ventasHoy");
@@ -83,7 +83,7 @@ describe("GET /api/dashboard", () => {
     });
 
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
 
     // La query de ventas debe incluir el filtro por worker_clerk_id
@@ -103,7 +103,7 @@ describe("GET /api/dashboard", () => {
     });
 
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
 
     // No debe filtrar por worker_clerk_id para admins
@@ -143,7 +143,7 @@ describe("GET /api/dashboard", () => {
     mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
 
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
 
@@ -191,7 +191,7 @@ describe("GET /api/dashboard", () => {
     mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
 
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
 
@@ -238,7 +238,7 @@ describe("GET /api/dashboard", () => {
     mockGetStoreId.mockResolvedValue({ userId: "admin-u1", storeId: STORE_ID });
 
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
 
@@ -259,7 +259,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
   // I-78
   it("I-78: retorna 200 con total e items de alertas", async () => {
     const { GET } = await import("@/app/api/dashboard/stock-alertas/route");
-    const res = await GET(new NextRequest("http://localhost/api/dashboard/stock-alertas"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(typeof body.total).toBe("number");

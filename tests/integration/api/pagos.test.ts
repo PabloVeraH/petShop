@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler,
+  withErrorLogging: (handler: unknown) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
@@ -193,7 +193,7 @@ describe("POST /api/pagos", () => {
     });
 
     let eqCallCount = 0;
-    chain.eq.mockImplementation(function (...args) {
+    chain.eq.mockImplementation(function (this: unknown, ...args) {
       eqCallCount++;
       if (eqCallCount === 3) {
         return Promise.resolve({ data: null, error: { message: "DB error consultando pagos" } });
@@ -234,7 +234,7 @@ describe("POST /api/pagos", () => {
     });
 
     let eqCallCount = 0;
-    chain.eq.mockImplementation(function (...args) {
+    chain.eq.mockImplementation(function (this: unknown, ...args) {
       eqCallCount++;
       if (eqCallCount === 3) {
         return Promise.resolve({ data: [{ monto: 5000 }], error: null });

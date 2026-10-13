@@ -14,7 +14,7 @@ jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler,
+  withErrorLogging: (handler: unknown) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));

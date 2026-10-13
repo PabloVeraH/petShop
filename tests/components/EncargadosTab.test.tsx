@@ -152,7 +152,7 @@ describe("EncargadosTab (ENC-XX)", () => {
     fireEvent.click(screen.getAllByText("Desactivar")[0]);
     expect(screen.getByText("¿Desactivar encargado?")).toBeInTheDocument();
 
-    const modal = screen.getByText("¿Desactivar encargado?").closest("[class*='fixed']")!;
+    const modal = screen.getByText("¿Desactivar encargado?").closest<HTMLElement>("[class*='fixed']")!;
     fireEvent.click(within(modal).getByText("Desactivar"));
 
     await waitFor(() => {
@@ -169,7 +169,7 @@ describe("EncargadosTab (ENC-XX)", () => {
     fireEvent.click(screen.getAllByText("Desactivar")[0]);
     expect(screen.getByText("¿Desactivar encargado?")).toBeInTheDocument();
 
-    const modal = screen.getByText("¿Desactivar encargado?").closest("[class*='fixed']")!;
+    const modal = screen.getByText("¿Desactivar encargado?").closest<HTMLElement>("[class*='fixed']")!;
     fireEvent.click(within(modal).getByText("Cancelar"));
 
     expect(screen.queryByText("¿Desactivar encargado?")).not.toBeInTheDocument();

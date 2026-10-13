@@ -10,7 +10,7 @@ import "@testing-library/jest-dom";
 import { render } from "@testing-library/react";
 
 const mockPush = jest.fn();
-const mockSearchParamsGet = jest.fn(() => null);
+const mockSearchParamsGet = jest.fn((_k: string) => null);
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
   useSearchParams: () => ({ get: (k: string) => mockSearchParamsGet(k) }),

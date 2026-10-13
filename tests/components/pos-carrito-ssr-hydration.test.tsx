@@ -71,7 +71,7 @@ async function renderServerThenHydrate(
   document.body.appendChild(container);
 
   jest.resetModules();
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const ReactClient = (await import("react")).default;
   const { hydrateRoot } = await import("react-dom/client");
   const ClientCarrito = (await import("@/app/(app)/pos/components/Carrito")).default;

@@ -40,6 +40,7 @@ describe("lib/whatsapp", () => {
   // U-14
   it("U-14: buildConsumoAlertMessage contiene nombre del producto", () => {
     const msg = buildConsumoAlertMessage({
+      storeName: "PetShop Test",
       clienteNombre: "Juan",
       mascotaNombre: "Firulais",
       productoNombre: "Royal Canin Adult",

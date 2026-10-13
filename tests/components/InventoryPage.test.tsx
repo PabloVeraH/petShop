@@ -99,7 +99,7 @@ const PRODUCTO = {
 
 const PRODUCTO_BAJO_STOCK = { ...PRODUCTO, id: "p2", nombre: "Snack Perro", stock: 3, stock_minimo: 5 };
 
-function setupFetch(productos = [PRODUCTO]) {
+function setupFetch(productos: Record<string, unknown>[] = [PRODUCTO]) {
   (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL) => {
     const u = url.toString();
     if (u.includes("/api/inventario")) {

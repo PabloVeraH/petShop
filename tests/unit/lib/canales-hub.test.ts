@@ -3,7 +3,7 @@
  * These tests verify the business logic without requiring DB connection
  */
 
-const { CanalId, EstadoOrdenCanal, VENTANA_ACEPTACION, CUENTAS_POR_COBRAR, CUENTAS_COMISION } = require("@/lib/canales/types");
+import { CanalId, EstadoOrdenCanal, VENTANA_ACEPTACION, CUENTAS_POR_COBRAR, CUENTAS_COMISION } from "@/lib/canales/types";
 
 describe("Canales Hub - Constants", () => {
   describe("VENTANA_ACEPTACION", () => {
@@ -60,8 +60,8 @@ describe("Canales Hub - Constants", () => {
 describe("Canales Hub - Stock Reserve Calculation", () => {
   // Test the algorithm for calculating available stock
   
-  function calcularStockDisponible(stockActual, reservasActivas) {
-    const totalReservado = reservasActivas.reduce(function(s, r) { return s + r.cantidad; }, 0);
+  function calcularStockDisponible(stockActual: number, reservasActivas: { cantidad: number }[]) {
+    const totalReservado = reservasActivas.reduce(function(s: number, r) { return s + r.cantidad; }, 0);
     return stockActual - totalReservado;
   }
 
@@ -77,14 +77,14 @@ describe("Canales Hub - Stock Reserve Calculation", () => {
 
   it("debe retornar 0 cuando no hay stock", () => {
     var stock = 0;
-    var reservas = [];
+    var reservas: { cantidad: number }[] = [];
     
     expect(calcularStockDisponible(stock, reservas)).toBe(0);
   });
 
   it("debe manejar caso sin reservas", () => {
     var stock = 50;
-    var reservas = [];
+    var reservas: { cantidad: number }[] = [];
     
     expect(calcularStockDisponible(stock, reservas)).toBe(50);
   });
@@ -99,7 +99,7 @@ describe("Canales Hub - Stock Reserve Calculation", () => {
 });
 
 describe("Canales Hub - Expiration Time Calculation", () => {
-  function calcularExpiraEn(ventanaMinutos) {
+  function calcularExpiraEn(ventanaMinutos: number) {
     var ahora = new Date();
     return new Date(ahora.getTime() + ventanaMinutos * 60 * 1000);
   }
@@ -135,11 +135,11 @@ describe("Canales Hub - Estado Validity", () => {
   var ESTADOS_ACTIVAS = ["pending", "reserved", "accepted", "ready"];
   var ESTADOS_TERMINALES = ["delivered", "rejected", "cancelled", "expired"];
 
-  function esEstadoActivo(estado) {
+  function esEstadoActivo(estado: string) {
     return ESTADOS_ACTIVAS.indexOf(estado) !== -1;
   }
 
-  function esEstadoTerminal(estado) {
+  function esEstadoTerminal(estado: string) {
     return ESTADOS_TERMINALES.indexOf(estado) !== -1;
   }
 

@@ -36,7 +36,6 @@ const CLIENTE = {
   rut: "11.111.111-1",
   nombre: "Juan Pérez",
   email: "juan@test.com",
-  telefono: null,
 };
 
 const DETALLE_DATA = { ...CLIENTE, mascotas: [], ventas: [], saldo_disponible: 0 };

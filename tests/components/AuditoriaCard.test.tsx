@@ -265,10 +265,10 @@ describe("AuditoriaCard component", () => {
       if (tag === "a") return { href: "", download: "", click: mockClick } as unknown as HTMLAnchorElement;
       return origCreateElement(tag);
     });
-    const origCreateObjectURL = (global.URL as Record<string, unknown>).createObjectURL;
-    (global.URL as Record<string, unknown>).createObjectURL = jest.fn(() => "blob:mock-url");
-    const origRevokeObjectURL = (global.URL as Record<string, unknown>).revokeObjectURL;
-    (global.URL as Record<string, unknown>).revokeObjectURL = jest.fn();
+    const origCreateObjectURL = (global.URL as unknown as Record<string, unknown>).createObjectURL;
+    (global.URL as unknown as Record<string, unknown>).createObjectURL = jest.fn(() => "blob:mock-url");
+    const origRevokeObjectURL = (global.URL as unknown as Record<string, unknown>).revokeObjectURL;
+    (global.URL as unknown as Record<string, unknown>).revokeObjectURL = jest.fn();
 
     render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
 
@@ -279,8 +279,8 @@ describe("AuditoriaCard component", () => {
     await waitFor(() => expect(mockClick).toHaveBeenCalled(), { timeout: 5000 });
 
     createElementSpy.mockRestore();
-    (global.URL as Record<string, unknown>).createObjectURL = origCreateObjectURL;
-    (global.URL as Record<string, unknown>).revokeObjectURL = origRevokeObjectURL;
+    (global.URL as unknown as Record<string, unknown>).createObjectURL = origCreateObjectURL;
+    (global.URL as unknown as Record<string, unknown>).revokeObjectURL = origRevokeObjectURL;
   });
 });
 

@@ -58,7 +58,7 @@ function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker") {
 
 async function renderPage(role: "systemAdmin" | "storeAdmin" | "storeWorker") {
   const clerkMod = await import("@clerk/nextjs");
-  clerkMod.useAuth.mockReturnValue({
+  (clerkMod.useAuth as jest.Mock).mockReturnValue({
     userId: "user-1",
     sessionClaims: { publicMetadata: buildMeta(role) },
   });
@@ -105,7 +105,7 @@ describe("AdminPage — redirect por rol", () => {
   // (DB cross-verify detecta JWT stale) → debe redirigir a /pos
   it("AP-04: JWT stale con systemAdmin pero API stores retorna error → redirige a /pos", async () => {
     const clerkMod2 = await import("@clerk/nextjs");
-    clerkMod2.useAuth.mockReturnValue({
+    (clerkMod2.useAuth as jest.Mock).mockReturnValue({
       userId: "user-1",
       sessionClaims: { publicMetadata: buildMeta("systemAdmin") },
     });

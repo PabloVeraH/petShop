@@ -17,7 +17,7 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
 jest.mock("@/lib/hub-sync", () => ({ syncPurchaseToHub: jest.fn() }));
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler) => handler,
+  withErrorLogging: (handler: unknown) => handler,
   logAudit: jest.fn().mockResolvedValue(undefined),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
@@ -65,7 +65,7 @@ describe("S-01: endpoints sin auth → 401", () => {
 
   it("GET /api/dashboard sin auth → 401", async () => {
     const { GET } = await import("@/app/api/dashboard/route");
-    const res = await GET(req("/api/dashboard"));
+    const res = await GET();
     expect(res.status).toBe(401);
   });
 });

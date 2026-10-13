@@ -64,7 +64,7 @@ function makeEmptyFrom() {
     limit: jest.fn().mockResolvedValue({ data: null, error: null }),
     gt: jest.fn().mockReturnThis(),
   };
-  return jest.fn(() => chain);
+  return jest.fn((_table: string) => chain);
 }
 
 function rpcSuccess(overrides?: Record<string, unknown>) {

@@ -30,7 +30,7 @@ jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: (..._args: string[]) => mockFrom() })),
 }));
 
-function buildMockChain(data: unknown[], error: unknown = null) {
+function buildMockChain(data: unknown[] | null, error: unknown = null) {
   const chain: Record<string, jest.Mock> = {};
   chain.select = jest.fn().mockReturnValue(chain);
   chain.eq = jest.fn().mockImplementation((key: string, _value: unknown) => chain);

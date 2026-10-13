@@ -96,7 +96,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -187,7 +187,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -198,7 +198,7 @@ describe("GET /api/recibos/[ventaId]", () => {
 
   it("retorna 400 sin ventaId", async () => {
     const req = new NextRequest("http://localhost/api/recibos/");
-    const res = await GET(req, { params: { ventaId: "" } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: "" }) });
     expect(res.status).toBe(400);
   });
 
@@ -214,7 +214,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/invalid-venta`);
-    const res = await GET(req, { params: { ventaId: "invalid-venta" } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: "invalid-venta" }) });
     expect(res.status).toBe(404);
   });
 
@@ -222,7 +222,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     (authModule.getStoreId as jest.Mock).mockResolvedValue(null);
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     expect(res.status).toBe(401);
   });
 
@@ -296,7 +296,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -356,7 +356,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -412,7 +412,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -469,7 +469,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     });
 
     const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
-    const res = await GET(req, { params: { ventaId: mockVentaId } });
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -501,7 +501,7 @@ describe("GET /api/recibos/[ventaId]", () => {
       }),
     };
     let columnas = "";
-    const storeChain = {
+    const storeChain: Record<string, jest.Mock> = {
       select: jest.fn((cols: string) => { columnas = cols; return storeChain; }),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(() => {
@@ -521,7 +521,7 @@ describe("GET /api/recibos/[ventaId]", () => {
         table === "stores" ? storeChain : table === "pagos" ? pagosChain : ventaChain),
     });
 
-    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: { ventaId: mockVentaId } });
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: Promise.resolve({ ventaId: mockVentaId }) });
     const data = await res.json();
 
     expect(res.status).toBe(200);

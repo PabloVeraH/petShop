@@ -1,13 +1,13 @@
-const { encrypt, decrypt } = require("@/lib/canales/encryption");
-const { channelRegistry, getChannel, getEnabledChannelIds } = require("@/lib/canales/registry");
-const { 
+import { encrypt, decrypt } from "@/lib/canales/encryption";
+import { channelRegistry, getChannel, getEnabledChannelIds } from "@/lib/canales/registry";
+import { 
   CanalId, 
   EstadoOrdenCanal, 
   CANAL_DEFAULT, 
   VENTANA_ACEPTACION,
   CUENTAS_POR_COBRAR,
   CUENTAS_COMISION 
-} = require("@/lib/canales/types");
+} from "@/lib/canales/types";
 
 describe("Canales - Encryption", () => {
   const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;

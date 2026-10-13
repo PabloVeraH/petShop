@@ -93,7 +93,7 @@ describe("CategoriasTab — confirmación eliminar (CT-XX)", () => {
 
     fireEvent.click(screen.getAllByText("Eliminar")[0]);
 
-    const modal = screen.getByText("¿Eliminar categoría?").closest("[class*='fixed']")!;
+    const modal = screen.getByText("¿Eliminar categoría?").closest<HTMLElement>("[class*='fixed']")!;
     fireEvent.click(within(modal).getByText("Eliminar"));
 
     await waitFor(() => {

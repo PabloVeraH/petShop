@@ -53,7 +53,7 @@ describe("checkClerkEnv", () => {
   const PREV_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 
   afterEach(() => {
-    process.env.NODE_ENV = PREV_NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = PREV_NODE_ENV;
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = PREV_PUBLISHABLE_KEY;
     process.env.CLERK_SECRET_KEY = PREV_SECRET_KEY;
   });

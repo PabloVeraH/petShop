@@ -26,7 +26,7 @@ describe("fetchJson (U-210)", () => {
     global.fetch = jest.fn().mockResolvedValue(
       respuesta(429, { error: "Too many requests. Please try again later." }, { "Retry-After": "300" })
     );
-    const err = await fetchJson("/api/x").catch((e) => e);
+    const err = (await fetchJson("/api/x").catch((e) => e)) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(429);
     expect(err.retryAfterSeg).toBe(300);
@@ -35,7 +35,7 @@ describe("fetchJson (U-210)", () => {
 
   it("U-210: 500 no expone el mensaje interno", async () => {
     global.fetch = jest.fn().mockResolvedValue(respuesta(500, { error: "deadlock detected" }));
-    const err = await fetchJson("/api/x").catch((e) => e);
+    const err = (await fetchJson("/api/x").catch((e) => e)) as ApiError;
     expect(err.status).toBe(500);
     expect(err.message).toBe("Error del servidor. Intenta de nuevo en unos momentos.");
   });
