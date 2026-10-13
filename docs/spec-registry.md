@@ -2415,3 +2415,19 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEC-16 | REGRESIÓN (auditoría 2026-10-13, hallazgo 3): PATCH /api/error-logs/[id]/resolve — storeAdmin filtra por su store_id; log de otra tienda → 404 sin datos; storeAdmin sin storeId → 403 sin BD; systemAdmin resuelve sin filtro de tienda | PATCH /api/error-logs/[id]/resolve | integration |
 | SEC-17 | REGRESIÓN (auditoría 2026-10-13, hallazgo 4): GET /api/audit-logs, /api/audit-logs/summary, /api/error-logs y /api/user-sessions → 403 sin consultar para un storeAdmin sin storeId (antes omitían el filtro y devolvían todas las tiendas) | GET logs (4 rutas) | integration |
 | SEC-18 | REGRESIÓN (auditoría 2026-10-13, hallazgo 2): storeWorker, usuario sin rol o storeAdmin de otra tienda → 403 sin tocar la BD en POST /api/contabilidad/asientos, DELETE /api/contabilidad/asientos/[id], PATCH /api/cuentas-pagar, POST /api/productos, POST/DELETE /api/proveedores, PATCH /api/proveedores/[id], POST/DELETE /api/proveedor-productos; storeAdmin de la tienda pasa el guard (`exigirStoreAdmin`) | 9 endpoints de admin | integration |
+| SEC-19 | REGRESIÓN (checklist 2026-10-13): la respuesta de PATCH /api/settings enmascara whatsapp_access_token y whatsapp_webhook_verify_token (antes devolvía la fila completa con los tokens en claro) | PATCH /api/settings | integration |
+| SEC-20 | REGRESIÓN (checklist 2026-10-13): `logAudit` redacta claves sensibles (token, secret, password, credencial, api_key; también anidadas) antes de insertar en audit_logs | logAudit / redactarSecretos | unit |
+| SEC-21 | REGRESIÓN (checklist 2026-10-13): el HTML de los correos (recordatorio, boleta, orden de compra) escapa nombres, notas e ítems — un `<a href>` en un nombre no se renderiza como enlace | lib/email (`esc`) | unit |
+| SEC-22 | Guarda: `.gitignore` excluye `.env*`; no hay `.env`, `.pem` ni `.key` versionados | repo | unit |
+| SEC-23 | Guarda: ningún archivo versionado contiene un secreto con formato real (Clerk sk_, JWT, sb_secret_, llave privada, OpenRouter, whsec_, Resend, AWS) | repo | unit |
+| SEC-24 | Guarda: las únicas `NEXT_PUBLIC_*` usadas en src/ son las públicas por diseño (allowlist) | src/ | unit |
+| SEC-25 | Guarda: ningún Client Component lee `process.env` de servidor ni importa supabase/encryption/cron-auth/audit/admin-check/auth | src/ | unit |
+| SEC-26 | Guarda: toda `route.ts` de /api usa un guard (getStoreId, auth(), resolveAdminContext, autorizarCanales, cronAutorizado, requireSystemAdmin, exigirStoreAdmin) salvo las públicas declaradas con su autenticación alternativa | src/app/api | unit |
+| SEC-27 | Guarda: la lista `publicRoutes` del middleware coincide con la revisada (agregar una ruta pública exige editar el test) | middleware | unit |
+| SEC-28 | Guarda: toda tabla creada en migrations/ habilita RLS | migrations/ | unit |
+| SEC-29 | Guarda: EXECUTE dinámico solo con format()/USING; toda función SECURITY DEFINER termina con search_path fijo (migración 087 corrige 3) | migrations/ | unit |
+| SEC-30 | Guarda: `.or()/.filter()/.textSearch()` de PostgREST solo interpolan variables saneadas con `.replace(/[()%,]/g, "")` | src/ | unit |
+| SEC-31 | Guarda: sin dangerouslySetInnerHTML, innerHTML, eval ni new Function en src/ | src/ | unit |
+| SEC-32 | Guarda: ninguna respuesta 500 de /api expone `error.message` | src/app/api | unit |
+| SEC-33 | Guarda: todo endpoint con `formData()` limita tamaño y tipo de archivo | src/app/api | unit |
+| SEC-34 | Guarda: headers globales con HSTS ≥ 1 año, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy; el middleware agrega el CSP | next.config.ts / middleware | unit |

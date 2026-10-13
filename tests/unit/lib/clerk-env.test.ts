@@ -15,7 +15,7 @@ describe("isClerkDevKey", () => {
   });
 
   it("U-127b: sk_test_ detecta como desarrollo", () => {
-    expect(isClerkDevKey("sk_test_W118EYSpqiyXK6HiuOUhL8XPoyQtzJnN1dG4H5IZcr")).toBe(true);
+    expect(isClerkDevKey("sk_test_CLAVEFALSADETEST")).toBe(true);
   });
 
   it("U-127c: pk_live_ NO detecta como desarrollo", () => {
@@ -23,7 +23,7 @@ describe("isClerkDevKey", () => {
   });
 
   it("U-127d: sk_live_ NO detecta como desarrollo", () => {
-    expect(isClerkDevKey("sk_live_YWJjZGVmZzEyMzQ1Njc4OTA")).toBe(false);
+    expect(isClerkDevKey("sk_live_CLAVEFALSADETEST")).toBe(false);
   });
 
   // U-127l: REGRESIÓN — @clerk/shared todavía reconoce el formato legacy

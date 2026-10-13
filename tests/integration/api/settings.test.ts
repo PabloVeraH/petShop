@@ -546,3 +546,31 @@ describe("PATCH /api/settings — RUT y dirección obligatorios (I-736)", () => 
     expect(c.update).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /api/settings — secretos", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockFrom.mockReturnValue(chain());
+    mockAsAdmin();
+  });
+
+  it("SEC-19: la respuesta del PATCH enmascara los tokens de WhatsApp", async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: STORE_ID, whatsapp_access_token: "EAAG-token-real", whatsapp_webhook_verify_token: "verify-real" },
+      error: null,
+    });
+    const { PATCH } = await import("@/app/api/settings/route");
+    const res = await PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ whatsapp_access_token: "EAAG-token-real" }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.whatsapp_access_token).toBe("••••••••");
+    expect(body.whatsapp_webhook_verify_token).toBe("••••••••");
+    expect(JSON.stringify(body)).not.toContain("token-real");
+    expect(JSON.stringify(body)).not.toContain("verify-real");
+  });
+});

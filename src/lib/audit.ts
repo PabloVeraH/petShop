@@ -19,17 +19,36 @@ export interface AuditLogInput {
   errorMessage?: string;
 }
 
+// Claves cuyo valor nunca debe quedar en audit_logs (los admins lo leen vía
+// /api/audit-logs): tokens de WhatsApp, credenciales de canales, etc.
+const CLAVE_SENSIBLE = /token|secret|password|contrasena|credencial|api_?key/i;
+
+export function redactarSecretos(valores?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!valores) return valores;
+  const limpio: Record<string, unknown> = {};
+  for (const [clave, valor] of Object.entries(valores)) {
+    if (CLAVE_SENSIBLE.test(clave)) {
+      limpio[clave] = valor ? "[REDACTED]" : valor;
+    } else if (valor && typeof valor === "object" && !Array.isArray(valor)) {
+      limpio[clave] = redactarSecretos(valor as Record<string, unknown>);
+    } else {
+      limpio[clave] = valor;
+    }
+  }
+  return limpio;
+}
+
 export async function logAudit(input: AuditLogInput) {
   const supabase = createServiceClient();
-  
+
   const { error } = await supabase.from("audit_logs").insert({
     store_id: input.storeId,
     user_id: input.userId,
     action: input.action,
     entity_type: input.entityType,
     entity_id: input.entityId,
-    old_values: input.oldValues,
-    new_values: input.newValues,
+    old_values: redactarSecretos(input.oldValues),
+    new_values: redactarSecretos(input.newValues),
     change_description: input.changeDescription,
     ip_address: input.ipAddress,
     user_agent: input.userAgent,

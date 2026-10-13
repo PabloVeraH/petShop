@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withErrorLogging } from "@/lib/audit";
+import { cronAutorizado } from "@/lib/cron-auth";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
-  const authHeader = req.headers.get("authorization");
-  // Sin CRON_SECRET configurado se rechaza todo (antes "Bearer undefined" pasaba).
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Bearer $CRON_SECRET en tiempo constante; sin CRON_SECRET rechaza todo.
+  if (!cronAutorizado(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
