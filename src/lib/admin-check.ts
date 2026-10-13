@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "./supabase";
 
 export interface AdminContext {
@@ -32,6 +34,25 @@ export function requireStoreAdmin(admin: AdminContext | null, requiredStoreId?: 
   }
   if (requiredStoreId && admin.storeId !== requiredStoreId && !admin.isSystemAdmin) {
     throw new Error("Unauthorized store");
+  }
+}
+
+/**
+ * Exige que la sesión actual sea storeAdmin de `storeId` (o systemAdmin).
+ * A diferencia de requireStoreAdmin (que lanza), devuelve la respuesta 403
+ * lista para retornar, o null si está autorizado — sin try/catch en el
+ * llamador:
+ *
+ *   const denegado = await exigirStoreAdmin(store_id);
+ *   if (denegado) return denegado;
+ */
+export async function exigirStoreAdmin(storeId: string): Promise<NextResponse | null> {
+  const { sessionClaims } = await auth();
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), storeId);
+    return null;
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 }
 

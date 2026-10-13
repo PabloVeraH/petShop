@@ -50,6 +50,8 @@ jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unkn
 jest.mock("@/lib/admin-check", () => ({
   getAdminStatus: mockGetAdminStatus,
   requireStoreAdmin: jest.requireActual("@/lib/admin-check").requireStoreAdmin,
+  // Real también: lee la sesión de mockAuth (PATCH /api/cuentas-pagar lo exige, SEC-18).
+  exigirStoreAdmin: jest.requireActual("@/lib/admin-check").exigirStoreAdmin,
 }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom, rpc: mockRpc })) }));
 jest.mock("@/lib/audit", () => ({
@@ -306,6 +308,7 @@ describe("I-236: PATCH /api/cuentas-pagar → logAudit", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: USER_ID, storeId: STORE_ID });
+    mockAuth.mockResolvedValue({ userId: USER_ID, sessionClaims: { sub: USER_ID, publicMetadata: { storeId: STORE_ID, storeAdmin: true } } });
     mockLogAudit.mockResolvedValue(undefined);
   });
 

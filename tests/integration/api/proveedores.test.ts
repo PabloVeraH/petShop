@@ -2,6 +2,12 @@ import { GET as GET_BY_ID, PATCH } from "@/app/api/proveedores/[id]/route";
 import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
+// Estas mutaciones exigen storeAdmin de la tienda (el storeWorker recibe 403,
+// ver SEC-18): por defecto la sesión es la de un admin de la tienda del test.
+const mockClerkClaims = () => ({ storeAdmin: true, storeId: "store-1" });
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ sessionClaims: { publicMetadata: mockClerkClaims() } }),
+}));
 jest.mock("@/lib/supabase");
 
 import * as authModule from "@/lib/auth";
