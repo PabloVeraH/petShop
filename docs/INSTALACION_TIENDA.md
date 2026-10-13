@@ -375,8 +375,8 @@ Vuelta atrás: Vercel → Deployments → *Instant Rollback* al deploy anterior
 
 | Tienda | Rama | Dominio | Versión | Última migración | Supabase | Notas |
 |---|---|---|---|---|---|---|
-| (demo) | `main` | demo.ammapet.cl | — | 086 (085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
-| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | `000_baseline` (hasta 086; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Vercel y tienda creados 2026-10-12 |
+| (demo) | `main` | demo.ammapet.cl | — | 087 (085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
+| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | 087 (`000_baseline` hasta 086 + 087 manual 2026-10-13; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Vercel y tienda creados 2026-10-12 |
 
 ---
 

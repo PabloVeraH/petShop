@@ -4,7 +4,7 @@
 |---|---|
 | `000_baseline.sql` | Esquema completo de `public` (+ extensiones y bucket `instagram-media`), tomado con `pg_dump` del demo el 2026-10-11. Incluye hasta la migración **086** (sucursales). Es lo que se aplica en un Supabase **nuevo**. |
 | `085_pg_cron_canales.sql` | Jobs de pg_cron de canales. **No** está en el baseline ni aplicada en el demo: se aplica después de desplegar (ver `docs/INSTALACION_TIENDA.md` §8.4). |
-| `087_search_path_security_definer.sql` | Fija `search_path` en 3 funciones `SECURITY DEFINER` (`crear_venta_tx`, `cancelar_cita_tx`, `replace_servicio_horarios`). **Pendiente de aplicar** en el demo. |
+| `087_search_path_security_definer.sql` | Fija `search_path` en 3 funciones `SECURITY DEFINER` (`crear_venta_tx`, `cancelar_cita_tx`, `replace_servicio_horarios`). Aplicada 2026-10-13 en el demo y en mascotaspetshop (SQL Editor; mascotaspetshop no tiene `supabase_migrations.schema_migrations`). |
 | `historico/` | Migraciones anteriores al baseline. Solo referencia (el porqué de cada tabla/función). **No se ejecutan**: no reproducían el esquema real (nombres que no calzan con el historial del demo, 074–084 aplicadas sin registro). |
 
 ## Reglas desde el baseline
