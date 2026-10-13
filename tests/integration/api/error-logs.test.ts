@@ -111,11 +111,11 @@ describe("PATCH /api/error-logs/[id]/resolve", () => {
     const updateMock = jest.fn().mockReturnThis();
     const eqMock = jest.fn().mockReturnThis();
     const selectMock = jest.fn().mockReturnThis();
-    const singleMock = jest.fn().mockResolvedValue({
+    const maybeSingleMock = jest.fn().mockResolvedValue({
       data: { id: "err-1", resolved: true, resolved_at: "2026-05-20T10:00:00Z", resolved_by: USER_ID },
       error: null,
     });
-    const chain = { update: updateMock, eq: eqMock, select: selectMock, single: singleMock };
+    const chain = { update: updateMock, eq: eqMock, select: selectMock, maybeSingle: maybeSingleMock };
     updateMock.mockReturnValue(chain);
     eqMock.mockReturnValue(chain);
     selectMock.mockReturnValue(chain);
@@ -135,6 +135,7 @@ describe("PATCH /api/error-logs/[id]/resolve", () => {
       resolved_at: expect.any(String),
       resolved_by: USER_ID,
     });
+    expect(eqMock).toHaveBeenCalledWith("store_id", STORE_ID);
   });
 
   // I-244

@@ -17,6 +17,12 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // Cross-verify systemAdmin claim against DB (stale JWT check)
   admin = await resolveAdminContext(admin) ?? admin;
 
+  // Sin storeId propio, un storeAdmin no tiene tienda que filtrar: denegar en
+  // vez de omitir el filtro (antes veía los registros de todas las tiendas).
+  if (!admin.isSystemAdmin && !admin.storeId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const params = Object.fromEntries(req.nextUrl.searchParams);
   const parsed = UserSessionsQuerySchema.safeParse(params);
   if (!parsed.success) {

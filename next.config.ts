@@ -23,6 +23,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Desde Next 16.3 el type-check del build cubre todo el include de
+  // tsconfig.json (incluye tests/, con errores de tipos preexistentes). Con
+  // 16.2.4 solo verificaba src/ — se mantiene ese alcance, el mismo de
+  // `npm run typecheck`.
+  typescript: {
+    tsconfigPath: "tsconfig.src.json",
+  },
   async redirects() {
     return [
       // Rutas en inglés que redirigen a su equivalente en español (la app usa español
