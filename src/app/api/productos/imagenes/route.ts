@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getStoreId } from "@/lib/auth";
+import { exigirStoreAdmin } from "@/lib/admin-check";
 import { optimizarImagenProducto, subirImagenProducto, eliminarImagenProducto } from "@/lib/r2-storage";
 import { withErrorLogging } from "@/lib/audit";
 
@@ -11,6 +12,9 @@ const ProductoIdSchema = z.string().uuid();
 export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Solo storeAdmin/systemAdmin de esta tienda (el storeWorker queda fuera).
+  const denegado = await exigirStoreAdmin(ctx.storeId);
+  if (denegado) return denegado;
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -64,6 +68,9 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 export const DELETE = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Solo storeAdmin/systemAdmin de esta tienda (el storeWorker queda fuera).
+  const denegado = await exigirStoreAdmin(ctx.storeId);
+  if (denegado) return denegado;
 
   const body = await req.json();
   const { url } = body;

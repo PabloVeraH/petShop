@@ -19,6 +19,11 @@ const mockOptimizar = jest.fn();
 const mockSubir = jest.fn();
 const mockEliminar = jest.fn();
 
+// Estos endpoints exigen storeAdmin de la tienda (el storeWorker recibe 403,
+// ver SEC-35): por defecto la sesión es la de un admin de la tienda del test.
+jest.mock("@clerk/nextjs/server", () => ({
+  auth: async () => ({ sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "123e4567-e89b-12d3-a456-426614174000" } } }),
+}));
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/r2-storage", () => ({
   optimizarImagenProducto: mockOptimizar,

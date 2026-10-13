@@ -2431,3 +2431,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEC-32 | Guarda: ninguna respuesta 500 de /api expone `error.message` | src/app/api | unit |
 | SEC-33 | Guarda: todo endpoint con `formData()` limita tamaño y tipo de archivo | src/app/api | unit |
 | SEC-34 | Guarda: headers globales con HSTS ≥ 1 año, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy; el middleware agrega el CSP | next.config.ts / middleware | unit |
+| SEC-35 | REGRESIÓN (decisión 2026-10-13): storeWorker, usuario sin rol o storeAdmin de otra tienda → 403 sin BD ni R2 en POST/DELETE /api/productos/imagenes, GET /api/contabilidad/asientos y GET de libro-diario, balance-prueba y estado-resultado (+ /excel y /pdf); storeAdmin de la tienda pasa; el storeWorker SÍ puede crear órdenes de compra (POST /api/ordenes-compra) | 12 handlers | integration |
