@@ -119,7 +119,7 @@ alguno:
    nuevo en el registry en el mismo commit.
 4. **Suite** (cambios de código): `npm run build && npm test` en verde (o
    fallos preexistentes demostrados como tales, ver §19.3), `npm run typecheck`
-   y `npm run lint` sin errores nuevos introducidos por el cambio.
+   y `npm run lint` sin errores (baseline 0 desde 2026-10-13; los warnings no bloquean).
 5. **Diff**: revisa el diff completo — sin logs de depuración, código
    temporal, imports muertos, secretos ni cambios de formato ajenos.
 6. **Test de funcionamiento y seguridad de funcionalidad nueva**: si el

@@ -29,7 +29,7 @@ import { POST } from "@/app/api/contabilidad/cierre-mes/route";
 const STORE_ID = "store-uuid-backup";
 
 function createChain(resolveValue: object) {
-  const chain: Record<string, jest.Mock> & { then?: Function } = {
+  const chain: Record<string, jest.Mock> & { then?: (resolve: (v: unknown) => unknown) => unknown } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
@@ -37,10 +37,10 @@ function createChain(resolveValue: object) {
     lte: jest.fn().mockReturnThis(),
     in: jest.fn().mockReturnThis(),
     ilike: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnValue({ then: (resolve: Function) => resolve({ data: null, error: null }) }),
+    insert: jest.fn().mockReturnValue({ then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null }) }),
     update: jest.fn().mockReturnThis(),
   };
-  chain.then = (resolve: Function) => resolve(resolveValue);
+  chain.then = (resolve: (v: unknown) => unknown) => resolve(resolveValue);
   return chain;
 }
 
@@ -206,7 +206,7 @@ describe("POST /api/contabilidad/cierre-mes — respaldo automático", () => {
     let callCount = 0;
     const backupChain = createChain({ data: [], error: null });
     backupChain.insert = jest.fn().mockReturnValue({
-      then: (resolve: Function) => resolve({ data: null, error: { message: "insert failed" } }),
+      then: (resolve: (v: unknown) => unknown) => resolve({ data: null, error: { message: "insert failed" } }),
     });
 
     const fromMock = jest.fn((table: string) => {

@@ -57,7 +57,7 @@ function makeDb(options: {
     if (table === "journal_entries") {
       // Primer uso: SELECT para verificar ownership y montos
       // Segundo uso: DELETE del entry
-      let callCount = 0;
+      const callCount = 0;
       const handler = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),

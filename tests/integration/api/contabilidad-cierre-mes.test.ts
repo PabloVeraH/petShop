@@ -44,7 +44,7 @@ function makeRequest(body: object): NextRequest {
  * queries return different results based on call order.
  */
 function createChain(resolveValue: object) {
-  const chain: Record<string, jest.Mock> & { then?: Function } = {
+  const chain: Record<string, jest.Mock> & { then?: (resolve: (v: unknown) => unknown) => unknown } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
@@ -56,7 +56,7 @@ function createChain(resolveValue: object) {
     update: jest.fn().mockReturnThis(),
   };
   // Make the chain thenable (resolves to the provided data)
-  chain.then = (resolve: Function) => resolve(resolveValue);
+  chain.then = (resolve: (v: unknown) => unknown) => resolve(resolveValue);
   return chain;
 }
 
