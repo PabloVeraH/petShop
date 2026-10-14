@@ -1082,7 +1082,7 @@ razón — nunca borres la guarda.
 | 8 | Bloquear manipulación de campos | Zod en el límite; `store_id`/roles salen del contexto, nunca del body (§6.2) | tests de mass assignment por endpoint (ej. I-88) |
 | 9 | Proteger session cookies | Las gestiona Clerk (`__session` de vida corta, `Secure`, `SameSite=Lax`); la app no setea cookies propias | manual: no agregar cookies sin `httpOnly`+`secure`+`sameSite` |
 | 10 | Hashear contraseñas | Clerk almacena y hashea; la app solo las reenvía al crear usuarios (`/api/admin/users/create`) y nunca las persiste ni las loguea | revisión en PR; SEC-20 redacta `password` en auditoría |
-| 11 | Rate limiting | Middleware: por usuario (`RATE_LIMIT_USER_MAX`) o IP (`RATE_LIMIT_API_MAX`); webhook de canales con límite propio. **Limitación**: contador en memoria por instancia | `tests/unit/lib/rate-limit.test.ts` |
+| 11 | Rate limiting | Middleware: por usuario (`RATE_LIMIT_USER_MAX`) o IP (`RATE_LIMIT_API_MAX`); webhook de canales con límite propio. Contador compartido entre instancias en la BD (`rate_limit_hit`, migración 089); si la RPC falla, cae al contador en memoria de la instancia | `tests/unit/lib/rate-limit.test.ts` (U-220…222) |
 | 12 | Protección contra bots | Login/registro de Clerk con su bot protection (Turnstile, `frame-src challenges.cloudflare.com`) | manual: Clerk Dashboard → Attack protection activo por tienda |
 | 13 | Parametrizar queries | supabase-js (sin SQL crudo); `.or()` solo con términos saneados; SQL dinámico solo con `format()`/`USING`; `SECURITY DEFINER` con `search_path` fijo | SEC-29, SEC-30 |
 | 14 | Validar inputs | Schemas Zod en `src/lib/validation/` (§8) | tests 400 por endpoint |

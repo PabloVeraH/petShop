@@ -2453,3 +2453,6 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-75 | Confirmar deshabilitar → POST con `userIds` y `action` | LicenciaCard | component |
 | C-76 | REGRESIÓN: el error del endpoint (ban parcial) se muestra con `role="alert"` en vez de tratarse como éxito | LicenciaCard | component |
 | I-740 | REGRESIÓN: el tipo y la extensión de la subida a Instagram salen de los bytes (JPEG/PNG/GIF/WebP), no del `file.type` ni del nombre que manda el cliente; un HTML declarado `image/png` → 400 | POST /api/canales/instagram/upload | integration |
+| U-220 | REGRESIÓN: el rate limit usa el conteo de la BD (`rate_limit_hit`) con clave `<limitador>:<clave>` y responde 429 con Retry-After de la ventana compartida | middleware/rateLimit | unit |
+| U-221 | El conteo de la BD manda aunque la instancia no haya visto requests (cupo gastado en otra instancia) | middleware/rateLimit | unit |
+| U-222 | Si la RPC falla o lanza, el limitador cae al contador en memoria y sigue limitando | middleware/rateLimit | unit |
