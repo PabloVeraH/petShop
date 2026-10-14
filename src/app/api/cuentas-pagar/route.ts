@@ -1,6 +1,6 @@
 import { exigirStoreAdmin } from "@/lib/admin-check";
 import { getStoreId } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { CuentasPagarUpdateSchema } from "@/lib/validation";
 import { crearAsiento, lineasPagoProveedor } from "@/lib/contabilidad/generador-asientos";
@@ -121,28 +121,34 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
   }).catch(() => {});
 
   if (estado === "pagada" && data) {
-    // Asiento contable (post-response fire-and-forget)
-    (async () => {
-      let proveedorNombre: string | undefined;
-      const { data: cp } = await supabase
-        .from("cuentas_pagar")
-        .select("proveedores(nombre)")
-        .eq("id", data.id)
-        .single();
-      const rel = cp?.proveedores as unknown as { nombre: string } | null;
-      proveedorNombre = rel?.nombre ?? undefined;
+    // Asiento contable (post-response): after() hace que la plataforma espere
+    // el callback tras responder; un fire-and-forget puro puede congelarse en
+    // serverless y perder el asiento (ticket Trello 6a77e779358cdccca29dc3e3).
+    after(async () => {
+      try {
+        let proveedorNombre: string | undefined;
+        const { data: cp } = await supabase
+          .from("cuentas_pagar")
+          .select("proveedores(nombre)")
+          .eq("id", data.id)
+          .single();
+        const rel = cp?.proveedores as unknown as { nombre: string } | null;
+        proveedorNombre = rel?.nombre ?? undefined;
 
-      const asiento = await crearAsiento({
-        storeId: store_id,
-        fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
-        tipoMovimiento: "PAGO_PROVEEDOR",
-        referenciaId: data.id,
-        descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,
-        lineas: lineasPagoProveedor(Number(data.monto), metodo_pago),
-        usuarioId: ctx.userId ?? undefined,
-      });
-      if (!asiento) console.error(`[contabilidad] Asiento PAGO_PROVEEDOR NO CREADO para cuenta ${data.id}`);
-    })().catch((e) => console.error("[contabilidad] Error en asiento pago proveedor:", e));
+        const asiento = await crearAsiento({
+          storeId: store_id,
+          fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+          tipoMovimiento: "PAGO_PROVEEDOR",
+          referenciaId: data.id,
+          descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,
+          lineas: lineasPagoProveedor(Number(data.monto), metodo_pago),
+          usuarioId: ctx.userId ?? undefined,
+        });
+        if (!asiento) console.error(`[contabilidad] Asiento PAGO_PROVEEDOR NO CREADO para cuenta ${data.id}`);
+      } catch (e) {
+        console.error("[contabilidad] Error en asiento pago proveedor:", e);
+      }
+    });
   }
 
   return NextResponse.json(data);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getStoreId } from "@/lib/auth";
 import { CitaAccionSchema } from "@/lib/validation";
@@ -302,35 +302,40 @@ async function completarCita(
     userAgent,
   }).catch(() => {});
 
-  // Asiento contable fire-and-forget (mismo patrón que postVenta, no bloquea
-  // la respuesta): acredita VENTAS_SERVICIOS. NO incluye COGS (servicio sin
+  // Asiento contable post-response con after() (mismo patrón que postVenta:
+  // un fire-and-forget puro puede congelarse en serverless y perder el asiento,
+  // ticket Trello 6a77e779358cdccca29dc3e3): acredita VENTAS_SERVICIOS. NO incluye COGS (servicio sin
   // costo de inventario). Sin pagoNc usa lineasVentaServicio; con NC,
   // lineasVentaServicioConNc reacredita Saldos a Favor por el monto de la NC.
   const fechaVenta = (venta.created_at as string | undefined)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
   const montoNeto = total - impuesto;
-  (async () => {
-    const asiento = await crearAsiento({
-      storeId: ctx.storeId,
-      fecha: fechaVenta,
-      tipoMovimiento: "VENTA",
-      canal: "pos",
-      referenciaId: venta.id as string,
-      referenciaNomero: venta.numero_comprobante as string,
-      descripcion: `Cobro cita (servicio)${metodoPagoVenta !== "nota_credito" && metodoPagoVenta !== "mixto" ? ` ${metodoPagoVenta}` : ""}`,
-      lineas: pagoNc
-        ? lineasVentaServicioConNc({
-            montoNeto,
-            iva: impuesto,
-            total,
-            montoNc: pagoNc.monto,
-            montoResto: Math.round(total - pagoNc.monto),
-            metodoPagoResto: metodoPago,
-          })
-        : lineasVentaServicio({ metodoPago, montoNeto, iva: impuesto, total }),
-      usuarioId: ctx.userId ?? undefined,
-    });
-    if (!asiento) console.error(`[contabilidad] Asiento de cobro de cita NO CREADO para cita ${id} (venta ${venta.id})`);
-  })().catch((e) => console.error("[contabilidad] Error en asiento de cobro de cita:", e));
+  after(async () => {
+    try {
+      const asiento = await crearAsiento({
+        storeId: ctx.storeId,
+        fecha: fechaVenta,
+        tipoMovimiento: "VENTA",
+        canal: "pos",
+        referenciaId: venta.id as string,
+        referenciaNomero: venta.numero_comprobante as string,
+        descripcion: `Cobro cita (servicio)${metodoPagoVenta !== "nota_credito" && metodoPagoVenta !== "mixto" ? ` ${metodoPagoVenta}` : ""}`,
+        lineas: pagoNc
+          ? lineasVentaServicioConNc({
+              montoNeto,
+              iva: impuesto,
+              total,
+              montoNc: pagoNc.monto,
+              montoResto: Math.round(total - pagoNc.monto),
+              metodoPagoResto: metodoPago,
+            })
+          : lineasVentaServicio({ metodoPago, montoNeto, iva: impuesto, total }),
+        usuarioId: ctx.userId ?? undefined,
+      });
+      if (!asiento) console.error(`[contabilidad] Asiento de cobro de cita NO CREADO para cita ${id} (venta ${venta.id})`);
+    } catch (e) {
+      console.error("[contabilidad] Error en asiento de cobro de cita:", e);
+    }
+  });
 
   return NextResponse.json(cita);
 }

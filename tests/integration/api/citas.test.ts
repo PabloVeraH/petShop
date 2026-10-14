@@ -3,7 +3,14 @@
  * Crear/cancelar/completar una cita NO requiere rol admin (decisión §9a del
  * plan — operación de staff, como registrar una venta en el POS).
  */
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
+
+jest.mock("next/server", () => ({
+  ...jest.requireActual("next/server"),
+  // after() requiere request scope real (lanza fuera de él); aquí corre el
+  // callback al instante para poder verificar el asiento post-response.
+  after: jest.fn((cb: () => void) => cb()),
+}));
 
 const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const SERVICIO_ID = "123e4567-e89b-12d3-a456-426614174100";
@@ -703,6 +710,9 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
     const { PATCH } = await import("@/app/api/citas/[id]/route");
     const res = await PATCH(req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", metodoPago: "efectivo" }), { params: idParams });
     expect(res.status).toBe(200);
+    // El asiento corre dentro de after() (post-response garantizado), no como
+    // fire-and-forget suelto que serverless puede congelar.
+    expect(after).toHaveBeenCalledTimes(1);
 
     expect(mockRpc).toHaveBeenCalledWith("completar_cita_tx", {
       p_cita_id: CITA_ID,
