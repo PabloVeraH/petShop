@@ -32,7 +32,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [
           {
@@ -75,7 +75,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [
           {
@@ -116,7 +116,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [
           {
@@ -158,7 +158,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: products, error: null });
     };
 
@@ -187,7 +187,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [
           { id: "prod-1", nombre: "Crítico", stock: 1, stock_minimo: 5 },
@@ -217,7 +217,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [
           { id: "prod-1", nombre: "Activo", stock: 2, stock_minimo: 5 },
@@ -242,7 +242,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: [], error: null });
     };
 
@@ -271,7 +271,7 @@ describe("GET /api/dashboard/stock-alertas", () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) {
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: null, error: { message: "Database error" } });
     };
 

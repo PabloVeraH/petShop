@@ -101,8 +101,8 @@ describe("GET /api/inventario", () => {
       or: jest.fn(function() { return this; }),
     };
     Object.defineProperty(chain, Symbol.toStringTag, { value: "Promise" });
-    (chain as any).then = function(resolve: any) { return resolve(result); };
-    (chain as any).catch = function() { return this; };
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) { return resolve(result); };
+    (chain as Record<string, unknown>).catch = function() { return this; };
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn().mockReturnValue(chain),
@@ -124,8 +124,8 @@ describe("GET /api/inventario", () => {
       order: jest.fn(function() { return this; }),
       or: jest.fn(function() { return this; }),
     };
-    (chain as any).then = function(resolve: any) { return resolve(result); };
-    (chain as any).catch = function() { return this; };
+    (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) { return resolve(result); };
+    (chain as Record<string, unknown>).catch = function() { return this; };
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn().mockReturnValue(chain),

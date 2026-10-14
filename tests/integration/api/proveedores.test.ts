@@ -28,8 +28,8 @@ describe("Proveedores API [id] Endpoints", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (provChain as any).single = jest.fn(function() { return this; });
-      (provChain as any).then = function(resolve: any) {
+      (provChain as Record<string, unknown>).single = jest.fn(function() { return this; });
+      (provChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: mockProveedor, error: null });
       };
 
@@ -37,7 +37,7 @@ describe("Proveedores API [id] Endpoints", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (prodChain as any).then = function(resolve: any) {
+      (prodChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: [], error: null });
       };
 
@@ -63,8 +63,8 @@ describe("Proveedores API [id] Endpoints", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (checkChain as any).single = jest.fn(function() { return this; });
-      (checkChain as any).then = function(resolve: any) {
+      (checkChain as Record<string, unknown>).single = jest.fn(function() { return this; });
+      (checkChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: { id: "prov-1" }, error: null });
       };
 
@@ -73,8 +73,8 @@ describe("Proveedores API [id] Endpoints", () => {
         eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
       };
-      (updateChain as any).single = jest.fn(function() { return this; });
-      (updateChain as any).then = function(resolve: any) {
+      (updateChain as Record<string, unknown>).single = jest.fn(function() { return this; });
+      (updateChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: { ...mockProveedor, nombre: "ACME Supply Updated" }, error: null });
       };
 
@@ -104,8 +104,8 @@ describe("Proveedores API [id] Endpoints", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (checkChain as any).single = jest.fn(function() { return this; });
-      (checkChain as any).then = function(resolve: any) {
+      (checkChain as Record<string, unknown>).single = jest.fn(function() { return this; });
+      (checkChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: null, error: null });
       };
 

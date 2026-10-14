@@ -109,14 +109,14 @@ describe("GET /api/cuentas-pagar", () => {
     mockFrom.mockReturnValue(chain());
   });
 
-  function makeGetChain(data: any[]) {
+  function makeGetChain(data: unknown[]) {
     const c = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       gt: jest.fn().mockReturnThis(),
       order: jest.fn(function() { return this; }),
     };
-    (c as any).then = function(resolve: any) {
+    (c as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data, error: null });
     };
     return c;

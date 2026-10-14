@@ -22,21 +22,21 @@ describe("GET /api/proveedores/stats", () => {
     ordenesData?: Array<{ proveedor_id: string }>;
     cuentasData?: Array<{ proveedor_id: string; monto: number }>;
   }) {
-    const ordenesChain: any = {
+    const ordenesChain: Record<string, jest.Mock> = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       neq: jest.fn().mockReturnThis(),
     };
-    (ordenesChain as any).then = function(resolve: any) {
+    (ordenesChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: opts.ordenesData ?? [], error: null });
     };
 
-    const cuentasChain: any = {
+    const cuentasChain: Record<string, jest.Mock> = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       gt: jest.fn().mockReturnThis(),
     };
-    (cuentasChain as any).then = function(resolve: any) {
+    (cuentasChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: opts.cuentasData ?? [], error: null });
     };
 

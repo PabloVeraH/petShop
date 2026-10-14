@@ -14,7 +14,7 @@ global.fetch = mockFetch;
 const mockMutate = jest.fn();
 const mockInvalidateQueries = jest.fn();
 let mutationCallbacks: Array<{ onSuccess?: (...a: unknown[]) => unknown; onError?: (...a: unknown[]) => unknown }> = [];
-const mockUseMutation = jest.fn((opts?: any) => {
+const mockUseMutation = jest.fn((opts?: { onSuccess?: (...a: unknown[]) => unknown; onError?: (...a: unknown[]) => unknown }) => {
   mutationCallbacks.push({ onSuccess: opts?.onSuccess, onError: opts?.onError });
   return { mutate: mockMutate, isPending: false };
 });
@@ -24,7 +24,7 @@ jest.mock("@tanstack/react-query", () => {
   return {
     ...actual,
     useQuery: jest.fn(),
-    useMutation: (...args: any[]) => mockUseMutation(...args),
+    useMutation: (...args: Parameters<typeof mockUseMutation>) => mockUseMutation(...args),
     useQueryClient: jest.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
   };
 });
@@ -41,9 +41,9 @@ const MOCK_SUPPLIER_STATS = {
   payableAmounts: { "prov-1": 120000, "prov-2": 0 },
 };
 
-function setupMocks(extraProveedores: any[] = []) {
+function setupMocks(extraProveedores: unknown[] = []) {
   const proveedores = [MOCK_PROVEEDOR, ...extraProveedores];
-  useQuery.mockImplementation(({ queryKey }: any) => {
+  useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
     if (queryKey[0] === "proveedores") return { data: proveedores, isLoading: false };
     if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR, productos: [] } };
     if (queryKey[0] === "ordenes-proveedor") return { data: [] };
@@ -155,7 +155,7 @@ describe("SuppliersPage - Payment Modal", () => {
   // SP-06
   it("SP-06: cada proveedor muestra sus propias stats en la lista (no las del seleccionado)", async () => {
     const proveedores = [MOCK_PROVEEDOR, MOCK_PROVEEDOR_2];
-    useQuery.mockImplementation(({ queryKey }: any) => {
+    useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
       if (queryKey[0] === "proveedores") return { data: proveedores, isLoading: false };
       if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR, productos: [] } };
       if (queryKey[0] === "ordenes-proveedor") return { data: [] };
@@ -179,7 +179,7 @@ describe("SuppliersPage - Payment Modal", () => {
   // SP-07
   it("SP-07: stats no cambian al seleccionar otro proveedor (los datos vienen del endpoint agregado)", async () => {
     const proveedores = [MOCK_PROVEEDOR, MOCK_PROVEEDOR_2];
-    useQuery.mockImplementation(({ queryKey }: any) => {
+    useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
       if (queryKey[0] === "proveedores") return { data: proveedores, isLoading: false };
       if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR_2, productos: [] } };
       if (queryKey[0] === "ordenes-proveedor") return { data: [{ id: "oc-2", numero: "OC-002", estado: "pendiente", total: 30000, fecha_estimada: null, fecha_recibida: null, created_at: "" }] };
@@ -214,7 +214,7 @@ describe("SuppliersPage - Payment Modal", () => {
       { id: "cp-zero", monto: 0, fecha_vencimiento: "2025-06-01", estado: "pendiente" },
       { id: "cp-normal", monto: 50000, fecha_vencimiento: "2025-06-01", estado: "pendiente" },
     ];
-    useQuery.mockImplementation(({ queryKey }: any) => {
+    useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
       if (queryKey[0] === "proveedores") return { data: [MOCK_PROVEEDOR], isLoading: false };
       if (queryKey[0] === "proveedor") return { data: { ...MOCK_PROVEEDOR, productos: [] } };
       if (queryKey[0] === "ordenes-proveedor") return { data: [] };
@@ -340,7 +340,7 @@ describe("SuppliersPage - KPI Dashboard", () => {
   ];
 
   function setupKpiMocks() {
-    useQuery.mockImplementation(({ queryKey }: any) => {
+    useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
       if (queryKey[0] === "proveedores") return { data: [MOCK_PROVEEDOR], isLoading: false };
       if (queryKey[0] === "cuentas-proveedor") return { data: ALL_CUENTAS };
       if (queryKey[0] === "ordenes-proveedor") return { data: MOCK_ORDENES };
@@ -404,7 +404,7 @@ describe("SuppliersPage - KPI Dashboard", () => {
       expect(screen.getByText("Vencidas")).toBeInTheDocument();
     });
     const cuentaQueryCalls = (useQuery as jest.Mock).mock.calls.filter(
-      ([args]: any) => args.queryKey[0] === "cuentas-proveedor"
+      ([args]: [{ queryKey: unknown[] }]) => args.queryKey[0] === "cuentas-proveedor"
     );
     expect(cuentaQueryCalls.length).toBeGreaterThanOrEqual(1);
     expect(cuentaQueryCalls[0][0].queryKey[1]).toBe("all");
@@ -461,7 +461,7 @@ describe("SuppliersPage - KPI Dashboard", () => {
     const CUENTA_PROV2 = { id: "cp-prov2", monto: 12000, fecha_vencimiento: fechaRelativa(30), estado: "pendiente" };
     const ORDENES_PROV2 = [{ id: "oc-prov2", numero: "OC-PROV2", estado: "pendiente", total: 5000 }];
 
-    useQuery.mockImplementation(({ queryKey }: any) => {
+    useQuery.mockImplementation(({ queryKey }: { queryKey: unknown[] }) => {
       if (queryKey[0] === "proveedores") return { data: [MOCK_PROVEEDOR, MOCK_PROVEEDOR_2], isLoading: false };
       if (queryKey[0] === "cuentas-proveedor") {
         return { data: queryKey[1] === "prov-2" ? [CUENTA_PROV2] : ALL_CUENTAS };

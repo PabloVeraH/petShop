@@ -86,7 +86,7 @@ function buildChain() {
   Object.values(chain).forEach((fn) => fn.mockReturnValue(chain));
 
   // Hacer .select().eq().eq().single() retornar promesas
-  (chain as any).then = function (resolve: any) {
+  (chain as Record<string, unknown>).then = function (resolve: (v: unknown) => unknown) {
     return resolve({ data: null, error: null });
   };
 
@@ -108,7 +108,7 @@ describe("POST /api/canales/config — activo handling", () => {
     mockSelect.mockReturnThis();
     mockInsert.mockReturnThis();
     mockSingle.mockImplementation(() => Promise.resolve({ data, error: null }));
-    (buildChain as any).then = function (resolve: any) {
+    (buildChain as unknown as Record<string, unknown>).then = function (resolve: (v: unknown) => unknown) {
       return resolve({ data, error: null });
     };
   }
@@ -125,7 +125,7 @@ describe("POST /api/canales/config — activo handling", () => {
           data: { id: CONFIG_ID, canal_id: "rappi", activo: false },
           error: null,
         });
-        (c as any).then = (resolve: any) =>
+        (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
           resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: false }, error: null });
         return c;
       }),
@@ -149,7 +149,7 @@ describe("POST /api/canales/config — activo handling", () => {
           data: { id: CONFIG_ID, canal_id: "rappi", activo: false },
           error: null,
         });
-        (c as any).then = (resolve: any) =>
+        (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
           resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: false }, error: null });
         return c;
       }),
@@ -173,7 +173,7 @@ describe("POST /api/canales/config — activo handling", () => {
           data: { id: CONFIG_ID, canal_id: "rappi", activo: true },
           error: null,
         });
-        (c as any).then = (resolve: any) =>
+        (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
           resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
         return c;
       }),
@@ -303,7 +303,7 @@ describe("GET /api/canales/config — tiene_credenciales", () => {
         const c = buildChain();
         c.select.mockReturnValue(c);
         c.eq.mockReturnValue(c);
-        (c as any).then = (resolve: any) =>
+        (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
           resolve({
             data: [
               { id: CONFIG_ID, canal_id: "rappi", activo: false, created_at: "x", updated_at: "y", credenciales_encriptada: "ciphertext-abc" },
@@ -341,7 +341,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
     c.update.mockReturnValue(c);
     c.eq.mockReturnValue(c);
     mockSingle.mockResolvedValue({ data: resultData, error: null });
-    (c as any).then = (resolve: any) => resolve({ data: resultData, error: null });
+    (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: resultData, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn(() => c),
     });
@@ -362,7 +362,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       data: { id: CONFIG_ID, canal_id: "rappi", activo: true },
       error: null,
     });
-    (c as any).then = (resolve: any) =>
+    (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
@@ -397,7 +397,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       data: { id: CONFIG_ID, canal_id: "rappi", activo: true },
       error: null,
     });
-    (c as any).then = (resolve: any) =>
+    (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
@@ -415,7 +415,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
     checkChain.select.mockReturnValue(checkChain);
     checkChain.eq.mockReturnValue(checkChain);
     mockSingle.mockResolvedValue({ data: null, error: null });
-    (checkChain as any).then = (resolve: any) => resolve({ data: null, error: null });
+    (checkChain as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
       from: jest.fn(() => checkChain),
@@ -438,7 +438,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
       .mockResolvedValueOnce({ data: { credenciales_encriptada: "existing" }, error: null })
       .mockResolvedValueOnce({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
 
-    (checkChain as any).then = (resolve: any) =>
+    (checkChain as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
       resolve({ data: { id: CONFIG_ID, canal_id: "rappi", activo: true }, error: null });
 
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
@@ -457,7 +457,7 @@ describe("PATCH /api/canales/config — no modifica activo si no se envía", () 
     c.update.mockReturnValue(c);
     c.eq.mockReturnValue(c);
     mockSingle.mockResolvedValue({ data, error: null });
-    (c as any).then = (resolve: any) => resolve({ data, error: null });
+    (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
   }
 
@@ -685,7 +685,7 @@ describe("GET/PATCH /api/canales/config — integración pendiente siempre inact
         const c = buildChain();
         c.select.mockReturnValue(c);
         c.eq.mockReturnValue(c);
-        (c as any).then = (resolve: any) =>
+        (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) =>
           resolve({
             data: [
               { id: CONFIG_ID, canal_id: "rappi", activo: true, created_at: "x", updated_at: "y", credenciales_encriptada: "c" },
@@ -711,7 +711,7 @@ describe("GET/PATCH /api/canales/config — integración pendiente siempre inact
     c.select.mockReturnValue(c);
     c.eq.mockReturnValue(c);
     mockSingle.mockResolvedValue({ data: { id: "cfg-2", canal_id: "pedidosya", activo: true }, error: null });
-    (c as any).then = (resolve: any) => resolve({ data: { id: "cfg-2", canal_id: "pedidosya", activo: true }, error: null });
+    (c as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: { id: "cfg-2", canal_id: "pedidosya", activo: true }, error: null });
     (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn(() => c) });
 
     const res = await PATCH(authReq("PATCH", { canal_id: "pedidosya", credenciales: { client_id: "a", client_secret: "b", business_id: "1" } }));

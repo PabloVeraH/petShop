@@ -42,7 +42,7 @@ beforeEach(() => {
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
   });
-  global.fetch = fetchMock as any;
+  global.fetch = fetchMock as never;
 });
 
 afterEach(() => {

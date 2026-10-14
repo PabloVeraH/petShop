@@ -28,14 +28,14 @@ describe("GET /api/stock-movements", () => {
     (authModule.getStoreId as jest.Mock).mockResolvedValue({ userId: mockUserId, storeId: mockStoreId });
   });
 
-  function buildMovChain(data: any[]) {
+  function buildMovChain(data: unknown[]) {
     const movChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       limit: jest.fn(function() { return this; }),
     };
-    (movChain as any).then = function(resolve: any) {
+    (movChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data, error: null });
     };
     return movChain;
@@ -84,7 +84,7 @@ describe("GET /api/stock-movements", () => {
       select: jest.fn().mockReturnThis(),
       in: jest.fn().mockReturnThis(),
     };
-    (usersChain as any).then = function(resolve: any) {
+    (usersChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({
         data: [{ clerk_id: mockUserId, nombre: "Pablo Vera", email: "pablo@example.com" }],
         error: null,
@@ -180,7 +180,7 @@ describe("GET /api/stock-movements", () => {
       order: jest.fn().mockReturnThis(),
       limit: jest.fn(function() { return this; }),
     };
-    (movChain as any).then = function(resolve: any) {
+    (movChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: [], error: null });
     };
 
@@ -213,7 +213,7 @@ describe("GET /api/stock-movements", () => {
       order: jest.fn().mockReturnThis(),
       limit: jest.fn(function() { return this; }),
     };
-    (movChain as any).then = function(resolve: any) {
+    (movChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: [], error: null });
     };
 
@@ -260,7 +260,7 @@ describe("GET /api/stock-movements", () => {
     ]);
 
     const usersChain = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis() };
-    (usersChain as any).then = (resolve: any) => resolve({ data: [], error: null });
+    (usersChain as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
 
     makeClient(jest.fn((table: string) => {
       if (table === "productos") return prodChain;
@@ -290,13 +290,13 @@ describe("GET /api/stock-movements", () => {
       { id: "m-canal", tipo: "salida", cantidad: -1, notas: "Venta", created_at: "2026-09-27T09:00:00Z", user_id: null, referencia_id: "venta-canal" },
       { id: "m-conteo", tipo: "ajuste_conteo", cantidad: 2, notas: "Conteo", created_at: "2026-09-27T08:00:00Z", user_id: null, referencia_id: null },
     ]);
-    const ventasChain: any = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis() };
-    ventasChain.then = (resolve: any) => resolve({
+    const ventasChain: Record<string, unknown> = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis() };
+    ventasChain.then = (resolve: (v: unknown) => unknown) => resolve({
       data: [{ id: "venta-pos", worker_clerk_id: "user_vendedor" }, { id: "venta-canal", worker_clerk_id: null }],
       error: null,
     });
-    const usersChain: any = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis() };
-    usersChain.then = (resolve: any) => resolve({ data: [{ clerk_id: "user_vendedor", nombre: "Ana Caja", email: "ana@x.cl" }], error: null });
+    const usersChain: Record<string, unknown> = { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis() };
+    usersChain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [{ clerk_id: "user_vendedor", nombre: "Ana Caja", email: "ana@x.cl" }], error: null });
     makeClient(jest.fn((table: string) => {
       if (table === "productos") return prodChain;
       if (table === "stock_movements") return movChain;
@@ -307,9 +307,9 @@ describe("GET /api/stock-movements", () => {
     const res = await GET(new NextRequest(`http://localhost/api/stock-movements?productoId=${mockProductId}`));
     const data = await res.json();
     expect(res.status).toBe(200);
-    expect(data.find((m: any) => m.id === "m-pos").user_name).toBe("Ana Caja");
-    expect(data.find((m: any) => m.id === "m-canal").user_name).toBe("Sistema");
-    expect(data.find((m: any) => m.id === "m-conteo").user_name).toBe("Sistema");
+    expect(data.find((m: { id: string }) => m.id === "m-pos").user_name).toBe("Ana Caja");
+    expect(data.find((m: { id: string }) => m.id === "m-canal").user_name).toBe("Sistema");
+    expect(data.find((m: { id: string }) => m.id === "m-conteo").user_name).toBe("Sistema");
     // Tenant: la venta se busca filtrada por la tienda de la sesión.
     expect(ventasChain.in).toHaveBeenCalledWith("id", ["venta-pos", "venta-canal"]);
     expect(ventasChain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
@@ -332,7 +332,7 @@ describe("GET /api/stock-movements", () => {
       order: jest.fn().mockReturnThis(),
       limit: jest.fn(function() { return this; }),
     };
-    (movChain as any).then = function(resolve: any) {
+    (movChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: null, error: { message: "Database error" } });
     };
 
