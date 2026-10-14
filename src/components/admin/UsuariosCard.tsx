@@ -341,7 +341,7 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
       {role === "systemAdmin" && (
         <select
           value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+          onChange={(e) => setFormData({ ...formData, role: e.target.value as typeof formData.role })}
           className="w-full px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white mb-4"
         >
           <option value="storeWorker">Operador (storeWorker)</option>

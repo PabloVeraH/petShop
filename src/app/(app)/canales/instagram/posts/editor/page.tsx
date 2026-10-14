@@ -42,7 +42,7 @@ function EditorContent() {
       fetch(`/api/canales/instagram/posts`)
         .then(r => r.json())
         .then(posts => {
-          const post = posts.find((p: any) => p.id === postId);
+          const post = posts.find((p: { id: string }) => p.id === postId);
           if (post) {
             setContentType(post.content_type);
             setCaption(post.caption || "");

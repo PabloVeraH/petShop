@@ -9,14 +9,15 @@ export interface AdminContext {
   isSystemAdmin: boolean;
 }
 
-export function getAdminStatus(sessionClaims: any): AdminContext | null {
-  if (!sessionClaims?.publicMetadata) return null;
+export function getAdminStatus(sessionClaims: unknown): AdminContext | null {
+  const claims = sessionClaims as { sub?: string; publicMetadata?: Record<string, unknown> } | null | undefined;
+  if (!claims?.publicMetadata) return null;
 
-  const meta = sessionClaims.publicMetadata as any;
+  const meta = claims.publicMetadata;
 
   return {
-    userId: sessionClaims.sub || "",
-    storeId: meta.storeId,
+    userId: claims.sub || "",
+    storeId: meta.storeId as string,
     isStoreAdmin: !!meta.storeAdmin,
     isSystemAdmin: !!meta.systemAdmin,
   };

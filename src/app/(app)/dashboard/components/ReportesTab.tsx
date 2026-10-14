@@ -90,15 +90,17 @@ function PieChart({ slices }: { slices: PieSlice[] }) {
     return <div className="text-xs text-gray-400">Sin datos</div>;
 
   const cx = 120, cy = 120, r = 105;
-  let angle = -Math.PI / 2;
+  // Ángulo de inicio de cada porción = suma de las anteriores (sin mutar una
+  // variable externa dentro del map durante el render).
+  const sweeps = slices.map((s) => (s.value / totalAll) * 2 * Math.PI);
+  const starts = sweeps.map((_, i) => -Math.PI / 2 + sweeps.slice(0, i).reduce((a, b) => a + b, 0));
 
-  const paths = slices.map((s) => {
+  const paths = slices.map((s, i) => {
     const pct = Math.round((s.value / totalAll) * 100);
-    const sweep = (s.value / totalAll) * 2 * Math.PI;
+    const sweep = sweeps[i];
     const capped = sweep >= 2 * Math.PI - 0.001 ? 2 * Math.PI - 0.001 : sweep;
-    const start = angle;
-    const end = angle + capped;
-    angle += sweep;
+    const start = starts[i];
+    const end = start + capped;
 
     const x1 = cx + r * Math.cos(start);
     const y1 = cy + r * Math.sin(start);
@@ -333,8 +335,9 @@ export default function ReportesTab() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<"ventas" | "inventario" | null>(null);
 
+  // loading vuelve a true en los handlers que cambian el filtro (no dentro del
+  // efecto: setState síncrono en un efecto provoca un render en cascada).
   useEffect(() => {
-    setLoading(true);
     const params = new URLSearchParams({ periodo });
     if (canal) params.set("canal", canal);
     fetch(`/api/reports?${params}`)
@@ -360,7 +363,7 @@ export default function ReportesTab() {
         <div className="flex items-center gap-3">
           <select
             value={canal}
-            onChange={(e) => setCanal(e.target.value)}
+            onChange={(e) => { setLoading(true); setCanal(e.target.value); }}
             className="border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-700 bg-white"
           >
             {CANALES.map((c) => (
@@ -373,7 +376,7 @@ export default function ReportesTab() {
             {PERIODOS.map((p) => (
               <button
                 key={p.value}
-                onClick={() => setPeriodo(p.value)}
+                onClick={() => { if (p.value !== periodo) setLoading(true); setPeriodo(p.value); }}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   periodo === p.value
                     ? "bg-green-600 text-white"

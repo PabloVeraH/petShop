@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
 export default async function SistemaSuspendido() {
@@ -21,12 +22,12 @@ export default async function SistemaSuspendido() {
             El período de uso de este sistema ha terminado. Por favor, póngase en contacto con la administración para resolver esta situación.
           </p>
           {isSystemAdmin ? (
-            <a
+            <Link
               href="/admin"
               className="inline-block bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors"
             >
               Ir al panel de administración
-            </a>
+            </Link>
           ) : (
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-500">
