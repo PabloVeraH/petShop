@@ -26,7 +26,7 @@ Regla del sistema (AGENTS.md §0.8, §23.3): todos los precios de venta son
 | 2 | Mermas y ajustes por conteo no generan asiento | Decisión del contador + código | Media |
 | 3 | Validar D24: comisión de canales con IVA | Decisión del contador | Media |
 | 4 | ✅ Asientos de compra, pago a proveedor y cobro de cita sin `after()` | Código | Resuelto 2026-10-13 |
-| 5 | El backfill no cubre pagos a proveedor ni liquidaciones de canal | Código | Baja |
+| 5 | ✅ El backfill no cubría pagos a proveedor ni liquidaciones de canal | Código | Resuelto 2026-10-13 |
 | 6 | Exports Excel/PDF de contabilidad con poca cobertura de tests | Tests | Baja |
 | 7 | Ideas y alcances futuros (arqueo de caja, sucursales, Shopify, no-show) | Producto | — |
 
@@ -160,22 +160,23 @@ responder. Tres flujos siguen con un fire-and-forget puro
 falta una decisión de negocio. En los tests hay que mockear `after` como en
 los de ventas.
 
-## 5. El backfill no cubre todos los tipos de asiento
+## 5. ✅ El backfill cubre pagos a proveedor y liquidaciones de canal
 
-`POST /api/contabilidad/backfill` es manual: no corre en un cron ni tiene
-botón en la UI (AGENTS.md §10.1). Hoy reconstruye asientos faltantes de:
-
-- ventas e ingresos, con su COGS;
-- notas de crédito, con su COGS;
-- órdenes de compra recibidas.
-
-**No cubre** pagos a proveedor (`PAGO_PROVEEDOR`), liquidaciones de canal ni
-mermas (punto 2). Si un asiento `PAGO_PROVEEDOR` se pierde (punto 4), no hay
-forma automática de recuperarlo. Pendientes:
-
-- Agregar `cuentas_pagar` pagadas sin asiento al backfill.
-- Decidir si el backfill debe tener un botón para el storeAdmin en
-  `/contabilidad`.
+> **Resuelto 2026-10-13.** `POST /api/contabilidad/backfill` también crea:
+>
+> - **`PAGO_PROVEEDOR`** para cuentas por pagar `pagada` sin asiento, con la
+>   fecha `updated_at`, la misma que usa `PATCH /api/cuentas-pagar`.
+> - **`LIQUIDACION_CANAL`** para liquidaciones con `journal_entry_id` nulo.
+>   Si el asiento ya existe pero no quedó vinculado, solo lo vincula. La
+>   fecha de depósito no se guarda en la tabla, así que se usa `created_at`.
+>
+> Tests I-BF-01 a I-BF-05. En el demo (solo lectura, 2026-10-13) había 2 de
+> 12 pagos a proveedor sin asiento y 0 liquidaciones; correr el backfill los
+> crea.
+>
+> Sigue siendo manual (sin cron ni botón en la UI) y sigue sin cubrir mermas
+> (punto 2), porque todavía no existe ese asiento. Pendiente: decidir si el
+> storeAdmin debería tener un botón de backfill en `/contabilidad`.
 
 ## 6. Tests de contabilidad
 

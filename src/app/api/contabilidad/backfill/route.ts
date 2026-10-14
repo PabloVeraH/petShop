@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra, lineasPagoProveedor, lineasLiquidacionCanal } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
@@ -246,6 +246,103 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       if (id) creados.push(`COMPRA:${orden.numero}`);
       else errores.push(`COMPRA:${orden.numero} — error al crear asiento contable`);
     }
+  }
+
+  // ── Pagos a proveedor sin asiento ────────────────────────────────────────
+  // El asiento PAGO_PROVEEDOR se creaba fire-and-forget hasta d2f3750 y podía
+  // perderse en serverless. Fecha = updated_at, la misma que usa
+  // PATCH /api/cuentas-pagar (una cuenta pagada ya no se modifica: 409).
+  const { data: pagos } = await supabase
+    .from("cuentas_pagar")
+    .select("id, monto, metodo_pago, updated_at, created_at, proveedores(nombre)")
+    .eq("store_id", store_id)
+    .eq("estado", "pagada")
+    .order("updated_at", { ascending: true });
+
+  const { data: asientosPago } = await supabase
+    .from("journal_entries")
+    .select("referencia_id")
+    .eq("store_id", store_id)
+    .eq("tipo_movimiento", "PAGO_PROVEEDOR");
+
+  const pagosConAsiento = new Set((asientosPago ?? []).map((a) => a.referencia_id));
+
+  for (const pago of pagos ?? []) {
+    if (pagosConAsiento.has(pago.id)) continue;
+
+    const monto = Number(pago.monto);
+    const proveedor = (pago.proveedores as unknown as { nombre: string } | null)?.nombre;
+    const etiqueta = `PAGO_PROVEEDOR:${proveedor ?? "proveedor"} $${monto.toLocaleString("es-CL")}`;
+    const fecha = (pago.updated_at ?? pago.created_at ?? new Date().toISOString()).split("T")[0];
+
+    const id = await crearAsiento({
+      storeId: store_id,
+      fecha,
+      tipoMovimiento: "PAGO_PROVEEDOR",
+      referenciaId: pago.id,
+      descripcion: `Pago${proveedor ? ` a ${proveedor}` : ""} — $${monto.toLocaleString("es-CL")}`,
+      lineas: lineasPagoProveedor(monto, pago.metodo_pago ?? undefined),
+      creadoPor: "backfill",
+    });
+
+    if (id) creados.push(etiqueta);
+    else errores.push(`${etiqueta} — error al crear asiento contable`);
+  }
+
+  // ── Liquidaciones de canal sin asiento ───────────────────────────────────
+  // POST /api/canales/liquidacion borra la liquidación si su asiento falla, así
+  // que una sin journal_entry_id es (a) asiento creado pero vínculo fallido →
+  // solo se vincula, sin duplicar; o (b) una fila cargada por otro medio → se
+  // crea el asiento. La fecha de depósito no se persiste: se usa created_at
+  // (el registro se hace al recibir el depósito).
+  const { data: liquidaciones } = await supabase
+    .from("canal_liquidaciones")
+    .select("id, canal_id, periodo_desde, periodo_hasta, monto_bruto, comision, referencia, created_at")
+    .eq("store_id", store_id)
+    .is("journal_entry_id", null)
+    .order("created_at", { ascending: true });
+
+  const { data: asientosLiq } = await supabase
+    .from("journal_entries")
+    .select("id, referencia_id")
+    .eq("store_id", store_id)
+    .eq("tipo_movimiento", "LIQUIDACION_CANAL");
+
+  const asientoPorLiq = new Map((asientosLiq ?? []).map((a) => [a.referencia_id, a.id as string]));
+
+  for (const liq of liquidaciones ?? []) {
+    const etiqueta = `LIQUIDACION_CANAL:${liq.canal_id} ${liq.periodo_desde}/${liq.periodo_hasta}`;
+    let asientoId = asientoPorLiq.get(liq.id) ?? null;
+    const existente = asientoId !== null;
+
+    if (!asientoId) {
+      // lineasLiquidacionCanal lanza con un canal sin cuenta por cobrar.
+      asientoId = await (async () =>
+        crearAsiento({
+          storeId: store_id,
+          fecha: liq.created_at.split("T")[0],
+          tipoMovimiento: "LIQUIDACION_CANAL",
+          canal: liq.canal_id,
+          referenciaId: liq.id,
+          referenciaNomero: liq.referencia || `${liq.periodo_desde}/${liq.periodo_hasta}`,
+          descripcion: `Liquidación ${liq.canal_id} ${liq.periodo_desde} al ${liq.periodo_hasta}`,
+          lineas: lineasLiquidacionCanal({ canal: liq.canal_id, montoBruto: Number(liq.monto_bruto), comision: Number(liq.comision) }),
+          creadoPor: "backfill",
+        }))().catch(() => null);
+      if (!asientoId) {
+        errores.push(`${etiqueta} — error al crear asiento contable`);
+        continue;
+      }
+    }
+
+    const { error: errVinculo } = await supabase
+      .from("canal_liquidaciones")
+      .update({ journal_entry_id: asientoId })
+      .eq("id", liq.id)
+      .eq("store_id", store_id);
+
+    if (errVinculo) errores.push(`${etiqueta} — asiento ${asientoId} creado pero sin vincular`);
+    else creados.push(existente ? `${etiqueta} (asiento existente vinculado)` : etiqueta);
   }
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
