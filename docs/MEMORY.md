@@ -5,5 +5,6 @@
 - [Vencimientos](vencimientos.md) — Sistema control fechas vencimiento, alertas, UI (40 tests ✅)
 - [Devoluciones](devoluciones.md) — Sistema notas crédito, reembolsos, saldo a favor (21 tests ✅)
 - [Pendientes](pendientes.md) — Roadmap fases 2-4, deuda técnica
+- [Faltantes de contaduría](faltantes_contaduria.md) — pendientes contables: IVA de OC, mermas sin asiento, D24, after(), backfill
 - [CLAUDE.md](CLAUDE.md) — Instrucciones proyecto V3, swarm config
 - [Tests](tests.md) — Suite de testing (172 tests, 172 ✅ 100%, TDD London School)
