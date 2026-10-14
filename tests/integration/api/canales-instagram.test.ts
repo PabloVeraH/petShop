@@ -1,5 +1,5 @@
 /**
- * Tests I-722 a I-729 e I-740: /api/canales/instagram/** (posts, post por id, upload).
+ * Tests I-722 a I-729, I-740 e I-741: /api/canales/instagram/** (posts, post por id, upload).
  *
  * Reemplaza los 8 placeholders `expect(true).toBe(true)` que había aquí
  * ("verificado vía build"): no ejecutaban ninguna ruta. La autorización
@@ -90,6 +90,19 @@ describe("POST /api/canales/instagram/posts", () => {
     fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
     await CREAR(req("/x", "POST", { content_type: "story", scheduled_for: "2026-10-01T15:00:00Z" }));
     expect(insertDe("instagram_posts")).toMatchObject({ status: "scheduled", published_at: null, scheduled_for: "2026-10-01T15:00:00Z" });
+  });
+
+  // I-741: REGRESIÓN — "Guardar como Borrador" del editor mandaba lo mismo
+  // que "Publicar": sin fecha el post quedaba published (y ya no se podía
+  // editar). Con borrador=true queda en draft, con o sin fecha.
+  it("I-741: REGRESIÓN — borrador=true crea el post en draft, sin published_at", async () => {
+    fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
+    expect((await CREAR(req("/x", "POST", { content_type: "post", caption: "Borrador", borrador: true }))).status).toBe(201);
+    expect(insertDe("instagram_posts")).toMatchObject({ status: "draft", published_at: null });
+
+    fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
+    await CREAR(req("/x", "POST", { content_type: "post", borrador: true, scheduled_for: "2026-10-01T15:00:00Z" }));
+    expect(insertDe("instagram_posts")).toMatchObject({ status: "draft", published_at: null });
   });
 
   it("I-724: carrusel inserta las imágenes en orden; falla del post o de las imágenes → 500; payload inválido → 400 sin tocar la BD", async () => {

@@ -38,7 +38,8 @@ function EditorContent() {
       .catch(console.error);
 
     if (postId) {
-      fetch(`/api/canales/instagram/posts?status=draft`)
+      // Sin filtro de estado: se edita un borrador o un post programado.
+      fetch(`/api/canales/instagram/posts`)
         .then(r => r.json())
         .then(posts => {
           const post = posts.find((p: any) => p.id === postId);
@@ -65,6 +66,8 @@ function EditorContent() {
       media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
       product_tags: selectedTags.length > 0 ? selectedTags : undefined,
       scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
+      // Solo al crear: el PATCH no cambia el estado del post.
+      ...(!publish && !postId ? { borrador: true } : {}),
     };
 
     const method = postId ? "PATCH" : "POST";

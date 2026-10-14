@@ -60,7 +60,7 @@ export default function ScheduledPosts() {
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
           <p className="text-gray-500">No hay publicaciones programadas</p>
           <button
-            onClick={() => router.push("/canales/instagram/editor")}
+            onClick={() => router.push("/canales/instagram/posts/editor")}
             className="mt-4 text-sm text-purple-600 hover:underline"
           >
             Crear una →
@@ -87,7 +87,7 @@ export default function ScheduledPosts() {
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => router.push(`/canales/instagram/editor?id=${post.id}`)}
+                    onClick={() => router.push(`/canales/instagram/posts/editor?id=${post.id}`)}
                     className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200"
                   >
                     Editar
