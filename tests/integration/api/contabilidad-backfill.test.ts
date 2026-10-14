@@ -51,6 +51,7 @@ function chain(thenData: unknown = { data: null, error: null }) {
     order: jest.fn(() => c),
     not: jest.fn(() => c),
     ilike: jest.fn(() => c),
+    is: jest.fn(() => c),
     gte: jest.fn(() => c),
     lte: jest.fn(() => c),
     maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
@@ -682,3 +683,139 @@ function setupOcBackfillMock(params: {
     rpc: jest.fn(),
   });
 }
+
+// I-BF-01 a I-BF-05: el backfill también cubre pagos a proveedor (asiento
+// PAGO_PROVEEDOR, que se creaba fire-and-forget y podía perderse) y
+// liquidaciones de canal sin journal_entry_id. Mock dedicado por tabla; los
+// asientos existentes se devuelven según el tipo_movimiento consultado.
+describe("backfill de pagos a proveedor y liquidaciones de canal (I-BF)", () => {
+  type Fila = Record<string, unknown>;
+
+  function setupPagosLiqMock(params: {
+    pagos?: Fila[];
+    liquidaciones?: Fila[];
+    asientos?: Record<string, Fila[]>;
+    errVinculo?: boolean;
+  }) {
+    const chains: Record<string, ReturnType<typeof chain>[]> = {};
+    const updateLiq = chain(Promise.resolve({ data: null, error: params.errVinculo ? { message: "x" } : null }));
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => {
+        let c: ReturnType<typeof chain>;
+        if (table === "journal_entries") {
+          let tipo = "";
+          c = chain();
+          c.eq = jest.fn((col: string, val: string) => {
+            if (col === "tipo_movimiento") tipo = val;
+            return c;
+          });
+          c.then = jest.fn((resolve: (v: unknown) => void) =>
+            resolve({ data: params.asientos?.[tipo] ?? [], error: null }));
+        } else if (table === "cuentas_pagar") {
+          c = chain(Promise.resolve({ data: params.pagos ?? [], error: null }));
+        } else if (table === "canal_liquidaciones") {
+          c = chain(Promise.resolve({ data: params.liquidaciones ?? [], error: null }));
+          c.update = jest.fn(() => updateLiq);
+        } else {
+          c = chain(Promise.resolve({ data: [], error: null }));
+        }
+        (chains[table] ??= []).push(c);
+        return c;
+      }),
+      rpc: jest.fn(),
+    });
+    return { chains, updateLiq };
+  }
+
+  const PAGO = {
+    id: "cp1", monto: 3800, metodo_pago: "efectivo",
+    updated_at: "2026-04-24T12:00:00", created_at: "2026-04-01T09:00:00",
+    proveedores: { nombre: "Proveedor Uno" },
+  };
+  const LIQ = {
+    id: "liq1", canal_id: "rappi", periodo_desde: "2026-09-01", periodo_hasta: "2026-09-15",
+    monto_bruto: 119000, comision: 11900, referencia: "DEP-1", created_at: "2026-09-20T10:00:00Z",
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
+    (crearAsiento as jest.Mock).mockResolvedValue("asiento-uuid");
+    mockAuthFn.mockResolvedValue({ sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } } });
+  });
+
+  it("I-BF-01: cuenta pagada sin asiento → crea PAGO_PROVEEDOR (fecha del pago, Caja si efectivo), filtrado por tienda", async () => {
+    const { chains } = setupPagosLiqMock({ pagos: [PAGO] });
+
+    const res = await POST(backfillReq());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(chains.cuentas_pagar[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(chains.cuentas_pagar[0].eq).toHaveBeenCalledWith("estado", "pagada");
+    expect(crearAsiento).toHaveBeenCalledTimes(1);
+    const arg = (crearAsiento as jest.Mock).mock.calls[0][0];
+    expect(arg).toEqual(expect.objectContaining({
+      storeId: STORE_ID, tipoMovimiento: "PAGO_PROVEEDOR", referenciaId: "cp1",
+      fecha: "2026-04-24", creadoPor: "backfill",
+    }));
+    expect(arg.lineas).toEqual([
+      expect.objectContaining({ cuentaCodigo: "210101", debito: 3800, credito: 0 }),
+      expect.objectContaining({ descripcionLinea: "Pago en efectivo", debito: 0, credito: 3800 }),
+    ]);
+    expect(body.detalle_creados).toEqual(["PAGO_PROVEEDOR:Proveedor Uno $3.800"]);
+  });
+
+  it("I-BF-02: cuenta pagada que ya tiene su asiento → no crea nada (idempotente)", async () => {
+    setupPagosLiqMock({ pagos: [PAGO], asientos: { PAGO_PROVEEDOR: [{ referencia_id: "cp1" }] } });
+
+    const body = await (await POST(backfillReq())).json();
+
+    expect(crearAsiento).not.toHaveBeenCalled();
+    expect(body.creados).toBe(0);
+  });
+
+  it("I-BF-03: liquidación sin asiento → crea LIQUIDACION_CANAL y la vincula en su tienda", async () => {
+    const { chains, updateLiq } = setupPagosLiqMock({ liquidaciones: [LIQ] });
+
+    const body = await (await POST(backfillReq())).json();
+
+    expect(chains.canal_liquidaciones[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(chains.canal_liquidaciones[0].is).toHaveBeenCalledWith("journal_entry_id", null);
+    expect(crearAsiento).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: STORE_ID, tipoMovimiento: "LIQUIDACION_CANAL", canal: "rappi", referenciaId: "liq1",
+      fecha: "2026-09-20", referenciaNomero: "DEP-1", creadoPor: "backfill",
+    }));
+    expect(chains.canal_liquidaciones[1].update).toHaveBeenCalledWith({ journal_entry_id: "asiento-uuid" });
+    expect(updateLiq.eq).toHaveBeenCalledWith("id", "liq1");
+    expect(updateLiq.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(body.detalle_creados).toEqual(["LIQUIDACION_CANAL:rappi 2026-09-01/2026-09-15"]);
+  });
+
+  it("I-BF-04: liquidación cuyo asiento existe pero no quedó vinculado → solo vincula, sin duplicar", async () => {
+    const { chains } = setupPagosLiqMock({
+      liquidaciones: [LIQ],
+      asientos: { LIQUIDACION_CANAL: [{ id: "je-existente", referencia_id: "liq1" }] },
+    });
+
+    const body = await (await POST(backfillReq())).json();
+
+    expect(crearAsiento).not.toHaveBeenCalled();
+    expect(chains.canal_liquidaciones[1].update).toHaveBeenCalledWith({ journal_entry_id: "je-existente" });
+    expect(body.detalle_creados).toEqual(["LIQUIDACION_CANAL:rappi 2026-09-01/2026-09-15 (asiento existente vinculado)"]);
+  });
+
+  it("I-BF-05: si el asiento de la liquidación falla (o el canal no tiene cuenta) → error, sin vincular", async () => {
+    (crearAsiento as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+    const { chains } = setupPagosLiqMock({ liquidaciones: [LIQ, { ...LIQ, id: "liq2", canal_id: "otro" }] });
+
+    const body = await (await POST(backfillReq())).json();
+
+    expect(chains.canal_liquidaciones).toHaveLength(1); // ningún update
+    expect(body.creados).toBe(0);
+    expect(body.detalle_errores).toEqual([
+      "LIQUIDACION_CANAL:rappi 2026-09-01/2026-09-15 — error al crear asiento contable",
+      "LIQUIDACION_CANAL:otro 2026-09-01/2026-09-15 — error al crear asiento contable",
+    ]);
+  });
+});

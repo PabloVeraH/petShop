@@ -232,6 +232,11 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-NCC-BF-02 | Backfill NC: con ingreso pero sin COGS → crea solo el reverso de COGS (detecta por descripción "Reverso COGS%") | POST /api/contabilidad/backfill | integration |
 | I-NCC-BF-03 | Backfill NC: con ambos asientos → no crea nada (idempotente) | POST /api/contabilidad/backfill | integration |
 | I-NCC-BF-04 | Backfill NC: sin ítems con restituir_stock=true → no crea reverso de COGS | POST /api/contabilidad/backfill | integration |
+| I-BF-01 | Backfill: cuenta por pagar pagada sin asiento → crea PAGO_PROVEEDOR (fecha updated_at, Caja si efectivo), filtrado por store_id | POST /api/contabilidad/backfill | integration |
+| I-BF-02 | Backfill: cuenta pagada con su asiento PAGO_PROVEEDOR → no crea nada (idempotente) | POST /api/contabilidad/backfill | integration |
+| I-BF-03 | Backfill: liquidación de canal sin journal_entry_id ni asiento → crea LIQUIDACION_CANAL y la vincula (id + store_id) | POST /api/contabilidad/backfill | integration |
+| I-BF-04 | Backfill: liquidación con asiento existente sin vincular → solo vincula, sin duplicar | POST /api/contabilidad/backfill | integration |
+| I-BF-05 | Backfill: asiento de liquidación falla o canal sin cuenta → error, sin vincular | POST /api/contabilidad/backfill | integration |
 
 ## Balance HTML (BP-01 a BP-12)
 
@@ -1083,6 +1088,7 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 - `I-NCC-NN` — test unitario de lineasNotaCreditoCOGS (lib/contabilidad/generador-asientos)
 - `I-NCC-INT-NN` — test de integración del reverso de COGS en POST /api/notas-credito
 - `I-NCC-BF-NN` — test de integración del reverso de COGS en el backfill de NC
+- `I-BF-NN` — test de integración del backfill de pagos a proveedor y liquidaciones de canal
 - `I-SRV-NN` — test de integración de las rutas /api/servicios y /api/servicios/[id]/horarios
 - `U-SRV-NN` — test unitario de los schemas Zod de servicios (src/lib/validation/servicios.ts)
 - `I-CITA-NN` — test de integración de /api/citas, /api/servicios/[id]/disponibilidad y /api/servicios/[id]/excepciones
