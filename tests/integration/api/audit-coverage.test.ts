@@ -78,7 +78,7 @@ function patchParams(id: string) {
   return Promise.resolve({ id });
 }
 
-function catChain(catData: any) {
+function catChain(catData: unknown) {
   const c: Record<string, jest.Mock> = {
     select: jest.fn(),
     insert: jest.fn(),
@@ -94,7 +94,7 @@ function catChain(catData: any) {
   return c;
 }
 
-function productoChain(productoData: any, lotesCount = 0) {
+function productoChain(productoData: unknown, lotesCount = 0) {
   const c: Record<string, jest.Mock> = {
     select: jest.fn(),
     insert: jest.fn(),
@@ -115,7 +115,7 @@ function productoChain(productoData: any, lotesCount = 0) {
   return c;
 }
 
-function cuentasPagarChain(cuentaData: any) {
+function cuentasPagarChain(cuentaData: unknown) {
   const c: Record<string, jest.Mock> = {
     select: jest.fn(),
     update: jest.fn(),
@@ -131,7 +131,7 @@ function cuentasPagarChain(cuentaData: any) {
   return c;
 }
 
-function ordenesCompraChain(ordenData: any) {
+function ordenesCompraChain(ordenData: unknown) {
   const c: Record<string, jest.Mock> = {
     select: jest.fn().mockReturnThis(),
     insert: jest.fn().mockReturnThis(),

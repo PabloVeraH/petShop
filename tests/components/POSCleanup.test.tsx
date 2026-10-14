@@ -40,7 +40,7 @@ describe("POS Cleanup (POS-XX)", () => {
 
   // POS-01
   it("POS-01: SearchProductos renderiza y desmonta sin error", () => {
-    mockUsePOSStore.mockImplementation((selector?: any) => {
+    mockUsePOSStore.mockImplementation((selector?: (s: unknown) => unknown) => {
       const s = { items: [], addItem: jest.fn(), mascotaId: undefined };
       return selector ? selector(s) : s;
     });
@@ -58,7 +58,7 @@ describe("POS Cleanup (POS-XX)", () => {
 
   // POS-02
   it("POS-02: RecomendacionesIA renderiza sin cliente y desmonta sin error", () => {
-    mockUsePOSStore.mockImplementation((selector?: any) => {
+    mockUsePOSStore.mockImplementation((selector?: (s: unknown) => unknown) => {
       const s = { clienteId: undefined, mascotaId: undefined, items: [], addItem: jest.fn() };
       return selector ? selector(s) : s;
     });

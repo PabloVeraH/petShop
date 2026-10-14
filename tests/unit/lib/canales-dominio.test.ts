@@ -1,5 +1,5 @@
 /**
- * Tests U-167 a U-176: dominio de canales externos (Fase 2, §4.1, §4.3, §4.5
+ * Tests U-167 a U-174: dominio de canales externos (Fase 2, §4.1, §4.3, §4.5
  * de docs/canales-stock/stock_canales_externos.md). Funciones puras, sin I/O.
  */
 import fc from "fast-check";
@@ -11,7 +11,6 @@ import {
 } from "@/lib/canales/domain/estados";
 import { ESTADOS_ORDEN, esCanalExterno } from "@/lib/canales/domain/types";
 import { precioBase, precioCanal } from "@/lib/canales/domain/precio";
-import { cupoCanalExterno, disponibleEnCanal } from "@/lib/canales/domain/disponibilidad";
 import fs from "fs";
 import path from "path";
 
@@ -85,21 +84,5 @@ describe("precio por canal (D7, D13, D14)", () => {
   });
 });
 
-describe("cupo y disponibilidad (D4, D18)", () => {
-  it("U-175: cupo = unidades cerradas − stock_minimo, nunca negativo; stock_minimo null = 0 (V5)", () => {
-    expect(cupoCanalExterno(10, 3)).toBe(7);
-    expect(cupoCanalExterno(3, 3)).toBe(0);
-    expect(cupoCanalExterno(2, 5)).toBe(0);
-    expect(cupoCanalExterno(4, null)).toBe(4);
-    expect(cupoCanalExterno(9.5, 0)).toBe(9);   // decimales heredados (S9) se truncan
-  });
-
-  it("U-176: disponible solo si producto activo, habilitado en el canal, canal activo y cupo > 0", () => {
-    const base = { productoActivo: true, habilitadoEnCanal: true, canalActivo: true, cupo: 1 };
-    expect(disponibleEnCanal(base)).toBe(true);
-    expect(disponibleEnCanal({ ...base, cupo: 0 })).toBe(false);
-    expect(disponibleEnCanal({ ...base, productoActivo: false })).toBe(false);
-    expect(disponibleEnCanal({ ...base, habilitadoEnCanal: false })).toBe(false);
-    expect(disponibleEnCanal({ ...base, canalActivo: false })).toBe(false);
-  });
-});
+// U-175/U-176 (cupo y disponibilidad) se eliminaron con src/lib/canales/domain/disponibilidad.ts:
+// la app nunca lo usó; la regla vive en SQL (unidades_vendibles_canal / estado_disponibilidad_canal, migración 082).

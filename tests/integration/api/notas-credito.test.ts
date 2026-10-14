@@ -82,10 +82,10 @@ function rpcSuccess(overrides?: Record<string, unknown>) {
 }
 
 function makeFromDevolucion(
-  venta: any = null,
-  ventaItems: any[] = [],
-  saldo: any = null,
-  fidel: any = null
+  venta: unknown = null,
+  ventaItems: unknown[] = [],
+  saldo: unknown = null,
+  fidel: unknown = null
 ) {
   const queries = { ventas: 0, venta_items: 0, notas_credito: 0, nc_items: 0, productos: 0, saldos: 0, fidel: 0, stock_movements: 0, updates: 0 };
 

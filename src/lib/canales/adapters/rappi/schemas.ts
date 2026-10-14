@@ -3,7 +3,7 @@ import { schemaCredenciales, EXTRAS_CREDENCIALES } from "../../credenciales";
 
 // Formato verificado contra https://dev-portal.rappi.com/en/webhook-events/ y
 // /en/api-reference/orders/ (2026-09-25). Hallazgos que corrige respecto del
-// adaptador anterior (src/lib/canales/rappi/adapter.ts):
+// adaptador anterior (src/lib/canales/rappi/adapter.ts, eliminado el 2026-10-14):
 //  - El cuerpo NO trae `event_type`: Rappi registra UNA URL por evento
 //    (POST .../webhook {event, data:[{url, stores}]}) → el evento viaja en la
 //    URL registrada (?evento=NEW_ORDER).

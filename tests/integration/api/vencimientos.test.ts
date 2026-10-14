@@ -38,8 +38,8 @@ describe("GET /api/dashboard/vencimientos", () => {
     jest.restoreAllMocks();
   });
 
-  function setupSupabaseMock(data: any[]) {
-    const chain: any = {};
+  function setupSupabaseMock(data: unknown[]) {
+    const chain: Record<string, jest.Mock> = {};
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
@@ -49,7 +49,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     const mockSupabase = {
       from: jest.fn().mockReturnValue(chain),
     };
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
     return chain;
   }
 
@@ -153,7 +153,7 @@ describe("GET /api/dashboard/vencimientos", () => {
 
     expect(json.vencidos).toHaveLength(0);
     expect(json.proximos).toHaveLength(0); // No está en rango de alerta
-    expect(json.vencidos.every((p: any) => p.fecha_vencimiento !== null)).toBe(true);
+    expect(json.vencidos.every((p: { fecha_vencimiento: string | null }) => p.fecha_vencimiento !== null)).toBe(true);
   });
 
   it("debería excluir productos vencidos con stock 0", async () => {
@@ -271,7 +271,7 @@ describe("GET /api/dashboard/vencimientos", () => {
   });
 
   it("debería retornar error 500 si supabase falla", async () => {
-    const chain: any = {};
+    const chain: Record<string, jest.Mock> = {};
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
@@ -280,7 +280,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     const mockSupabase = {
       from: jest.fn().mockReturnValue(chain),
     };
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
 
     const response = await GET(new NextRequest(new URL("http://localhost:3000")));
     const json = await response.json();
@@ -605,7 +605,7 @@ describe("GET /api/dashboard/vencimientos", () => {
   it("debería rechazar solicitud sin permisos de RLS", async () => {
     mockGetStoreId.mockResolvedValue({ userId: "user-123", storeId: "other-store" });
 
-    const chain: any = {};
+    const chain: Record<string, jest.Mock> = {};
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
@@ -615,7 +615,7 @@ describe("GET /api/dashboard/vencimientos", () => {
     const mockSupabase = {
       from: jest.fn().mockReturnValue(chain),
     };
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
 
     const response = await GET(new NextRequest(new URL("http://localhost:3000")));
     const json = await response.json();
@@ -656,7 +656,7 @@ describe("GET /api/dashboard/vencimientos", () => {
       },
     ];
 
-    const chain: any = {};
+    const chain: Record<string, jest.Mock> = {};
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
@@ -676,7 +676,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         return chain;
       }),
     };
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
 
     const response = await GET(new NextRequest(new URL("http://localhost:3000")));
     const json = await response.json();
@@ -716,7 +716,7 @@ describe("GET /api/dashboard/vencimientos", () => {
       },
     ];
 
-    const chain: any = {};
+    const chain: Record<string, jest.Mock> = {};
     chain.select = jest.fn().mockReturnValue(chain);
     chain.eq = jest.fn().mockReturnValue(chain);
     chain.not = jest.fn().mockReturnValue(chain);
@@ -736,7 +736,7 @@ describe("GET /api/dashboard/vencimientos", () => {
         return chain;
       }),
     };
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
 
     const response = await GET(new NextRequest(new URL("http://localhost:3000")));
     const json = await response.json();

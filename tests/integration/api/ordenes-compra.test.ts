@@ -91,7 +91,7 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         order: jest.fn(function() { return this; }),
       };
-      (chain as any).then = function(resolve: any) {
+      (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: [mockOrden], error: null });
       };
 
@@ -113,7 +113,7 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         order: jest.fn(function() { return this; }),
       };
-      (chain as any).then = function(resolve: any) {
+      (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: [mockOrden], error: null });
       };
 
@@ -135,7 +135,7 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         order: jest.fn(function() { return this; }),
       };
-      (chain as any).then = function(resolve: any) {
+      (chain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: [mockOrden], error: null });
       };
 
@@ -190,8 +190,8 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         update: jest.fn().mockReturnThis(),
       };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
+      (ordenChain as Record<string, unknown>).single = jest.fn().mockReturnThis();
+      (ordenChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: mockOrden, error: null });
       };
 
@@ -205,13 +205,13 @@ describe("Órdenes de Compra API", () => {
           return {
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: {}, error: null }); },
           };
         }
         if (table === "stock_movements") {
           return {
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: {}, error: null }); },
           };
         }
         if (table === "cuentas_pagar") {
@@ -220,7 +220,7 @@ describe("Órdenes de Compra API", () => {
             eq: jest.fn().mockReturnThis(),
             single: jest.fn().mockReturnThis(),
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: null, error: null }); },
           };
         }
       });
@@ -265,8 +265,8 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         update: jest.fn().mockReturnThis(),
       };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
+      (ordenChain as Record<string, unknown>).single = jest.fn().mockReturnThis();
+      (ordenChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: mockOrden, error: null });
       };
 
@@ -280,13 +280,13 @@ describe("Órdenes de Compra API", () => {
           return {
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: {}, error: null }); },
           };
         }
         if (table === "stock_movements") {
           return {
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: {}, error: null }); },
           };
         }
         if (table === "cuentas_pagar") {
@@ -295,7 +295,7 @@ describe("Órdenes de Compra API", () => {
             eq: jest.fn().mockReturnThis(),
             single: jest.fn().mockReturnThis(),
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: null, error: null }); },
           };
         }
       });
@@ -640,7 +640,7 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve: any) =>
+        then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) =>
           resolve({ data: { ...mockOrden, estado: estadoResult }, error: null })
         ),
       };
@@ -651,7 +651,7 @@ describe("Órdenes de Compra API", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve: any) =>
+        then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) =>
           resolve({ data: { nombre: "Proveedor Test", email }, error: null })
         ),
       };
@@ -662,7 +662,7 @@ describe("Órdenes de Compra API", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve: any) =>
+        then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) =>
           resolve({ data: { name: "Mi Tienda", address: "Calle 123", resend_from_email: null }, error: null })
         ),
       };
@@ -719,8 +719,8 @@ describe("Órdenes de Compra API", () => {
         eq: jest.fn().mockReturnThis(),
         update: jest.fn().mockReturnThis(),
       };
-      (ordenChain as any).single = jest.fn().mockReturnThis();
-      (ordenChain as any).then = function(resolve: any) {
+      (ordenChain as Record<string, unknown>).single = jest.fn().mockReturnThis();
+      (ordenChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: mockOrden, error: null });
       };
 
@@ -730,7 +730,7 @@ describe("Órdenes de Compra API", () => {
           return {
             update: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: {}, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: {}, error: null }); },
           };
         }
         if (table === "cuentas_pagar") {
@@ -739,7 +739,7 @@ describe("Órdenes de Compra API", () => {
             eq: jest.fn().mockReturnThis(),
             single: jest.fn().mockReturnThis(),
             insert: jest.fn().mockReturnThis(),
-            then: function(resolve: any) { return resolve({ data: null, error: null }); },
+            then: function(resolve: (v: unknown) => unknown) { return resolve({ data: null, error: null }); },
           };
         }
       });
@@ -910,8 +910,8 @@ describe("Órdenes de Compra API", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (ordenChain as any).single = jest.fn(function() { return this; });
-      (ordenChain as any).then = function(resolve: any) {
+      (ordenChain as Record<string, unknown>).single = jest.fn(function() { return this; });
+      (ordenChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({ data: mockOrden, error: null });
       };
 
@@ -919,7 +919,7 @@ describe("Órdenes de Compra API", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      (itemsChain as any).then = function(resolve: any) {
+      (itemsChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
         return resolve({
           data: [
             {
@@ -957,7 +957,7 @@ describe("Órdenes de Compra API", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve: any) =>
+        then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) =>
           resolve({ data: { id: mockOrden.id, estado, numero: mockOrden.numero }, error: null })
         ),
       };
@@ -968,7 +968,7 @@ describe("Órdenes de Compra API", () => {
         delete: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         insert: jest.fn().mockReturnThis(),
-        then: jest.fn().mockImplementation((resolve: any) =>
+        then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) =>
           resolve({ data: {}, error: null })
         ),
       };
@@ -990,7 +990,7 @@ describe("Órdenes de Compra API", () => {
 
     it("edita items correctamente en OC pendiente", async () => {
       let capturedDelete = false;
-      let capturedInsert: any[] = [];
+      let capturedInsert: unknown[] = [];
 
       const fromMock = jest.fn((table: string) => {
         if (table === "ordenes_compra") return makeOrdenBaseChain("pendiente");
@@ -998,11 +998,11 @@ describe("Órdenes de Compra API", () => {
           return {
             delete: jest.fn(() => {
               capturedDelete = true;
-              return { eq: jest.fn().mockReturnThis(), then: jest.fn().mockImplementation((resolve: any) => resolve({ data: {}, error: null })) };
+              return { eq: jest.fn().mockReturnThis(), then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) => resolve({ data: {}, error: null })) };
             }),
-            insert: jest.fn((data: any) => {
+            insert: jest.fn((data: unknown[]) => {
               capturedInsert = data;
-              return { then: jest.fn().mockImplementation((resolve: any) => resolve({ data: {}, error: null })) };
+              return { then: jest.fn().mockImplementation((resolve: (v: unknown) => unknown) => resolve({ data: {}, error: null })) };
             }),
             eq: jest.fn().mockReturnThis(),
           };

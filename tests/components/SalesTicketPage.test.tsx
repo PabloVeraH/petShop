@@ -22,7 +22,7 @@ jest.mock("react", () => {
   return {
     ...actual,
     use: jest.fn((input: unknown) =>
-      input && typeof (input as any).then === "function"
+      input && typeof (input as Record<string, unknown>).then === "function"
         ? { id: VENTA_ID }
         : actual.use(input)
     ),

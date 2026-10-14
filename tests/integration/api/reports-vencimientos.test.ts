@@ -39,8 +39,8 @@ describe("GET /api/reports - vencimientos section", () => {
     jest.restoreAllMocks();
   });
 
-  function setupSupabaseMock(ventasData: any[] = [], productosData: any[] = []) {
-    const ventasChain: any = {};
+  function setupSupabaseMock(ventasData: unknown[] = [], productosData: unknown[] = []) {
+    const ventasChain: Record<string, jest.Mock> = {};
     ventasChain.select = jest.fn().mockReturnValue(ventasChain);
     ventasChain.eq = jest.fn().mockReturnValue(ventasChain);
     ventasChain.neq = jest.fn().mockReturnValue(ventasChain);
@@ -48,16 +48,16 @@ describe("GET /api/reports - vencimientos section", () => {
     ventasChain.gt = jest.fn().mockReturnValue(ventasChain);
     ventasChain.order = jest.fn().mockResolvedValue({ data: ventasData, error: null });
 
-    const itemsChain: any = {};
+    const itemsChain: Record<string, jest.Mock> = {};
     itemsChain.select = jest.fn().mockReturnValue(itemsChain);
     itemsChain.in = jest.fn().mockResolvedValue({ data: [], error: null });
 
-    const productosChain: any = {};
+    const productosChain: Record<string, jest.Mock> = {};
     productosChain.select = jest.fn().mockReturnValue(productosChain);
     productosChain.eq = jest.fn().mockReturnValue(productosChain);
     productosChain.not = jest.fn().mockReturnValue(productosChain);
     productosChain.order = jest.fn(function() { return this; });
-    (productosChain as any).then = function(resolve: any) {
+    (productosChain as Record<string, unknown>).then = function(resolve: (v: unknown) => unknown) {
       return resolve({ data: productosData, error: null });
     };
 
@@ -71,7 +71,7 @@ describe("GET /api/reports - vencimientos section", () => {
       }),
     };
 
-    mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+    mockCreateServiceClient.mockReturnValue(mockSupabase as never);
     return { ventasChain, itemsChain, productosChain, mockSupabase };
   }
 
@@ -244,7 +244,7 @@ describe("GET /api/reports - vencimientos section", () => {
       const json = await response.json();
 
       expect(json.vencimientos.vencidos).toHaveLength(2);
-      expect(json.vencimientos.vencidos.map((p: any) => p.id)).toEqual(["p1", "p2"]);
+      expect(json.vencimientos.vencidos.map((p: { id: string }) => p.id)).toEqual(["p1", "p2"]);
     });
   });
 
@@ -399,7 +399,7 @@ describe("GET /api/reports - vencimientos section", () => {
       const json = await response.json();
 
       expect(json.vencimientos.proximos).toHaveLength(2);
-      expect(json.vencimientos.proximos.map((p: any) => p.id)).toEqual(["p1", "p2"]);
+      expect(json.vencimientos.proximos.map((p: { id: string }) => p.id)).toEqual(["p1", "p2"]);
     });
   });
 
@@ -634,7 +634,7 @@ describe("GET /api/reports - vencimientos section", () => {
     it("should handle null data from database gracefully", async () => {
       const mockSupabase = {
         from: jest.fn((table: string) => {
-          const chain: any = {};
+          const chain: Record<string, jest.Mock> = {};
           chain.select = jest.fn().mockReturnValue(chain);
           chain.eq = jest.fn().mockReturnValue(chain);
           chain.neq = jest.fn().mockReturnValue(chain);
@@ -647,7 +647,7 @@ describe("GET /api/reports - vencimientos section", () => {
         }),
       };
 
-      mockCreateServiceClient.mockReturnValue(mockSupabase as any);
+      mockCreateServiceClient.mockReturnValue(mockSupabase as never);
 
       const response = await GET(new NextRequest(new URL("http://localhost:3000")));
       const json = await response.json();

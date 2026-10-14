@@ -21,15 +21,14 @@ const eslintConfig = defineConfig([
     "graphify-out/**",
   ]),
   // Idiomas de Jest en tests: require() tras jest.resetModules()/doMock (un
-  // import estático se resolvería antes del mock), componentes inline dentro
-  // de jest.mock() y `any` en dobles de prueba. `any` queda como warning para
-  // seguir viéndolo; en src/ las tres reglas siguen como error.
+  // import estático se resolvería antes del mock) y componentes inline dentro
+  // de jest.mock(). En src/ ambas reglas siguen como error; `any` es error en
+  // todo el repo.
   {
     files: ["tests/**/*.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "react/display-name": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 ]);
