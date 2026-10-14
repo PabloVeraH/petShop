@@ -2502,3 +2502,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | IGP-07 | Editor: sube imagen, etiqueta, programa y POST con todo | Instagram editor | component |
 | IGP-08 | REGRESIÓN: editar carga el post aunque no sea borrador; PATCH sin `borrador` | Instagram editor | component |
 | IGP-09 | REGRESIÓN: "Guardar como Borrador" manda `borrador: true`; errores visibles | Instagram editor | component |
+| I-REC-13 | REGRESIÓN: el HTML del recibo escapa nombres de cliente, producto, tienda, vendedor y método de pago (antes se interpolaban crudos) | GET /api/recibos/[ventaId] | integration |

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
 import { withErrorLogging } from "@/lib/audit";
+import { esc } from "@/lib/email";
 
 export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ ventaId: string }> }) => {
@@ -60,8 +61,8 @@ export const GET = withErrorLogging(async (req: NextRequest,
     .single();
 
   // Construir HTML del recibo
-  const cliente = venta.clientes as any;
-  const items = venta.venta_items as any[];
+  const cliente = venta.clientes as unknown as ReciboCliente | null;
+  const items = venta.venta_items as unknown as ReciboItem[];
 
   const html = generarHTMLRecibo({
     venta,
@@ -80,14 +81,31 @@ export const GET = withErrorLogging(async (req: NextRequest,
   });
 }, { endpoint: "GET /api/recibos/ventaId" });
 
+type ReciboCliente = { nombre: string; rut: string | null; email: string | null; telefono: string | null };
+type ReciboItem = {
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  es_granel: boolean | null;
+  gramos: number | null;
+  productos: { nombre: string } | null;
+  servicios: { nombre?: string } | null;
+};
+
 interface ReciboDatos {
-  venta: any;
-  store: any;
-  cliente: any;
-  worker: any;
-  items: any[];
-  pagos: any[];
+  venta: {
+    created_at: string; numero_comprobante: string; subtotal: number; descuento: number;
+    impuesto: number; total: number; estado: string;
+  };
+  store: { name: string; rut: string | null; address: string | null } | null;
+  cliente: ReciboCliente | null;
+  worker: { nombre: string | null; email: string | null } | null;
+  items: ReciboItem[];
+  pagos: { metodo: string; monto: number; numero_transaccion: string | null }[];
 }
+
+// Todo dato que viene de la BD se escapa con esc(): el recibo es HTML y los
+// nombres de cliente, producto o tienda los escribe un usuario.
 
 function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: ReciboDatos): string {
   const fecha = new Date(venta.created_at);
@@ -95,23 +113,23 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
   const horaFormato = fecha.toLocaleTimeString("es-CL");
 
   const metodosDetalle = pagos
-    .map((p: any) => {
+    .map((p) => {
       const monto = Number(p.monto);
       let metodoTexto = p.metodo.charAt(0).toUpperCase() + p.metodo.slice(1);
       if (p.numero_transaccion) {
         metodoTexto += ` #${p.numero_transaccion}`;
       }
       return `      <tr>
-        <td>${metodoTexto}</td>
+        <td>${esc(metodoTexto)}</td>
         <td style="text-align: right">$${monto.toLocaleString("es-CL")}</td>
       </tr>`;
     })
     .join("");
 
   const itemsDetalle = items
-    .map((item: any) => {
-      const prod = item.productos as any;
-      const serv = item.servicios as { nombre?: string } | null;
+    .map((item) => {
+      const prod = item.productos;
+      const serv = item.servicios;
       const cantidad = item.cantidad;
       const precio = Number(item.precio_unitario);
       const subtotal = Number(item.subtotal);
@@ -122,7 +140,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
         : `${cantidad} x $${precio.toLocaleString("es-CL")}`;
 
       return `      <tr>
-        <td>${prod?.nombre ?? serv?.nombre ?? "Producto"}${item.es_granel ? " (Granel)" : ""}</td>
+        <td>${esc(prod?.nombre ?? serv?.nombre ?? "Producto")}${item.es_granel ? " (Granel)" : ""}</td>
         <td style="text-align: center">${cantidadDisplay}</td>
         <td style="text-align: right">$${precio.toLocaleString("es-CL")}</td>
         <td style="text-align: right">$${subtotal.toLocaleString("es-CL")}</td>
@@ -143,7 +161,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recibo ${venta.numero_comprobante}</title>
+  <title>Recibo ${esc(venta.numero_comprobante)}</title>
   <style>
     * {
       margin: 0;
@@ -317,10 +335,10 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
   <div class="recibo">
     <!-- Header -->
     <div class="header">
-      <div class="titulo">${store?.name ?? "Tienda"}</div>
-      <div class="subtitulo">RUT: ${store?.rut ?? "N/A"}</div>
-      ${store?.address ? `<div class="subtitulo">${store.address}</div>` : ""}
-      <div class="numero-comprobante">${venta.numero_comprobante}</div>
+      <div class="titulo">${esc(store?.name ?? "Tienda")}</div>
+      <div class="subtitulo">RUT: ${esc(store?.rut ?? "N/A")}</div>
+      ${store?.address ? `<div class="subtitulo">${esc(store.address)}</div>` : ""}
+      <div class="numero-comprobante">${esc(venta.numero_comprobante)}</div>
       <div class="fecha-hora">${fechaFormato} ${horaFormato}</div>
     </div>
 
@@ -331,10 +349,10 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     <div class="seccion">
       <div class="seccion-titulo">CLIENTE</div>
       <div class="cliente-info">
-        <div><strong>${cliente.nombre}</strong></div>
-        ${cliente.rut ? `<div>RUT: ${cliente.rut}</div>` : ""}
-        ${cliente.email ? `<div>Email: ${cliente.email}</div>` : ""}
-        ${cliente.telefono ? `<div>Teléfono: ${cliente.telefono}</div>` : ""}
+        <div><strong>${esc(cliente.nombre)}</strong></div>
+        ${cliente.rut ? `<div>RUT: ${esc(cliente.rut)}</div>` : ""}
+        ${cliente.email ? `<div>Email: ${esc(cliente.email)}</div>` : ""}
+        ${cliente.telefono ? `<div>Teléfono: ${esc(cliente.telefono)}</div>` : ""}
       </div>
     </div>
     `
@@ -342,7 +360,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     }
 
     <!-- Vendedor -->
-    ${worker ? `<div class="seccion"><div class="seccion-titulo">Vendedor: ${worker.nombre ?? worker.email}</div></div>` : ""}
+    ${worker ? `<div class="seccion"><div class="seccion-titulo">Vendedor: ${esc(worker.nombre ?? worker.email)}</div></div>` : ""}
 
     <!-- Detalles de venta -->
     <div class="seccion">
@@ -400,7 +418,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     <!-- Pie -->
     <div class="pie">
       <p>Gracias por su compra</p>
-      <p style="margin-top: 2mm; font-size: 9px;">Estado: ${venta.estado}</p>
+      <p style="margin-top: 2mm; font-size: 9px;">Estado: ${esc(venta.estado)}</p>
       <p style="margin-top: 2mm; font-size: 9px;">Este recibo NO constituye un documento tributario</p>
     </div>
   </div>

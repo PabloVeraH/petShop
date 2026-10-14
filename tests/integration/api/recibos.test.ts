@@ -531,4 +531,41 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("Av. Ossa 123");
     expect(data.html).not.toContain("RUT: N/A");
   });
+
+  // I-REC-13: REGRESIÓN (revisión de lint/seguridad 2026-10-13) — el HTML del
+  // recibo interpolaba nombres de cliente, producto, tienda y vendedor sin
+  // escapar: un nombre con <script> quedaba como HTML ejecutable.
+  it("I-REC-13: REGRESIÓN — escapa los datos de usuario en el HTML del recibo", async () => {
+    const xss = '<img src=x onerror="alert(1)">';
+    const mockVenta = {
+      id: mockVentaId, store_id: mockStoreId, numero_comprobante: "N-1", total: 1000, subtotal: 1000,
+      descuento: 0, impuesto: 160, estado: "pagada", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: "w1",
+      clientes: { nombre: `Cliente ${xss}`, rut: null, email: null, telefono: null },
+      venta_items: [{ cantidad: 1, precio_unitario: 1000, subtotal: 1000, productos: { nombre: `Prod ${xss}` }, servicios: null }],
+    };
+    const singles = [
+      { data: mockVenta, error: null },
+      { data: { nombre: `Vend ${xss}`, email: null }, error: null },
+      { data: { name: `Tienda ${xss}`, rut: "1-9", address: null }, error: null },
+    ];
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(() => Promise.resolve(singles.shift() ?? { data: null, error: null })),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [{ metodo: `efectivo${xss}`, monto: 1000, numero_transaccion: null }], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "pagos" ? pagosChain : chain)),
+    });
+
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: Promise.resolve({ ventaId: mockVentaId }) });
+    const { html } = await res.json();
+
+    expect(html).not.toContain("<img");
+    for (const t of ["Cliente &lt;img", "Prod &lt;img", "Tienda &lt;img", "Vend &lt;img", "Efectivo&lt;img"]) expect(html).toContain(t);
+  });
 });
