@@ -10,7 +10,7 @@
  * C-64  Estado "Sin configurar" sin fecha de término
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -108,5 +108,54 @@ describe("LicenciaCard — fechas y período de licencia", () => {
     await waitFor(() => {
       expect(screen.getByText("Sin configurar")).toBeInTheDocument();
     }, { timeout: 3000 });
+  });
+});
+describe("LicenciaCard — deshabilitar usuarios", () => {
+  const CONFIG = { license_start_date: null, license_end_date: null, license_warning_days: 7 };
+  const STATUS = { isAutoBlocked: false, isInWarningPeriod: false, daysUntilExpiry: null, licenseEndDate: null };
+  const USERS = [{ clerk_id: "u1", email: "a@x.cl", store_admin: false, store_worker: true, is_disabled: false }];
+
+  function mockFetch(postResponse: { ok: boolean; body: unknown }) {
+    const fetchMock = jest.fn((url: string, init?: RequestInit) => {
+      if (url.includes("/api/admin/license/users")) {
+        if (init?.method === "POST") {
+          return Promise.resolve({ ok: postResponse.ok, json: () => Promise.resolve(postResponse.body) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(USERS) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ config: CONFIG, status: STATUS }) });
+    });
+    (global as Record<string, unknown>).fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
+  async function deshabilitarU1() {
+    render(<LicenciaCard />, { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("checkbox"));
+    fireEvent.click(screen.getByText("Deshabilitar seleccionados"));
+    fireEvent.click(screen.getByText("Confirmar"));
+  }
+
+  // C-75: el botón Confirmar llama al endpoint con los usuarios elegidos.
+  it("C-75: confirmar deshabilitar → POST /api/admin/license/users con userIds y action", async () => {
+    const fetchMock = mockFetch({ ok: true, body: { success: true } });
+    await deshabilitarU1();
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/admin/license/users", expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ userIds: ["u1"], action: "disable" }),
+      }))
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // C-76: REGRESIÓN — antes un 500 (p. ej. ban parcial en Clerk) se trataba
+  // como éxito y no se mostraba nada.
+  it("C-76: REGRESIÓN — error del endpoint se muestra en pantalla (role=alert)", async () => {
+    mockFetch({ ok: false, body: { error: "No se pudo actualizar 1 de 1 usuario(s) en Clerk. Reintenta." } });
+    await deshabilitarU1();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo actualizar 1 de 1 usuario(s) en Clerk");
   });
 });

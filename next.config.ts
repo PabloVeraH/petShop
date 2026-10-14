@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 
-// CSP se genera dinámicamente por request en src/middleware.ts (nonce-based).
+// CSP se genera dinámicamente por request en src/proxy.ts (nonce-based).
 // Aquí solo van los headers estáticos de seguridad.
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },

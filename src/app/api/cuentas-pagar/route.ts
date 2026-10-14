@@ -126,14 +126,13 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     // serverless y perder el asiento (ticket Trello 6a77e779358cdccca29dc3e3).
     after(async () => {
       try {
-        let proveedorNombre: string | undefined;
         const { data: cp } = await supabase
           .from("cuentas_pagar")
           .select("proveedores(nombre)")
           .eq("id", data.id)
           .single();
         const rel = cp?.proveedores as unknown as { nombre: string } | null;
-        proveedorNombre = rel?.nombre ?? undefined;
+        const proveedorNombre = rel?.nombre ?? undefined;
 
         const asiento = await crearAsiento({
           storeId: store_id,

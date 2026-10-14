@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 interface LicenseWarningBannerProps {
   daysUntilExpiry: number;
@@ -8,22 +8,21 @@ interface LicenseWarningBannerProps {
 }
 
 export function LicenseWarningBanner({ daysUntilExpiry, licenseEndDate }: LicenseWarningBannerProps) {
+  const key = `license-banner-dismissed-${licenseEndDate}`;
+  // localStorage se lee en el cliente; en el servidor el banner se muestra.
+  const descartadoAntes = useSyncExternalStore(
+    () => () => {},
+    () => localStorage.getItem(key) !== null,
+    () => false
+  );
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    const key = `license-banner-dismissed-${licenseEndDate}`;
-    if (localStorage.getItem(key)) {
-      setDismissed(true);
-    }
-  }, [licenseEndDate]);
-
   const handleDismiss = () => {
-    const key = `license-banner-dismissed-${licenseEndDate}`;
     localStorage.setItem(key, "true");
     setDismissed(true);
   };
 
-  if (dismissed) return null;
+  if (dismissed || descartadoAntes) return null;
 
   return (
     <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">

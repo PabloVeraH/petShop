@@ -100,7 +100,7 @@ describe("Checklist de seguridad — guardas estáticas", () => {
   });
 
   it("SEC-27: el middleware no amplía la lista de rutas públicas sin revisión", () => {
-    const mw = leer("src/middleware.ts");
+    const mw = leer("src/proxy.ts");
     const bloque = mw.match(/export const publicRoutes = createRouteMatcher\(\[([\s\S]*?)\]\);/)![1];
     const rutas = [...bloque.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     expect(rutas.sort()).toEqual(
@@ -197,7 +197,7 @@ describe("Checklist de seguridad — guardas estáticas", () => {
     expect(h["X-Frame-Options"]).toMatch(/DENY|SAMEORIGIN/);
     expect(h["Referrer-Policy"]).toBeTruthy();
     expect(h["Permissions-Policy"]).toBeTruthy();
-    // El CSP (nonce) lo agrega src/middleware.ts — cubierto en MW-* de middleware-routing.test.ts.
-    expect(leer("src/middleware.ts")).toMatch(/response\.headers\.set\("Content-Security-Policy"/);
+    // El CSP (nonce) lo agrega src/proxy.ts — cubierto en MW-* de middleware-routing.test.ts.
+    expect(leer("src/proxy.ts")).toMatch(/response\.headers\.set\("Content-Security-Policy"/);
   });
 });

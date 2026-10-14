@@ -59,7 +59,7 @@ export default function PublishedPosts() {
         <div className="bg-gray-50 rounded-lg border border-gray-200 p-8 text-center">
           <p className="text-gray-500">No hay publicaciones aún</p>
           <button
-            onClick={() => router.push("/canales/instagram/editor")}
+            onClick={() => router.push("/canales/instagram/posts/editor")}
             className="mt-4 text-sm text-purple-600 hover:underline"
           >
             Crear una →

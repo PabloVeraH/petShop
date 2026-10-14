@@ -16,7 +16,7 @@ const STORE_ID = "store-uuid-preview";
  * Creates a Supabase chain mock supporting .select(), .eq(), .gte(), .lte(), .in()
  */
 function createChain(resolveValue: object) {
-  const chain: Record<string, jest.Mock> & { then?: Function } = {
+  const chain: Record<string, jest.Mock> & { then?: (resolve: (v: unknown) => unknown) => unknown } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     neq: jest.fn().mockReturnThis(),
@@ -25,7 +25,7 @@ function createChain(resolveValue: object) {
     in: jest.fn().mockReturnThis(),
     ilike: jest.fn().mockReturnThis(),
   };
-  chain.then = (resolve: Function) => resolve(resolveValue);
+  chain.then = (resolve: (v: unknown) => unknown) => resolve(resolveValue);
   return chain;
 }
 

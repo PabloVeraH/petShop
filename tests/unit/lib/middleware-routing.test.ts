@@ -5,7 +5,7 @@
  */
 
 import { computeLicenseStatus } from "@/lib/license";
-import { buildCsp, clerkProdFrontendApi } from "@/middleware";
+import { buildCsp, clerkProdFrontendApi } from "@/proxy";
 
 // Replica la lógica de routing del middleware sin depender de Clerk ni Next.js
 function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker" | "none") {
@@ -429,7 +429,7 @@ describe("Middleware — redirect de /workers a /vendedores (MW-24, Suite 5)", (
 // ruta pública (la autenticidad la verifica la firma en el handler, I-609).
 // El resto de /api/canales/** sigue protegido.
 import { NextRequest } from "next/server";
-import { publicRoutes } from "@/middleware";
+import { publicRoutes } from "@/proxy";
 
 describe("Middleware — webhook de canales público (MW-30/MW-31)", () => {
   const esPublica = (p: string) => publicRoutes(new NextRequest(`http://localhost${p}`));
@@ -459,7 +459,7 @@ describe("Middleware — crons públicos (MW-32)", () => {
 // ── QA 2026-09-27: el recibo del POS (/sales/{id}?autoPrint=1) ─────────────
 // El worker era redirigido a /acceso-denegado al abrir su recibo. Solo se le
 // permite el detalle /sales/:id; el listado /sales sigue negado.
-import { workerAllowedRoutes } from "@/middleware";
+import { workerAllowedRoutes } from "@/proxy";
 
 describe("Middleware — rutas del storeWorker (MW-33)", () => {
   const permitida = (p: string) => workerAllowedRoutes(new NextRequest("http://localhost" + p));

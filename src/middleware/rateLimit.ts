@@ -1,12 +1,14 @@
 // src/middleware/rateLimit.ts
 import { NextRequest, NextResponse } from "next/server";
 import { logSecurityAlert } from "@/lib/security-alerts";
+import { createServiceClient } from "@/lib/supabase";
 
 interface RateLimitStore {
   [key: string]: { count: number; resetTime: number };
 }
 
 export interface RateLimitConfig {
+  nombre: string;        // prefijo de la clave en el contador compartido
   windowMs: number;      // 900000 = 15 min
   maxRequests: number;   // 100 requests
   keyGenerator?: (req: NextRequest) => string;
@@ -15,12 +17,29 @@ export interface RateLimitConfig {
 }
 
 const defaultConfig: RateLimitConfig = {
+  nombre: "api",
   windowMs: 900000,      // 15 minutes
   maxRequests: 100,
   keyGenerator: (req) => {
     return req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
   },
 };
+
+// Contador compartido entre instancias (migración 089, rate_limit_hit). Sin
+// credenciales o si la RPC falla (migración sin aplicar, BD caída) devuelve
+// null y el limitador usa el contador en memoria de la instancia: sigue
+// limitando, aunque solo por instancia.
+async function contarEnBd(clave: string, windowMs: number): Promise<{ count: number; resetTime: number } | null> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  try {
+    const { data, error } = await createServiceClient().rpc("rate_limit_hit", { p_clave: clave, p_ventana_ms: windowMs });
+    const fila = Array.isArray(data) ? data[0] : data;
+    if (error || !fila) return null;
+    return { count: Number(fila.conteo), resetTime: new Date(fila.ventana_fin).getTime() };
+  } catch {
+    return null;
+  }
+}
 
 export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
   const finalConfig = { ...defaultConfig, ...config };
@@ -35,25 +54,29 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
     const key = clave ?? finalConfig.keyGenerator!(req);
     const now = Date.now();
 
-    // Limpiar entrada expirada
-    if (store[key] && store[key].resetTime < now) {
-      delete store[key];
-    }
+    let entrada = await contarEnBd(`${finalConfig.nombre}:${key}`, finalConfig.windowMs);
+    if (!entrada) {
+      // Limpiar entrada expirada
+      if (store[key] && store[key].resetTime < now) {
+        delete store[key];
+      }
 
-    // Crear entrada si no existe
-    if (!store[key]) {
-      store[key] = { count: 0, resetTime: now + finalConfig.windowMs };
-    }
+      // Crear entrada si no existe
+      if (!store[key]) {
+        store[key] = { count: 0, resetTime: now + finalConfig.windowMs };
+      }
 
-    store[key].count++;
+      store[key].count++;
+      entrada = store[key];
+    }
 
     // Excedió límite
-    if (store[key].count > finalConfig.maxRequests) {
+    if (entrada.count > finalConfig.maxRequests) {
       logSecurityAlert({
         type: "rate_limit_exceeded",
         severity: "MEDIUM",
-        message: `Rate limit exceeded for ${key}: ${store[key].count} requests`,
-        metadata: { clave: key, count: store[key].count, limit: finalConfig.maxRequests },
+        message: `Rate limit exceeded for ${key}: ${entrada.count} requests`,
+        metadata: { clave: key, count: entrada.count, limit: finalConfig.maxRequests },
       });
 
       return NextResponse.json(
@@ -61,7 +84,7 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
         {
           status: 429,
           headers: {
-            "Retry-After": String(Math.ceil((store[key].resetTime - now) / 1000)),
+            "Retry-After": String(Math.max(1, Math.ceil((entrada.resetTime - now) / 1000))),
             "X-RateLimit-Limit": String(finalConfig.maxRequests),
             "X-RateLimit-Remaining": "0",
           },
@@ -85,6 +108,7 @@ export function maxRequestsDesdeEnv(valor: string | undefined, porDefecto: numbe
 // Sin sesión: por IP. RATE_LIMIT_API_MAX permite subirlo en local: sin
 // x-forwarded-for todas las requests caen en la clave "unknown".
 export const apiGeneralLimit = createRateLimit({
+  nombre: "api",
   windowMs: 900000,  // 15 min
   maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_API_MAX, 100),
 });
@@ -93,21 +117,25 @@ export const apiGeneralLimit = createRateLimit({
 // detrás de la misma IP pública) compartía 100 req / 15 min, y solo el polling
 // de pedidos de canales de un POS consume 45–90 en esa ventana.
 export const apiUsuarioLimit = createRateLimit({
+  nombre: "usuario",
   windowMs: 300000,  // 5 min
   maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_USER_MAX, 600),
 });
 
 export const authLimit = createRateLimit({
+  nombre: "auth",
   windowMs: 900000,  // 15 min
   maxRequests: 10,   // Más restrictivo para auth
 });
 
 export const paymentLimit = createRateLimit({
+  nombre: "pago",
   windowMs: 60000,   // 1 min
   maxRequests: 5,    // Max 5 transacciones por minuto
 });
 
 export const webhookLimit = createRateLimit({
+  nombre: "webhook",
   windowMs: 60000,
   maxRequests: 50,
 });

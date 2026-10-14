@@ -23,14 +23,14 @@ export default function VentasPorProcedencia({ data }: Props) {
   const total = data.reduce((s, d) => s + d.total, 0);
   const sorted = [...data].sort((a, b) => b.total - a.total);
 
-  // Build donut segments
-  let cumulative = 0;
-  const segments = sorted.map((item) => {
-    const pct = total > 0 ? (item.total / total) * 100 : 0;
+  // Build donut segments (acumulado = suma de los porcentajes anteriores)
+  const pcts = sorted.map((item) => (total > 0 ? (item.total / total) * 100 : 0));
+  const segments = sorted.map((item, i) => {
+    const pct = pcts[i];
+    const cumulative = pcts.slice(0, i).reduce((a, b) => a + b, 0);
     const offset = CIRC - (cumulative / 100) * CIRC;
     const dash = (pct / 100) * CIRC;
     const gap = CIRC - dash;
-    cumulative += pct;
     const cfg = PROCEDENCIA_CONFIG[item.procedencia] ?? { hex: "#9ca3af", label: item.procedencia };
     return { ...item, pct, dash, gap, offset, hex: cfg.hex };
   });

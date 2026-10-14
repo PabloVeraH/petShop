@@ -133,7 +133,7 @@ Esquema de cada entrada del array:
     }
 
     // Extraer array si está envuelto en un objeto
-    let recomendacionesArray: any[] = parsedData;
+    let recomendacionesArray: unknown[];
     if (Array.isArray(parsedData)) {
       recomendacionesArray = parsedData;
     } else if (parsedData.recomendaciones && Array.isArray(parsedData.recomendaciones)) {

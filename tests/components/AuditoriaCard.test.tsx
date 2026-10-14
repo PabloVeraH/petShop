@@ -454,3 +454,118 @@ describe("AuditoriaCard — extended tabs", () => {
     expect(screen.getByText("Endpoint")).toBeInTheDocument();
   });
 });
+
+// C-77 a C-80: filtros de cada pestaña llegan a la query, modal de detalle de
+// error y errores de carga. Fetch enrutado por URL.
+describe("AuditoriaCard — filtros, detalle de error y fallas de carga", () => {
+  function rutear(fallaEn?: string) {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (fallaEn && url.startsWith(fallaEn)) return { ok: false, json: async () => ({}) };
+      if (url.startsWith("/api/error-logs")) return { ok: true, json: async () => ({ data: mockErrorLogs, count: 1 }) };
+      if (url.startsWith("/api/user-sessions")) return { ok: true, json: async () => ({ data: mockSessions, count: 1 }) };
+      return { ok: true, json: async () => ({ data: mockLogs, count: 120 }) };
+    });
+  }
+  const ultimaUrl = (prefijo: string) =>
+    String([...mockFetch.mock.calls].reverse().find(([u]) => String(u).startsWith(prefijo))![0]);
+
+  // Cada filtro o cambio de página crea una query nueva y la tarjeta muestra
+  // "Cargando..." (desmonta los controles): se espera a que vuelvan a estar.
+  async function cambiarCombo(idx: number, value: string) {
+    fireEvent.change((await screen.findAllByRole("combobox"))[idx], { target: { value } });
+  }
+  async function cambiarFecha(idx: number, value: string) {
+    await screen.findAllByRole("combobox");
+    fireEvent.change(document.querySelectorAll('input[type="date"]')[idx], { target: { value } });
+  }
+  async function cambiarTexto(placeholder: string, value: string) {
+    const el = await screen.findByPlaceholderText(placeholder);
+    fireEvent.change(el, { target: { value } });
+    fireEvent.blur(await screen.findByPlaceholderText(placeholder));
+  }
+
+  it("C-77: cada filtro de Actividad entra en la query y vuelve a la página 1; systemAdmin ve Store ID", async () => {
+    rutear();
+    render(<AuditoriaCard role="systemAdmin" />, { wrapper: makeWrapper() });
+    await screen.findByText(/Pro Plan/);
+    expect(screen.getByText("Store ID")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await waitFor(() => expect(ultimaUrl("/api/audit-logs")).toContain("offset=50"));
+    fireEvent.click(await screen.findByRole("button", { name: "Anterior" }));
+    await waitFor(() => expect(ultimaUrl("/api/audit-logs")).toContain("offset=0"));
+
+    await cambiarCombo(0, "UPDATE");
+    await cambiarCombo(1, "venta");
+    await cambiarCombo(2, "partial");
+    await cambiarFecha(0, "2026-05-01");
+    await cambiarFecha(1, "2026-05-31");
+    await cambiarTexto("User ID", "user_x");
+
+    await waitFor(() => {
+      const url = ultimaUrl("/api/audit-logs");
+      for (const p of ["action=UPDATE", "entity_type=venta", "result=partial", "desde=2026-05-01", "hasta=2026-05-31", "user_id=user_x"]) {
+        expect(url).toContain(p);
+      }
+    });
+  });
+
+  it("C-78: filtros de Errores y de Sesiones entran en sus queries", async () => {
+    rutear();
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await screen.findByText(/Pro Plan/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Errores de sistema" }));
+    await screen.findByText("Database timeout on insert");
+    await cambiarCombo(0, "CRITICAL");
+    await cambiarCombo(1, "false");
+    fireEvent.change(await screen.findByPlaceholderText("Endpoint"), { target: { value: "/api/ventas" } });
+    await cambiarFecha(0, "2026-05-01");
+    await cambiarFecha(1, "2026-05-02");
+    await waitFor(() => {
+      const url = ultimaUrl("/api/error-logs");
+      for (const p of ["severity=CRITICAL", "resolved=false", "endpoint=%2Fapi%2Fventas", "desde=2026-05-01", "hasta=2026-05-02"]) expect(url).toContain(p);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Sesiones de usuarios" }));
+    await screen.findByText("session.created", { selector: "span" });
+    await cambiarCombo(0, "session.removed");
+    await cambiarTexto("User ID", "user_s");
+    await cambiarFecha(0, "2026-04-01");
+    await cambiarFecha(1, "2026-04-30");
+    await waitFor(() => {
+      const url = ultimaUrl("/api/user-sessions");
+      for (const p of ["event_type=session.removed", "user_id=user_s", "desde=2026-04-01", "hasta=2026-04-30"]) expect(url).toContain(p);
+    });
+  });
+
+  it("C-79: click en un error abre su detalle (mensaje, stack, context); Cerrar y Escape lo cierran", async () => {
+    rutear();
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await screen.findByText(/Pro Plan/);
+    fireEvent.click(screen.getByRole("button", { name: "Errores de sistema" }));
+    fireEvent.click(await screen.findByText("Database timeout on insert"));
+
+    expect(screen.getByText("Error — ERROR")).toBeInTheDocument();
+    expect(screen.getByText("Error at /api/ventas:42")).toBeInTheDocument();
+    expect(screen.getByText(/"endpoint": "\/api\/ventas"/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByText("Error — ERROR")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Database timeout on insert"));
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByText("Error — ERROR")).not.toBeInTheDocument());
+  });
+
+  it("C-80: si la API de errores o de sesiones falla, la grilla queda vacía (sin romper la página)", async () => {
+    rutear("/api/error-logs");
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await screen.findByText(/Pro Plan/);
+    fireEvent.click(screen.getByRole("button", { name: "Errores de sistema" }));
+    expect(await screen.findByText("Mostrando 1-0 de 0 registros")).toBeInTheDocument();
+
+    rutear("/api/user-sessions");
+    fireEvent.click(screen.getByRole("button", { name: "Sesiones de usuarios" }));
+    expect(await screen.findByText("Mostrando 1-0 de 0 registros")).toBeInTheDocument();
+  });
+});

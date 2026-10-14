@@ -66,8 +66,8 @@ describe("Canales Hub - Stock Reserve Calculation", () => {
   }
 
   it("debe calcular stock disponible correctamente", () => {
-    var stock = 100;
-    var reservas = [
+    const stock = 100;
+    const reservas = [
       { cantidad: 20 },
       { cantidad: 10 },
     ];
@@ -76,55 +76,55 @@ describe("Canales Hub - Stock Reserve Calculation", () => {
   });
 
   it("debe retornar 0 cuando no hay stock", () => {
-    var stock = 0;
-    var reservas: { cantidad: number }[] = [];
+    const stock = 0;
+    const reservas: { cantidad: number }[] = [];
     
     expect(calcularStockDisponible(stock, reservas)).toBe(0);
   });
 
   it("debe manejar caso sin reservas", () => {
-    var stock = 50;
-    var reservas: { cantidad: number }[] = [];
+    const stock = 50;
+    const reservas: { cantidad: number }[] = [];
     
     expect(calcularStockDisponible(stock, reservas)).toBe(50);
   });
 
   it("debe detectar cuando stock es insuficiente", () => {
-    var stock = 15;
-    var reservas = [{ cantidad: 20 }];
+    const stock = 15;
+    const reservas = [{ cantidad: 20 }];
     
-    var disponible = calcularStockDisponible(stock, reservas);
+    const disponible = calcularStockDisponible(stock, reservas);
     expect(disponible).toBe(-5);
   });
 });
 
 describe("Canales Hub - Expiration Time Calculation", () => {
   function calcularExpiraEn(ventanaMinutos: number) {
-    var ahora = new Date();
+    const ahora = new Date();
     return new Date(ahora.getTime() + ventanaMinutos * 60 * 1000);
   }
 
   it("debe calcular tiempo de expiracion para POS (0 min)", () => {
-    var expira = calcularExpiraEn(VENTANA_ACEPTACION.pos);
-    var ahora = new Date();
-    var diferenciaSeg = (expira.getTime() - ahora.getTime()) / 1000;
+    const expira = calcularExpiraEn(VENTANA_ACEPTACION.pos);
+    const ahora = new Date();
+    const diferenciaSeg = (expira.getTime() - ahora.getTime()) / 1000;
     
     expect(diferenciaSeg).toBeLessThan(1);
   });
 
   it("debe calcular tiempo de expiracion para Rappi (5 min)", () => {
-    var expira = calcularExpiraEn(VENTANA_ACEPTACION.rappi);
-    var ahora = new Date();
-    var diferenciaMin = (expira.getTime() - ahora.getTime()) / 60000;
+    const expira = calcularExpiraEn(VENTANA_ACEPTACION.rappi);
+    const ahora = new Date();
+    const diferenciaMin = (expira.getTime() - ahora.getTime()) / 60000;
     
     expect(diferenciaMin).toBeGreaterThan(4.9);
     expect(diferenciaMin).toBeLessThan(5.1);
   });
 
   it("debe calcular tiempo de expiracion para UberEats (8 min)", () => {
-    var expira = calcularExpiraEn(VENTANA_ACEPTACION.ubereats);
-    var ahora = new Date();
-    var diferenciaMin = (expira.getTime() -ahora.getTime()) / 60000;
+    const expira = calcularExpiraEn(VENTANA_ACEPTACION.ubereats);
+    const ahora = new Date();
+    const diferenciaMin = (expira.getTime() -ahora.getTime()) / 60000;
     
     expect(diferenciaMin).toBeGreaterThan(7.9);
     expect(diferenciaMin).toBeLessThan(8.1);
@@ -132,8 +132,8 @@ describe("Canales Hub - Expiration Time Calculation", () => {
 });
 
 describe("Canales Hub - Estado Validity", () => {
-  var ESTADOS_ACTIVAS = ["pending", "reserved", "accepted", "ready"];
-  var ESTADOS_TERMINALES = ["delivered", "rejected", "cancelled", "expired"];
+  const ESTADOS_ACTIVAS = ["pending", "reserved", "accepted", "ready"];
+  const ESTADOS_TERMINALES = ["delivered", "rejected", "cancelled", "expired"];
 
   function esEstadoActivo(estado: string) {
     return ESTADOS_ACTIVAS.indexOf(estado) !== -1;

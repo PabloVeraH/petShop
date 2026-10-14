@@ -12,7 +12,26 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Tooling de agentes y artefactos generados: no es código de la app
+    // (mismo criterio que .graphifyignore).
+    ".claude/**",
+    ".claude-flow/**",
+    ".opencode/**",
+    "coverage/**",
+    "graphify-out/**",
   ]),
+  // Idiomas de Jest en tests: require() tras jest.resetModules()/doMock (un
+  // import estático se resolvería antes del mock), componentes inline dentro
+  // de jest.mock() y `any` en dobles de prueba. `any` queda como warning para
+  // seguir viéndolo; en src/ las tres reglas siguen como error.
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "react/display-name": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

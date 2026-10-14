@@ -98,7 +98,7 @@ export default function SalesPage() {
   });
 
   const total = data?.count ?? 0;
-  const defaultDesdeVal = useRef(defaultDesde()).current;
+  const [defaultDesdeVal] = useState(defaultDesde);
   const hasActiveFilters = search || metodo || estado || hasta || desde !== defaultDesdeVal;
 
   const resetFiltros = () => {

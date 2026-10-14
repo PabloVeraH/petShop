@@ -32,26 +32,18 @@ export default function AdminPage() {
   const router = useRouter();
   const { userId, sessionClaims } = useAuth();
   const [activeSection, setActiveSection] = useState<"usuarios" | "licencia" | "auditoria" | "ia">("usuarios");
-  const [role, setRole] = useState<AdminRole>(null);
+  // Rol derivado de la sesión en cada render (sin estado intermedio).
+  const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
+  const role: AdminRole = !userId ? null
+    : meta?.systemAdmin ? "systemAdmin"
+    : meta?.storeAdmin ? "storeAdmin"
+    : meta?.storeWorker ? "storeWorker"
+    : null;
 
-  // Determine role
+  // Redirect if not authorized — only systemAdmin can access /admin
   useEffect(() => {
-    if (!userId) return;
-
-    const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-    let userRole: AdminRole = null;
-
-    if (meta?.systemAdmin) userRole = "systemAdmin";
-    else if (meta?.storeAdmin) userRole = "storeAdmin";
-    else if (meta?.storeWorker) userRole = "storeWorker";
-
-    setRole(userRole);
-
-    // Redirect if not authorized — only systemAdmin can access /admin
-    if (userRole !== "systemAdmin") {
-      router.replace("/pos");
-    }
-  }, [userId, sessionClaims, router]);
+    if (userId && role !== "systemAdmin") router.replace("/pos");
+  }, [userId, role, router]);
 
   const { data: stores = [], isLoading: storesLoading, isError: storesError } = useQuery<Store[]>({
     queryKey: ["admin-stores"],

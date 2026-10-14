@@ -119,7 +119,7 @@ alguno:
    nuevo en el registry en el mismo commit.
 4. **Suite** (cambios de código): `npm run build && npm test` en verde (o
    fallos preexistentes demostrados como tales, ver §19.3), `npm run typecheck`
-   y `npm run lint` sin errores nuevos introducidos por el cambio.
+   y `npm run lint` sin errores (baseline 0 desde 2026-10-13; los warnings no bloquean).
 5. **Diff**: revisa el diff completo — sin logs de depuración, código
    temporal, imports muertos, secretos ni cambios de formato ajenos.
 6. **Test de funcionamiento y seguridad de funcionalidad nueva**: si el
@@ -1077,12 +1077,12 @@ razón — nunca borres la guarda.
 | 3 | Key pública para la BD | El cliente solo conoce la anon key; ningún endpoint la usa (§0.2) y sin políticas para `anon` no lee nada | SEC-24 + SEC-28; manual: advisors de Supabase |
 | 4 | Row-level security | RLS habilitado en todas las tablas (defensa extra: el service role la omite, §6); funciones `SECURITY DEFINER` con `search_path` fijo | SEC-28; manual: `select relname from pg_class … where not relrowsecurity` en cada proyecto |
 | 5 | Encriptar datos sensibles | Credenciales de canales con AES-256-GCM (`src/lib/canales/encryption.ts`). **Pendiente**: `stores.whatsapp_access_token` sigue en claro en la BD | revisión en PR; tokens nunca vuelven al cliente (SEC-19) ni a `audit_logs` (SEC-20) |
-| 6 | Forzar autenticación | `auth.protect()` en el middleware salvo `publicRoutes`; cada `route.ts` con su guard; crons con `cronAutorizado` (tiempo constante); webhooks con firma | SEC-26, SEC-27, tests 401 por endpoint |
+| 6 | Forzar autenticación | `auth.protect()` en el proxy (`src/proxy.ts`, ex-middleware) salvo `publicRoutes`; cada `route.ts` con su guard; crons con `cronAutorizado` (tiempo constante); webhooks con firma | SEC-26, SEC-27, tests 401 por endpoint |
 | 7 | Restringir acceso a registros | Filtro `store_id` manual en cada query (§6); rol por endpoint (`exigirStoreAdmin`). El storeWorker no accede a contabilidad (mutaciones ni informes), proveedores, alta de productos ni fotos de productos; sí crea órdenes de compra | SEC-16/17/18/35 y tests IDOR por endpoint (§6.5) |
 | 8 | Bloquear manipulación de campos | Zod en el límite; `store_id`/roles salen del contexto, nunca del body (§6.2) | tests de mass assignment por endpoint (ej. I-88) |
 | 9 | Proteger session cookies | Las gestiona Clerk (`__session` de vida corta, `Secure`, `SameSite=Lax`); la app no setea cookies propias | manual: no agregar cookies sin `httpOnly`+`secure`+`sameSite` |
 | 10 | Hashear contraseñas | Clerk almacena y hashea; la app solo las reenvía al crear usuarios (`/api/admin/users/create`) y nunca las persiste ni las loguea | revisión en PR; SEC-20 redacta `password` en auditoría |
-| 11 | Rate limiting | Middleware: por usuario (`RATE_LIMIT_USER_MAX`) o IP (`RATE_LIMIT_API_MAX`); webhook de canales con límite propio. **Limitación**: contador en memoria por instancia | `tests/unit/lib/rate-limit.test.ts` |
+| 11 | Rate limiting | Middleware: por usuario (`RATE_LIMIT_USER_MAX`) o IP (`RATE_LIMIT_API_MAX`); webhook de canales con límite propio. Contador compartido entre instancias en la BD (`rate_limit_hit`, migración 089); si la RPC falla, cae al contador en memoria de la instancia | `tests/unit/lib/rate-limit.test.ts` (U-220…222) |
 | 12 | Protección contra bots | Login/registro de Clerk con su bot protection (Turnstile, `frame-src challenges.cloudflare.com`) | manual: Clerk Dashboard → Attack protection activo por tienda |
 | 13 | Parametrizar queries | supabase-js (sin SQL crudo); `.or()` solo con términos saneados; SQL dinámico solo con `format()`/`USING`; `SECURITY DEFINER` con `search_path` fijo | SEC-29, SEC-30 |
 | 14 | Validar inputs | Schemas Zod en `src/lib/validation/` (§8) | tests 400 por endpoint |

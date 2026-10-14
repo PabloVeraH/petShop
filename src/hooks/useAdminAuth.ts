@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
 export type AdminRole = "systemAdmin" | "storeAdmin" | "storeWorker" | null;
@@ -11,12 +10,7 @@ interface AdminAuthData {
 }
 
 export function useAdminAuth(): AdminAuthData {
-  const { userId, sessionClaims } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setIsLoading(false);
-  }, [userId]);
+  const { userId, sessionClaims, isLoaded } = useAuth();
 
   const meta = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
   let role: AdminRole = null;
@@ -27,7 +21,7 @@ export function useAdminAuth(): AdminAuthData {
 
   const storeId = (meta?.storeId as string) || null;
 
-  return { userId: userId || null, role, storeId, isLoading };
+  return { userId: userId || null, role, storeId, isLoading: !isLoaded };
 }
 
 export function canEditStore(role: AdminRole): boolean {

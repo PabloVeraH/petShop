@@ -1,5 +1,5 @@
 /**
- * Tests I-722 a I-729: /api/canales/instagram/** (posts, post por id, upload).
+ * Tests I-722 a I-729, I-740 e I-741: /api/canales/instagram/** (posts, post por id, upload).
  *
  * Reemplaza los 8 placeholders `expect(true).toBe(true)` que había aquí
  * ("verificado vía build"): no ejecutaban ninguna ruta. La autorización
@@ -92,6 +92,19 @@ describe("POST /api/canales/instagram/posts", () => {
     expect(insertDe("instagram_posts")).toMatchObject({ status: "scheduled", published_at: null, scheduled_for: "2026-10-01T15:00:00Z" });
   });
 
+  // I-741: REGRESIÓN — "Guardar como Borrador" del editor mandaba lo mismo
+  // que "Publicar": sin fecha el post quedaba published (y ya no se podía
+  // editar). Con borrador=true queda en draft, con o sin fecha.
+  it("I-741: REGRESIÓN — borrador=true crea el post en draft, sin published_at", async () => {
+    fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
+    expect((await CREAR(req("/x", "POST", { content_type: "post", caption: "Borrador", borrador: true }))).status).toBe(201);
+    expect(insertDe("instagram_posts")).toMatchObject({ status: "draft", published_at: null });
+
+    fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
+    await CREAR(req("/x", "POST", { content_type: "post", borrador: true, scheduled_for: "2026-10-01T15:00:00Z" }));
+    expect(insertDe("instagram_posts")).toMatchObject({ status: "draft", published_at: null });
+  });
+
   it("I-724: carrusel inserta las imágenes en orden; falla del post o de las imágenes → 500; payload inválido → 400 sin tocar la BD", async () => {
     fakeActual = crearFakeSupabase(() => ({ data: { id: POST_ID } }));
     const urls = ["https://cdn.example/a.jpg", "https://cdn.example/b.jpg"];
@@ -170,7 +183,12 @@ describe("POST /api/canales/instagram/upload", () => {
     if (file) fd.append("file", file);
     return SUBIR(new NextRequest("http://localhost/api/canales/instagram/upload", { method: "POST", body: fd } as never));
   };
-  const imagen = (tipo = "image/png", bytes = 10, nombre = "foto.png") => new File([new Uint8Array(bytes)], nombre, { type: tipo });
+  const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const imagen = (tipo = "image/png", bytes = 10, nombre = "foto.png", cabecera: number[] = PNG) => {
+    const contenido = new Uint8Array(bytes);
+    contenido.set(cabecera.slice(0, bytes));
+    return new File([contenido], nombre, { type: tipo });
+  };
 
   it("I-728: sube al bucket instagram-media bajo la carpeta de la tienda de la sesión y devuelve la URL pública", async () => {
     fakeActual = crearFakeSupabase(() => ({}));
@@ -197,5 +215,23 @@ describe("POST /api/canales/instagram/upload", () => {
     const res = await subir(imagen());
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "Error subiendo imagen" });
+  });
+
+  // I-740: REGRESIÓN (informe de seguridad, checklist punto 16) — el tipo y la
+  // extensión venían del cliente: un HTML declarado image/png con nombre
+  // .html quedaba como x.html en el bucket público.
+  it("I-740: REGRESIÓN — tipo y extensión salen de los bytes, no de lo que declara el cliente", async () => {
+    fakeActual = crearFakeSupabase(() => ({}));
+    const html = Array.from(new TextEncoder().encode("<html><script>"));
+    expect((await subir(imagen("image/png", 20, "x.html", html))).status).toBe(400);
+    expect(mockUpload).not.toHaveBeenCalled();
+
+    mockUpload.mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: "https://cdn.example/x.jpg" } });
+    const jpeg = [0xff, 0xd8, 0xff, 0xe0];
+    expect((await subir(imagen("image/png", 20, "foto.html", jpeg))).status).toBe(201);
+    const [ruta, , opciones] = mockUpload.mock.calls[0];
+    expect(ruta).toMatch(new RegExp(`^${STORE}/\\d+\\.jpg$`));
+    expect(opciones).toEqual({ contentType: "image/jpeg", upsert: false });
   });
 });

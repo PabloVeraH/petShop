@@ -15,6 +15,8 @@ const createPostSchema = z.object({
     precio: z.number(),
   })).optional(),
   scheduled_for: z.string().datetime().optional(),
+  // "Guardar como borrador": queda en draft aunque no tenga fecha.
+  borrador: z.boolean().optional(),
 });
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
@@ -56,11 +58,11 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { content_type, caption, image_url, media_urls, product_tags, scheduled_for } = parsed.data;
+  const { content_type, caption, image_url, media_urls, product_tags, scheduled_for, borrador } = parsed.data;
 
   const now = new Date().toISOString();
-  const status = scheduled_for ? "scheduled" : "published";
-  const published_at = !scheduled_for ? now : null;
+  const status = borrador ? "draft" : scheduled_for ? "scheduled" : "published";
+  const published_at = status === "published" ? now : null;
 
   const { data: post, error: postError } = await supabase
     .from("instagram_posts")

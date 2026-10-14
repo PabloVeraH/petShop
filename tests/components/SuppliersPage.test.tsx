@@ -13,7 +13,7 @@ global.fetch = mockFetch;
 
 const mockMutate = jest.fn();
 const mockInvalidateQueries = jest.fn();
-let mutationCallbacks: Array<{ onSuccess?: Function; onError?: Function }> = [];
+let mutationCallbacks: Array<{ onSuccess?: (...a: unknown[]) => unknown; onError?: (...a: unknown[]) => unknown }> = [];
 const mockUseMutation = jest.fn((opts?: any) => {
   mutationCallbacks.push({ onSuccess: opts?.onSuccess, onError: opts?.onError });
   return { mutate: mockMutate, isPending: false };

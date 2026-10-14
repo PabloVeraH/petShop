@@ -311,7 +311,10 @@ export default function ClienteDetalle({
                     </div>
                   </div>
                 )}
-                {formError && <p className="text-xs text-red-500">{formError}</p>}
+                {/* Solo en la fila que se edita o elimina (antes se repetía en todas). */}
+                {formError && (editingMascota?.id === m.id || deletingMascotaId === m.id) && (
+                  <p className="text-xs text-red-500">{formError}</p>
+                )}
               </div>
             ))}
           </div>

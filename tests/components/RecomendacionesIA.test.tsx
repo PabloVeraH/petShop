@@ -21,7 +21,7 @@ function jsonResponse(data: unknown, ok = true, contentType = "application/json"
 // Mock del store — controlar clienteId/items desde tests
 const mockAddItem = jest.fn();
 let mockClienteId: string | undefined = undefined;
-let mockItems: { producto_id: string; nombre: string; precio: number }[] = [];
+const mockItems: { producto_id: string; nombre: string; precio: number }[] = [];
 
 jest.mock("@/stores/pos", () => ({
   usePOSStore: () => ({

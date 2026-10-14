@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
 import { ApiError, fetchJson } from "@/lib/api-client";
 
+type NotaCreditoVenta = {
+  id: string;
+  numero_nc: string;
+  estado: string;
+  tipo_reembolso: string;
+  monto_total: number;
+  motivo: string | null;
+  created_at: string;
+};
+
 type VentaDetalle = {
   id: string;
   numero_comprobante: string | null;
@@ -380,7 +390,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="bg-white rounded-lg shadow-sm p-4 print:hidden space-y-3">
           <h3 className="font-bold text-sm">Devoluciones registradas</h3>
           <div className="space-y-2">
-            {notasCredito.data.map((nc: any) => {
+            {notasCredito.data.map((nc: NotaCreditoVenta) => {
               // Una NC anulada (al anular la venta) ya no vale como saldo ni
               // reembolso: la etiqueta refleja el estado, no el tipo.
               const anulada = nc.estado === "anulada";

@@ -2438,3 +2438,68 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEC-33 | Guarda: todo endpoint con `formData()` limita tamaño y tipo de archivo | src/app/api | unit |
 | SEC-34 | Guarda: headers globales con HSTS ≥ 1 año, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy; el middleware agrega el CSP | next.config.ts / middleware | unit |
 | SEC-35 | REGRESIÓN (decisión 2026-10-13): storeWorker, usuario sin rol o storeAdmin de otra tienda → 403 sin BD ni R2 en POST/DELETE /api/productos/imagenes, GET /api/contabilidad/asientos y GET de libro-diario, balance-prueba y estado-resultado (+ /excel y /pdf); storeAdmin de la tienda pasa; el storeWorker SÍ puede crear órdenes de compra (POST /api/ordenes-compra) | 12 handlers | integration |
+
+## Pendientes del informe de seguridad, hallazgo 7 (2026-10-13)
+
+| ID | Descripción | Módulo | Tipo |
+|----|-------------|--------|------|
+| I-LU-01 | Deshabilitar usuarios: todos OK → 200, ban en Clerk y `is_disabled=true` solo para ellos, auditoría success | POST /api/admin/license/users | integration |
+| I-LU-02 | REGRESIÓN: Clerk falla con 1 de 3 → sigue con el resto, `clerk_users` refleja los exitosos, 500 con `actualizados`/`fallidos`, auditoría partial | POST /api/admin/license/users | integration |
+| I-LU-03 | Clerk falla con todos → no toca la BD, auditoría failure | POST /api/admin/license/users | integration |
+| I-LU-04 | Clerk OK pero falla el update de `clerk_users` → 500 que lo informa | POST /api/admin/license/users | integration |
+| I-LU-05 | storeAdmin → 403 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| I-LU-06 | JWT systemAdmin desmentido por la BD → 403 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| I-LU-07 | Auto-deshabilitarse, lista vacía o acción inválida → 400 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| C-75 | Confirmar deshabilitar → POST con `userIds` y `action` | LicenciaCard | component |
+| C-76 | REGRESIÓN: el error del endpoint (ban parcial) se muestra con `role="alert"` en vez de tratarse como éxito | LicenciaCard | component |
+| I-740 | REGRESIÓN: el tipo y la extensión de la subida a Instagram salen de los bytes (JPEG/PNG/GIF/WebP), no del `file.type` ni del nombre que manda el cliente; un HTML declarado `image/png` → 400 | POST /api/canales/instagram/upload | integration |
+| U-220 | REGRESIÓN: el rate limit usa el conteo de la BD (`rate_limit_hit`) con clave `<limitador>:<clave>` y responde 429 con Retry-After de la ventana compartida | middleware/rateLimit | unit |
+| U-221 | El conteo de la BD manda aunque la instancia no haya visto requests (cupo gastado en otra instancia) | middleware/rateLimit | unit |
+| U-222 | Si la RPC falla o lanza, el limitador cae al contador en memoria y sigue limitando | middleware/rateLimit | unit |
+| I-741 | REGRESIÓN: `borrador: true` crea el post de Instagram en `draft` sin `published_at` (antes "Guardar como Borrador" lo dejaba publicado) | POST /api/canales/instagram/posts | integration |
+
+## Cobertura: flujos de UI sin tests (2026-10-13, umbral de funciones 70%)
+
+| ID | Descripción | Módulo | Tipo |
+|----|-------------|--------|------|
+| SPF-01 | Crear proveedor exige nombre; POST /api/proveedores con el formulario | SupplierHubPage | component |
+| SPF-02 | Error del POST de proveedor se muestra en el formulario | SupplierHubPage | component |
+| SPF-03 | Editar proveedor: PATCH con datos cargados, error visible, cancelar | SupplierHubPage | component |
+| SPF-04 | Eliminar proveedor: DELETE y vuelve a "Selecciona un proveedor" | SupplierHubPage | component |
+| SPF-05 | Buscar proveedor consulta /api/proveedores?search= | SupplierHubPage | component |
+| SPF-06 | Asociar producto (POST /api/proveedor-productos) y quitarlo (DELETE) | SupplierHubPage | component |
+| SPF-07 | Badge de cumplimiento on-time y stats del sidebar | SupplierHubPage | component |
+| SPF-08 | OC pendiente: Enviar/Cancelar hacen PATCH con el estado; Editar items abre y refresca | SupplierHubPage | component |
+| SPF-09 | OC enviada: cancelar pide confirmación y notifica al proveedor | SupplierHubPage | component |
+| SPF-10 | Recibir OC valida precio y vencimiento; PATCH action=recibir con ítems | SupplierHubPage | component |
+| SPF-11 | + Nueva OC abre el diálogo y al crear refresca las órdenes | SupplierHubPage | component |
+| SPF-12 | Cuentas por pagar: filtros, filtros guardados, exportar y pago múltiple con error parcial | SupplierHubPage | component |
+| SPF-13 | Pago individual con error visible; Escape cierra el modal | SupplierHubPage | component |
+| C-77 | Filtros de Actividad entran en la query y vuelven a página 1; systemAdmin ve Store ID | AuditoriaCard | component |
+| C-78 | Filtros de Errores y de Sesiones entran en sus queries | AuditoriaCard | component |
+| C-79 | Detalle de error (mensaje, stack, context); Cerrar y Escape | AuditoriaCard | component |
+| C-80 | Falla de la API de errores o sesiones deja la grilla vacía sin romper | AuditoriaCard | component |
+| CD-11 | Editar cliente: RUT inválido no llama, autoformato, error visible, PATCH | ClienteDetalle | component |
+| CD-12 | Editar mascota: nombre duplicado rechazado sin llamar; PATCH con números | ClienteDetalle | component |
+| CD-13 | REGRESIÓN: error del PATCH de mascota se muestra una sola vez (antes en cada fila) | ClienteDetalle | component |
+| CD-14 | Error al eliminar mascota visible; Cancelar descarta la confirmación | ClienteDetalle | component |
+| CD-15 | Fidelización: descuento actual y monto al próximo nivel | ClienteDetalle | component |
+| CD-16 | Alta de mascota: nombres existentes, la nueva aparece, cerrar refresca | ClienteDetalle | component |
+| IAC-01 | Muestra el modelo de IA por tienda (openrouter/free por defecto) | IAConfigSection | component |
+| IAC-02 | Modelo vacío → error sin llamar a la API | IAConfigSection | component |
+| IAC-03 | Guardar hace PATCH /api/admin/ai-config con store_id y modelo recortado | IAConfigSection | component |
+| IAC-04 | Errores de la API (con/sin mensaje, red) se muestran | IAConfigSection | component |
+| EXC-01 | Lista cierres y horarios especiales; vacío; Cerrar | ExcepcionesEditor | component |
+| EXC-02 | Agregar día cerrado: POST con fecha y cerrado | ExcepcionesEditor | component |
+| EXC-03 | Horario especial manda horas; inicio ≥ fin deshabilita; error visible | ExcepcionesEditor | component |
+| EXC-04 | Eliminar hace DELETE; error con o sin cuerpo visible | ExcepcionesEditor | component |
+| IGP-01 | Dashboard Instagram sin configurar lleva a /canales/instagram | Instagram posts | component |
+| IGP-02 | Dashboard cuenta programadas/publicadas y navega | Instagram posts | component |
+| IGP-03 | Falla de carga no deja la página en "Cargando" | Instagram posts | component |
+| IGP-04 | REGRESIÓN: Editar de programadas va a /canales/instagram/posts/editor (antes ruta inexistente); cancelar con confirmación hace DELETE | Instagram posts | component |
+| IGP-05 | REGRESIÓN: "Crear una →" de programadas va al editor real | Instagram posts | component |
+| IGP-06 | Historial: tiempo relativo, abrir en Instagram, "Crear una →" al editor real | Instagram posts | component |
+| IGP-07 | Editor: sube imagen, etiqueta, programa y POST con todo | Instagram editor | component |
+| IGP-08 | REGRESIÓN: editar carga el post aunque no sea borrador; PATCH sin `borrador` | Instagram editor | component |
+| IGP-09 | REGRESIÓN: "Guardar como Borrador" manda `borrador: true`; errores visibles | Instagram editor | component |
+| I-REC-13 | REGRESIÓN: el HTML del recibo escapa nombres de cliente, producto, tienda, vendedor y método de pago (antes se interpolaban crudos) | GET /api/recibos/[ventaId] | integration |

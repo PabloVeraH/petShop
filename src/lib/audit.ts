@@ -76,7 +76,7 @@ export function getRequestMetadata(req: NextRequest) {
 }
 
 // Helper para comparar objetos (para old_values vs new_values)
-export function getChangedFields(oldObj: any, newObj: any): string {
+export function getChangedFields(oldObj: Record<string, unknown>, newObj: Record<string, unknown>): string {
   const changes: string[] = [];
   for (const key in newObj) {
     if (oldObj[key] !== newObj[key]) {

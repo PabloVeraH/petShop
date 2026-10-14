@@ -144,3 +144,57 @@ describe("aplicarRateLimit — por usuario con sesión (U-214)", () => {
     delete process.env.RATE_LIMIT_USER_MAX;
   });
 });
+
+// U-220 a U-222 — REGRESIÓN (informe de seguridad, hallazgo 7): el contador
+// vivía en memoria de cada instancia; en serverless el límite no era global.
+// Ahora cuenta en la BD (rate_limit_hit, migración 089) y solo cae a memoria
+// si la RPC no responde.
+describe("rate limit con contador compartido en la BD (U-220..U-222)", () => {
+  const mockRpc = jest.fn();
+  const envOriginal = { ...process.env };
+
+  beforeEach(() => {
+    jest.resetModules();
+    mockRpc.mockReset();
+    jest.doMock("@/lib/supabase", () => ({ createServiceClient: () => ({ rpc: mockRpc }) }));
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "clave-de-test";
+  });
+  afterAll(() => {
+    process.env = envOriginal;
+    jest.dontMock("@/lib/supabase");
+  });
+
+  it("U-220: usa el conteo de la BD con clave por limitador y responde 429 con Retry-After de la ventana compartida", async () => {
+    const fin = new Date(Date.now() + 30_000).toISOString();
+    mockRpc.mockResolvedValueOnce({ data: [{ conteo: 600, ventana_fin: fin }], error: null });
+    mockRpc.mockResolvedValueOnce({ data: [{ conteo: 601, ventana_fin: fin }], error: null });
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+
+    expect(await aplicarRateLimit(req(), "user_a")).toBeNull();
+    const res = (await aplicarRateLimit(req(), "user_a")) as Response;
+
+    expect(mockRpc).toHaveBeenCalledWith("rate_limit_hit", { p_clave: "usuario:user:user_a", p_ventana_ms: 300000 });
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get("Retry-After"))).toBeGreaterThanOrEqual(29);
+    expect(Number(res.headers.get("Retry-After"))).toBeLessThanOrEqual(30);
+  });
+
+  it("U-221: el conteo de la BD manda aunque esta instancia no haya visto requests (otra instancia ya gastó el cupo)", async () => {
+    mockRpc.mockResolvedValue({ data: [{ conteo: 101, ventana_fin: new Date(Date.now() + 60_000).toISOString() }], error: null });
+    const { apiGeneralLimit } = await import("@/middleware/rateLimit");
+
+    expect(((await apiGeneralLimit(req())) as Response).status).toBe(429);
+    expect(mockRpc).toHaveBeenCalledWith("rate_limit_hit", expect.objectContaining({ p_clave: "api:unknown" }));
+  });
+
+  it("U-222: si la RPC falla o lanza, cae al contador en memoria (sigue limitando)", async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: "function does not exist" } });
+    mockRpc.mockRejectedValue(new Error("red caída"));
+    const { createRateLimit } = await import("@/middleware/rateLimit");
+    const limite = createRateLimit({ nombre: "t", windowMs: 60_000, maxRequests: 1 });
+
+    expect(await limite(req())).toBeNull();
+    expect(((await limite(req())) as Response).status).toBe(429);
+  });
+});
