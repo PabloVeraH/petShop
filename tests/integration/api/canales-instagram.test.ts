@@ -1,5 +1,5 @@
 /**
- * Tests I-722 a I-729: /api/canales/instagram/** (posts, post por id, upload).
+ * Tests I-722 a I-729 e I-740: /api/canales/instagram/** (posts, post por id, upload).
  *
  * Reemplaza los 8 placeholders `expect(true).toBe(true)` que había aquí
  * ("verificado vía build"): no ejecutaban ninguna ruta. La autorización
@@ -170,7 +170,12 @@ describe("POST /api/canales/instagram/upload", () => {
     if (file) fd.append("file", file);
     return SUBIR(new NextRequest("http://localhost/api/canales/instagram/upload", { method: "POST", body: fd } as never));
   };
-  const imagen = (tipo = "image/png", bytes = 10, nombre = "foto.png") => new File([new Uint8Array(bytes)], nombre, { type: tipo });
+  const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const imagen = (tipo = "image/png", bytes = 10, nombre = "foto.png", cabecera: number[] = PNG) => {
+    const contenido = new Uint8Array(bytes);
+    contenido.set(cabecera.slice(0, bytes));
+    return new File([contenido], nombre, { type: tipo });
+  };
 
   it("I-728: sube al bucket instagram-media bajo la carpeta de la tienda de la sesión y devuelve la URL pública", async () => {
     fakeActual = crearFakeSupabase(() => ({}));
@@ -197,5 +202,23 @@ describe("POST /api/canales/instagram/upload", () => {
     const res = await subir(imagen());
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "Error subiendo imagen" });
+  });
+
+  // I-740: REGRESIÓN (informe de seguridad, checklist punto 16) — el tipo y la
+  // extensión venían del cliente: un HTML declarado image/png con nombre
+  // .html quedaba como x.html en el bucket público.
+  it("I-740: REGRESIÓN — tipo y extensión salen de los bytes, no de lo que declara el cliente", async () => {
+    fakeActual = crearFakeSupabase(() => ({}));
+    const html = Array.from(new TextEncoder().encode("<html><script>"));
+    expect((await subir(imagen("image/png", 20, "x.html", html))).status).toBe(400);
+    expect(mockUpload).not.toHaveBeenCalled();
+
+    mockUpload.mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: "https://cdn.example/x.jpg" } });
+    const jpeg = [0xff, 0xd8, 0xff, 0xe0];
+    expect((await subir(imagen("image/png", 20, "foto.html", jpeg))).status).toBe(201);
+    const [ruta, , opciones] = mockUpload.mock.calls[0];
+    expect(ruta).toMatch(new RegExp(`^${STORE}/\\d+\\.jpg$`));
+    expect(opciones).toEqual({ contentType: "image/jpeg", upsert: false });
   });
 });

@@ -6,6 +6,17 @@ import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
+// El `file.type` y el nombre los manda el cliente: el tipo real (y la
+// extensión con que se guarda en el bucket público) sale de los primeros bytes.
+function tipoReal(b: Uint8Array): { mime: string; ext: string } | null {
+  const ascii = (desde: number, hasta: number) => String.fromCharCode(...b.slice(desde, hasta));
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { mime: "image/jpeg", ext: "jpg" };
+  if (b[0] === 0x89 && ascii(1, 4) === "PNG") return { mime: "image/png", ext: "png" };
+  if (ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a") return { mime: "image/gif", ext: "gif" };
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return { mime: "image/webp", ext: "webp" };
+  return null;
+}
+
 export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await autorizarCanales({ soloAdmin: true });
   if (!ctx.ok) return ctx.response;
@@ -22,13 +33,17 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: "El archivo supera los 10 MB" }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `${storeId}/${Date.now()}.${ext}`;
+  const real = tipoReal(new Uint8Array(await file.slice(0, 12).arrayBuffer()));
+  if (!real) {
+    return NextResponse.json({ error: "El archivo no es una imagen válida" }, { status: 400 });
+  }
+
+  const path = `${storeId}/${Date.now()}.${real.ext}`;
 
   const supabase = createServiceClient();
   const { error } = await supabase.storage
     .from("instagram-media")
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, file, { contentType: real.mime, upsert: false });
 
   if (error) {
     console.error("[POST /api/canales/instagram/upload] Error:", error);

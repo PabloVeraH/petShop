@@ -2452,3 +2452,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-LU-07 | Auto-deshabilitarse, lista vacía o acción inválida → 400 sin llamar a Clerk | POST /api/admin/license/users | integration |
 | C-75 | Confirmar deshabilitar → POST con `userIds` y `action` | LicenciaCard | component |
 | C-76 | REGRESIÓN: el error del endpoint (ban parcial) se muestra con `role="alert"` en vez de tratarse como éxito | LicenciaCard | component |
+| I-740 | REGRESIÓN: el tipo y la extensión de la subida a Instagram salen de los bytes (JPEG/PNG/GIF/WebP), no del `file.type` ni del nombre que manda el cliente; un HTML declarado `image/png` → 400 | POST /api/canales/instagram/upload | integration |
