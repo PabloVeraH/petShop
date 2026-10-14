@@ -47,7 +47,7 @@ que paga, considerar Vercel Pro y Supabase Pro (con backups). Clerk gratis:
 
 Una instancia de producción de Clerk sirve su Frontend API desde un
 subdominio propio de la tienda (ej. `clerk.mascotaspetshop.ammapet.cl`, app
-*Secondary* en Clerk). `buildCsp()` (`src/middleware.ts`) lo decodifica de
+*Secondary* en Clerk). `buildCsp()` (`src/proxy.ts`) lo decodifica de
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_live_<base64("clerk.dominio$")>`) y
 lo agrega a `script-src` y `connect-src`: **no hay variable nueva** y no
 puede quedar desalineado con la clave. Con `pk_test_` (demo) el CSP no
@@ -222,7 +222,7 @@ select
 ### 5.1 Fotos de producto (Cloudflare R2)
 Recomendado: **compartir** bucket y dominio `imgs.ammapet.cl`. ✅ Las keys
 ya van por tienda (`productos/<storeId>/…`) y borrar valida ese prefijo; la
-CSP (`src/middleware.ts`) tiene `imgs.ammapet.cl` fijo, así que un dominio
+CSP (`src/proxy.ts`) tiene `imgs.ammapet.cl` fijo, así que un dominio
 distinto exigiría cambiar código.
 - Mismas `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`.
 - Token R2 propio por tienda (Object Read & Write, solo ese bucket) para
@@ -436,7 +436,7 @@ de R2".
 | `R2_ACCESS_KEY_ID` | Del token propio de la tienda (pasos abajo) |
 | `R2_SECRET_ACCESS_KEY` | Del mismo token. Se muestra **una sola vez** |
 | `R2_BUCKET_NAME` | `demo-ammapet` |
-| `R2_PUBLIC_URL` | `https://imgs.ammapet.cl`, **sin `/` final** (el código arma `${R2_PUBLIC_URL}/productos/…` y además rechaza cualquier URL de imagen que no empiece con este valor). La CSP solo permite `imgs.ammapet.cl`: otro dominio exige cambiar `src/middleware.ts` |
+| `R2_PUBLIC_URL` | `https://imgs.ammapet.cl`, **sin `/` final** (el código arma `${R2_PUBLIC_URL}/productos/…` y además rechaza cualquier URL de imagen que no empiece con este valor). La CSP solo permite `imgs.ammapet.cl`: otro dominio exige cambiar `src/proxy.ts` |
 
 Token R2 de la tienda: Cloudflare → *R2 Object Storage* → *Manage API
 Tokens* → *Create API Token* → nombre `petshop-<nombre>`, permiso **Object
