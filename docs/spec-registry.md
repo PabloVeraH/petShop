@@ -2045,7 +2045,7 @@ cubiertos por I-609, I-613/I-614 e I-617.
 |----|-------------|-------|------|
 | U-167..U-170 | Máquina de estados de canal_ordenes (§4.3) y paridad con el CHECK de la BD (000_baseline; antes 079) | lib/canales/domain/estados | unit |
 | U-171..U-174 | Precio por canal D7/D13/D14 (sin error de float; propiedad) | lib/canales/domain/precio | unit |
-| U-175..U-176 | Cupo D4 y disponibilidad §4.1 | lib/canales/domain/disponibilidad | unit |
+| ~~U-175..U-176~~ | Eliminados 2026-10-14 con `lib/canales/domain/disponibilidad.ts` (código sin uso; la regla vive en SQL, migración 082) | — | unit |
 | CTR-01..CTR-08 | Contrato parametrizado por adaptador: firma válida/inválida/replay, parseo de fixtures, payload y credenciales inválidas | adapters/* | unit |
 | CTR-09..CTR-14 | Rappi: evento por URL, secreto por evento, normalización, llamadas salientes con contexto (C4), token cacheado y URL base de producción (C19) | adapters/rappi | unit |
 | MW-30..MW-31 | Webhook de canales es ruta pública; el resto de /api/canales no | middleware | unit |
