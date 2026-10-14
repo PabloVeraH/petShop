@@ -1,5 +1,5 @@
 import { getStoreId } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraReceiveSchema, OrdenCompraEditItemsSchema, OrdenCompraEstadoSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
@@ -355,20 +355,26 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       }
     }
 
-    // Asiento contable (post-response fire-and-forget)
-    (async () => {
-      const asiento = await crearAsiento({
-        storeId: store_id,
-        fecha: new Date().toISOString().split("T")[0],
-        tipoMovimiento: "COMPRA",
-        referenciaId: id,
-        referenciaNomero: ordenBase.numero,
-        descripcion: `Recepción compra — ${ordenBase.numero}`,
-        lineas: lineasCompra({ montoNeto: totalNeto, iva: impuesto, total }),
-        usuarioId: ctx.userId ?? undefined,
-      });
-      if (!asiento) console.error(`[contabilidad] Asiento COMPRA NO CREADO para OC ${ordenBase.numero}`);
-    })().catch((e) => console.error("[contabilidad] Error en asiento compra:", e));
+    // Asiento contable (post-response): after() hace que la plataforma espere
+    // el callback tras responder; un fire-and-forget puro puede congelarse en
+    // serverless y perder el asiento (ticket Trello 6a77e779358cdccca29dc3e3).
+    after(async () => {
+      try {
+        const asiento = await crearAsiento({
+          storeId: store_id,
+          fecha: new Date().toISOString().split("T")[0],
+          tipoMovimiento: "COMPRA",
+          referenciaId: id,
+          referenciaNomero: ordenBase.numero,
+          descripcion: `Recepción compra — ${ordenBase.numero}`,
+          lineas: lineasCompra({ montoNeto: totalNeto, iva: impuesto, total }),
+          usuarioId: ctx.userId ?? undefined,
+        });
+        if (!asiento) console.error(`[contabilidad] Asiento COMPRA NO CREADO para OC ${ordenBase.numero}`);
+      } catch (e) {
+        console.error("[contabilidad] Error en asiento compra:", e);
+      }
+    });
 
     return NextResponse.json(orden);
   }

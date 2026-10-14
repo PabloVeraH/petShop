@@ -1,7 +1,7 @@
 /**
  * Tests I-84 a I-90, I-107 a I-113, I-439, I-440: PATCH/GET /api/cuentas-pagar
  */
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 
 jest.mock("next/server", () => {
   const actual = jest.requireActual("next/server");
@@ -249,6 +249,9 @@ describe("PATCH /api/cuentas-pagar mark-pagada", () => {
     const { PATCH } = await import("@/app/api/cuentas-pagar/route");
     const res = await PATCH(markPagadaReq({ estado: "pagada", metodo_pago: "efectivo" }));
     expect(res.status).toBe(200);
+    // El asiento corre dentro de after() (post-response garantizado), no como
+    // fire-and-forget suelto que serverless puede congelar.
+    expect(after).toHaveBeenCalledTimes(1);
 
     await flushMicrotasks();
 

@@ -25,7 +25,7 @@ Regla del sistema (AGENTS.md §0.8, §23.3): todos los precios de venta son
 | 1 | IVA de órdenes de compra: suma 19% fijo sobre el neto | Decisión del contador + código | Media |
 | 2 | Mermas y ajustes por conteo no generan asiento | Decisión del contador + código | Media |
 | 3 | Validar D24: comisión de canales con IVA | Decisión del contador | Media |
-| 4 | Asientos de compra, pago a proveedor y cobro de cita sin `after()` | Código | Media-baja |
+| 4 | ✅ Asientos de compra, pago a proveedor y cobro de cita sin `after()` | Código | Resuelto 2026-10-13 |
 | 5 | El backfill no cubre pagos a proveedor ni liquidaciones de canal | Código | Baja |
 | 6 | Exports Excel/PDF de contabilidad con poca cobertura de tests | Tests | Baja |
 | 7 | Ideas y alcances futuros (arqueo de caja, sucursales, Shopify, no-show) | Producto | — |
@@ -139,7 +139,9 @@ cuenta. Si la comisión no lleva IVA, o lo lleva distinto, hay que ajustar
 `lineasLiquidacionCanal` y sus tests (LQC-*). Hoy todavía no hay órdenes
 reales de canales, así que no hay datos que corregir.
 
-## 4. Asientos que se pueden perder en serverless (sin `after()`)
+## 4. ✅ Asientos que se podían perder en serverless (sin `after()`)
+
+> **Resuelto 2026-10-13:** los tres flujos usan `after()` con try/catch interno. Los tests I-111, I-CITA-58 y "recibir sin lotes" de `ordenes-compra.test.ts` verifican que el asiento se agenda con `after()`; sin el fix fallan los 3. Texto original:
 
 Ventas, notas de crédito y anulaciones ya crean su asiento dentro de
 `after()` de `next/server`. Así la plataforma espera a que termine después de

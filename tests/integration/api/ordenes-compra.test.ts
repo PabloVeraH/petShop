@@ -1,6 +1,13 @@
 import { GET, POST } from "@/app/api/ordenes-compra/route";
 import { GET as GET_BY_ID, PATCH } from "@/app/api/ordenes-compra/[id]/route";
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
+
+jest.mock("next/server", () => ({
+  ...jest.requireActual("next/server"),
+  // after() requiere request scope real (lanza fuera de él); aquí corre el
+  // callback al instante para poder verificar el asiento post-response.
+  after: jest.fn((cb: () => void) => cb()),
+}));
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
@@ -235,6 +242,12 @@ describe("Órdenes de Compra API", () => {
         p_producto_id: "24ab45db-484f-4e24-9c22-fe9c0894e2b5",
         p_cantidad: 10,
       });
+      // El asiento corre dentro de after() (post-response garantizado), no como
+      // fire-and-forget suelto que serverless puede congelar.
+      expect(after).toHaveBeenCalledTimes(1);
+      expect(asientosModule.crearAsiento).toHaveBeenCalledWith(
+        expect.objectContaining({ tipoMovimiento: "COMPRA", referenciaId: "a57ace69-a5f4-4089-83e9-04d92c27dd43" })
+      );
     });
 
     // I-455 — REGRESIÓN (investigado a raíz del ticket Trello
