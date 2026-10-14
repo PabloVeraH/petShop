@@ -65,10 +65,20 @@ export function LicenciaCard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userIds, action }),
-      }).then((r) => r.json()),
+      }).then(async (r) => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body?.error ?? "Error al actualizar usuarios");
+        return body;
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["license-users"] });
       setSelectedUsers([]);
+      setShowConfirm(false);
+    },
+    // Un fallo parcial deja algunos usuarios ya actualizados: se refresca la
+    // lista igual para que el estado mostrado sea el real.
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["license-users"] });
       setShowConfirm(false);
     },
   });
@@ -220,6 +230,10 @@ export function LicenciaCard() {
             </div>
           ))}
         </div>
+
+        {userMutation.isError && (
+          <p role="alert" className="text-sm text-red-600 mb-4">{userMutation.error.message}</p>
+        )}
 
         <div className="flex gap-3">
           <button

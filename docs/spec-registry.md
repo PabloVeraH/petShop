@@ -2438,3 +2438,17 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEC-33 | Guarda: todo endpoint con `formData()` limita tamaño y tipo de archivo | src/app/api | unit |
 | SEC-34 | Guarda: headers globales con HSTS ≥ 1 año, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy; el middleware agrega el CSP | next.config.ts / middleware | unit |
 | SEC-35 | REGRESIÓN (decisión 2026-10-13): storeWorker, usuario sin rol o storeAdmin de otra tienda → 403 sin BD ni R2 en POST/DELETE /api/productos/imagenes, GET /api/contabilidad/asientos y GET de libro-diario, balance-prueba y estado-resultado (+ /excel y /pdf); storeAdmin de la tienda pasa; el storeWorker SÍ puede crear órdenes de compra (POST /api/ordenes-compra) | 12 handlers | integration |
+
+## Pendientes del informe de seguridad, hallazgo 7 (2026-10-13)
+
+| ID | Descripción | Módulo | Tipo |
+|----|-------------|--------|------|
+| I-LU-01 | Deshabilitar usuarios: todos OK → 200, ban en Clerk y `is_disabled=true` solo para ellos, auditoría success | POST /api/admin/license/users | integration |
+| I-LU-02 | REGRESIÓN: Clerk falla con 1 de 3 → sigue con el resto, `clerk_users` refleja los exitosos, 500 con `actualizados`/`fallidos`, auditoría partial | POST /api/admin/license/users | integration |
+| I-LU-03 | Clerk falla con todos → no toca la BD, auditoría failure | POST /api/admin/license/users | integration |
+| I-LU-04 | Clerk OK pero falla el update de `clerk_users` → 500 que lo informa | POST /api/admin/license/users | integration |
+| I-LU-05 | storeAdmin → 403 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| I-LU-06 | JWT systemAdmin desmentido por la BD → 403 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| I-LU-07 | Auto-deshabilitarse, lista vacía o acción inválida → 400 sin llamar a Clerk | POST /api/admin/license/users | integration |
+| C-75 | Confirmar deshabilitar → POST con `userIds` y `action` | LicenciaCard | component |
+| C-76 | REGRESIÓN: el error del endpoint (ban parcial) se muestra con `role="alert"` en vez de tratarse como éxito | LicenciaCard | component |
