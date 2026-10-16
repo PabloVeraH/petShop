@@ -90,8 +90,11 @@ function makeNc(id: string, venta_item_id: string, cantidad_devuelta: number) {
   };
 }
 
-function mockFetch(venta: object, notasCredito: object[] = []) {
+function mockFetch(venta: object, notasCredito: object[] = [], tienda: object = { name: "PetShop Test" }) {
   (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    if (url.includes("/api/tienda/nombre")) {
+      return Promise.resolve({ ok: true, status: 200, headers: new Headers(), json: () => Promise.resolve(tienda) });
+    }
     if (url.includes("/api/ventas/")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(venta) });
     }
@@ -741,3 +744,38 @@ describe("SalesTicketPage — vendedor sin email (C-72)", () => {
   });
 });
 
+// C-84 — el ticket muestra "RUT: <rut de la tienda>" entre el nombre y
+// "Comprobante de venta", y fija @page { margin: 0 } para que el navegador no
+// imprima su encabezado (fecha + título "PetShop POS").
+describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/C-85)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("C-84: muestra 'RUT: …' de la tienda entre el nombre y 'Comprobante de venta'", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] }, [], { name: "Mascotas Pet Shop", rut: "76123456-7" });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+
+    const rut = await screen.findByText("RUT: 76123456-7");
+    const nombre = screen.getByRole("heading", { name: "Mascotas Pet Shop" });
+    const comprobante = screen.getByText("Comprobante de venta");
+    expect(nombre.compareDocumentPosition(rut) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rut.compareDocumentPosition(comprobante) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("C-84b: tienda sin RUT (null o vacío) → no muestra la línea RUT", async () => {
+    for (const rut of [null, "  "]) {
+      mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] }, [], { name: "Mascotas Pet Shop", rut });
+      const { unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+      await screen.findByRole("heading", { name: "Mascotas Pet Shop" });
+      expect(screen.queryByText(/^RUT:/)).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("C-85: la página de impresión fija @page { margin: 0 } (sin encabezado/pie del navegador)", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const { container } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText("Comprobante de venta");
+    const estilos = [...container.querySelectorAll("style")].map((s) => s.textContent).join(" ");
+    expect(estilos).toMatch(/@page\s*\{\s*margin:\s*0;?\s*\}/);
+  });
+});
