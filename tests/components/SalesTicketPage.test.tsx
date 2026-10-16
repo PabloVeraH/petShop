@@ -832,5 +832,15 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     // Más chico que la 1ª versión (0.75 seguía viéndose grande) y en sans-serif.
     expect(Number(print.match(/zoom:\s*(0?\.\d+)/)?.[1])).toBeLessThan(0.75);
     expect(print).toMatch(/\.ticket-termico\s*\{[^}]*font-family:\s*Arial/);
+
+    // C-88: letra impresa = pantalla × zoom − 2 px (pedido 2026-10-16), y la
+    // medición del alto usa los mismos tamaños.
+    const zoom = Number(print.match(/zoom:\s*(0?\.\d+)/)?.[1]);
+    const impreso = (sel: string, clase: string) =>
+      Number(estilos.match(new RegExp(`${sel} \\.${clase} \\{ font-size: ([\\d.]+)px`))?.[1]) * zoom;
+    for (const [clase, pantalla] of [["text-lg", 18], ["text-base", 16], ["text-sm", 14], ["text-xs", 12]] as const) {
+      expect(impreso("\\.ticket-termico", clase)).toBeCloseTo(pantalla * zoom - 2, 1);
+      expect(impreso("\\.ticket-medir", clase)).toBeCloseTo(pantalla * zoom - 2, 1);
+    }
   });
 });

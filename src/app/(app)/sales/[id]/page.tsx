@@ -59,15 +59,26 @@ const PX_POR_MM = 96 / 25.4;
 // Sans-serif explícita: la del tema no resuelve (--font-sans) y el navegador
 // caía en Times, que en papel térmico se lee peor.
 const FUENTE_TICKET = "Arial, Helvetica, sans-serif";
+// Letra impresa = tamaño en pantalla × ZOOM − RESTA_PX (pedido 2026-10-16:
+// "2 px menos en todo"). Se fija por clase porque zoom solo escala en
+// proporción; el valor va dividido por ZOOM porque el zoom se aplica después.
+const RESTA_PX = 2;
+const TAMANOS_PANTALLA_PX = { "text-lg": 18, "text-base": 16, "text-sm": 14, "text-xs": 12 };
+const letraImpresa = (sel: string) =>
+  Object.entries(TAMANOS_PANTALLA_PX)
+    .map(([clase, px]) => `${sel} .${clase} { font-size: ${((px * ZOOM - RESTA_PX) / ZOOM).toFixed(2)}px; }`)
+    .join("\n");
 // .ticket-medir reproduce en pantalla el layout de impresión (ancho del papel,
-// mismo zoom y padding) para medir el alto real antes de imprimir.
+// mismo zoom, padding y letra) para medir el alto real antes de imprimir.
 const TICKET_PRINT_CSS = `
 @page { margin: 0; }
 @media print {
   .ticket-termico { zoom: ${ZOOM}; padding: 2mm 5mm !important; font-family: ${FUENTE_TICKET}; }
   .ticket-termico * { color: #000 !important; }
+${letraImpresa(".ticket-termico")}
 }
-.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; font-family: ${FUENTE_TICKET}; }`;
+.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; font-family: ${FUENTE_TICKET}; }
+${letraImpresa(".ticket-medir")}`;
 
 // La página impresa mide lo mismo que el ticket: sin esto la térmica avanza
 // papel en blanco hasta el largo de la hoja configurada en el navegador.
