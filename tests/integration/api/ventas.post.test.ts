@@ -1151,6 +1151,64 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
   });
 });
 
+// ── Errores 500: causa real en error_logs, cuerpo genérico al cliente ────────
+// REGRESIÓN: la ruta atrapaba sus propios errores y error_logs solo guardaba
+// "HTTP 500 en POST /api/ventas", sin la causa (venta fallida en mascotaspetshop).
+
+describe("POST /api/ventas — errores 500 registran la causa real (I-742/I-743)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupHappyPath();
+  });
+
+  const flush = () => new Promise((r) => setImmediate(r));
+  const errorLogInserts = () =>
+    mockChain.insert.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .filter((row) => "stack_trace" in row);
+
+  it("I-742: REGRESIÓN — error inesperado de crear_venta_tx → 500 genérico y error_logs guarda el mensaje de la BD", async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Could not find the function public.crear_venta_tx(p_user_id) in the schema cache" },
+    });
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    await flush();
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Error interno del servidor" });
+    const logs = errorLogInserts();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toEqual(expect.objectContaining({
+      endpoint: "POST /api/ventas",
+      error_message: "crear_venta_tx: Could not find the function public.crear_venta_tx(p_user_id) in the schema cache",
+      store_id: STORE_ID,
+    }));
+  });
+
+  it("I-743: REGRESIÓN — excepción no controlada → 500 genérico y error_logs guarda mensaje y stack", async () => {
+    mockRpc.mockRejectedValue(new Error("fetch failed"));
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    await flush();
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Error interno del servidor" });
+    const logs = errorLogInserts();
+    expect(logs).toHaveLength(1);
+    expect(logs[0].error_message).toBe("fetch failed");
+    expect(logs[0].stack_trace).toEqual(expect.stringContaining("fetch failed"));
+  });
+
+  it("I-743b: error de stock de la BD sigue siendo 422 y no se registra como error de sistema", async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Stock insuficiente para producto x" } });
+    const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo" }));
+    await flush();
+
+    expect(res.status).toBe(422);
+    expect(errorLogInserts()).toHaveLength(0);
+  });
+});
+
 // ── IVA: fórmula de extracción (REGRESIÓN) ───────────────────────────────────
 // Bug: el backend usaba total × 0.19 (aditiva) en lugar de total × (0.19/1.19) (extracción),
 // sobreestimando el IVA registrado en BD. Los precios del catálogo ya incluyen IVA.
