@@ -14,6 +14,13 @@
 ## Reglas desde el baseline
 
 - **No aplicar `000_baseline.sql` en el demo**: ya tiene todo eso.
+- **El baseline es solo esquema: no trae filas.** Toda tabla global de
+  catálogo que el código o una FK necesitan con datos (hoy:
+  `canales_externos`, ver 091) va con sus filas en una migración propia, con
+  `INSERT ... ON CONFLICT DO NOTHING`. Si agregas un catálogo nuevo, sus
+  filas van en la misma migración que crea la tabla. Sin esto, una tienda
+  nueva arranca con la tabla vacía y falla en producción (en mascotaspetshop
+  toda venta daba 500 por `ventas_canal_fkey`, 2026-10-16).
 - Todo cambio de esquema es un archivo nuevo `NNN_descripcion.sql` con número
   mayor al último usado en `migrations/`, `historico/` y el demo. **El
   siguiente libre es `092`** (la `086` es de sucursales; la `087`, search_path; la `088`, índices de FKs; la `089`, rate limit; la `090`, registro de migraciones; la `091`, filas de canales_externos).
