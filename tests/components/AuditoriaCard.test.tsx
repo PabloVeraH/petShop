@@ -187,6 +187,27 @@ describe("AuditoriaCard component", () => {
     });
   });
 
+  // C-81: REGRESIÓN — el detalle de un failure no mostraba error_message (la
+  // causa de una venta fallida quedaba guardada pero invisible).
+  it("C-81: REGRESIÓN — detalle de auditoría con failure muestra error_message; un success no lo muestra", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: mockLogs, count: 2 }),
+    });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.click(screen.getAllByRole("row")[2]); // log-2: failure
+    await waitFor(() => expect(screen.getByText("Constraint violation")).toBeInTheDocument());
+    expect(screen.getByText("error_message")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Cerrar"));
+    fireEvent.click(screen.getAllByRole("row")[1]); // log-1: success, error_message null
+    await waitFor(() => expect(screen.getByText(/new_values/)).toBeInTheDocument());
+    expect(screen.queryByText("error_message")).not.toBeInTheDocument();
+  });
+
   // C-31
   it("C-31: filtro de acción dispara nueva query", async () => {
     mockFetch.mockResolvedValue({
@@ -281,6 +302,59 @@ describe("AuditoriaCard component", () => {
     createElementSpy.mockRestore();
     (global.URL as unknown as Record<string, unknown>).createObjectURL = origCreateObjectURL;
     (global.URL as unknown as Record<string, unknown>).revokeObjectURL = origRevokeObjectURL;
+  });
+
+  // C-82: REGRESIÓN — el export pedía limit=500 y la API (limit <= 100) respondía
+  // 400 "Demasiado grande"; el error se perdía y no se descargaba nada.
+  it("C-82: REGRESIÓN — exportar CSV pagina de a 100 (nunca limit > 100) y respeta los filtros", async () => {
+    const page = (n: number) => Array.from({ length: n }, (_, i) => ({ ...mockLogs[0], id: `log-${n}-${i}` }));
+    mockFetch.mockImplementation((url: string) => {
+      const p = new URL(url, "http://localhost").searchParams;
+      if (p.get("limit") === "50") return Promise.resolve({ ok: true, json: async () => ({ data: mockLogs, count: 2 }) });
+      const offset = Number(p.get("offset"));
+      return Promise.resolve({ ok: true, json: async () => ({ data: page(offset === 0 ? 100 : 30) }) });
+    });
+    const mockClick = jest.fn();
+    const origCreateElement = document.createElement.bind(document);
+    const createElementSpy = jest.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      if (tag === "a") return { href: "", download: "", click: mockClick } as unknown as HTMLAnchorElement;
+      return origCreateElement(tag);
+    });
+    const urlStatics = global.URL as unknown as Record<string, unknown>;
+    const origCreate = urlStatics.createObjectURL;
+    const origRevoke = urlStatics.revokeObjectURL;
+    urlStatics.createObjectURL = jest.fn(() => "blob:mock-url");
+    urlStatics.revokeObjectURL = jest.fn();
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+    mockFetch.mockClear();
+
+    fireEvent.click(screen.getByText("Exportar CSV"));
+    await waitFor(() => expect(mockClick).toHaveBeenCalled(), { timeout: 5000 });
+
+    const exportCalls = mockFetch.mock.calls.map((c) => new URL(c[0] as string, "http://localhost"));
+    expect(exportCalls.map((u) => u.pathname)).toEqual(["/api/audit-logs", "/api/audit-logs"]);
+    expect(exportCalls.map((u) => u.searchParams.get("offset"))).toEqual(["0", "100"]);
+    expect(exportCalls.every((u) => Number(u.searchParams.get("limit")) <= 100)).toBe(true);
+
+    createElementSpy.mockRestore();
+    urlStatics.createObjectURL = origCreate;
+    urlStatics.revokeObjectURL = origRevoke;
+  });
+
+  it("C-83: si la API rechaza el export, el mensaje de error se muestra (no se silencia)", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      const p = new URL(url, "http://localhost").searchParams;
+      if (p.get("limit") === "50") return Promise.resolve({ ok: true, json: async () => ({ data: mockLogs, count: 2 }) });
+      return Promise.resolve({ ok: false, json: async () => ({ error: "Demasiado grande" }) });
+    });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.click(screen.getByText("Exportar CSV"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo exportar: Demasiado grande");
   });
 });
 

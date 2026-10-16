@@ -1931,6 +1931,8 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-591 | Granel sin peso_gramos → 400 sin RPC | POST /api/ventas | integration |
 | I-592 | Venta por unidad con cantidad fraccionaria → 400 (Zod) | POST /api/ventas | integration |
 | I-593 | 'Producto no habilitado para granel' / 'Cantidad inválida' de la BD → 400 | POST /api/ventas | integration |
+| I-742 | REGRESIÓN: error inesperado de `crear_venta_tx` → 500 genérico al cliente y `error_logs` guarda el mensaje real de la BD (antes solo "HTTP 500 en POST /api/ventas") | POST /api/ventas | integration |
+| I-743 | REGRESIÓN: excepción no controlada → 500 genérico y `error_logs` guarda mensaje + stack; error de stock (I-743b) sigue en 422 sin registrarse como error de sistema | POST /api/ventas | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
 
@@ -2479,6 +2481,9 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-78 | Filtros de Errores y de Sesiones entran en sus queries | AuditoriaCard | component |
 | C-79 | Detalle de error (mensaje, stack, context); Cerrar y Escape | AuditoriaCard | component |
 | C-80 | Falla de la API de errores o sesiones deja la grilla vacía sin romper | AuditoriaCard | component |
+| C-81 | REGRESIÓN: el detalle de un log de auditoría `failure` muestra `error_message` (antes quedaba guardado pero invisible); un `success` no lo muestra | AuditoriaCard | component |
+| C-82 | REGRESIÓN: Exportar CSV pagina de a 100 (`limit` nunca > 100, tope de la API) en vez de pedir `limit=500` y recibir 400 | AuditoriaCard | component |
+| C-83 | Si la API rechaza el export, el mensaje de error se muestra en pantalla (antes se perdía en silencio) | AuditoriaCard | component |
 | CD-11 | Editar cliente: RUT inválido no llama, autoformato, error visible, PATCH | ClienteDetalle | component |
 | CD-12 | Editar mascota: nombre duplicado rechazado sin llamar; PATCH con números | ClienteDetalle | component |
 | CD-13 | REGRESIÓN: error del PATCH de mascota se muestra una sola vez (antes en cada fila) | ClienteDetalle | component |

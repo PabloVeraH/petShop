@@ -78,14 +78,10 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   return NextResponse.json({ data: data ?? [], count: count ?? 0 });
 }, { endpoint: "GET /api/ventas" });
 
-export const POST = withErrorLogging(async (req: NextRequest) => {
-  try {
-    return await postVenta(req);
-  } catch (e) {
-    console.error("[ventas POST] Unhandled error:", e);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  }
-}, { endpoint: "POST /api/ventas" });
+// Las excepciones suben a withErrorLogging, que guarda mensaje + stack en
+// error_logs y responde el mismo 500 genérico. Atraparlas aquí dejaba en
+// error_logs solo "HTTP 500 en POST /api/ventas", sin la causa.
+export const POST = withErrorLogging(postVenta, { endpoint: "POST /api/ventas" });
 
 async function postVenta(req: NextRequest) {
   const ctx = await getStoreId();
@@ -303,10 +299,12 @@ async function postVenta(req: NextRequest) {
       return NextResponse.json({ error: txError.message }, { status: 400 });
     }
     const isStockError = txError.message.toLowerCase().includes("stock") || txError.message.toLowerCase().includes("insuficiente");
-    return NextResponse.json(
-      { error: isStockError ? "Stock insuficiente para completar la venta." : "Error interno del servidor" },
-      { status: isStockError ? 422 : 500 }
-    );
+    if (isStockError) {
+      return NextResponse.json({ error: "Stock insuficiente para completar la venta." }, { status: 422 });
+    }
+    // Error inesperado de la BD: se lanza para que withErrorLogging guarde el
+    // mensaje real en error_logs; el cliente sigue recibiendo el 500 genérico.
+    throw new Error(`crear_venta_tx: ${txError.message}`);
   }
 
   const { venta, created } = ventaResult as { venta: Record<string, unknown>; created: boolean };
