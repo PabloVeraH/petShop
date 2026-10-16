@@ -779,6 +779,43 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     expect(estilos).toMatch(/@page\s*\{\s*margin:\s*0;?\s*\}/);
   });
 
+  // C-87 — la térmica avanzaba papel en blanco hasta el largo de la hoja: la
+  // página impresa debe medir lo mismo que el ticket (80 mm × alto medido).
+  it("C-87: Imprimir mide el ticket con el layout de impresión y fija @page a 80mm × su alto", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const printSpy = jest.fn();
+    window.print = printSpy;
+    const ALTO_PX = 400;
+    const clasesAlMedir: string[] = [];
+    const rectSpy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      clasesAlMedir.push(this.className);
+      return { height: this.classList.contains("ticket-medir") ? ALTO_PX : 0 } as DOMRect;
+    });
+
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText("Comprobante de venta");
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
+
+    const altoMm = Math.ceil(ALTO_PX / (96 / 25.4)) + 4;
+    expect(document.getElementById("ticket-page-size")?.textContent).toBe(`@page { size: 80mm ${altoMm}mm; margin: 0; }`);
+    expect(printSpy).toHaveBeenCalledTimes(1);
+    expect(clasesAlMedir.some((c) => c.includes("ticket-termico") && c.includes("ticket-medir"))).toBe(true);
+    // La clase de medición se quita: no queda aplicada en pantalla.
+    expect(screen.getByText("Comprobante de venta").closest(".ticket-medir")).toBeNull();
+    rectSpy.mockRestore();
+  });
+
+  it("C-87b: si no se puede medir (alto 0), imprime igual sin fijar tamaño de página", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const printSpy = jest.fn();
+    window.print = printSpy;
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText("Comprobante de venta");
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
+    expect(document.getElementById("ticket-page-size")?.textContent).toBe("@page { margin: 0; }");
+    expect(printSpy).toHaveBeenCalledTimes(1);
+  });
+
   // C-86 — impresión real en térmica (fotos 2026-10-16): letra demasiado
   // grande, grises casi invisibles y montos cortados en el borde derecho.
   it("C-86: en impresión el ticket se achica (zoom), va en negro y con margen lateral", async () => {

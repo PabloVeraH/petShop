@@ -2488,6 +2488,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-84 | Ticket de venta muestra `RUT: <rut de la tienda>` entre el nombre y "Comprobante de venta"; sin RUT (null/vacío) no muestra la línea (C-84b) | SalesTicketPage | component |
 | C-85 | Ticket de venta fija `@page { margin: 0 }`: el navegador no imprime su encabezado (fecha + título "PetShop POS") | SalesTicketPage | component |
 | C-86 | Impresión del ticket en térmica: `zoom` reduce letra y espacios, texto en negro (los grises no se ven en papel térmico) y padding lateral para que los montos no se corten | SalesTicketPage | component |
+| C-87 | Imprimir mide el ticket con el layout de impresión y fija `@page { size: 80mm <alto>mm }`: la térmica corta tras "¡Gracias por su compra!" en vez de avanzar hasta el largo de la hoja; sin medida (alto 0) imprime sin fijar tamaño (C-87b) | SalesTicketPage | component |
 | CD-11 | Editar cliente: RUT inválido no llama, autoformato, error visible, PATCH | ClienteDetalle | component |
 | CD-12 | Editar mascota: nombre duplicado rechazado sin llamar; PATCH con números | ClienteDetalle | component |
 | CD-13 | REGRESIÓN: error del PATCH de mascota se muestra una sola vez (antes en cada fila) | ClienteDetalle | component |
