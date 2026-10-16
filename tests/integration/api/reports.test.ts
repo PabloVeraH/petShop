@@ -1,5 +1,5 @@
 /**
- * Tests I-79 a I-83, I-433 a I-435: GET /api/reports y /api/reports/export
+ * Tests I-79 a I-83, I-433 a I-435, I-745, I-746: GET /api/reports y /api/reports/export
  */
 import { NextRequest } from "next/server";
 
@@ -9,6 +9,10 @@ const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+// Export exige storeAdmin de la tienda o systemAdmin (I-746). Por defecto la
+// sesión es la de un admin de la tienda del test.
+let mockClaims: Record<string, unknown> | null = { publicMetadata: { storeAdmin: true, storeId: "123e4567-e89b-12d3-a456-426614174000" } };
+jest.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ sessionClaims: mockClaims }) }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 
 function chain(data: unknown[] = []) {
@@ -191,6 +195,7 @@ describe("GET /api/reports — predicción (I-433 a I-435)", () => {
 describe("GET /api/reports/export", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockClaims = { publicMetadata: { storeAdmin: true, storeId: STORE_ID } };
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
     mockFrom.mockReturnValue(chain());
   });
@@ -253,6 +258,34 @@ describe("GET /api/reports/export", () => {
     expect(workers.select).toHaveBeenCalledWith("clerk_id, nombre");
     expect(workers.in).toHaveBeenCalledWith("clerk_id", ["user_ana", "user_luis"]);
     expect(ventas.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
+  // I-746: el export (ventas con clientes/RUT/vendedor, inventario con costos)
+  // era accesible para cualquier usuario de la tienda, incluido el storeWorker.
+  it.each([
+    ["storeWorker de la tienda", { publicMetadata: { storeId: STORE_ID } }],
+    ["storeAdmin de OTRA tienda", { publicMetadata: { storeAdmin: true, storeId: "otra-tienda" } }],
+    ["sesión sin metadata", {}],
+  ])("I-746: %s → 403 sin consultar datos (ventas e inventario)", async (_rol, claims) => {
+    mockClaims = claims;
+    const { GET } = await import("@/app/api/reports/export/route");
+    for (const tipo of ["ventas", "inventario"]) {
+      const res = await GET(new NextRequest(`http://localhost/api/reports/export?tipo=${tipo}`));
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: "Forbidden" });
+    }
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["storeAdmin de la tienda", { publicMetadata: { storeAdmin: true, storeId: STORE_ID } }],
+    ["systemAdmin", { publicMetadata: { systemAdmin: true } }],
+  ])("I-746: %s → 200 con CSV", async (_rol, claims) => {
+    mockClaims = claims;
+    const { GET } = await import("@/app/api/reports/export/route");
+    const res = await GET(new NextRequest("http://localhost/api/reports/export?tipo=ventas"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/csv");
   });
 
   it("I-745b: sin ventas con vendedor no consulta clerk_users", async () => {

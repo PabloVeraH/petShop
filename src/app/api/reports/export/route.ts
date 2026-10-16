@@ -2,11 +2,16 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { exigirStoreAdmin } from "@/lib/admin-check";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
   if (!ctx) return new NextResponse("Unauthorized", { status: 401 });
   const { storeId: store_id } = ctx;
+  // Solo storeAdmin de esta tienda o systemAdmin: el CSV trae todas las
+  // ventas (clientes, RUT, vendedores) e inventario con costos.
+  const denegado = await exigirStoreAdmin(store_id);
+  if (denegado) return denegado;
   const supabase = createServiceClient();
 
   const tipo = req.nextUrl.searchParams.get("tipo") ?? "ventas";
