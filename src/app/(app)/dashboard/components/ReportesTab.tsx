@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 
 interface ReportsData {
   periodo: number;
@@ -334,6 +335,12 @@ export default function ReportesTab() {
   const [data, setData] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<"ventas" | "inventario" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  // Ocultar el export al storeWorker es conveniencia de UX: el control real
+  // es el servidor (GET /api/reports/export → 403 si no es admin).
+  const { user } = useUser();
+  const meta = user?.publicMetadata as Record<string, unknown> | undefined;
+  const isAdmin = !!(meta?.storeAdmin || meta?.systemAdmin);
 
   // loading vuelve a true en los handlers que cambian el filtro (no dentro del
   // efecto: setState síncrono en un efecto provoca un render en cascada).
@@ -347,14 +354,24 @@ export default function ReportesTab() {
 
   async function handleExport(tipo: "ventas" | "inventario") {
     setExporting(tipo);
-    const url = `/api/reports/export?tipo=${tipo}`;
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${tipo}-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    setExporting(null);
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/reports/export?tipo=${tipo}`);
+      // Sin esto un 403/500 se descargaba como si fuera el CSV.
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(res.status === 403 ? "No tienes permiso para exportar." : body?.error ?? "Error exportando");
+      }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${tipo}-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+    } catch (e) {
+      setExportError(`No se pudo exportar: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -387,22 +404,27 @@ export default function ReportesTab() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => handleExport("ventas")}
-            disabled={exporting === "ventas"}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {exporting === "ventas" ? "Exportando..." : "↓ Ventas CSV"}
-          </button>
-          <button
-            onClick={() => handleExport("inventario")}
-            disabled={exporting === "inventario"}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {exporting === "inventario" ? "Exportando..." : "↓ Inventario CSV"}
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => handleExport("ventas")}
+                disabled={exporting === "ventas"}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {exporting === "ventas" ? "Exportando..." : "↓ Ventas CSV"}
+              </button>
+              <button
+                onClick={() => handleExport("inventario")}
+                disabled={exporting === "inventario"}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {exporting === "inventario" ? "Exportando..." : "↓ Inventario CSV"}
+              </button>
+            </>
+          )}
         </div>
       </div>
+      {exportError && <p role="alert" className="text-sm text-red-700 -mt-4 mb-4">{exportError}</p>}
 
       {loading && <div className="text-gray-500">Cargando...</div>}
 

@@ -1,5 +1,5 @@
 /**
- * Tests RC-01 a RC-13: ReportesTab — renderizado, PieChart y tooltip
+ * Tests RC-01 a RC-16: ReportesTab — renderizado, PieChart, tooltip y export CSV
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -34,6 +34,10 @@ const MOCK_DATA = {
 // ── Fetch mock ────────────────────────────────────────────────────────────────
 
 global.fetch = jest.fn();
+
+// Sesión de Clerk en el cliente: admin por defecto (botones de export visibles).
+let mockUserMeta: Record<string, unknown> = { storeAdmin: true };
+jest.mock("@clerk/nextjs", () => ({ useUser: () => ({ user: { publicMetadata: mockUserMeta } }) }));
 
 function mockFetch(data: object = MOCK_DATA) {
   (global.fetch as jest.Mock).mockResolvedValueOnce({ json: async () => data });
@@ -193,5 +197,69 @@ describe("ReportesTab — selector de período", () => {
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("periodo=7")),
     );
+  });
+});
+
+// ── Suite: export CSV (solo admins) ──────────────────────────────────────────
+// El gate de la UI es conveniencia: el control real es GET /api/reports/export
+// → 403 para quien no sea storeAdmin de la tienda ni systemAdmin (I-746).
+
+describe("ReportesTab — export CSV", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUserMeta = { storeAdmin: true };
+  });
+
+  it("RC-14: el storeWorker no ve los botones de export; storeAdmin y systemAdmin sí", async () => {
+    mockUserMeta = {};
+    mockFetch();
+    const { unmount } = render(<ReportesTab />);
+    expect(screen.queryByText("↓ Ventas CSV")).not.toBeInTheDocument();
+    expect(screen.queryByText("↓ Inventario CSV")).not.toBeInTheDocument();
+    unmount();
+
+    for (const meta of [{ storeAdmin: true }, { systemAdmin: true }]) {
+      mockUserMeta = meta;
+      mockFetch();
+      const r = render(<ReportesTab />);
+      expect(screen.getByText("↓ Ventas CSV")).toBeInTheDocument();
+      expect(screen.getByText("↓ Inventario CSV")).toBeInTheDocument();
+      r.unmount();
+    }
+  });
+
+  it("RC-15: 'Ventas CSV' pide /api/reports/export?tipo=ventas y descarga el archivo", async () => {
+    setup();
+    await waitForData();
+    const click = jest.fn();
+    const origCreate = document.createElement.bind(document);
+    const spy = jest.spyOn(document, "createElement").mockImplementation((tag: string) =>
+      tag === "a" ? ({ click, href: "", download: "" } as unknown as HTMLAnchorElement) : origCreate(tag));
+    (URL as unknown as Record<string, unknown>).createObjectURL = jest.fn(() => "blob:x");
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, status: 200, blob: async () => new Blob(["a,b"]) });
+
+    fireEvent.click(screen.getByText("↓ Ventas CSV"));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(global.fetch).toHaveBeenLastCalledWith("/api/reports/export?tipo=ventas");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    spy.mockRestore();
+  });
+
+  it("RC-16: si la API rechaza (403) muestra el error y no descarga nada", async () => {
+    setup();
+    await waitForData();
+    const click = jest.fn();
+    const origCreate = document.createElement.bind(document);
+    const spy = jest.spyOn(document, "createElement").mockImplementation((tag: string) =>
+      tag === "a" ? ({ click, href: "", download: "" } as unknown as HTMLAnchorElement) : origCreate(tag));
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ error: "Forbidden" }) });
+
+    fireEvent.click(screen.getByText("↓ Ventas CSV"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo exportar: No tienes permiso para exportar.");
+    expect(click).not.toHaveBeenCalled();
+    expect(screen.getByText("↓ Ventas CSV")).not.toBeDisabled();
+    spy.mockRestore();
   });
 });
