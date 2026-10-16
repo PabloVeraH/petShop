@@ -2,7 +2,8 @@
  * Test I-734: GET /api/tienda/nombre — nombre de la tienda para cualquier
  * usuario de la tienda (sidebar y recibo del POS). QA 2026-09-27: el
  * storeWorker veía "PetShop" porque GET /api/settings es solo admin (SEC-07,
- * que se mantiene). Este endpoint solo expone `name`.
+ * que se mantiene). Este endpoint solo expone `name` y `rut` (I-744: el RUT
+ * de la tienda va impreso en el ticket de venta).
  */
 import { NextRequest } from "next/server";
 
@@ -29,19 +30,24 @@ describe("GET /api/tienda/nombre (I-734)", () => {
     jest.clearAllMocks();
     mockDeshabilitado.mockResolvedValue(false);
     mockGetStoreId.mockResolvedValue({ userId: "user-worker", storeId: STORE_ID });
-    mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella" }, error: null });
+    mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: "76123456-7" }, error: null });
     mockEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
   });
 
-  it("I-734: cualquier usuario de la tienda (ej. storeWorker) recibe SOLO el nombre, de SU tienda", async () => {
+  it("I-734/I-744: cualquier usuario de la tienda (ej. storeWorker) recibe SOLO nombre y RUT, de SU tienda", async () => {
     const res = await llamar();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ name: "PetShop La Huella" });
+    expect(await res.json()).toEqual({ name: "PetShop La Huella", rut: "76123456-7" });
     expect(mockFrom).toHaveBeenCalledWith("stores");
-    expect(mockSelect).toHaveBeenCalledWith("name");
+    expect(mockSelect).toHaveBeenCalledWith("name, rut");
     expect(mockEq).toHaveBeenCalledWith("id", STORE_ID);
+  });
+
+  it("I-744: tienda sin RUT → rut null (nunca undefined)", async () => {
+    mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: null }, error: null });
+    expect(await (await llamar()).json()).toEqual({ name: "PetShop La Huella", rut: null });
   });
 
   it("I-734: sin sesión → 401 sin consultar", async () => {

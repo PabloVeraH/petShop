@@ -76,12 +76,13 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     queryFn: () => getVenta(id),
   });
 
-  const { data: storeData } = useQuery<{ name: string }>({
+  const { data: storeData } = useQuery<{ name: string; rut?: string | null }>({
     queryKey: ["store-name"],
-    queryFn: () => fetchJson<{ name: string }>("/api/tienda/nombre"),
+    queryFn: () => fetchJson<{ name: string; rut?: string | null }>("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
   });
   const storeName = storeData?.name ?? "PetShop";
+  const storeRut = storeData?.rut?.trim() || null;
 
   const { data: notasCredito } = useQuery({
     queryKey: ["notas-credito", id],
@@ -215,6 +216,9 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-md mx-auto space-y-4 print:max-w-none print:mx-0">
+      {/* Sin margen de página el navegador no imprime su encabezado/pie
+          (fecha, título "PetShop POS", URL); el margen lo da el ticket (print:p-4). */}
+      <style>{"@page { margin: 0; }"}</style>
       {/* Acciones (no se imprimen) */}
       <div className="flex gap-2 mb-4 print:hidden flex-wrap">
         <Button variant="outline" onClick={() => router.back()}>
@@ -291,7 +295,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Ticket */}
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none print:p-0">
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none print:p-4">
         {data.estado === "anulada" && (
           <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2 text-center text-red-700 text-sm font-medium">
             ⚠ Venta anulada — stock revertido
@@ -300,6 +304,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
 
         <div className="text-center border-b pb-4">
           <h1 className="text-lg font-bold">{storeName}</h1>
+          {storeRut && <p className="text-xs text-gray-600">RUT: {storeRut}</p>}
           <p className="text-xs text-gray-500">Comprobante de venta</p>
           <p className="text-sm font-medium mt-1">
             N° {data.numero_comprobante ?? data.id.slice(0, 8).toUpperCase()}
