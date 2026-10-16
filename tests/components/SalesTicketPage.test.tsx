@@ -778,4 +778,19 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     const estilos = [...container.querySelectorAll("style")].map((s) => s.textContent).join(" ");
     expect(estilos).toMatch(/@page\s*\{\s*margin:\s*0;?\s*\}/);
   });
+
+  // C-86 — impresión real en térmica (fotos 2026-10-16): letra demasiado
+  // grande, grises casi invisibles y montos cortados en el borde derecho.
+  it("C-86: en impresión el ticket se achica (zoom), va en negro y con margen lateral", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    const { container } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    const comprobante = await screen.findByText("Comprobante de venta");
+    expect(comprobante.closest(".ticket-termico")).not.toBeNull();
+
+    const estilos = [...container.querySelectorAll("style")].map((s) => s.textContent).join(" ");
+    const print = estilos.slice(estilos.indexOf("@media print"));
+    expect(print).toMatch(/\.ticket-termico\s*\{[^}]*zoom:\s*0?\.\d+/);
+    expect(print).toMatch(/\.ticket-termico\s*\{[^}]*padding:\s*\S+\s+\d+mm/);
+    expect(print).toMatch(/\.ticket-termico \*\s*\{[^}]*color:\s*#000/);
+  });
 });

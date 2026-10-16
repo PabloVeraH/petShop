@@ -51,6 +51,15 @@ type VentaDetalle = {
   }>;
 };
 
+// ponytail: zoom fijo para térmica de 80 mm; si una tienda usa 58 mm o
+// necesita otro tamaño, pasar el factor a la configuración de la tienda.
+const TICKET_PRINT_CSS = `
+@page { margin: 0; }
+@media print {
+  .ticket-termico { zoom: 0.75; padding: 2mm 5mm !important; }
+  .ticket-termico * { color: #000 !important; }
+}`;
+
 async function getVenta(id: string): Promise<VentaDetalle> {
   return fetchJson<VentaDetalle>(`/api/ventas/${id}`);
 }
@@ -216,9 +225,12 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-md mx-auto space-y-4 print:max-w-none print:mx-0">
-      {/* Sin margen de página el navegador no imprime su encabezado/pie
-          (fecha, título "PetShop POS", URL); el margen lo da el ticket (print:p-4). */}
-      <style>{"@page { margin: 0; }"}</style>
+      {/* Impresión en térmica (80 mm). Sin margen de página el navegador no
+          imprime su encabezado/pie (fecha, título "PetShop POS", URL) y el
+          papel no avanza hasta el pie. zoom achica letra y espacios en
+          proporción; el gris claro no se ve en papel térmico → negro; el
+          padding lateral evita que los montos se corten en el borde. */}
+      <style>{TICKET_PRINT_CSS}</style>
       {/* Acciones (no se imprimen) */}
       <div className="flex gap-2 mb-4 print:hidden flex-wrap">
         <Button variant="outline" onClick={() => router.back()}>
@@ -295,7 +307,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Ticket */}
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none print:p-4">
+      <div className="ticket-termico bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none">
         {data.estado === "anulada" && (
           <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2 text-center text-red-700 text-sm font-medium">
             ⚠ Venta anulada — stock revertido
