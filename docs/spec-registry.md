@@ -2489,6 +2489,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-85 | Ticket de venta fija `@page { margin: 0 }`: el navegador no imprime su encabezado (fecha + título "PetShop POS") | SalesTicketPage | component |
 | C-86 | Impresión del ticket en térmica: `zoom` (< 0.75) reduce letra y espacios, fuente sans-serif (Arial), texto en negro (los grises no se ven en papel térmico) y padding lateral para que los montos no se corten | SalesTicketPage | component |
 | C-87 | Imprimir mide el ticket con el layout de impresión y fija `@page { size: 80mm <alto>mm }`: la térmica corta tras "¡Gracias por su compra!" en vez de avanzar hasta el largo de la hoja; sin medida (alto 0) imprime sin fijar tamaño (C-87b) | SalesTicketPage | component |
+| C-88 | Letra impresa del ticket = tamaño en pantalla × zoom − 2 px en cada clase (text-lg/base/sm/xs); la medición del alto (`.ticket-medir`) usa los mismos tamaños (en el test de C-86) | SalesTicketPage | component |
 | CD-11 | Editar cliente: RUT inválido no llama, autoformato, error visible, PATCH | ClienteDetalle | component |
 | CD-12 | Editar mascota: nombre duplicado rechazado sin llamar; PATCH con números | ClienteDetalle | component |
 | CD-13 | REGRESIÓN: error del PATCH de mascota se muestra una sola vez (antes en cada fila) | ClienteDetalle | component |
