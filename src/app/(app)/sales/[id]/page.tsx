@@ -54,17 +54,20 @@ type VentaDetalle = {
 // ponytail: papel y zoom fijos para térmica de 80 mm; si una tienda usa 58 mm
 // o necesita otro tamaño, pasarlos a la configuración de la tienda.
 const PAPEL_MM = 80;
-const ZOOM = 0.75;
+const ZOOM = 0.65;
 const PX_POR_MM = 96 / 25.4;
+// Sans-serif explícita: la del tema no resuelve (--font-sans) y el navegador
+// caía en Times, que en papel térmico se lee peor.
+const FUENTE_TICKET = "Arial, Helvetica, sans-serif";
 // .ticket-medir reproduce en pantalla el layout de impresión (ancho del papel,
 // mismo zoom y padding) para medir el alto real antes de imprimir.
 const TICKET_PRINT_CSS = `
 @page { margin: 0; }
 @media print {
-  .ticket-termico { zoom: ${ZOOM}; padding: 2mm 5mm !important; }
+  .ticket-termico { zoom: ${ZOOM}; padding: 2mm 5mm !important; font-family: ${FUENTE_TICKET}; }
   .ticket-termico * { color: #000 !important; }
 }
-.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; }`;
+.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; font-family: ${FUENTE_TICKET}; }`;
 
 // La página impresa mide lo mismo que el ticket: sin esto la térmica avanza
 // papel en blanco hasta el largo de la hoja configurada en el navegador.
