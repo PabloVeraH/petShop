@@ -110,10 +110,15 @@ interface AuditoriaCardProps {
   role: AdminRole;
 }
 
+// Export CSV: la API de auditoría acepta limit <= 100 por página.
+const EXPORT_PAGE = 100;
+const EXPORT_MAX = 500;
+
 export function AuditoriaCard({ role }: AuditoriaCardProps) {
   const [activeTab, setActiveTab] = useState<"audit" | "errors" | "sessions">("audit");
   const [page, setPage] = useState(0);
   const [modalLog, setModalLog] = useState<AuditLog | ErrorLog | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const limit = 50;
 
   useEffect(() => {
@@ -219,38 +224,44 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
     },
   });
 
-  const handleExportCSV = useCallback(() => {
-    const params = { ...auditQueryParams, limit: "500", offset: "0" };
-    fetch(`/api/audit-logs?${new URLSearchParams(params)}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error("Error exportando");
-        return r.json();
-      })
-      .then((json) => {
-        const data: AuditLog[] = json.data;
-        const headers = ["Fecha", "Usuario", "Acción", "Entidad", "ID Entidad", "Descripción", "IP", "Resultado", "Error"];
-        const rows = data.map((log) => [
-          new Date(log.created_at).toLocaleString("es-CL"),
-          log.user_id,
-          log.action,
-          log.entity_type,
-          log.entity_id ?? "",
-          log.change_description ?? "",
-          log.ip_address ?? "",
-          log.result,
-          log.error_message ?? "",
-        ]);
-        const csv = [headers, ...rows]
-          .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-          .join("\n");
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      });
+  const handleExportCSV = useCallback(async () => {
+    setExportError(null);
+    try {
+      // La API acepta limit <= 100: se pagina hasta EXPORT_MAX filas.
+      const data: AuditLog[] = [];
+      while (data.length < EXPORT_MAX) {
+        const params = { ...auditQueryParams, limit: String(EXPORT_PAGE), offset: String(data.length) };
+        const r = await fetch(`/api/audit-logs?${new URLSearchParams(params)}`);
+        if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? "Error exportando");
+        const chunk: AuditLog[] = (await r.json()).data ?? [];
+        data.push(...chunk);
+        if (chunk.length < EXPORT_PAGE) break;
+      }
+      const headers = ["Fecha", "Usuario", "Acción", "Entidad", "ID Entidad", "Descripción", "IP", "Resultado", "Error"];
+      const rows = data.map((log) => [
+        new Date(log.created_at).toLocaleString("es-CL"),
+        log.user_id,
+        log.action,
+        log.entity_type,
+        log.entity_id ?? "",
+        log.change_description ?? "",
+        log.ip_address ?? "",
+        log.result,
+        log.error_message ?? "",
+      ]);
+      const csv = [headers, ...rows]
+        .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(`No se pudo exportar: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }, [auditQueryParams]);
 
   const currentData = activeTab === "audit" ? auditData : activeTab === "errors" ? errorData : sessionData;
@@ -446,13 +457,14 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
 
       {/* Export button (audit tab only) */}
       {activeTab === "audit" && (
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-1">
           <button
             onClick={handleExportCSV}
             className="px-4 py-2 text-sm font-medium text-[#1a5f3f] border border-[#1a5f3f] rounded-md hover:bg-[#1a5f3f] hover:text-white transition-colors"
           >
             Exportar CSV
           </button>
+          {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
         </div>
       )}
 
@@ -632,6 +644,12 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
                       </pre>
                     </div>
                   </div>
+                  {modalLog.error_message && (
+                    <div>
+                      <div className="font-semibold text-[#666] mb-1 font-sans">error_message</div>
+                      <pre className="bg-[#faf9f7] p-3 rounded-md overflow-auto max-h-32 whitespace-pre-wrap break-all">{modalLog.error_message}</pre>
+                    </div>
+                  )}
                   {modalLog.user_agent && (
                     <div>
                       <div className="font-semibold text-[#666] mb-1 font-sans">user_agent</div>
