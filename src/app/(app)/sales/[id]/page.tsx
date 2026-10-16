@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -51,14 +51,40 @@ type VentaDetalle = {
   }>;
 };
 
-// ponytail: zoom fijo para térmica de 80 mm; si una tienda usa 58 mm o
-// necesita otro tamaño, pasar el factor a la configuración de la tienda.
+// ponytail: papel y zoom fijos para térmica de 80 mm; si una tienda usa 58 mm
+// o necesita otro tamaño, pasarlos a la configuración de la tienda.
+const PAPEL_MM = 80;
+const ZOOM = 0.75;
+const PX_POR_MM = 96 / 25.4;
+// .ticket-medir reproduce en pantalla el layout de impresión (ancho del papel,
+// mismo zoom y padding) para medir el alto real antes de imprimir.
 const TICKET_PRINT_CSS = `
 @page { margin: 0; }
 @media print {
-  .ticket-termico { zoom: 0.75; padding: 2mm 5mm !important; }
+  .ticket-termico { zoom: ${ZOOM}; padding: 2mm 5mm !important; }
   .ticket-termico * { color: #000 !important; }
-}`;
+}
+.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; }`;
+
+// La página impresa mide lo mismo que el ticket: sin esto la térmica avanza
+// papel en blanco hasta el largo de la hoja configurada en el navegador.
+function imprimirTicket(ticket: HTMLElement | null) {
+  let tamano = "";
+  if (ticket) {
+    ticket.classList.add("ticket-medir");
+    const altoPx = ticket.getBoundingClientRect().height;
+    ticket.classList.remove("ticket-medir");
+    if (altoPx > 0) tamano = ` size: ${PAPEL_MM}mm ${Math.ceil(altoPx / PX_POR_MM) + 4}mm;`;
+  }
+  let estilo = document.getElementById("ticket-page-size");
+  if (!estilo) {
+    estilo = document.createElement("style");
+    estilo.id = "ticket-page-size";
+    document.head.appendChild(estilo);
+  }
+  estilo.textContent = `@page {${tamano} margin: 0; }`;
+  window.print();
+}
 
 async function getVenta(id: string): Promise<VentaDetalle> {
   return fetchJson<VentaDetalle>(`/api/ventas/${id}`);
@@ -79,6 +105,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const ticketRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, error: ventaError } = useQuery({
     queryKey: ["venta", id],
@@ -175,7 +202,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (!autoPrint || !data) return;
     const timer = setTimeout(() => {
-      window.print();
+      imprimirTicket(ticketRef.current);
       window.close();
     }, 400);
     return () => clearTimeout(timer);
@@ -236,7 +263,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <Button variant="outline" onClick={() => router.back()}>
           ← Volver
         </Button>
-        <Button variant="outline" onClick={() => window.print()}>
+        <Button variant="outline" onClick={() => imprimirTicket(ticketRef.current)}>
           Imprimir
         </Button>
         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
@@ -307,7 +334,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Ticket */}
-      <div className="ticket-termico bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none">
+      <div ref={ticketRef} className="ticket-termico bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none">
         {data.estado === "anulada" && (
           <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2 text-center text-red-700 text-sm font-medium">
             ⚠ Venta anulada — stock revertido
