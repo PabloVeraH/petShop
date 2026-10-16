@@ -829,5 +829,8 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     expect(print).toMatch(/\.ticket-termico\s*\{[^}]*zoom:\s*0?\.\d+/);
     expect(print).toMatch(/\.ticket-termico\s*\{[^}]*padding:\s*\S+\s+\d+mm/);
     expect(print).toMatch(/\.ticket-termico \*\s*\{[^}]*color:\s*#000/);
+    // Más chico que la 1ª versión (0.75 seguía viéndose grande) y en sans-serif.
+    expect(Number(print.match(/zoom:\s*(0?\.\d+)/)?.[1])).toBeLessThan(0.75);
+    expect(print).toMatch(/\.ticket-termico\s*\{[^}]*font-family:\s*Arial/);
   });
 });
