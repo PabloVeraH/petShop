@@ -23,19 +23,33 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (tipo === "ventas") {
     let query = supabase
       .from("ventas")
-      .select("numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, estado, clientes(nombre, rut)")
+      .select("numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, estado, worker_clerk_id, clientes(nombre, rut)")
       .eq("store_id", store_id)
       .order("created_at", { ascending: false });
     if (desde) query = query.gte("created_at", desde);
     if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
 
     const { data } = await query;
-    csv = "Comprobante,Fecha,Cliente,RUT,Total,Subtotal,Descuento,IVA,Método,Estado\n";
+
+    // Vendedor: solo el nombre (como el recibo), nunca el email. Los
+    // clerk_id salen de ventas ya filtradas por store_id.
+    const workerIds = [...new Set((data ?? []).map((v) => v.worker_clerk_id).filter(Boolean))] as string[];
+    const nombreVendedor: Record<string, string> = {};
+    if (workerIds.length > 0) {
+      const { data: workers } = await supabase
+        .from("clerk_users")
+        .select("clerk_id, nombre")
+        .in("clerk_id", workerIds);
+      for (const w of workers ?? []) if (w.nombre) nombreVendedor[w.clerk_id] = w.nombre;
+    }
+
+    csv = "Comprobante,Fecha,Vendedor,Cliente,RUT,Total,Subtotal,Descuento,IVA,Método,Estado\n";
     for (const v of data ?? []) {
       const cliente = v.clientes as unknown as { nombre: string; rut: string } | null;
       csv += [
         esc(v.numero_comprobante),
         esc(new Date(v.created_at).toLocaleString("es-CL")),
+        esc(v.worker_clerk_id ? nombreVendedor[v.worker_clerk_id] : ""),
         esc(cliente?.nombre),
         esc(cliente?.rut),
         Math.round(Number(v.total)),

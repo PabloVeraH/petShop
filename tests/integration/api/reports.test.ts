@@ -226,4 +226,39 @@ describe("GET /api/reports/export", () => {
     const text = await res.text();
     expect(text).toContain('"Pérez, Juan"');
   });
+
+  // I-745: el CSV de ventas no traía el vendedor (pedido 2026-10-16).
+  it("I-745: CSV de ventas incluye la columna Vendedor con el nombre (no el email), una sola consulta a clerk_users", async () => {
+    const ventas = chain([
+      { numero_comprobante: "V-1", created_at: "2026-10-16T12:00:00Z", total: 4500, metodo_pago: "efectivo", estado: "completada", worker_clerk_id: "user_ana", clientes: null },
+      { numero_comprobante: "V-2", created_at: "2026-10-16T13:00:00Z", total: 1000, metodo_pago: "efectivo", estado: "completada", worker_clerk_id: "user_ana", clientes: { nombre: "Juan", rut: "1-9" } },
+      { numero_comprobante: "V-3", created_at: "2026-10-16T14:00:00Z", total: 2000, metodo_pago: "efectivo", estado: "completada", worker_clerk_id: "user_luis", clientes: null },
+      { numero_comprobante: "V-4", created_at: "2026-10-16T15:00:00Z", total: 3000, metodo_pago: "efectivo", estado: "completada", worker_clerk_id: null, clientes: null },
+    ]);
+    const workers = chain([
+      { clerk_id: "user_ana", nombre: "Ana Caja" },
+      { clerk_id: "user_luis", nombre: "Pérez, Luis" },
+    ]);
+    mockFrom.mockImplementation((t: string) => (t === "clerk_users" ? workers : t === "ventas" ? ventas : chain()));
+
+    const { GET } = await import("@/app/api/reports/export/route");
+    const lineas = (await (await GET(new NextRequest("http://localhost/api/reports/export?tipo=ventas"))).text()).trim().split("\n");
+
+    expect(lineas[0].split(",").slice(0, 4)).toEqual(["Comprobante", "Fecha", "Vendedor", "Cliente"]);
+    expect(lineas[1]).toMatch(/^V-1,"[^"]*",Ana Caja,/);
+    expect(lineas[2]).toMatch(/^V-2,"[^"]*",Ana Caja,Juan,/);
+    expect(lineas[3]).toMatch(/^V-3,"[^"]*","Pérez, Luis",/);
+    expect(lineas[4]).toMatch(/^V-4,"[^"]*",,/);
+    expect(mockFrom.mock.calls.filter(([t]) => t === "clerk_users")).toHaveLength(1);
+    expect(workers.select).toHaveBeenCalledWith("clerk_id, nombre");
+    expect(workers.in).toHaveBeenCalledWith("clerk_id", ["user_ana", "user_luis"]);
+    expect(ventas.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
+  it("I-745b: sin ventas con vendedor no consulta clerk_users", async () => {
+    mockFrom.mockImplementation((t: string) => (t === "ventas" ? chain([{ numero_comprobante: "V-1", created_at: "2026-10-16", total: 1, worker_clerk_id: null, clientes: null }]) : chain()));
+    const { GET } = await import("@/app/api/reports/export/route");
+    await GET(new NextRequest("http://localhost/api/reports/export?tipo=ventas"));
+    expect(mockFrom.mock.calls.some(([t]) => t === "clerk_users")).toBe(false);
+  });
 });

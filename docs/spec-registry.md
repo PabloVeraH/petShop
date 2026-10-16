@@ -1934,6 +1934,7 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-742 | REGRESIÓN: error inesperado de `crear_venta_tx` → 500 genérico al cliente y `error_logs` guarda el mensaje real de la BD (antes solo "HTTP 500 en POST /api/ventas") | POST /api/ventas | integration |
 | I-743 | REGRESIÓN: excepción no controlada → 500 genérico y `error_logs` guarda mensaje + stack; error de stock (I-743b) sigue en 422 sin registrarse como error de sistema | POST /api/ventas | integration |
 | I-744 | GET /api/tienda/nombre devuelve `{ name, rut }` (RUT de la tienda para el ticket de venta); tienda sin RUT → `rut: null` | GET /api/tienda/nombre | integration |
+| I-745 | CSV de ventas (`tipo=ventas`) incluye la columna Vendedor (nombre de `clerk_users`, nunca el email) tras Fecha, con una sola consulta por los `worker_clerk_id` de ventas ya filtradas por tienda; sin vendedor → vacío; sin ventas con vendedor no consulta `clerk_users` (I-745b) | GET /api/reports/export | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
 
