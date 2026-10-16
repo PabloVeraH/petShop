@@ -361,7 +361,12 @@ el onboarding del dueño crearía una segunda tienda separada.
    errores de CSP.
 2. Clerk → Webhooks → los eventos responden 200; `clerk_users` y
    `user_sessions` se llenan en la BD de la tienda.
-3. Venta de prueba en /pos, anularla; subir foto de producto.
+3. Venta de prueba en /pos, anularla; subir foto de producto. Si algo da
+   500, la causa real está en Admin → Auditoría: pestaña de errores
+   (`error_logs`) o el detalle de la entrada `failure`. Causas ya vistas en
+   mascotaspetshop: venta → faltaba la 091 (`ventas_canal_fkey`); foto →
+   `R2_ACCOUNT_ID` con la URL completa en vez del ID solo
+   (`ENOTFOUND <bucket>.https`).
 4. **Crons de canales (085)**, si usa canales, ya desplegado:
    ```sql
    select vault.create_secret('https://<nombre>.ammapet.cl', 'petshop_app_url');
