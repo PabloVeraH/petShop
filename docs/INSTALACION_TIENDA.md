@@ -132,6 +132,12 @@ cambiarlas), cambiar `CREATE SCHEMA public` por `IF NOT EXISTS` y conservar el
 encabezado y el bloque de Storage del archivo actual.
 
 ### 3.3 Lo que el baseline no trae
+- **Migraciones posteriores al baseline (087 en adelante, salvo la 085)**:
+  aplicarlas en orden justo después del baseline (ver §3.5). Entre ellas, las
+  filas de `canales_externos` (`migrations/091`): el baseline es solo esquema
+  y deja la tabla vacía, y sin la 091 **toda venta falla** con
+  `violates foreign key constraint "ventas_canal_fkey"` (500 en el POS).
+  ⚠️ Visto en mascotaspetshop (2026-10-16).
 - **pg_cron de canales (`migrations/085`)**: ✅ no aplicada ni en el demo. Va
   en §8.4, después de desplegar.
 - **Edge Functions del hub** (`sync-catalog`, `sync-purchase`,
@@ -159,6 +165,26 @@ select
 - Database → Advisors (security): sin errores nuevos respecto del demo.
 - Registrar en la tabla de §10 la última migración incluida (`000_baseline`
   = hasta 086).
+
+### 3.5 Migraciones posteriores al baseline y su registro
+En el SQL Editor de la tienda, un archivo por *query*, **en orden**: cada
+archivo de `migrations/` con número mayor a `000` (salvo la `085`, que va en
+§8.4). Al llegar a la `090` (crea el registro), anotar a mano lo aplicado
+antes de ella:
+```sql
+INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES
+  ('000', '000_baseline'),
+  ('087', '087_search_path_security_definer'),
+  ('088', '088_indices_foreign_keys'),
+  ('089', '089_rate_limit_global')
+ON CONFLICT (version) DO NOTHING;
+```
+Desde la `090` cada archivo se registra solo. Verificar:
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+select count(*) from canales_externos;  -- 5
+```
+Reglas completas en `migrations/README.md`.
 
 ---
 
@@ -358,8 +384,9 @@ el onboarding del dueño crearía una segunda tienda separada.
 3. PR `v2026.11.0 → tienda/<nombre>` (o una rama `update/<nombre>-v2026.11.0`
    con el merge y los conflictos resueltos). `npm run build && npm test` en
    verde.
-4. **Migraciones primero**: aplicar en el Supabase de la tienda las
-   migraciones nuevas, en orden, **antes** del merge (deben ser compatibles
+4. **Migraciones primero**: ver qué tiene la tienda
+   (`select version, name from supabase_migrations.schema_migrations order by version;`)
+   y aplicar en su SQL Editor las que falten, en orden, **antes** del merge (deben ser compatibles
    con el código anterior: aditivas). Si alguna no lo es, coordinar una
    ventana: merge y migración seguidos, fuera del horario de la tienda.
 5. Variables de entorno nuevas → Vercel de la tienda.

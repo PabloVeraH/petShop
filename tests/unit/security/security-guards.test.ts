@@ -123,8 +123,9 @@ describe("Checklist de seguridad — guardas estáticas", () => {
     const conRls = new Set<string>();
     for (const f of MIGRACIONES) {
       const sql = leer(f);
-      for (const m of sql.matchAll(/create table (?:if not exists )?(?:"?public"?\.)?"?(\w+)"?/gi)) creadas.add(m[1].toLowerCase());
-      for (const m of sql.matchAll(/alter table (?:only )?(?:if exists )?(?:"?public"?\.)?"?(\w+)"?\s+enable row level security/gi)) conRls.add(m[1].toLowerCase());
+      // Prefijo de esquema opcional y de cualquier esquema (public, supabase_migrations, ...).
+      for (const m of sql.matchAll(/create table (?:if not exists )?(?:"?\w+"?\.)?"?(\w+)"?/gi)) creadas.add(m[1].toLowerCase());
+      for (const m of sql.matchAll(/alter table (?:only )?(?:if exists )?(?:"?\w+"?\.)?"?(\w+)"?\s+enable row level security/gi)) conRls.add(m[1].toLowerCase());
     }
     expect(creadas.size).toBeGreaterThan(0);
     expect([...creadas].filter((t) => !conRls.has(t))).toEqual([]);
