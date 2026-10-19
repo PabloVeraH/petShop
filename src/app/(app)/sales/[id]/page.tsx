@@ -51,9 +51,9 @@ type VentaDetalle = {
   }>;
 };
 
-// ponytail: papel y zoom fijos para térmica de 80 mm; si una tienda usa 58 mm
-// o necesita otro tamaño, pasarlos a la configuración de la tienda.
-const PAPEL_MM = 80;
+// ponytail: papel fijo para la térmica XP-58 (58 mm, 48 imprimibles = padding
+// lateral de 5 mm); si una tienda usa 80 mm, pasarlo a la config de la tienda.
+const PAPEL_MM = 58;
 const ZOOM = 0.65;
 const PX_POR_MM = 96 / 25.4;
 // Sans-serif explícita: la del tema no resuelve (--font-sans) y el navegador
@@ -82,13 +82,16 @@ ${letraImpresa(".ticket-medir")}`;
 
 // La página impresa mide lo mismo que el ticket: sin esto la térmica avanza
 // papel en blanco hasta el largo de la hoja configurada en el navegador.
+// El alto nunca baja del ancho: si la página queda más ancha que alta, Chrome
+// la toma como apaisada y la térmica imprime el ticket de lado (2026-10-19).
 function imprimirTicket(ticket: HTMLElement | null) {
   let tamano = "";
   if (ticket) {
     ticket.classList.add("ticket-medir");
     const altoPx = ticket.getBoundingClientRect().height;
     ticket.classList.remove("ticket-medir");
-    if (altoPx > 0) tamano = ` size: ${PAPEL_MM}mm ${Math.ceil(altoPx / PX_POR_MM) + 4}mm;`;
+    const altoMm = Math.max(Math.ceil(altoPx / PX_POR_MM) + 4, PAPEL_MM + 1);
+    if (altoPx > 0) tamano = ` size: ${PAPEL_MM}mm ${altoMm}mm;`;
   }
   let estilo = document.getElementById("ticket-page-size");
   if (!estilo) {

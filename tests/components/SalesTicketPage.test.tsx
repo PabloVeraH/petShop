@@ -780,8 +780,8 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
   });
 
   // C-87 — la térmica avanzaba papel en blanco hasta el largo de la hoja: la
-  // página impresa debe medir lo mismo que el ticket (80 mm × alto medido).
-  it("C-87: Imprimir mide el ticket con el layout de impresión y fija @page a 80mm × su alto", async () => {
+  // página impresa debe medir lo mismo que el ticket (58 mm × alto medido).
+  it("C-87: Imprimir mide el ticket con el layout de impresión y fija @page a 58mm × su alto", async () => {
     mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
     const printSpy = jest.fn();
     window.print = printSpy;
@@ -797,11 +797,27 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
 
     const altoMm = Math.ceil(ALTO_PX / (96 / 25.4)) + 4;
-    expect(document.getElementById("ticket-page-size")?.textContent).toBe(`@page { size: 80mm ${altoMm}mm; margin: 0; }`);
+    expect(document.getElementById("ticket-page-size")?.textContent).toBe(`@page { size: 58mm ${altoMm}mm; margin: 0; }`);
     expect(printSpy).toHaveBeenCalledTimes(1);
     expect(clasesAlMedir.some((c) => c.includes("ticket-termico") && c.includes("ticket-medir"))).toBe(true);
     // La clase de medición se quita: no queda aplicada en pantalla.
     expect(screen.getByText("Comprobante de venta").closest(".ticket-medir")).toBeNull();
+    rectSpy.mockRestore();
+  });
+
+  // C-89 — XP-58 imprimía el ticket de lado (fotos 2026-10-19): una página más
+  // ancha que alta es apaisada para Chrome. El alto nunca baja del ancho.
+  it("C-89: un ticket corto igual se imprime vertical (alto de página > ancho)", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
+    window.print = jest.fn();
+    const rectSpy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return { height: this.classList.contains("ticket-medir") ? 100 : 0 } as DOMRect;
+    });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText("Comprobante de venta");
+    fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
+    const [, ancho, alto] = document.getElementById("ticket-page-size")!.textContent!.match(/size: (\d+)mm (\d+)mm/)!;
+    expect(Number(alto)).toBeGreaterThan(Number(ancho));
     rectSpy.mockRestore();
   });
 
