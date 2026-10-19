@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -51,11 +51,7 @@ type VentaDetalle = {
   }>;
 };
 
-// ponytail: papel fijo para la térmica XP-58 (58 mm, 48 imprimibles = padding
-// lateral de 5 mm); si una tienda usa 80 mm, pasarlo a la config de la tienda.
-const PAPEL_MM = 58;
 const ZOOM = 0.65;
-const PX_POR_MM = 96 / 25.4;
 // Sans-serif explícita: la del tema no resuelve (--font-sans) y el navegador
 // caía en Times, que en papel térmico se lee peor.
 const FUENTE_TICKET = "Arial, Helvetica, sans-serif";
@@ -68,40 +64,18 @@ const letraImpresa = (sel: string) =>
   Object.entries(TAMANOS_PANTALLA_PX)
     .map(([clase, px]) => `${sel} .${clase} { font-size: ${((px * ZOOM - RESTA_PX) / ZOOM).toFixed(2)}px; }`)
     .join("\n");
-// .ticket-medir reproduce en pantalla el layout de impresión (ancho del papel,
-// mismo zoom, padding y letra) para medir el alto real antes de imprimir.
+// Sin `size` en @page a propósito (fotos 2026-10-19, XP-58): con un tamaño
+// propio Chrome lo centra en el papel elegido en el diálogo (58×210 → blanco
+// arriba y abajo) y, si queda más ancho que alto, lo imprime de lado. Sin
+// `size` usa el papel de la impresora y el ticket arranca arriba; el largo
+// que avanza la térmica lo decide el papel del driver, no la página.
 const TICKET_PRINT_CSS = `
 @page { margin: 0; }
 @media print {
   .ticket-termico { zoom: ${ZOOM}; padding: 2mm 5mm !important; font-family: ${FUENTE_TICKET}; }
   .ticket-termico * { color: #000 !important; }
 ${letraImpresa(".ticket-termico")}
-}
-.ticket-medir { zoom: ${ZOOM}; padding: 2mm 5mm !important; width: calc(${PAPEL_MM}mm / ${ZOOM}); box-sizing: border-box; font-family: ${FUENTE_TICKET}; }
-${letraImpresa(".ticket-medir")}`;
-
-// La página impresa mide lo mismo que el ticket: sin esto la térmica avanza
-// papel en blanco hasta el largo de la hoja configurada en el navegador.
-// El alto nunca baja del ancho: si la página queda más ancha que alta, Chrome
-// la toma como apaisada y la térmica imprime el ticket de lado (2026-10-19).
-function imprimirTicket(ticket: HTMLElement | null) {
-  let tamano = "";
-  if (ticket) {
-    ticket.classList.add("ticket-medir");
-    const altoPx = ticket.getBoundingClientRect().height;
-    ticket.classList.remove("ticket-medir");
-    const altoMm = Math.max(Math.ceil(altoPx / PX_POR_MM) + 4, PAPEL_MM + 1);
-    if (altoPx > 0) tamano = ` size: ${PAPEL_MM}mm ${altoMm}mm;`;
-  }
-  let estilo = document.getElementById("ticket-page-size");
-  if (!estilo) {
-    estilo = document.createElement("style");
-    estilo.id = "ticket-page-size";
-    document.head.appendChild(estilo);
-  }
-  estilo.textContent = `@page {${tamano} margin: 0; }`;
-  window.print();
-}
+}`;
 
 async function getVenta(id: string): Promise<VentaDetalle> {
   return fetchJson<VentaDetalle>(`/api/ventas/${id}`);
@@ -122,7 +96,6 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   const [confirmAnular, setConfirmAnular] = useState(false);
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const ticketRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, error: ventaError } = useQuery({
     queryKey: ["venta", id],
@@ -219,7 +192,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (!autoPrint || !data) return;
     const timer = setTimeout(() => {
-      imprimirTicket(ticketRef.current);
+      window.print();
       window.close();
     }, 400);
     return () => clearTimeout(timer);
@@ -269,7 +242,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-md mx-auto space-y-4 print:max-w-none print:mx-0">
-      {/* Impresión en térmica (80 mm). Sin margen de página el navegador no
+      {/* Impresión en térmica (58 mm). Sin margen de página el navegador no
           imprime su encabezado/pie (fecha, título "PetShop POS", URL) y el
           papel no avanza hasta el pie. zoom achica letra y espacios en
           proporción; el gris claro no se ve en papel térmico → negro; el
@@ -280,7 +253,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <Button variant="outline" onClick={() => router.back()}>
           ← Volver
         </Button>
-        <Button variant="outline" onClick={() => imprimirTicket(ticketRef.current)}>
+        <Button variant="outline" onClick={() => window.print()}>
           Imprimir
         </Button>
         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
@@ -351,7 +324,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Ticket */}
-      <div ref={ticketRef} className="ticket-termico bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none">
+      <div className="ticket-termico bg-white rounded-lg shadow-sm p-6 space-y-4 print:shadow-none">
         {data.estado === "anulada" && (
           <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2 text-center text-red-700 text-sm font-medium">
             ⚠ Venta anulada — stock revertido

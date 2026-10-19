@@ -779,57 +779,24 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     expect(estilos).toMatch(/@page\s*\{\s*margin:\s*0;?\s*\}/);
   });
 
-  // C-87 — la térmica avanzaba papel en blanco hasta el largo de la hoja: la
-  // página impresa debe medir lo mismo que el ticket (58 mm × alto medido).
-  it("C-87: Imprimir mide el ticket con el layout de impresión y fija @page a 58mm × su alto", async () => {
+  // C-87/C-89 — XP-58 (fotos 2026-10-19): con `size` propio Chrome centraba la
+  // página en el papel 58×210 (blanco arriba y abajo) o la giraba si quedaba
+  // apaisada. La impresión no fija tamaño de página: usa el papel de la
+  // impresora y el ticket arranca arriba.
+  it("C-87: Imprimir no fija tamaño de página (@page sin size) e imprime una vez", async () => {
     mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
     const printSpy = jest.fn();
     window.print = printSpy;
-    const ALTO_PX = 400;
-    const clasesAlMedir: string[] = [];
-    const rectSpy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      clasesAlMedir.push(this.className);
-      return { height: this.classList.contains("ticket-medir") ? ALTO_PX : 0 } as DOMRect;
-    });
-
+    // Alto real (jsdom mide 0): la versión que medía el ticket fijaba size aquí.
+    const rectSpy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 400 } as DOMRect);
     render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
     await screen.findByText("Comprobante de venta");
     fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
-
-    const altoMm = Math.ceil(ALTO_PX / (96 / 25.4)) + 4;
-    expect(document.getElementById("ticket-page-size")?.textContent).toBe(`@page { size: 58mm ${altoMm}mm; margin: 0; }`);
-    expect(printSpy).toHaveBeenCalledTimes(1);
-    expect(clasesAlMedir.some((c) => c.includes("ticket-termico") && c.includes("ticket-medir"))).toBe(true);
-    // La clase de medición se quita: no queda aplicada en pantalla.
-    expect(screen.getByText("Comprobante de venta").closest(".ticket-medir")).toBeNull();
     rectSpy.mockRestore();
-  });
-
-  // C-89 — XP-58 imprimía el ticket de lado (fotos 2026-10-19): una página más
-  // ancha que alta es apaisada para Chrome. El alto nunca baja del ancho.
-  it("C-89: un ticket corto igual se imprime vertical (alto de página > ancho)", async () => {
-    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
-    window.print = jest.fn();
-    const rectSpy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      return { height: this.classList.contains("ticket-medir") ? 100 : 0 } as DOMRect;
-    });
-    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
-    await screen.findByText("Comprobante de venta");
-    fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
-    const [, ancho, alto] = document.getElementById("ticket-page-size")!.textContent!.match(/size: (\d+)mm (\d+)mm/)!;
-    expect(Number(alto)).toBeGreaterThan(Number(ancho));
-    rectSpy.mockRestore();
-  });
-
-  it("C-87b: si no se puede medir (alto 0), imprime igual sin fijar tamaño de página", async () => {
-    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 5000)] });
-    const printSpy = jest.fn();
-    window.print = printSpy;
-    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
-    await screen.findByText("Comprobante de venta");
-    fireEvent.click(screen.getByRole("button", { name: "Imprimir" }));
-    expect(document.getElementById("ticket-page-size")?.textContent).toBe("@page { margin: 0; }");
     expect(printSpy).toHaveBeenCalledTimes(1);
+    const estilos = [...document.querySelectorAll("style")].map((s) => s.textContent).join(" ");
+    expect(estilos).toMatch(/@page/);
+    expect(estilos).not.toMatch(/@page\s*\{[^}]*size:/);
   });
 
   // C-86 — impresión real en térmica (fotos 2026-10-16): letra demasiado
@@ -849,14 +816,12 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     expect(Number(print.match(/zoom:\s*(0?\.\d+)/)?.[1])).toBeLessThan(0.75);
     expect(print).toMatch(/\.ticket-termico\s*\{[^}]*font-family:\s*Arial/);
 
-    // C-88: letra impresa = pantalla × zoom − 2 px (pedido 2026-10-16), y la
-    // medición del alto usa los mismos tamaños.
+    // C-88: letra impresa = pantalla × zoom − 2 px (pedido 2026-10-16).
     const zoom = Number(print.match(/zoom:\s*(0?\.\d+)/)?.[1]);
     const impreso = (sel: string, clase: string) =>
       Number(estilos.match(new RegExp(`${sel} \\.${clase} \\{ font-size: ([\\d.]+)px`))?.[1]) * zoom;
     for (const [clase, pantalla] of [["text-lg", 18], ["text-base", 16], ["text-sm", 14], ["text-xs", 12]] as const) {
       expect(impreso("\\.ticket-termico", clase)).toBeCloseTo(pantalla * zoom - 2, 1);
-      expect(impreso("\\.ticket-medir", clase)).toBeCloseTo(pantalla * zoom - 2, 1);
     }
   });
 });

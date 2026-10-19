@@ -2490,9 +2490,9 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-84 | Ticket de venta muestra `RUT: <rut de la tienda>` entre el nombre y "Comprobante de venta"; sin RUT (null/vacío) no muestra la línea (C-84b) | SalesTicketPage | component |
 | C-85 | Ticket de venta fija `@page { margin: 0 }`: el navegador no imprime su encabezado (fecha + título "PetShop POS") | SalesTicketPage | component |
 | C-86 | Impresión del ticket en térmica: `zoom` (< 0.75) reduce letra y espacios, fuente sans-serif (Arial), texto en negro (los grises no se ven en papel térmico) y padding lateral para que los montos no se corten | SalesTicketPage | component |
-| C-87 | Imprimir mide el ticket con el layout de impresión y fija `@page { size: 58mm <alto>mm }`: la térmica corta tras "¡Gracias por su compra!" en vez de avanzar hasta el largo de la hoja; sin medida (alto 0) imprime sin fijar tamaño (C-87b) | SalesTicketPage | component |
-| C-88 | Letra impresa del ticket = tamaño en pantalla × zoom − 2 px en cada clase (text-lg/base/sm/xs); la medición del alto (`.ticket-medir`) usa los mismos tamaños (en el test de C-86) | SalesTicketPage | component |
-| C-89 | La página impresa del ticket nunca es apaisada: alto ≥ ancho+1 mm (58 mm, XP-58), si no Chrome lo imprime de lado | SalesTicketPage | component |
+| C-87 | Imprimir no fija `size` en `@page` (solo `margin: 0`): con tamaño propio Chrome centraba el ticket en el papel 58×210 de la XP-58 (blanco arriba/abajo) o lo giraba si quedaba apaisado (2026-10-19). Reemplaza la medición del alto | SalesTicketPage | component |
+| C-88 | Letra impresa del ticket = tamaño en pantalla × zoom − 2 px en cada clase (text-lg/base/sm/xs) (en el test de C-86) | SalesTicketPage | component |
+| C-89 | Retirado 2026-10-19: el alto mínimo de página quedó sin objeto al eliminar `size` (ver C-87) | SalesTicketPage | component |
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |
