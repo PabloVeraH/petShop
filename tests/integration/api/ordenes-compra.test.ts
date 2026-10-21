@@ -52,12 +52,15 @@ function productosChainFactory(prods: ProdPrevalidacion[]) {
   return { factory, updateSpy };
 }
 
-function lotesChainFactory(productosConLotes: string[], count = 0) {
+// count: número fijo, o una secuencia (un valor por cada conteo de lotes, en
+// orden) para simular que el conteo sube a medida que se crean lotes.
+function lotesChainFactory(productosConLotes: string[], count: number | number[] = 0) {
   const insertSpy = jest.fn();
+  const conteos = Array.isArray(count) ? [...count] : null;
   const factory = () => {
     const c = thenableChain((usoIn) => usoIn
       ? { data: productosConLotes.map((id) => ({ producto_id: id })), error: null }
-      : { count, error: null });
+      : { count: conteos ? conteos.shift() : count, error: null });
     c.insert = insertSpy;
     return c;
   };
@@ -392,7 +395,7 @@ describe("Órdenes de Compra API", () => {
     function montarRecepcion(opts: {
       prods: ProdPrevalidacion[];
       conLotes?: string[];
-      countLotes?: number;
+      countLotes?: number | number[];
       rpc?: jest.Mock;
     }) {
       const productos = productosChainFactory(opts.prods);
@@ -630,6 +633,151 @@ describe("Órdenes de Compra API", () => {
       expect(res.status).toBe(422);
       expect(rpcMock).not.toHaveBeenCalled();
       expect(itemUpdates).not.toHaveBeenCalled();
+    });
+
+    // I-747 — una línea que llega con dos fechas de vencimiento (100 sacos:
+    // 50 vencen el 30-11 y 50 el 31-12) crea UN lote por fecha, ambos
+    // vinculados a la OC; la línea queda con cantidad_recibida = 100.
+    it("I-747: línea con lotes[] crea un lote por fecha de vencimiento, ambos vinculados a la OC", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento Perro 20kg", stock: 30, fecha_vencimiento: "2026-10-31" }],
+        conLotes: [PROD_ID],
+        countLotes: [3, 4],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 100,
+        precio_unitario: 20000,
+        producto_id: PROD_ID,
+        lotes: [
+          { cantidad: 50, fecha_vencimiento: "2026-11-30" },
+          { cantidad: 50, fecha_vencimiento: "2026-12-31", numero_lote: "PROV-778" },
+        ],
+      }]);
+
+      expect(res.status).toBe(200);
+      expect(rpcMock).toHaveBeenCalledTimes(2);
+      expect(rpcMock).toHaveBeenNthCalledWith(1, "registrar_lote", expect.objectContaining({
+        p_producto_id: PROD_ID, p_cantidad_inicial: 50, p_fecha_vencimiento: "2026-11-30",
+        p_numero_lote: "LOTE-3", p_orden_compra_id: OC_ID,
+      }));
+      expect(rpcMock).toHaveBeenNthCalledWith(2, "registrar_lote", expect.objectContaining({
+        p_producto_id: PROD_ID, p_cantidad_inicial: 50, p_fecha_vencimiento: "2026-12-31",
+        p_numero_lote: "PROV-778", p_orden_compra_id: OC_ID,
+      }));
+      expect(itemUpdates).toHaveBeenCalledWith(expect.objectContaining({ cantidad_recibida: 100, subtotal: 2000000 }));
+      expect(auditModule.logAudit).toHaveBeenCalledWith(expect.objectContaining({
+        changeDescription: "Recepción de lote: Alimento Perro 20kg × 50 unidades — OC-20260424-ABC123",
+      }));
+    });
+
+    // I-748 — con stock suelto, el PRIMER lote convierte el suelto en LOTE-0
+    // y se numera LOTE-1; el segundo ya no suma ese +1 (antes de este cambio
+    // el flag quedaba desactualizado y se saltaba un número).
+    it("I-748: varios lotes con stock suelto → LOTE-1 y LOTE-2 (sin saltar numeración)", async () => {
+      const { rpcMock } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 10, fecha_vencimiento: null }],
+        countLotes: [0, 2],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 30,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        fecha_vencimiento_stock_existente: "2026-11-15",
+        lotes: [
+          { cantidad: 10, fecha_vencimiento: "2026-11-30" },
+          { cantidad: 20, fecha_vencimiento: "2026-12-31" },
+        ],
+      }]);
+
+      expect(res.status).toBe(200);
+      expect(rpcMock.mock.calls.map(([, p]) => p.p_numero_lote)).toEqual(["LOTE-1", "LOTE-2"]);
+      expect(rpcMock).toHaveBeenNthCalledWith(1, "registrar_lote", expect.objectContaining({
+        p_fecha_venc_stock_existente: "2026-11-15",
+      }));
+    });
+
+    // I-749 — los lotes deben sumar exactamente la cantidad recibida (si no,
+    // el stock no cuadraría con lo facturado en la OC) → 400 sin escribir.
+    it("I-749: lotes que no suman cantidad_recibida → 400 sin escribir nada", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 0, fecha_vencimiento: null }],
+      });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 100,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        lotes: [
+          { cantidad: 50, fecha_vencimiento: "2026-11-30" },
+          { cantidad: 40, fecha_vencimiento: "2026-12-31" },
+        ],
+      }]);
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/suma de las cantidades/);
+      expect(rpcMock).not.toHaveBeenCalled();
+      expect(itemUpdates).not.toHaveBeenCalled();
+    });
+
+    // I-750 — lotes[] junto a fecha_vencimiento es ambiguo → 400; un lote
+    // con cantidad 0 o fecha inválida también → 400.
+    it("I-750: lotes con fecha_vencimiento de la línea, cantidad 0 o fecha inválida → 400", async () => {
+      const { rpcMock } = montarRecepcion({
+        prods: [{ id: PROD_ID, nombre: "Alimento", stock: 0, fecha_vencimiento: null }],
+      });
+      const base = { id: "df50e110-0482-4450-8745-42c54006d902", cantidad_recibida: 10, precio_unitario: 100, producto_id: PROD_ID };
+
+      const ambos = await recibir([{ ...base, fecha_vencimiento: "2026-11-30", lotes: [{ cantidad: 10, fecha_vencimiento: "2026-11-30" }] }]);
+      expect(ambos.status).toBe(400);
+      expect((await ambos.json()).error).toMatch(/no ambos/);
+
+      const cero = await recibir([{ ...base, lotes: [{ cantidad: 10, fecha_vencimiento: "2026-11-30" }, { cantidad: 0, fecha_vencimiento: "2026-12-31" }] }]);
+      expect(cero.status).toBe(400);
+
+      const fechaMala = await recibir([{ ...base, lotes: [{ cantidad: 10, fecha_vencimiento: "30-11-2026" }] }]);
+      expect(fechaMala.status).toBe(400);
+
+      expect(rpcMock).not.toHaveBeenCalled();
+    });
+
+    // I-751 — IDOR con lotes[]: producto de otra tienda → 404 sin escribir.
+    it("I-751: lotes[] de un producto de otra tienda → 404 sin escribir nada", async () => {
+      const { rpcMock, itemUpdates } = montarRecepcion({ prods: [] });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 10,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        lotes: [{ cantidad: 5, fecha_vencimiento: "2026-11-30" }, { cantidad: 5, fecha_vencimiento: "2026-12-31" }],
+      }]);
+
+      expect(res.status).toBe(404);
+      expect(rpcMock).not.toHaveBeenCalled();
+      expect(itemUpdates).not.toHaveBeenCalled();
+    });
+
+    // I-752 — sin sesión → 401 antes de leer o escribir nada.
+    it("I-752: recibir con lotes[] sin sesión → 401", async () => {
+      (authModule.getStoreId as jest.Mock).mockResolvedValue(null);
+      const { fromMock, rpcMock } = montarRecepcion({ prods: [] });
+
+      const res = await recibir([{
+        id: "df50e110-0482-4450-8745-42c54006d902",
+        cantidad_recibida: 10,
+        precio_unitario: 100,
+        producto_id: PROD_ID,
+        lotes: [{ cantidad: 10, fecha_vencimiento: "2026-11-30" }],
+      }]);
+
+      expect(res.status).toBe(401);
+      expect(fromMock).not.toHaveBeenCalled();
+      expect(rpcMock).not.toHaveBeenCalled();
     });
   });
 

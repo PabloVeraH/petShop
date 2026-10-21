@@ -289,6 +289,83 @@ describe("SupplierHubPage — órdenes de compra", () => {
     });
   });
 
+  it("SPF-14: dividir una línea en lotes por vencimiento valida cantidades/fechas y envía lotes[] en vez de fecha_vencimiento", async () => {
+    await renderPagina();
+    await seleccionar();
+    await expandir("OC-ENV");
+    await screen.findByText("(nuevo)");
+    fireEvent.click(screen.getByRole("button", { name: "Recibir OC" }));
+
+    const recepcion = screen.getByText(/Confirmar recepción — ingrese/).parentElement!;
+    const precios = within(recepcion).getAllByPlaceholderText("0");
+    fireEvent.change(precios[0], { target: { value: "1000" } });
+    fireEvent.change(precios[1], { target: { value: "500" } });
+
+    fireEvent.click(within(recepcion).getAllByRole("button", { name: /Dividir en lotes/ })[0]);
+    expect(screen.getByText("Lotes por vencimiento — suman 5 de 5")).toBeInTheDocument();
+    // La fecha única desaparece para esa línea: queda solo la del Juguete.
+    expect(recepcion.querySelectorAll('input[type="date"]:not([aria-label])')).toHaveLength(1);
+
+    // Lote 2 vacío (cantidad 0, sin fecha) → no envía.
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+    expect(screen.getByText(/Cada lote necesita cantidad y vencimiento.*: Alimento/)).toBeInTheDocument();
+    expect(llamadas("PATCH", "/api/ordenes-compra/oc-env")).toHaveLength(0);
+
+    fireEvent.change(screen.getByLabelText("Cantidad lote 1"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Vencimiento lote 1"), { target: { value: "2026-11-30" } });
+    fireEvent.change(screen.getByLabelText("Cantidad lote 2"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Vencimiento lote 2"), { target: { value: "2026-12-31" } });
+    expect(screen.getByText("Lotes por vencimiento — suman 5 de 5")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+    await waitFor(() => expect(llamadas("PATCH", "/api/ordenes-compra/oc-env")).toHaveLength(1));
+    expect(JSON.parse(llamadas("PATCH", "/api/ordenes-compra/oc-env")[0][1].body)).toEqual({
+      action: "recibir",
+      items: [
+        {
+          id: "it-1", cantidad_recibida: 5, precio_unitario: 1000, producto_id: "prod-1",
+          lotes: [
+            { cantidad: 3, fecha_vencimiento: "2026-11-30" },
+            { cantidad: 2, fecha_vencimiento: "2026-12-31" },
+          ],
+        },
+        { id: "it-2", cantidad_recibida: 2, precio_unitario: 500, nombre_nuevo: "Juguete nuevo" },
+      ],
+    });
+  });
+
+  it("SPF-15: quitar lotes hasta dejar uno vuelve a la fecha única con su valor; error del servidor se muestra", async () => {
+    fallos["PATCH /api/ordenes-compra/oc-env"] = { ok: false, body: { error: "La suma de las cantidades de los lotes debe ser igual a la cantidad recibida" } };
+    await renderPagina();
+    await seleccionar();
+    await expandir("OC-ENV");
+    await screen.findByText("(nuevo)");
+    fireEvent.click(screen.getByRole("button", { name: "Recibir OC" }));
+
+    const recepcion = screen.getByText(/Confirmar recepción — ingrese/).parentElement!;
+    const precios = within(recepcion).getAllByPlaceholderText("0");
+    fireEvent.change(precios[0], { target: { value: "1000" } });
+    fireEvent.change(precios[1], { target: { value: "500" } });
+
+    fireEvent.click(within(recepcion).getAllByRole("button", { name: /Dividir en lotes/ })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "+ Agregar lote" }));
+    expect(screen.getByLabelText("Cantidad lote 3")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Vencimiento lote 1"), { target: { value: "2026-11-30" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar lote 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar lote 2" }));
+    expect(screen.queryByText(/Lotes por vencimiento/)).not.toBeInTheDocument();
+    const fechas = recepcion.querySelectorAll<HTMLInputElement>('input[type="date"]');
+    expect(fechas[0].value).toBe("2026-11-30");
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+    await waitFor(() => expect(llamadas("PATCH", "/api/ordenes-compra/oc-env")).toHaveLength(1));
+    expect(JSON.parse(llamadas("PATCH", "/api/ordenes-compra/oc-env")[0][1].body).items[0]).toEqual(
+      { id: "it-1", cantidad_recibida: 5, precio_unitario: 1000, producto_id: "prod-1", fecha_vencimiento: "2026-11-30" }
+    );
+    expect(await screen.findByText("La suma de las cantidades de los lotes debe ser igual a la cantidad recibida")).toBeInTheDocument();
+  });
+
   it("SPF-11: + Nueva OC abre el diálogo y al crear vuelve a pedir las órdenes", async () => {
     await renderPagina();
     await seleccionar();

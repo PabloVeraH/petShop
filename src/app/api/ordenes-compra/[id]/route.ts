@@ -8,6 +8,22 @@ import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/ema
 import { mapearErrorStock } from "@/lib/stock-errors";
 import type { RegistrarLoteResultado } from "@/types";
 
+type LoteRecibido = { cantidad: number; fecha_vencimiento: string; numero_lote?: string };
+
+// Lotes que crea una línea recibida: los de `lotes` (llegó con varias fechas
+// de vencimiento) o uno solo con fecha_vencimiento/numero_lote de la línea.
+// [] = sin vencimiento → stock directo.
+function lotesRecibidos(item: {
+  cantidad_recibida: number;
+  fecha_vencimiento?: string | null;
+  numero_lote?: string;
+  lotes?: LoteRecibido[];
+}): LoteRecibido[] {
+  if (item.lotes) return item.lotes;
+  if (!item.fecha_vencimiento) return [];
+  return [{ cantidad: item.cantidad_recibida, fecha_vencimiento: item.fecha_vencimiento, numero_lote: item.numero_lote }];
+}
+
 export const GET = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
@@ -104,7 +120,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       }
     }
     const conFechaEnEstaOc = new Set(
-      items.filter((i) => i.cantidad_recibida > 0 && i.producto_id && i.fecha_vencimiento).map((i) => i.producto_id as string)
+      items.filter((i) => i.cantidad_recibida > 0 && i.producto_id && lotesRecibidos(i).length > 0).map((i) => i.producto_id as string)
     );
     for (const item of items) {
       if (item.cantidad_recibida <= 0 || !item.producto_id) continue;
@@ -112,15 +128,16 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       if (!info) {
         return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
       }
+      const conFecha = lotesRecibidos(item).length > 0;
       // Otra línea de esta misma OC le crea lotes al producto → esta también
       // necesita fecha (si no, fallaría a mitad de la recepción).
-      if (!item.fecha_vencimiento && (info.tieneLotes || conFechaEnEstaOc.has(item.producto_id))) {
+      if (!conFecha && (info.tieneLotes || conFechaEnEstaOc.has(item.producto_id))) {
         return NextResponse.json(
           { error: `"${info.nombre}" usa lotes: indica la fecha de vencimiento de lo recibido` },
           { status: 422 }
         );
       }
-      if (item.fecha_vencimiento && !info.tieneLotes && info.stock > 0 &&
+      if (conFecha && !info.tieneLotes && info.stock > 0 &&
           !info.fecha_vencimiento && !item.fecha_vencimiento_stock_existente) {
         return NextResponse.json(
           { error: `"${info.nombre}" tiene ${info.stock} unidades sin lote: indica su fecha de vencimiento (se registrarán como lote inicial)` },
@@ -166,10 +183,11 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       // un producto ya existente el payload no trae su nombre (ver
       // OrdenCompraReceiveItemSchema), se resuelve más abajo con un SELECT.
       let nombreProducto: string | null = item.nombre_nuevo ?? null;
+      const lotesItem = lotesRecibidos(item);
 
       if (!productoId && item.nombre_nuevo) {
         const skuAuto = "PROD-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-        const tieneVenc = !!item.fecha_vencimiento;
+        const tieneVenc = lotesItem.length > 0;
         const { data: nuevoProd, error: prodError } = await supabase
           .from("productos")
           .insert({
@@ -203,7 +221,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
 
       if (!productoId) continue;
 
-      if (item.fecha_vencimiento) {
+      if (lotesItem.length > 0) {
         // Solo se necesita el nombre para el changeDescription del lote que
         // se crea en esta rama — evita el SELECT extra en la rama sin lote.
         if (!nombreProducto) {
@@ -215,72 +233,78 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
           nombreProducto = prodExistente?.nombre ?? null;
         }
 
-        // Auto-generate numero_lote if not provided: LOTE-{count of existing lotes}
-        // (+1 si en esta misma recepción el stock suelto pasa a ser "LOTE-0").
         const info = productosInfo.get(productoId);
-        const convertiraStockSuelto = !!info && !info.tieneLotes && info.stock > 0;
-        let numeroLote = item.numero_lote ?? null;
-        if (!numeroLote) {
-          const { count } = await supabase
-            .from("lotes_producto")
-            .select("*", { count: "exact", head: true })
-            .eq("producto_id", productoId)
-            .eq("store_id", store_id);
-          numeroLote = `LOTE-${(count ?? 0) + (convertiraStockSuelto ? 1 : 0)}`;
-        }
+        for (const loteRecibido of lotesItem) {
+          // Auto-generate numero_lote if not provided: LOTE-{count of existing lotes}
+          // (+1 si en esta misma recepción el stock suelto pasa a ser "LOTE-0").
+          const convertiraStockSuelto = !!info && !info.tieneLotes && info.stock > 0;
+          let numeroLote = loteRecibido.numero_lote ?? null;
+          if (!numeroLote) {
+            const { count } = await supabase
+              .from("lotes_producto")
+              .select("*", { count: "exact", head: true })
+              .eq("producto_id", productoId)
+              .eq("store_id", store_id);
+            numeroLote = `LOTE-${(count ?? 0) + (convertiraStockSuelto ? 1 : 0)}`;
+          }
 
-        // D11 (S6): registrar_lote convierte el stock suelto en LOTE-0 y crea
-        // el lote nuevo en una transacción (antes el INSERT directo hacía que
-        // el trigger recalculara stock = Σ lotes y se perdiera el suelto).
-        // También marca tiene_vencimiento y registra el stock_movements.
-        const { data: registro, error: loteError } = await supabase.rpc("registrar_lote", {
-          p_store_id:                   store_id,
-          p_producto_id:                productoId,
-          p_cantidad_inicial:           item.cantidad_recibida,
-          p_fecha_vencimiento:          item.fecha_vencimiento,
-          p_user_id:                    ctx.userId,
-          p_numero_lote:                numeroLote,
-          p_orden_compra_id:            id,
-          p_notas:                      `Recepción OC ${ordenBase.numero}`,
-          p_fecha_venc_stock_existente: item.fecha_vencimiento_stock_existente ?? null,
-          p_movimiento_notas:           `Recepción OC ${ordenBase.numero}`,
-        });
+          // D11 (S6): registrar_lote convierte el stock suelto en LOTE-0 y crea
+          // el lote nuevo en una transacción (antes el INSERT directo hacía que
+          // el trigger recalculara stock = Σ lotes y se perdiera el suelto).
+          // También marca tiene_vencimiento y registra el stock_movements.
+          const { data: registro, error: loteError } = await supabase.rpc("registrar_lote", {
+            p_store_id:                   store_id,
+            p_producto_id:                productoId,
+            p_cantidad_inicial:           loteRecibido.cantidad,
+            p_fecha_vencimiento:          loteRecibido.fecha_vencimiento,
+            p_user_id:                    ctx.userId,
+            p_numero_lote:                numeroLote,
+            p_orden_compra_id:            id,
+            p_notas:                      `Recepción OC ${ordenBase.numero}`,
+            p_fecha_venc_stock_existente: item.fecha_vencimiento_stock_existente ?? null,
+            p_movimiento_notas:           `Recepción OC ${ordenBase.numero}`,
+          });
 
-        if (loteError) {
-          const mapped = mapearErrorStock(loteError.message);
-          return NextResponse.json(
-            { error: mapped.status === 500 ? "Error al crear lote" : mapped.error },
-            { status: mapped.status }
-          );
-        }
+          if (loteError) {
+            const mapped = mapearErrorStock(loteError.message);
+            return NextResponse.json(
+              { error: mapped.status === 500 ? "Error al crear lote" : mapped.error },
+              { status: mapped.status }
+            );
+          }
 
-        const { lote, lote_inicial } = registro as RegistrarLoteResultado;
+          // Desde aquí el producto ya tiene lotes (el stock suelto, si había,
+          // quedó como LOTE-0): el siguiente lote no debe sumar ese +1.
+          if (info) info.tieneLotes = true;
 
-        if (lote_inicial) {
+          const { lote, lote_inicial } = registro as RegistrarLoteResultado;
+
+          if (lote_inicial) {
+            await logAudit({
+              storeId: store_id,
+              userId: ctx.userId,
+              action: "CREATE",
+              entityType: "lotes_producto",
+              entityId: lote_inicial.id,
+              newValues: { ...lote_inicial },
+              changeDescription: `Stock existente convertido a lote inicial: ${nombreProducto ?? "Producto"} × ${lote_inicial.cantidad_inicial} unidades — ${ordenBase.numero}`,
+              ipAddress,
+              userAgent,
+            });
+          }
+
           await logAudit({
             storeId: store_id,
             userId: ctx.userId,
             action: "CREATE",
             entityType: "lotes_producto",
-            entityId: lote_inicial.id,
-            newValues: { ...lote_inicial },
-            changeDescription: `Stock existente convertido a lote inicial: ${nombreProducto ?? "Producto"} × ${lote_inicial.cantidad_inicial} unidades — ${ordenBase.numero}`,
+            entityId: lote.id,
+            newValues: { ...lote },
+            changeDescription: `Recepción de lote: ${nombreProducto ?? "Producto"} × ${loteRecibido.cantidad} unidades — ${ordenBase.numero}`,
             ipAddress,
             userAgent,
           });
         }
-
-        await logAudit({
-          storeId: store_id,
-          userId: ctx.userId,
-          action: "CREATE",
-          entityType: "lotes_producto",
-          entityId: lote.id,
-          newValues: { ...lote },
-          changeDescription: `Recepción de lote: ${nombreProducto ?? "Producto"} × ${item.cantidad_recibida} unidades — ${ordenBase.numero}`,
-          ipAddress,
-          userAgent,
-        });
       } else {
         // Sin fecha de vencimiento → stock directo. Incremento atómico vía RPC
         // (no SELECT stock + UPDATE stock=leído+cantidad en dos statements

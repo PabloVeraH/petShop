@@ -1936,6 +1936,12 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-744 | GET /api/tienda/nombre devuelve `{ name, rut }` (RUT de la tienda para el ticket de venta); tienda sin RUT → `rut: null` | GET /api/tienda/nombre | integration |
 | I-745 | CSV de ventas (`tipo=ventas`) incluye la columna Vendedor (nombre de `clerk_users`, nunca el email) tras Fecha, con una sola consulta por los `worker_clerk_id` de ventas ya filtradas por tienda; sin vendedor → vacío; sin ventas con vendedor no consulta `clerk_users` (I-745b) | GET /api/reports/export | integration |
 | I-746 | GET /api/reports/export solo para storeAdmin de la tienda o systemAdmin: storeWorker, storeAdmin de otra tienda o sesión sin metadata → 403 sin consultar datos (ventas e inventario); storeAdmin y systemAdmin → 200 CSV | GET /api/reports/export | integration |
+| I-747 | Recepción: una línea con `lotes[]` (varias fechas de vencimiento) crea un lote por fecha con `registrar_lote`, todos vinculados a la OC; la línea queda con la cantidad total | PATCH /api/ordenes-compra/[id] | integration |
+| I-748 | REGRESIÓN: varios lotes del mismo producto con stock suelto se numeran LOTE-1, LOTE-2 (antes el +1 del LOTE-0 se aplicaba a cada lote y saltaba a LOTE-3) | PATCH /api/ordenes-compra/[id] | integration |
+| I-749 | `lotes[]` que no suman `cantidad_recibida` → 400 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+| I-750 | `lotes[]` junto a `fecha_vencimiento` de la línea, lote con cantidad 0 o fecha inválida → 400 | PATCH /api/ordenes-compra/[id] | integration |
+| I-751 | IDOR: `lotes[]` de un producto de otra tienda → 404 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+| I-752 | Recibir con `lotes[]` sin sesión → 401 sin consultar la BD | PATCH /api/ordenes-compra/[id] | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
 
@@ -2480,6 +2486,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SPF-11 | + Nueva OC abre el diálogo y al crear refresca las órdenes | SupplierHubPage | component |
 | SPF-12 | Cuentas por pagar: filtros, filtros guardados, exportar y pago múltiple con error parcial | SupplierHubPage | component |
 | SPF-13 | Pago individual con error visible; Escape cierra el modal | SupplierHubPage | component |
+| SPF-14 | Recibir OC: "Dividir en lotes" valida cantidad/fecha y suma de cada lote; PATCH envía `lotes[]` en vez de `fecha_vencimiento` | SupplierHubPage | component |
+| SPF-15 | Quitar lotes hasta uno vuelve a la fecha única conservando su valor; el error del servidor al recibir se muestra en pantalla | SupplierHubPage | component |
 | C-77 | Filtros de Actividad entran en la query y vuelven a página 1; systemAdmin ve Store ID | AuditoriaCard | component |
 | C-78 | Filtros de Errores y de Sesiones entran en sus queries | AuditoriaCard | component |
 | C-79 | Detalle de error (mensaje, stack, context); Cerrar y Escape | AuditoriaCard | component |
