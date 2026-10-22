@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { exigirStoreAdmin } from "@/lib/admin-check";
+import { hoyNegocioISO, instanteDeTimestamp, ZONA_NEGOCIO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -53,7 +54,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       const cliente = v.clientes as unknown as { nombre: string; rut: string } | null;
       csv += [
         esc(v.numero_comprobante),
-        esc(new Date(v.created_at).toLocaleString("es-CL")),
+        esc(instanteDeTimestamp(v.created_at).toLocaleString("es-CL", { timeZone: ZONA_NEGOCIO })),
         esc(v.worker_clerk_id ? nombreVendedor[v.worker_clerk_id] : ""),
         esc(cliente?.nombre),
         esc(cliente?.rut),
@@ -98,7 +99,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${tipo}-${new Date().toISOString().split("T")[0]}.csv"`,
+      "Content-Disposition": `attachment; filename="${tipo}-${hoyNegocioISO()}.csv"`,
     },
   });
 }, { endpoint: "GET /api/reports/export" });

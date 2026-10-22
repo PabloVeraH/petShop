@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getAdminStatus } from "@/lib/admin-check";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { startOfDay, endOfDay } from "date-fns";
+import { hoyNegocioISO, rangoDiaNegocio } from "@/lib/dates";
 import { withErrorLogging } from "@/lib/audit";
 
 export const GET = withErrorLogging(async () => {
@@ -17,9 +17,10 @@ export const GET = withErrorLogging(async () => {
   const adminCtx = getAdminStatus(sessionClaims);
   const isWorkerOnly = !adminCtx?.isStoreAdmin && !adminCtx?.isSystemAdmin;
 
-  const now = new Date();
-  const dayStart = startOfDay(now).toISOString();
-  const dayEnd = endOfDay(now).toISOString();
+  // "Hoy" de Chile, no del servidor: startOfDay() de date-fns usa el huso del
+  // proceso (UTC en Vercel) y desde las ~21:00 de Chile las ventas pasaban a
+  // contar como del día siguiente.
+  const { desde: dayStart, hasta: dayEnd } = rangoDiaNegocio(hoyNegocioISO());
 
   // Los vendedores solo ven sus propias ventas; admins ven toda la tienda
   let ventasHoyBase = supabase
@@ -28,7 +29,7 @@ export const GET = withErrorLogging(async () => {
     .eq("store_id", store_id)
     .neq("estado", "anulada")
     .gte("created_at", dayStart)
-    .lte("created_at", dayEnd);
+    .lt("created_at", dayEnd);
   if (isWorkerOnly) ventasHoyBase = ventasHoyBase.eq("worker_clerk_id", userId);
 
   let ultimasVentasBase = supabase

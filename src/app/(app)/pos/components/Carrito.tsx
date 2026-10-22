@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import {
   usePOSStore,
   calcularSubtotalCarrito,
@@ -32,7 +33,7 @@ export default function Carrito() {
 
   const isVencido = (item: typeof items[0]) => {
     if (!item.fecha_vencimiento) return false;
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = hoyNegocioISO();
     return item.fecha_vencimiento < hoy;
   };
 

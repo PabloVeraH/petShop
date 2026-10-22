@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { aDatetimeLocal } from "@/lib/dates";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface Producto {
@@ -48,7 +49,7 @@ function EditorContent() {
             setCaption(post.caption || "");
             setImageUrl(post.image_url || "");
             setSelectedTags(post.product_tags || []);
-            setScheduledFor(post.scheduled_for ? new Date(post.scheduled_for).toISOString().slice(0, 16) : "");
+            setScheduledFor(post.scheduled_for ? aDatetimeLocal(new Date(post.scheduled_for)) : "");
           }
         })
         .catch(console.error);

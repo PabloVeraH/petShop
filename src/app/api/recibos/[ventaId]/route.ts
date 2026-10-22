@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
 import { withErrorLogging } from "@/lib/audit";
 import { esc } from "@/lib/email";
+import { fechaHoraNegocioEsCL } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ ventaId: string }> }) => {
@@ -108,9 +109,7 @@ interface ReciboDatos {
 // nombres de cliente, producto o tienda los escribe un usuario.
 
 function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: ReciboDatos): string {
-  const fecha = new Date(venta.created_at);
-  const fechaFormato = fecha.toLocaleDateString("es-CL");
-  const horaFormato = fecha.toLocaleTimeString("es-CL");
+  const { fecha: fechaFormato, hora: horaFormato } = fechaHoraNegocioEsCL(venta.created_at);
 
   const metodosDetalle = pagos
     .map((p) => {

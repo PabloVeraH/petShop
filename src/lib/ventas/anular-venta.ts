@@ -6,6 +6,7 @@ import {
   lineasAnulacionVentaConNc,
   lineasAnulacionCOGS,
 } from "@/lib/contabilidad/generador-asientos";
+import { fechaNegocioDeTimestamp } from "@/lib/dates";
 
 export interface VentaAnulada {
   id: string;
@@ -66,7 +67,7 @@ export async function anularVenta(
   // mes anterior generaría un ingreso "fantasma" en el Estado de Resultado
   // del mes de la venta (no se neteó) y un resultado negativo "fantasma"
   // en el mes de la anulación (reverso sin venta que lo explique).
-  const fechaAnulacion = new Date(venta.created_at).toISOString().split("T")[0];
+  const fechaAnulacion = fechaNegocioDeTimestamp(venta.created_at);
   const totalVenta = Math.round(Number(venta.total));
   const ivaVenta = Math.round(Number(venta.impuesto ?? 0));
   const montoNeto = totalVenta - ivaVenta;

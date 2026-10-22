@@ -7,6 +7,7 @@ import { crearAsiento, lineasCompra } from "@/lib/contabilidad/generador-asiento
 import { sendOrdenCompraEmail, sendOrdenCompraCancelacionEmail } from "@/lib/email";
 import { mapearErrorStock } from "@/lib/stock-errors";
 import type { RegistrarLoteResultado } from "@/types";
+import { hoyNegocioISO, sumarDiasISO } from "@/lib/dates";
 
 type LoteRecibido = { cantidad: number; fecha_vencimiento: string; numero_lote?: string };
 
@@ -342,7 +343,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       .from("ordenes_compra")
       .update({
         estado: "recibida",
-        fecha_recibida: new Date().toISOString().split("T")[0],
+        fecha_recibida: hoyNegocioISO(),
         subtotal: totalNeto,
         impuesto,
         total,
@@ -365,15 +366,14 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
         .single();
 
       if (!existente) {
-        const vencimiento = new Date();
-        vencimiento.setDate(vencimiento.getDate() + 30);
+        const fechaEmision = hoyNegocioISO();
         await supabase.from("cuentas_pagar").insert({
           store_id,
           orden_id: id,
           proveedor_id: ordenBase.proveedor_id,
           monto: total,
-          fecha_emision: new Date().toISOString().split("T")[0],
-          fecha_vencimiento: vencimiento.toISOString().split("T")[0],
+          fecha_emision: fechaEmision,
+          fecha_vencimiento: sumarDiasISO(fechaEmision, 30),
           estado: "pendiente",
         });
       }
@@ -386,7 +386,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
       try {
         const asiento = await crearAsiento({
           storeId: store_id,
-          fecha: new Date().toISOString().split("T")[0],
+          fecha: hoyNegocioISO(),
           tipoMovimiento: "COMPRA",
           referenciaId: id,
           referenciaNomero: ordenBase.numero,

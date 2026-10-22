@@ -5,6 +5,7 @@ import { NotaCreditoPostSchema } from "@/lib/validation";
 import { crearAsiento, lineasNotaCredito, lineasNotaCreditoCOGS } from "@/lib/contabilidad/generador-asientos";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
+import { hoyNegocioCompacto, hoyNegocioISO, sumarDiasISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -31,7 +32,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
         { status: 409 }
       );
     }
-    if (nc.fecha_vencimiento && new Date(nc.fecha_vencimiento) < new Date()) {
+    if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
       return NextResponse.json({ error: "NC vencida" }, { status: 410 });
     }
     return NextResponse.json({ data: nc });
@@ -75,11 +76,9 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 
   const { ventaId, items, tipoReembolso, metodoReembolso, motivo } = parsed.data;
 
-  const hoy = new Date();
-  const numero_nc = `NC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-
-  const fechaVencimiento = new Date();
-  fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+  // Número y vencimiento con la fecha de Chile (el servidor corre en UTC).
+  const numero_nc = `NC-${hoyNegocioCompacto()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const fechaVencimiento = sumarDiasISO(hoyNegocioISO(), 30);
 
   const itemsForRpc = items.map((item) => ({
     venta_item_id: item.ventaItemId,
@@ -96,7 +95,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     p_motivo: motivo ?? null,
     p_tipo_reembolso: tipoReembolso,
     p_metodo_reembolso: metodoReembolso ?? null,
-    p_fecha_vencimiento: fechaVencimiento.toISOString().split("T")[0],
+    p_fecha_vencimiento: fechaVencimiento,
   });
 
   if (rpcError || !result) {
@@ -163,7 +162,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
         clienteNombre = cli?.nombre ?? undefined;
       }
 
-      const fechaNc = new Date().toISOString().split("T")[0];
+      const fechaNc = hoyNegocioISO();
 
       const asiento = await crearAsiento({
         storeId: store_id,
@@ -202,6 +201,6 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     notaCreditoId: ncId,
     numeroNc: numero_nc,
     montoNc: montoTotal,
-    fechaVencimiento: fechaVencimiento.toISOString().split("T")[0],
+    fechaVencimiento,
   });
 }, { endpoint: "POST /api/notas-credito" });

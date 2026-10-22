@@ -5,6 +5,7 @@ import { CitaAccionSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { extraerIva } from "@/lib/tax";
 import { crearAsiento, lineasVentaServicio, lineasVentaServicioConNc } from "@/lib/contabilidad/generador-asientos";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 // GET /api/citas/[id] — detalle con joins. Abierto a la tienda.
 export const GET = withErrorLogging(async (_req: NextRequest,
@@ -220,7 +221,7 @@ async function completarCita(
 
     if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
     if (nc.estado !== "activa") return NextResponse.json({ error: "NC ya fue utilizada o está inactiva" }, { status: 409 });
-    if (nc.fecha_vencimiento && new Date(nc.fecha_vencimiento) < new Date()) {
+    if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
       return NextResponse.json({ error: "NC vencida" }, { status: 410 });
     }
     if (pagoNc.monto > Number(nc.monto_total)) {
@@ -307,7 +308,7 @@ async function completarCita(
   // ticket Trello 6a77e779358cdccca29dc3e3): acredita VENTAS_SERVICIOS. NO incluye COGS (servicio sin
   // costo de inventario). Sin pagoNc usa lineasVentaServicio; con NC,
   // lineasVentaServicioConNc reacredita Saldos a Favor por el monto de la NC.
-  const fechaVenta = (venta.created_at as string | undefined)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
+  const fechaVenta = venta.created_at ? fechaNegocioDeTimestamp(venta.created_at as string) : hoyNegocioISO();
   const montoNeto = total - impuesto;
   after(async () => {
     try {

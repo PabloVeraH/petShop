@@ -6,6 +6,7 @@ import { obtenerContextoClimatico, SANTIAGO_LAT, SANTIAGO_LON } from "@/lib/weat
 import { recomendarProductosEnPOS }  from "@/lib/openrouter";
 import { POSRecomendadorRequestSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 // Mismo mecanismo de cold-start que /api/ai/vencimientos/optimizar (ver ese
 // route.ts): recomendarProductosEnPOS tiene su propio timeout interno de 20s
@@ -132,7 +133,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
           return {
             nombre:    prod.nombre,
             categoria: prod.categoria,
-            fecha:     new Date(item.created_at as string).toISOString().split("T")[0],
+            fecha:     fechaNegocioDeTimestamp(item.created_at as string),
           };
         })
         .filter((h): h is NonNullable<typeof h> => h !== null);
@@ -187,7 +188,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     mascotas,
     historial_reciente: historial,
     clima,
-    fecha_hoy:         new Date().toISOString().split("T")[0],
+    fecha_hoy:         hoyNegocioISO(),
   };
 
   let recsLLM: RecomendacionPOS[];

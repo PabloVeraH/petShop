@@ -30,12 +30,14 @@ describe("GET /api/dashboard/vencimientos", () => {
     // Mock auth
     mockGetStoreId.mockResolvedValue({ userId: "user-123", storeId: STORE_ID });
 
-    // Mock Date.now()
-    jest.spyOn(Date.prototype, "toISOString").mockReturnValue(`${TODAY}T00:00:00.000Z`);
+    // "Hoy" fijo: mediodía de Chile de TODAY (la ruta usa hoyNegocioISO()).
+
+    jest.useFakeTimers({ now: new Date(`${TODAY}T15:00:00.000Z`), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   function setupSupabaseMock(data: unknown[]) {

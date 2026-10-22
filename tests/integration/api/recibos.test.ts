@@ -109,6 +109,45 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.total).toBe(25000);
   });
 
+  // I-754 — REGRESIÓN: toLocaleDateString/TimeString sin timeZone usaban el
+  // huso del servidor (UTC en Vercel): una venta de las 22:30 de Chile salía
+  // impresa el día siguiente a la 01:30. created_at llega de la BD sin zona
+  // (timestamp without time zone en UTC).
+  it("I-754: el recibo muestra fecha y hora de Chile de la venta", async () => {
+    const venta = {
+      id: mockVentaId, store_id: mockStoreId, numero_comprobante: "20261022-NOCHE001",
+      total: 1000, subtotal: 840, descuento: 0, impuesto: 160, estado: "completada",
+      created_at: "2026-10-23T01:30:00.123456",
+      clientes: null, worker: null,
+      venta_items: [{ cantidad: 1, precio_unitario: 1000, subtotal: 1000, productos: { nombre: "Snack", sku: "S1" } }],
+    };
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn()
+        .mockResolvedValueOnce({ data: venta, error: null })
+        .mockResolvedValue({ data: { name: "Tienda" }, error: null }),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "pagos" ? pagosChain : chain)),
+    });
+
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: Promise.resolve({ ventaId: mockVentaId }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.html).toContain("22-10-2026");
+    expect(data.html).toMatch(/10:30:00/); // es-CL: "10:30:00 p. m."
+    expect(data.html).not.toContain("23-10-2026");
+    expect(data.html).not.toMatch(/0?1:30:00/);
+  });
+
   it("incluye múltiples métodos de pago en recibo", async () => {
     const mockVenta = {
       id: mockVentaId,

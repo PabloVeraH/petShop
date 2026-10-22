@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { CuentasPagarUpdateSchema } from "@/lib/validation";
 import { crearAsiento, lineasPagoProveedor } from "@/lib/contabilidad/generador-asientos";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -136,7 +137,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
 
         const asiento = await crearAsiento({
           storeId: store_id,
-          fecha: data.updated_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+          fecha: data.updated_at ? fechaNegocioDeTimestamp(data.updated_at) : hoyNegocioISO(),
           tipoMovimiento: "PAGO_PROVEEDOR",
           referenciaId: data.id,
           descripcion: `Pago${proveedorNombre ? ` a ${proveedorNombre}` : ""} — $${Number(data.monto).toLocaleString("es-CL")}`,

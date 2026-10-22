@@ -9,6 +9,7 @@ import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { crearAsiento, lineasVentaCanal, lineasVentaConNc, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
+import { fechaNegocioDeTimestamp, hoyNegocioCompacto, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   // Listado de ventas de la tienda: solo storeAdmin/systemAdmin (QA 2026-09-27). El worker no
@@ -226,7 +227,7 @@ async function postVenta(req: NextRequest) {
 
     if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
     if (nc.estado !== "activa") return NextResponse.json({ error: "NC ya fue utilizada o está inactiva" }, { status: 409 });
-    if (nc.fecha_vencimiento && new Date(nc.fecha_vencimiento) < new Date()) {
+    if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
       return NextResponse.json({ error: "NC vencida" }, { status: 410 });
     }
     if (pagoNc.monto > Number(nc.monto_total)) {
@@ -248,8 +249,7 @@ async function postVenta(req: NextRequest) {
     { monto: 300000, descuento: 20 },
   ];
 
-  const hoy = new Date();
-  const numero_comprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const numero_comprobante = `${hoyNegocioCompacto()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
   // ── Transacción ACID en una sola llamada RPC ──────────────────────────────
   const { data: ventaResult, error: txError } = await supabase.rpc("crear_venta_tx", {
@@ -477,7 +477,7 @@ async function postVenta(req: NextRequest) {
   // diferencia del fire-and-forget puro, que podía quedar congelado a mitad de
   // ejecución en serverless y dejar la venta con asiento de ingreso pero sin
   // COGS (ticket Trello 6a77e779358cdccca29dc3e3).
-  const fechaVenta = (venta.created_at as string)?.split("T")[0] ?? new Date().toISOString().split("T")[0];
+  const fechaVenta = venta.created_at ? fechaNegocioDeTimestamp(venta.created_at as string) : hoyNegocioISO();
   after(async () => {
     try {
       let clienteNombre: string | undefined;

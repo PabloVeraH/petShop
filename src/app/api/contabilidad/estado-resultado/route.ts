@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { calcularDatosEstadoResultado } from "@/lib/contabilidad/estado-resultado";
 import { withErrorLogging } from "@/lib/audit";
+import { anioMesNegocio } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -23,7 +24,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const nombreEmpresa = store?.name ?? "";
 
   const mes = req.nextUrl.searchParams.get("mes");
-  const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
+  const año = req.nextUrl.searchParams.get("año") ?? String(anioMesNegocio().anio);
 
   let desde: string;
   let hasta: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminRole } from "@/hooks/useAdminAuth";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
@@ -256,7 +257,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `auditoria-${hoyNegocioISO()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {

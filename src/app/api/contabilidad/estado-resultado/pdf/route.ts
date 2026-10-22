@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { generarHtmlEstadoResultado } from "@/lib/contabilidad/html-estado-resultado";
 import { calcularDatosEstadoResultado } from "@/lib/contabilidad/estado-resultado";
 import { withErrorLogging } from "@/lib/audit";
+import { anioMesNegocio, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -16,7 +17,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const supabase = createServiceClient();
 
   const mes = req.nextUrl.searchParams.get("mes");
-  const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
+  const año = req.nextUrl.searchParams.get("año") ?? String(anioMesNegocio().anio);
 
   let desde: string;
   let hasta: string;
@@ -52,7 +53,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   const html = generarHtmlEstadoResultado({
     periodo,
-    fecha_elaboracion: new Date().toISOString().split("T")[0],
+    fecha_elaboracion: hoyNegocioISO(),
     empresa: { nombre: store?.name ?? "", rut: store?.rut ?? "" },
     ingresos: {
       venta_productos: Math.round(ventaProductos * 100) / 100,

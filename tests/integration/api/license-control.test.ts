@@ -155,6 +155,19 @@ describe("computeLicenseStatus — desfase de 1 día por zona horaria (ticket 6a
     });
     expect(result.daysUntilExpiry).toBe(10);
   });
+
+  // LC-22: REGRESIÓN — el servidor (Vercel) corre en UTC: el último día de la
+  // licencia, desde las ~21:00 de Chile la fecha UTC ya es "mañana" y se
+  // bloqueaba 3 horas antes. "Hoy" es la fecha de Chile, con instantes fijos
+  // (independiente del TZ del runner).
+  it("LC-22: último día a las 22:30 de Chile no bloquea; a las 00:30 del día siguiente sí", () => {
+    const store = { license_end_date: "2026-10-22", license_warning_days: 7 };
+    const ultimoDiaNoche = computeLicenseStatus(store, new Date("2026-10-23T01:30:00Z")); // 22-10 22:30 Chile
+    expect(ultimoDiaNoche.isAutoBlocked).toBe(false);
+    expect(ultimoDiaNoche.daysUntilExpiry).toBe(0);
+    const diaSiguiente = computeLicenseStatus(store, new Date("2026-10-23T03:30:00Z")); // 23-10 00:30 Chile
+    expect(diaSiguiente.isAutoBlocked).toBe(true);
+  });
 });
 
 describe("LicenseConfigSchema", () => {

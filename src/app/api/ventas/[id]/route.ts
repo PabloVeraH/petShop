@@ -5,7 +5,7 @@ import { withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { auth } from "@clerk/nextjs/server";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
-import { fechaNegocioISO } from "@/lib/dates";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (_req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
@@ -37,7 +37,7 @@ export const GET = withErrorLogging(async (_req: NextRequest,
   if (error || !venta) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
 
   if (!esAdmin) {
-    const deHoy = fechaNegocioISO(new Date(venta.created_at)) === fechaNegocioISO(new Date());
+    const deHoy = fechaNegocioDeTimestamp(venta.created_at) === hoyNegocioISO();
     const esSuya = venta.worker_clerk_id === ctx.userId;
     if (!deHoy && !esSuya) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
   }

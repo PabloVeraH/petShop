@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -376,7 +377,7 @@ export default function SupplierHubPage() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Pagos");
-    XLSX.writeFile(wb, `pagos-${selected?.nombre}-${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `pagos-${selected?.nombre}-${hoyNegocioISO()}.xlsx`);
   };
 
   // Phase 4: Save filter

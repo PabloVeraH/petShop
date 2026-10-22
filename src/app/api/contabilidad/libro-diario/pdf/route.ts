@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { generarHtmlLibroDiario } from "@/lib/contabilidad/html-libro-diario";
 import { withErrorLogging } from "@/lib/audit";
+import { anioMesNegocio, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -15,7 +16,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const supabase = createServiceClient();
 
   const mes = req.nextUrl.searchParams.get("mes");
-  const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
+  const año = req.nextUrl.searchParams.get("año") ?? String(anioMesNegocio().anio);
   const fecha_unica = req.nextUrl.searchParams.get("fecha");
 
   let desde: string;
@@ -88,7 +89,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     periodo,
     desde,
     hasta,
-    fecha_elaboracion: new Date().toISOString().split("T")[0],
+    fecha_elaboracion: hoyNegocioISO(),
     empresa: { nombre: store?.name ?? "", rut: store?.rut ?? "" },
     asientos,
     resumen: {

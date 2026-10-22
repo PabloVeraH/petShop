@@ -525,8 +525,9 @@ I-406/I-407/I-408.
 | LC-19 | fin = hoy + warning_days (fecha local) → isInWarningPeriod=true, no bloqueo | license-control | integration |
 | LC-20 | fin = hoy + warning_days + 1 → aún NO en aviso | license-control | integration |
 | LC-21 | fin = hoy + 10 → daysUntilExpiry = 10 (sin desplazamiento por zona horaria) | license-control | integration |
+| LC-22 | REGRESIÓN: el último día de licencia a las 22:30 de Chile (ya mañana en UTC) no bloquea; a las 00:30 del día siguiente sí (instantes fijos) | license-control | integration |
 
-## Unit — src/lib/dates.ts (U-150, U-151)
+## Unit — src/lib/dates.ts (U-150, U-151, U-223…U-229)
 
 REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea como medianoche UTC y formateado en América/Santiago desplaza la fecha 1 día antes. `parseDateOnlyLocal`/`formatDateOnlyEsCL` usan el sufijo `T00:00:00` para parsear en hora local y preservar el día sin importar el huso del proceso.
 
@@ -534,6 +535,14 @@ REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea 
 |----|-----------|-------|------|
 | U-150 | parseDateOnlyLocal: "2026-12-31" → medianoche LOCAL del 31-12 (no 30-12 por UTC) | lib/dates | unit |
 | U-151 | formatDateOnlyEsCL: "2026-05-01" → "01-05-2026" y "2026-12-31" → "31-12-2026", sin desfase | lib/dates | unit |
+| U-223 | hoyNegocioISO/hoyNegocioCompacto: a las 22:30 de Chile (ya día siguiente en UTC) devuelven la fecha de Chile | lib/dates | unit |
+| U-224 | anioMesNegocio y diaSemanaNegocio cambian a medianoche de Chile, no de UTC (31-12 22:00 sigue siendo 2026/12) | lib/dates | unit |
+| U-225 | sumarDiasISO/diasEntreISO: aritmética de calendario exacta en fin de mes, de año y cambio de horario | lib/dates | unit |
+| U-226 | fechaNegocioDeTimestamp interpreta los timestamp sin zona de la BD como UTC (con o sin microsegundos, Z u offset) | lib/dates | unit |
+| U-227 | inicioDiaNegocio: medianoche de Chile en UTC (−3 / −4) y 01:00 el día en que empieza el horario de verano | lib/dates | unit |
+| U-228 | Invariante: para cada día de 2026 el inicio cae en ese día y el instante anterior en el día previo | lib/dates | unit |
+| U-229 | rangoDiaNegocio [desde, hasta) e inicioMesNegocio devuelven límites UTC del día/mes de Chile | lib/dates | unit |
+| U-WX-03b | REGRESIÓN: el 31-08 a las 22:00 de Chile (1-09 en UTC) la temporada sigue siendo invierno (mes de Chile) | lib/weather | unit |
 
 ## AdminPage (AP-XX)
 
@@ -1942,6 +1951,9 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-750 | `lotes[]` junto a `fecha_vencimiento` de la línea, lote con cantidad 0 o fecha inválida → 400 | PATCH /api/ordenes-compra/[id] | integration |
 | I-751 | IDOR: `lotes[]` de un producto de otra tienda → 404 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
 | I-752 | Recibir con `lotes[]` sin sesión → 401 sin consultar la BD | PATCH /api/ordenes-compra/[id] | integration |
+| I-753 | REGRESIÓN: a las 22:30 de Chile "Ventas hoy" filtra `created_at` en [00:00, 24:00) de Chile expresado en UTC, no el día UTC | GET /api/dashboard | integration |
+| I-754 | REGRESIÓN: el recibo muestra fecha y hora de Chile de la venta (antes la hora UTC del servidor: 22:30 salía 01:30 del día siguiente) | GET /api/recibos/[ventaId] | integration |
+| I-755 | REGRESIÓN: una NC es válida todo su día de vencimiento en hora de Chile y vencida (410) desde el día siguiente (antes vencía a las ~21:00 del día anterior) | GET /api/notas-credito?numero_nc= | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
 

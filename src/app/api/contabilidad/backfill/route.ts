@@ -6,6 +6,7 @@ import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNo
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -70,7 +71,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       } else {
         const id = await crearAsiento({
           storeId: store_id,
-          fecha: venta.created_at.split("T")[0],
+          fecha: fechaNegocioDeTimestamp(venta.created_at),
           tipoMovimiento: "VENTA",
           referenciaId: venta.id,
           referenciaNomero: venta.numero_comprobante,
@@ -98,7 +99,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       if (costoTotalVenta > 0) {
         const id = await crearAsiento({
           storeId: store_id,
-          fecha: venta.created_at.split("T")[0],
+          fecha: fechaNegocioDeTimestamp(venta.created_at),
           tipoMovimiento: "VENTA",
           referenciaId: venta.id,
           referenciaNomero: venta.numero_comprobante,
@@ -160,7 +161,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       } else {
         const id = await crearAsiento({
           storeId: store_id,
-          fecha: nc.created_at.split("T")[0],
+          fecha: fechaNegocioDeTimestamp(nc.created_at),
           tipoMovimiento: "NOTA_CREDITO",
           referenciaId: nc.id,
           referenciaNomero: nc.numero_nc,
@@ -179,7 +180,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       if (costoTotalNc > 0) {
         const id = await crearAsiento({
           storeId: store_id,
-          fecha: nc.created_at.split("T")[0],
+          fecha: fechaNegocioDeTimestamp(nc.created_at),
           tipoMovimiento: "NOTA_CREDITO",
           referenciaId: nc.id,
           referenciaNomero: nc.numero_nc,
@@ -234,7 +235,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     } else {
       const id = await crearAsiento({
         storeId: store_id,
-        fecha: orden.created_at.split("T")[0],
+        fecha: fechaNegocioDeTimestamp(orden.created_at),
         tipoMovimiento: "COMPRA",
         referenciaId: orden.id,
         referenciaNomero: orden.numero,
@@ -273,7 +274,8 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     const monto = Number(pago.monto);
     const proveedor = (pago.proveedores as unknown as { nombre: string } | null)?.nombre;
     const etiqueta = `PAGO_PROVEEDOR:${proveedor ?? "proveedor"} $${monto.toLocaleString("es-CL")}`;
-    const fecha = (pago.updated_at ?? pago.created_at ?? new Date().toISOString()).split("T")[0];
+    const marca = pago.updated_at ?? pago.created_at;
+    const fecha = marca ? fechaNegocioDeTimestamp(marca) : hoyNegocioISO();
 
     const id = await crearAsiento({
       storeId: store_id,
@@ -320,7 +322,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       asientoId = await (async () =>
         crearAsiento({
           storeId: store_id,
-          fecha: liq.created_at.split("T")[0],
+          fecha: fechaNegocioDeTimestamp(liq.created_at),
           tipoMovimiento: "LIQUIDACION_CANAL",
           canal: liq.canal_id,
           referenciaId: liq.id,

@@ -1,22 +1,22 @@
-# Graph Report - petShop-main  (2026-10-21)
+# Graph Report - petShop-main  (2026-10-22)
 
 ## Corpus Check
-- 720 files · ~660,278 words
+- 720 files · ~662,882 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 6 file(s) not represented in the graph (top: (none) 4, .ico 1, .css 1)
 
 ## Summary
-- 4669 nodes · 10275 edges · 339 communities (224 shown, 115 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 156 edges (avg confidence: 0.85)
+- 4684 nodes · 10498 edges · 348 communities (233 shown, 115 thin omitted)
+- Extraction: 98% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 156 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `44fa2e1d`
+- Built from commit: `3aa3c006`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- api/canales-ramas.test.ts
+- api/canales-catalogo.test.ts
 - mascotas.test.ts
 - @testing-library/jest-dom
 - next
@@ -25,10 +25,10 @@
 - ClienteDetalle.tsx
 - CitasTab.tsx
 - LotesPanel.tsx
-- api.ts
-- canales-contrato.test.ts
-- cierre-mes/route.ts
-- recomendar/route.ts
+- sales/[id]/page.tsx
+- adapter.ts
+- crearAsiento
+- openrouter.ts
 - 000_baseline.sql
 - @tanstack/react-query
 - ventas-detalle.test.ts
@@ -47,20 +47,20 @@
 - productos
 - public.ventas
 - public.stores
-- audit-logs/route.ts
+- types/index.ts
 - migrations/064-065 (REVOKE EXECUTE, fix de seguridad)
 - package.json
 - validation.test.ts
 - components.json
-- disponibilidad/route.ts
+- property-invariants.test.ts
 - inventario.ts
 - padding-line-between-statements.ts
 - pdf-generator.ts
 - citas
 - html-balance-prueba.ts
 - email.ts
-- adapter.ts
-- api/canales-fase5.test.ts
+- citas.ts
+- weather.ts
 - ventas.post.test.ts
 - r2-storage.ts
 - contabilidad-backfill.test.ts
@@ -68,7 +68,7 @@
 - POST /api/notas-credito (flujo JS secuencial documentado: SELECT/UPDATE por pasos, sin RPC)
 - docs/tests.md — Suite de testing (172 tests, TDD London School)
 - public.citas
-- orders/route.ts
+- api/canales-ramas.test.ts
 - ordenes-compra.test.ts
 - ReportesTab.tsx
 - AuditoriaCard.test.tsx
@@ -83,33 +83,33 @@
 - RPC completar_cita_tx
 - Prompt Final — App Móvil PetShop
 - procesar-orden.ts
-- admin.ts
-- logAudit
+- recomendar/route.ts
+- createServiceClient
 - Rol businessAdmin (propuesto)
 - ModalPago.test.tsx
-- §23 Invariantes históricas — no romper
+- §23.1 Ownership de nota_credito_items (IDOR)
 - docs/ index (docs/MEMORY.md)
-- notas-credito/route.ts
-- api/productos/route.ts
+- contabilidad/types.ts
+- worker-sin-acciones-admin.test.ts
 - workers.test.ts
 - §0 Reglas críticas del proyecto
 - Métricas de beneficio: -40% tiempo en caja, +25% ventas/cliente, 100% trazabilidad, 0 errores contables, +30% stock, x3 canales
 - StoreLocationPicker.tsx
-- §23.1 Ownership de nota_credito_items (IDOR)
+- petShop — Session Bootstrap (MEMORY.md)
 - GET /api/dashboard/vencimientos
 - claude-flow
 - stores
-- SuppliersPageFlujos.test.tsx
-- preparacion/route.ts
+- BarcodeScanner.test.tsx
+- lib/canales-fase6.test.ts
 - recompras.test.ts
 - 011_libro_diario.sql
-- autorizarCanales
+- security-alerts.ts
 - citas.test.ts
 - inventario.patch.test.ts
 - hub-sync.integration.test.ts
 - petShop — Sistema de Gestión para Tiendas de Mascotas (README.md)
 - scripts
-- create/route.ts
+- productos.test.ts
 - canales-webhook.test.ts
 - no-known-value-widening.ts
 - suppliers/page.tsx
@@ -118,7 +118,7 @@
 - Ideas desde repositorios open source con más de 1.000 estrellas
 - tienda-nombre.test.ts
 - rateLimit.ts
-- types/index.ts
+- HorarioSemanalEditor.tsx
 - encargados.test.ts
 - servicios-excepciones.test.ts
 - CanalesUIRamas.test.tsx
@@ -130,28 +130,28 @@
 - AnaliticaTab.tsx
 - anti-slop/index.ts
 - Instalar petShop en una tienda nueva
-- demand-forecasting.ts
+- zod
 - CanalesFase5.test.tsx
 - type-alias-resolution.ts
 - contabilidad-cierre-mes.test.ts
 - public.clerk_users
-- [canal]/page.tsx
+- CanalConfigPage.test.tsx
 - api/ventas/route.ts
 - Stock y canales externos — contexto, decisiones y plan de ejecución
 - tagged-values.ts
 - AnaliticaTab.test.tsx
 - html-libro-diario.ts
-- alertas/route.ts
+- lib/canales-fase5.test.ts
 - [canal]/productos/route.ts
 - ai-vencimientos.test.ts
 - aporte-capital-error-logging.test.ts
 - audit-logs.test.ts
-- categorias/route.ts
+- categorias.test.ts
 - cuentas-pagar.test.ts
-- react
+- EncargadosTab.test.tsx
 - RPC crear_cita_tx
 - Pantalla 1: Autenticación por RUT
-- 012_canales_hub.sql
+- clientes/[id]/route.ts
 - dictionary-types.ts
 - 1. Arrancar el proyecto en local (Windows)
 - no-widen-then-assert.ts
@@ -160,18 +160,18 @@
 - lotes.test.ts
 - onboarding.test.ts
 - ventas.ts
-- [ventaId]/route.ts
+- extraerIva
 - Sincronización de cada Store al Hub
 - Fase 3: Encargados de servicio (documento completo)
 - Plan de 12 semanas / 5 fases
-- LicenciaCard.tsx
+- ventas-fifo.test.ts
 - admin-users-create.test.ts
 - supply-chain.ts
 - AuditoriaCard.tsx
 - public.journal_entries
 - simular-rappi.mjs
 - workers-ventas.test.ts
-- 9. Registro de progreso
+- petShop — Faltantes de contaduría
 - canal_outbox
 - ventas.get.test.ts
 - 088_indices_foreign_keys.sql
@@ -180,15 +180,15 @@
 - canales-config.test.ts
 - admin-license-users.test.ts
 - button.tsx
-- §17 Grafos de conocimiento (graphify y codebase-memory-mcp)
-- Inventario
-- createServiceClient
+- ProductoImagenesField.tsx
+- Ráfaga de prefetch RSC por Link sin gating (ticket 6a76ccfa629628db21ebbe60)
+- audit.ts
 - Anexo A. Variables de entorno
 - public.servicios
 - tsconfig.src.json
 - public.ordenes_compra
 - 029_instagram.sql
-- SettingsPage.test.tsx
+- settings/page.tsx
 - CatalogoCanal.tsx
 - 3. Supabase
 - PedidosCanales.tsx
@@ -200,11 +200,11 @@
 - audit_logs
 - productos-saco.test.ts
 - error_logs
-- lotes-merma.test.ts
+- contabilidad-asientos-post.test.ts
 - webhook/route.ts
-- settings/route.ts
+- settings.test.ts
 - Tabla saldos_a_favor
-- exigirStoreAdmin
+- getStoreId
 - README.md
 - no-unsafe-dictionary-type.ts
 - require-safety-comment-for-type-assertion.ts
@@ -217,7 +217,7 @@
 - ModalCobroCita.tsx (nuevo)
 - Actualización 2026-08-23: keys R2 organizadas por producto (productos/{storeId}/{productoId}/{uuid}.webp)
 - instagram_posts
-- UsuariosCard.test.tsx
+- pos-recomendar.test.ts
 - public.venta_items
 - postcss.config.mjs
 - ref_https
@@ -247,7 +247,7 @@
 - idx_ordenes_compra_items_orden_id
 - 089_rate_limit_global.sql
 - Migraciones
-- redactarSecretos
+- productos-imagenes.test.ts
 - trg_productos_peso_saco_abierto
 - idx_canal_config_canal_id
 - idx_cierre_mes_backups_cierre_asiento_id
@@ -272,12 +272,12 @@
 - Window Icon (Next.js starter asset)
 - admin/page.tsx
 - LiquidacionesCanal.tsx
-- HoverPrefetchLink.tsx
-- settings/page.tsx
+- react
+- servicios-disponibilidad.test.ts
 - no-chained-type-assertions.ts
 - cierreChain
 - genericChain
-- lib/canales-fase5.test.ts
+- contabilidad-crear-asiento.test.ts
 - ContabilidadPage.test.tsx
 - servicios.test.ts
 - InstagramPosts.test.tsx
@@ -286,7 +286,7 @@
 - createChain
 - anti-slop — procedencia
 - config/route.ts
-- lotes/[id]/route.ts
+- lotes-id.test.ts
 - CatalogoCanal.test.tsx
 - html-estado-resultado.ts
 - canal_config
@@ -297,12 +297,21 @@
 - fidelizacion.test.ts
 - stock_reservas
 - api/hub-sync.test.ts
-- AnaliticaTabKPIs.test.tsx
+- pos-granel.test.ts
 - admin.test.ts
 - with-error-logging.test.ts
 - ImportInventarioPage
 - canal_config
 - canal_config
+- contabilidad-estado-resultado.test.ts
+- whatsapp.send-alerts.test.ts
+- 5. Servicios externos
+- app/layout.tsx
+- nota-credito/[id]/page.tsx
+- whatsapp.ts
+- clientes.post.test.ts
+- dashboard.test.ts
+- Gotchas frecuentes
 
 ## God Nodes (most connected - your core abstractions)
 1. `createServiceClient()` - 294 edges
@@ -314,7 +323,7 @@
 7. `withErrorLogging()` - 117 edges
 8. `getAdminStatus()` - 92 edges
 9. `@tanstack/react-query` - 78 edges
-10. `@testing-library/jest-dom` - 75 edges
+10. `hoyNegocioISO()` - 76 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Fase 5 — Seguridad, contabilidad y operación` --references--> `logAudit()`  [INFERRED]
@@ -353,71 +362,67 @@
 - **Patrón de seguridad activo (auth + tenant + audit) en MEMORY.md** — memory_patrones_seguridad_activos, agents_getstoreid, agents_multi_tenancy, agents_auditoria_logaudit [INFERRED 0.85]
 - **Continuidad de diseño: Fase 2 → Fase 3 → Fase 4 de servicios agendables** — docs_plan_servicios_fase2, docs_plan_sirvientes_fase3, docs_plan_valorservicio_fase4 [INFERRED 0.85]
 
-## Communities (339 total, 115 thin omitted)
+## Communities (348 total, 115 thin omitted)
 
-### Community 0 - "api/canales-ramas.test.ts"
+### Community 0 - "api/canales-catalogo.test.ts"
 Cohesion: 0.04
-Nodes (64): GET, POST, OUTBOX_MAX_INTENTOS, ORDEN_MAX_INTENTOS, argsDe(), Consulta, crearFakeSupabase(), Op (+56 more)
+Nodes (67): POST, ORDEN_MAX_INTENTOS, argsDe(), Consulta, crearFakeSupabase(), Op, Resultado, tiene() (+59 more)
 
 ### Community 1 - "mascotas.test.ts"
 Cohesion: 0.15
-Nodes (14): DELETE, PATCH, verifyOwnership(), GET, POST, src_lib_validation_mascotaupdateschema, DB_MASCOTA, doDelete() (+6 more)
+Nodes (13): DELETE, PATCH, verifyOwnership(), GET, src_lib_validation_mascotaupdateschema, DB_MASCOTA, doDelete(), doPatch() (+5 more)
 
 ### Community 2 - "@testing-library/jest-dom"
 Cohesion: 0.03
-Nodes (44): @testing-library/jest-dom, @testing-library/react, AccesoDenegadoPage(), SECTION_LABELS, ModalMascotaCreate(), AppNotFound(), src_app_app_pos_components_recomendacionesia_default, src_app_app_pos_components_searchproductos_default (+36 more)
+Nodes (53): @testing-library/jest-dom, @testing-library/react, AccesoDenegadoPage(), SECTION_LABELS, AppNotFound(), src_app_app_pos_components_recomendacionesia_default, src_app_app_pos_components_searchproductos_default, OnboardingPage() (+45 more)
 
 ### Community 3 - "next"
-Cohesion: 0.04
-Nodes (46): next, zod, GET, updatePostSchema, createPostSchema, ALLOWED_TYPES, filtroSchema, DELETE (+38 more)
+Cohesion: 0.03
+Nodes (44): next, GET, POST, POST, GET, GET, POST, GET (+36 more)
 
 ### Community 4 - "generador-asientos.ts"
-Cohesion: 0.14
-Nodes (29): Cuenta contable VENTAS_SERVICIOS (410103), lineasVentaServicio(), lineasVentaServicioConNc(), completarCita(), calcularCostoTotalNc(), calcularCostoTotalVenta(), POST, insertJournalEntryConNumeroUnico() (+21 more)
+Cohesion: 0.16
+Nodes (26): calcularCostoTotalNc(), calcularCostoTotalVenta(), POST, insertJournalEntryConNumeroUnico(), lineasAnulacionCOGS(), lineasAnulacionVentaCanal(), lineasAnulacionVentaConNc(), lineasAporteCapital() (+18 more)
 
 ### Community 5 - "ModalCliente.tsx"
-Cohesion: 0.06
-Nodes (45): react-dom, Carrito(), AlimentoCheckItem, autoFormatRUT(), getAlimentoCheck(), getFidelizacion(), ModalCliente(), ModalClienteProps (+37 more)
+Cohesion: 0.05
+Nodes (51): createVenta(), getClienteByRUT(), getMascotasByCliente(), Carrito(), AlimentoCheckItem, autoFormatRUT(), getAlimentoCheck(), getFidelizacion() (+43 more)
 
 ### Community 6 - "ClienteDetalle.tsx"
 Cohesion: 0.07
-Nodes (27): GET, ClientesResponse, autoFormatRUT(), ClienteDetalle(), handleGuardarCliente(), DetalleData, EditClienteForm, EditMascotaForm (+19 more)
+Nodes (21): autoFormatRUT(), ClienteDetalle(), handleGuardarCliente(), DetalleData, EditClienteForm, EditMascotaForm, MascotaItem, VentaItem (+13 more)
 
 ### Community 7 - "CitasTab.tsx"
-Cohesion: 0.06
-Nodes (33): CitasTab.tsx extendido (columna encargado), NuevaCitaForm.tsx extendido (selector de encargado), CitasTab(), COLOR_ESTADO, ESTADOS, formatFechaHora(), hoyLocal(), COLOR_ESTADO (+25 more)
+Cohesion: 0.05
+Nodes (36): CitasTab.tsx extendido (columna encargado), NuevaCitaForm.tsx extendido (selector de encargado), CitasTab(), COLOR_ESTADO, ESTADOS, formatFechaHora(), hoyLocal(), COLOR_ESTADO (+28 more)
 
 ### Community 8 - "LotesPanel.tsx"
 Cohesion: 0.06
-Nodes (36): 4.2.1 ¿Hace falta sync inverso (Shopify → petShop) de inventario, más allá de las órdenes?, 4.2 Flujo saliente: petShop → Shopify (empujar stock fresco), actualizarLote(), crearLote(), darDeBajaVencido(), desactivarLote(), EMPTY_LOTE_FORM, getLotes() (+28 more)
+Nodes (39): 4.2.1 ¿Hace falta sync inverso (Shopify → petShop) de inventario, más allá de las órdenes?, 4.2 Flujo saliente: petShop → Shopify (empujar stock fresco), 9. Registro de progreso, ClientesTable(), actualizarLote(), crearLote(), darDeBajaVencido(), desactivarLote() (+31 more)
 
-### Community 9 - "api.ts"
-Cohesion: 0.05
-Nodes (38): @clerk/localizations, AppLayout(), navItems, accionSaco, createVenta(), getClienteByRUT(), getMascotasByCliente(), getProductos() (+30 more)
-
-### Community 10 - "canales-contrato.test.ts"
-Cohesion: 0.14
-Nodes (17): ChannelContext, PlataformaError, RAPPI_TOLERANCIA_FIRMA_SEG, RappiAdapter, baseUrl(), cacheTokens, claveToken(), limpiarCacheTokens() (+9 more)
-
-### Community 11 - "cierre-mes/route.ts"
+### Community 9 - "sales/[id]/page.tsx"
 Cohesion: 0.08
-Nodes (21): POST, AsientoManualSchema, GET, LineaSchema, POST, GET, CierreMesSchema, POST (+13 more)
+Nodes (21): getVenta(), NotaCreditoVenta, TAMANOS_PANTALLA_PX, TicketPage(), VentaDetalle, useReintentoTrasLimite(), ApiError, errorDeRespuesta() (+13 more)
 
-### Community 12 - "recomendar/route.ts"
-Cohesion: 0.05
-Nodes (38): buildResult(), ContextoPOS, maxDuration, RecomendacionPOS, ContextoPOS, ProductoParaAnalisis, RecomendacionPOS, RecomendacionPOSSchema (+30 more)
+### Community 10 - "adapter.ts"
+Cohesion: 0.08
+Nodes (36): ChannelContext, PayloadInvalidoError, PlataformaError, WebhookRequest, CANCEL_TYPE, firmaRappiValida(), idsTienda(), parsearJson() (+28 more)
+
+### Community 11 - "crearAsiento"
+Cohesion: 0.12
+Nodes (19): filtroSchema, GET, POST, POST, AsientoManualSchema, LineaSchema, POST, GET (+11 more)
+
+### Community 12 - "openrouter.ts"
+Cohesion: 0.12
+Nodes (15): analizarVencimientosConIA(), ContextoPOS, ProductoParaAnalisis, RecomendacionPOS, RecomendacionPOSSchema, RecomendacionVencimiento, RecomendacionVencimientoSchema, recomendarProductosEnPOS() (+7 more)
 
 ### Community 13 - "000_baseline.sql"
 Cohesion: 0.04
 Nodes (45): businesses_propagar_licencia, businesses_updated_at, canal_outbox_updated_at, idx_audit_action, idx_audit_entity, idx_audit_store_time, idx_audit_user, idx_auth_failures_attempted_at (+37 more)
 
 ### Community 14 - "@tanstack/react-query"
-Cohesion: 0.05
-Nodes (27): @tanstack/react-query, DeshacerAperturaButton(), OptimizadorVencimientosTab(), ImageSlot(), ImageSlotProps, ProductoImagenesField(), ProductoImagenesFieldProps, AjusteModal (+19 more)
-
-### Community 15 - "ventas-detalle.test.ts"
-Cohesion: 0.22
-Nodes (3): PATCH, mockClaims, mockDeshabilitado
+Cohesion: 0.04
+Nodes (47): @tanstack/react-query, Categoria, CategoriasTab(), DeshacerAperturaButton(), OptimizadorVencimientosTab(), AjusteModal, Categoria, EMPTY_FORM (+39 more)
 
 ### Community 16 - "ventas"
 Cohesion: 0.09
@@ -428,12 +433,12 @@ Cohesion: 0.07
 Nodes (37): idx_lotes_fifo, idx_lotes_producto_id, idx_lotes_producto_orden_compra, idx_lotes_store_id, idx_lotes_vencimiento, idx_productos_categoria_id, idx_productos_codigo_barra, idx_productos_nombre (+29 more)
 
 ### Community 18 - "lib/canales-ramas.test.ts"
-Cohesion: 0.10
-Nodes (13): ChannelAdapter, ItemDisponibilidad, canalImplementado(), FilaEstadoDisponibilidad, itemsAPublicar(), ModoDisponibilidad, publicarDisponibilidad(), fila() (+5 more)
+Cohesion: 0.08
+Nodes (19): 6. Plan por fases (paso a paso), Fase 0 — Verificación y decisiones (sin cambios de comportamiento), Fase 2 — Núcleo común de canales (desbloquea el flujo), Fase 3 — Aceptación automática y ciclo de vida, Fase 5 — Seguridad, contabilidad y operación, Fase 6 — Salida a producción por canal, ChannelAdapter, ItemDisponibilidad (+11 more)
 
 ### Community 19 - "Spec Registry — petShop"
-Cohesion: 0.12
-Nodes (34): Carrito (POS), CreateOrderDialog, DevolucionModal, POSPage, Spec Registry — petShop, Auth / Admin — roles y JWT stale, Canales externos (Rappi/PedidosYa/UberEats), Citas (Fase 2/3) (+26 more)
+Cohesion: 0.10
+Nodes (37): Carrito (POS), CreateOrderDialog, DevolucionModal, InventoryPage, LotesPanel, ModalOverlay, POSPage, Spec Registry — petShop (+29 more)
 
 ### Community 20 - "000_base_schema.sql"
 Cohesion: 0.09
@@ -444,20 +449,20 @@ Cohesion: 0.11
 Nodes (33): Canal como Concepto Central (objetivo Fase 0), Tablas del Hub de Canales (canales_externos, canal_config, canal_producto_config, canal_ordenes, stock_reservas, canal_liquidaciones), APIs actualizadas (ventas, productos, canales/config), src/lib/canales/ (types, encryption, registry, hub, pos/adapter), Tests unitarios e integración de canales (57 tests: 51 + 6 webhook), UI de canales (/canales/page, widget Ventas por canal, filtros Reportes/Contabilidad), Contabilidad por canal (lineasVentaCanal, libro-diario ?canal=, notas-credito plataforma), Phase 0 Progress: Canal como Concepto Central (+25 more)
 
 ### Community 22 - "lotes_producto"
-Cohesion: 0.08
-Nodes (27): categorias, idx_categorias_store_id, idx_productos_categoria_id, deducir_stock_fifo(), devolver_stock_a_lotes(), idx_lotes_fifo, idx_lotes_producto_id, idx_lotes_store_id (+19 more)
+Cohesion: 0.06
+Nodes (28): categorias, idx_categorias_store_id, idx_productos_categoria_id, deducir_stock_fifo(), devolver_stock_a_lotes(), idx_lotes_fifo, idx_lotes_producto_id, idx_lotes_store_id (+20 more)
 
 ### Community 23 - "Informe de Seguridad OWASP Top 10"
 Cohesion: 0.11
-Nodes (20): Seguridad y compliance: RLS audit, rate limiting, GDPR, cifrado de datos sensibles, MEDIO: GET /api/consumo-configs sin verificación de propiedad de store, CRÍTICO: DELETE /api/vendedores sin verificación de store_id, MEDIO: creación ilimitada de stores en onboarding, BAJO: claves públicas de Supabase en el bundle del cliente, ALTO: token de WhatsApp almacenado sin cifrar, BAJO: input interpolado en filtros PostgREST .or(), MEDIO: PATCH /api/cuentas-pagar — campo estado sin validación de enum (+12 more)
+Nodes (19): Seguridad y compliance: RLS audit, rate limiting, GDPR, cifrado de datos sensibles, MEDIO: GET /api/consumo-configs sin verificación de propiedad de store, CRÍTICO: DELETE /api/vendedores sin verificación de store_id, MEDIO: creación ilimitada de stores en onboarding, BAJO: claves públicas de Supabase en el bundle del cliente, BAJO: input interpolado en filtros PostgREST .or(), MEDIO: PATCH /api/cuentas-pagar — campo estado sin validación de enum, ALTO: mass assignment + sin store_id en PATCH /api/ordenes-compra/[id] (+11 more)
 
 ### Community 24 - "inventario-import.test.ts"
 Cohesion: 0.09
-Nodes (15): xlsx, CuentaBalance, EstadoResultadoData, generateTemplateXLSX(), HEADER_MAP, normalizeHeader(), parseProductosXLSX(), RawProductoRow (+7 more)
+Nodes (19): xlsx, GET, CuentaBalance, EstadoResultadoData, generarExcelBalance(), generarExcelEstadoResultado(), generarExcelLibroDiario(), generateTemplateXLSX() (+11 more)
 
 ### Community 25 - "SearchProductos.tsx"
-Cohesion: 0.08
-Nodes (28): ConteoFisicoModal(), ConteoFisicoModalProps, getLotesActivos(), SearchProductos(), abrirSacoManual(), addGranelToCart(), addProductoToCart(), ejecutarAccionSaco() (+20 more)
+Cohesion: 0.09
+Nodes (26): ConteoFisicoModal(), ConteoFisicoModalProps, getLotesActivos(), accionSaco, getProductos(), SearchProductos(), abrirSacoManual(), addGranelToCart() (+18 more)
 
 ### Community 26 - "primitives.ts"
 Cohesion: 0.12
@@ -468,8 +473,8 @@ Cohesion: 0.07
 Nodes (27): dependencies, @aws-sdk/client-s3, @base-ui/react, class-variance-authority, @clerk/localizations, @clerk/nextjs, clsx, date-fns (+19 more)
 
 ### Community 28 - "productos"
-Cohesion: 0.07
-Nodes (23): idx_productos_sku, idx_productos_store_id, productos, idx_productos_vencimiento, idx_productos_codigo_barra, idx_productos_reorder, convertir_stock_suelto_a_lote(), abrir_saco() (+15 more)
+Cohesion: 0.08
+Nodes (22): idx_productos_sku, idx_productos_store_id, productos, idx_productos_vencimiento, idx_productos_codigo_barra, idx_productos_reorder, abrir_saco(), abrir_saco_interno() (+14 more)
 
 ### Community 29 - "public.ventas"
 Cohesion: 0.09
@@ -479,25 +484,25 @@ Nodes (31): idx_fidelizacion_cliente_id, idx_nota_credito_items_nc, idx_notas_cr
 Cohesion: 0.10
 Nodes (26): canal_outbox_dedupe_vivo, canal_outbox_pendientes, canal_outbox_store_created, idx_ai_pos_cache_store_key, idx_ai_vencimientos_store_created, idx_canal_ordenes_expiry, idx_canal_ordenes_store_estado, idx_canal_producto_config_producto (+18 more)
 
-### Community 31 - "audit-logs/route.ts"
-Cohesion: 0.09
-Nodes (19): GET, GET, PATCH, GET, GET, resolveAdminContext(), src_lib_validation_auditlogsqueryschema, src_lib_validation_errorlogsqueryschema (+11 more)
+### Community 31 - "types/index.ts"
+Cohesion: 0.10
+Nodes (26): EstadoOrden, clasificarLotes(), enriquecerLotes(), getLoteStatus(), productoTieneLotes(), AjusteConteoResultado, CanalLiquidacionRow, CanalMenuEstado (+18 more)
 
 ### Community 33 - "package.json"
-Cohesion: 0.04
-Nodes (41): 7. Alta de productos por código de barras con Open Pet Food Facts, eslintConfig, name, private, version, clsx, cross-env, eslint (+33 more)
+Cohesion: 0.08
+Nodes (24): eslintConfig, name, private, version, clsx, cross-env, eslint, eslint-config-next (+16 more)
 
 ### Community 34 - "validation.test.ts"
-Cohesion: 0.07
-Nodes (26): Encargados (Fase 3), src_lib_validation_categoriacreateschema, src_lib_validation_categoriaupdateschema, src_lib_validation_citaaccionschema, src_lib_validation_citacreateschema, CitaAccionSchema, CitaCreateSchema, CitasQuerySchema (+18 more)
+Cohesion: 0.12
+Nodes (16): Encargados (Fase 3), src_lib_validation_categoriacreateschema, src_lib_validation_categoriaupdateschema, src_lib_validation_citaaccionschema, src_lib_validation_citacreateschema, src_lib_validation_clientecreateschema, src_lib_validation_encargadocreateschema, EncargadoCreateSchema (+8 more)
 
 ### Community 35 - "components.json"
 Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
-### Community 36 - "disponibilidad/route.ts"
-Cohesion: 0.13
-Nodes (18): API /api/servicios/[id]/disponibilidad, API disponibilidad extendida (encargado_id obligatorio), Decisión §1: sin paralelismo por servicio; chequeo aditivo por encargado_id, GET, hhmm(), calcularSlotsDisponibles(), diaSemanaIsoDesdeFecha(), RangoHorario (+10 more)
+### Community 36 - "property-invariants.test.ts"
+Cohesion: 0.16
+Nodes (14): API /api/servicios/[id]/disponibilidad, API disponibilidad extendida (encargado_id obligatorio), Decisión §1: sin paralelismo por servicio; chequeo aditivo por encargado_id, fast-check, GET, hhmm(), calcularSlotsDisponibles(), diaSemanaIsoDesdeFecha() (+6 more)
 
 ### Community 37 - "inventario.ts"
 Cohesion: 0.11
@@ -520,24 +525,24 @@ Cohesion: 0.43
 Nodes (5): BalancePruebaHTMLData, clp(), CuentaBalanceHTML, generarHtmlBalancePrueba(), BASE_DATA
 
 ### Community 42 - "email.ts"
-Cohesion: 0.20
-Nodes (16): buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), DEFAULT_FROM, esc(), FoodReminderEmailParams, getResend() (+8 more)
+Cohesion: 0.19
+Nodes (17): resend, buildBoletaEmailHTML(), buildFoodReminderHTML(), buildOrdenCompraCancelacionHTML(), buildOrdenCompraHTML(), DEFAULT_FROM, esc(), FoodReminderEmailParams (+9 more)
 
-### Community 43 - "adapter.ts"
-Cohesion: 0.15
-Nodes (18): PayloadInvalidoError, WebhookRequest, CANCEL_TYPE, firmaRappiValida(), idsTienda(), parsearJson(), primerError(), RAZON (+10 more)
+### Community 43 - "citas.ts"
+Cohesion: 0.17
+Nodes (13): Citas (Fase 2/3), Servicios agendables (Fase 1), Valor de servicios / cobro de citas (Fase 4), RPC completar_cita_tx, RPC crear_cita_tx, CitaAccionSchema, CitaCreateSchema, CitasQuerySchema (+5 more)
 
-### Community 44 - "api/canales-fase5.test.ts"
-Cohesion: 0.12
-Nodes (15): ADMIN, ADMIN_OTRA, ins(), Llamada, mockAuth, mockCierres, mockCrearAsiento, mockDeshabilitado (+7 more)
+### Community 44 - "weather.ts"
+Cohesion: 0.24
+Nodes (10): cache, derivarTemporada(), fallback(), obtenerContextoClimatico(), SANTIAGO_LAT, SANTIAGO_LON, WeatherContext, wmoADescripcion() (+2 more)
 
 ### Community 45 - "ventas.post.test.ts"
 Cohesion: 0.10
 Nodes (11): DB_PRODUCTO, DB_PRODUCTO_GRANEL, DB_PRODUCTO_GRANEL_SYNC, DB_PRODUCTO_SYNC, DB_VENTA, ITEM_CON_MASCOTA, mockChain, mockFrom (+3 more)
 
 ### Community 46 - "r2-storage.ts"
-Cohesion: 0.28
-Nodes (8): @aws-sdk/client-s3, sharp, createR2Client(), eliminarImagenProducto(), getR2Config(), subirImagenProducto(), mockSend, R2_ENV
+Cohesion: 0.26
+Nodes (9): @aws-sdk/client-s3, sharp, createR2Client(), eliminarImagenProducto(), getR2Config(), optimizarImagenProducto(), subirImagenProducto(), mockSend (+1 more)
 
 ### Community 47 - "contabilidad-backfill.test.ts"
 Cohesion: 0.33
@@ -552,16 +557,16 @@ Cohesion: 0.11
 Nodes (18): DevolucionModal.tsx (2 pasos: selección items + confirmación reembolso), GET /api/notas-credito?ventaId=, Tabla nota_credito_items, Tabla notas_credito, POST /api/notas-credito (flujo JS secuencial documentado: SELECT/UPDATE por pasos, sin RPC), Restitución de stock por ítem (configurable via restituir_stock), Rollback de fidelización al devolver (decrementa total_historico, recalcula descuento), petShop — Sistema de Devoluciones y Notas de Crédito (+10 more)
 
 ### Community 50 - "docs/tests.md — Suite de testing (172 tests, TDD London School)"
-Cohesion: 0.15
-Nodes (20): Plan de Pruebas — PetShop App, Objetivo de coverage ≥80% (meta, no resultado), Pruebas E2E planeadas con Playwright (E-01 a E-10), Pruebas de integración hub-sync planeadas (H-01 a H-05), Pruebas de integración planeadas de API (I-01 a I-108), Convención mock-first (Jest mock Supabase, London School), Priorización de tests (P0-P3), Pruebas de seguridad planeadas (S-01 a S-08) (+12 more)
+Cohesion: 0.17
+Nodes (18): Plan de Pruebas — PetShop App, Objetivo de coverage ≥80% (meta, no resultado), Pruebas E2E planeadas con Playwright (E-01 a E-10), Pruebas de integración hub-sync planeadas (H-01 a H-05), Pruebas de integración planeadas de API (I-01 a I-108), Convención mock-first (Jest mock Supabase, London School), Priorización de tests (P0-P3), Pruebas de seguridad planeadas (S-01 a S-08) (+10 more)
 
 ### Community 51 - "public.citas"
 Cohesion: 0.11
 Nodes (21): idx_citas_cliente_id, idx_citas_encargado_id, idx_citas_servicio_fecha, idx_citas_store_id, idx_citas_venta_id, idx_clientes_rut, idx_clientes_store_id, idx_consumo_alertas_store_id (+13 more)
 
-### Community 52 - "orders/route.ts"
-Cohesion: 0.18
-Nodes (12): ref_fs, ref_path, ESTADOS_POR_DEFECTO, GET, esEstadoOrden(), esTerminal(), origenesValidos(), puedeTransicionar() (+4 more)
+### Community 52 - "api/canales-ramas.test.ts"
+Cohesion: 0.08
+Nodes (26): ref_fs, ref_path, ESTADOS_POR_DEFECTO, GET, esEstadoOrden(), esTerminal(), origenesValidos(), puedeTransicionar() (+18 more)
 
 ### Community 53 - "ordenes-compra.test.ts"
 Cohesion: 0.13
@@ -569,7 +574,7 @@ Nodes (11): lotesChainFactory(), makeOrdenChain(), ordenChain, montarRecepcion()
 
 ### Community 54 - "ReportesTab.tsx"
 Cohesion: 0.13
-Nodes (14): BarChart(), CANAL_LABELS, CANALES, DayChart(), fmt(), PERIODOS, PieSlice, PROCEDENCIA_LABELS (+6 more)
+Nodes (15): BarChart(), CANAL_LABELS, CANALES, DayChart(), fmt(), PERIODOS, PieSlice, PROCEDENCIA_LABELS (+7 more)
 
 ### Community 55 - "AuditoriaCard.test.tsx"
 Cohesion: 0.20
@@ -580,8 +585,8 @@ Cohesion: 0.15
 Nodes (17): API Gateway (/search /stores /me), Catalog Index (concept), Central Hub, Customer Identity (RUT) + historial cross-store, Camino A — cliente descarga app primero, Mobile App (React Native + Expo), Flujo de autenticación del cliente (JWT firmado por el hub), Flujo de búsqueda de producto (FTS + ranking) (+9 more)
 
 ### Community 57 - "reorder-suggestions.ts"
-Cohesion: 0.28
-Nodes (11): calculateEOQ() — Economic Order Quantity, calculateROP() — Reorder Point, getReorderSuggestions(), src/app/(app)/purchases/page.tsx (toggle básico/avanzado), GET /api/analytics/recompras-avanzadas, Sugerencias de Compra Inteligentes, calculateEOQ(), calculateROP() (+3 more)
+Cohesion: 0.19
+Nodes (14): calculateEOQ() — Economic Order Quantity, calculateROP() — Reorder Point, getReorderSuggestions(), src/app/(app)/purchases/page.tsx (toggle básico/avanzado), GET /api/analytics/recompras-avanzadas, Sugerencias de Compra Inteligentes, GET, calculateEOQ() (+6 more)
 
 ### Community 58 - "Plan: Fotografías de productos (Cloudflare R2 + WebP)"
 Cohesion: 0.17
@@ -596,8 +601,8 @@ Cohesion: 0.09
 Nodes (22): devDependencies, cross-env, eslint, eslint-config-next, fast-check, jest, jest-environment-jsdom, jest-environment-node (+14 more)
 
 ### Community 61 - "UsuariosCard.tsx"
-Cohesion: 0.18
-Nodes (10): AuditoriaCardProps, CreateUserFormProps, Store, StoreUser, UsuariosCard(), UsuariosCardProps, AdminAuthData, AdminRole (+2 more)
+Cohesion: 0.14
+Nodes (11): CreateUserFormProps, Store, StoreUser, UsuariosCard(), UsuariosCardProps, AdminAuthData, AdminRole, canCreateUser() (+3 more)
 
 ### Community 62 - "audit-coverage.test.ts"
 Cohesion: 0.11
@@ -608,48 +613,48 @@ Cohesion: 0.20
 Nodes (9): campoTrasLabel(), CLIENTES_MOCK, ENCARGADOS_MOCK, makeWrapper(), mockFetch, seleccionarEncargado(), seleccionarServicio(), SERVICIOS_MOCK (+1 more)
 
 ### Community 64 - "RPC completar_cita_tx"
-Cohesion: 0.18
-Nodes (12): citas.duracion_minutos como snapshot al crear, RPC cancelar_cita_tx, AGENTS.md §23.5 — anular venta no re-aplica efectos ya aplicados por NC, AGENTS.md §23.3 — IVA por extracción (precios brutos), anular_venta_tx (referenciado, no modificado por este plan), citas.precio y citas.venta_id, ERRCODE PS005 (cita legado sin precio), src/lib/tax.ts (extraerIva/netoDesdeBruto) (+4 more)
+Cohesion: 0.14
+Nodes (15): citas.duracion_minutos como snapshot al crear, RPC cancelar_cita_tx, AGENTS.md §23.5 — anular venta no re-aplica efectos ya aplicados por NC, AGENTS.md §23.3 — IVA por extracción (precios brutos), anular_venta_tx (referenciado, no modificado por este plan), citas.precio y citas.venta_id, Cuenta contable VENTAS_SERVICIOS (410103), ERRCODE PS005 (cita legado sin precio) (+7 more)
 
 ### Community 65 - "Prompt Final — App Móvil PetShop"
 Cohesion: 0.15
 Nodes (15): Formato de datos específicos de Chile (RUT, CLP, distancia, fechas), Clerk (stack de autenticación excluido de la app móvil), Entregables esperados (orden de implementación), Sistema de diseño — tokens (paleta, tipografía, spacing, radius), Skill: enhance-prompt, Estructura de navegación (app/ Expo Router), Skill: prompt-enhancer, Prompt Final — App Móvil PetShop (+7 more)
 
 ### Community 66 - "procesar-orden.ts"
-Cohesion: 0.14
-Nodes (19): 6. Plan por fases (paso a paso), Fase 0 — Verificación y decisiones (sin cambios de comportamiento), Fase 2 — Núcleo común de canales (desbloquea el flujo), Fase 3 — Aceptación automática y ciclo de vida, Fase 5 — Seguridad, contabilidad y operación, Fase 6 — Salida a producción por canal, barrer(), GET (+11 more)
-
-### Community 67 - "admin.ts"
 Cohesion: 0.09
-Nodes (19): AdminStoreCreateSchema, AdminUserAssignSchema, AiConfigUpdateInput, AiConfigUpdateSchema, AporteCapitalInput, AporteCapitalSchema, AuditLogsQuerySchema, ErrorLogsQuerySchema (+11 more)
+Nodes (29): POST, barrer(), GET, POST, encolarOutbox(), mensajeError(), OUTBOX_MAX_INTENTOS, procesarOutbox() (+21 more)
 
-### Community 68 - "logAudit"
+### Community 67 - "recomendar/route.ts"
 Cohesion: 0.06
-Nodes (79): 4.6 Granel: descuento proporcional y saco abierto (D18–D20 — aprobado), Fase 1 — Integridad de stock (POS + todos los canales), Fase 4 — Catálogo, precios y disponibilidad, @clerk/nextjs, PATCH, GET, PATCH, GET (+71 more)
+Nodes (32): buildResult(), ContextoPOS, maxDuration, POST, RecomendacionPOS, GET, BodySchema, computeLicenseStatus() (+24 more)
+
+### Community 68 - "createServiceClient"
+Cohesion: 0.05
+Nodes (100): 4.6 Granel: descuento proporcional y saco abierto (D18–D20 — aprobado), Fase 1 — Integridad de stock (POS + todos los canales), Fase 4 — Catálogo, precios y disponibilidad, ALTO: token de WhatsApp almacenado sin cifrar, @clerk/nextjs, PATCH, GET, PATCH (+92 more)
 
 ### Community 69 - "Rol businessAdmin (propuesto)"
-Cohesion: 0.18
-Nodes (13): Cookie httpOnly active_store_id (selector de sucursal activa), admin-check.ts / requireSystemAdmin / requireStoreAdmin (referenciado), Rol businessAdmin (propuesto), Tabla businesses (propuesta, migración borrador), Clerk Organizations (modelo de autorización propuesto), Webhook de Clerk (src/app/api/webhooks/clerk/route.ts, referenciado), getStoreId() (src/lib/auth.ts, referenciado), src/middleware.ts (referenciado) (+5 more)
+Cohesion: 0.15
+Nodes (15): Cookie httpOnly active_store_id (selector de sucursal activa), admin-check.ts / requireSystemAdmin / requireStoreAdmin (referenciado), Rol businessAdmin (propuesto), Tabla businesses (propuesta, migración borrador), Clerk Organizations (modelo de autorización propuesto), Webhook de Clerk (src/app/api/webhooks/clerk/route.ts, referenciado), getStoreId() (src/lib/auth.ts, referenciado), Arquitectura Hub de sincronización multi-tienda (existente) (+7 more)
 
 ### Community 70 - "ModalPago.test.tsx"
 Cohesion: 0.14
 Nodes (14): makeWrapper(), mockClearPayNc, mockSetDescuento, mockSetEnviarEmailRecibo, mockSetMetodoPago, mockSetNotas, mockSetNumeroTransaccion, mockSetPayNc (+6 more)
 
-### Community 71 - "§23 Invariantes históricas — no romper"
-Cohesion: 0.24
-Nodes (10): §23.5 anular_venta_tx: no re-aplicar efectos ya aplicados por una NC, §14 Cron jobs (audit-cleanup, email-alerts, stock-reservas-expiry), §23 Invariantes históricas — no romper, IVA por extracción (extraerIva/netoDesdeBruto, src/lib/tax.ts), §21 Matriz de verificaciones condicionales, §23.4 Totales del carrito POS derivados del mismo render, §23.6 Mutaciones de saldos_a_favor atómicas vía RPC, §15 TanStack Query y estado derivado (+2 more)
+### Community 71 - "§23.1 Ownership de nota_credito_items (IDOR)"
+Cohesion: 0.20
+Nodes (14): §23.5 anular_venta_tx: no re-aplicar efectos ya aplicados por una NC, Tablas hijas sin store_id (venta_items, nota_credito_items), §14 Cron jobs (audit-cleanup, email-alerts, stock-reservas-expiry), §23 Invariantes históricas — no romper, IVA por extracción (extraerIva/netoDesdeBruto, src/lib/tax.ts), §21 Matriz de verificaciones condicionales, §6 Multi-tenancy y aislamiento de datos, §23.1 Ownership de nota_credito_items (IDOR) (+6 more)
 
 ### Community 72 - "docs/ index (docs/MEMORY.md)"
-Cohesion: 0.29
-Nodes (7): docs/arquitectura.md — Rutas API, BD, componentes, flujos, docs/convenciones.md — Patrones React, TanStack Query, Zod, docs/decisiones.md — Log de decisiones técnicas con contexto, docs/lineamiento.md — Brief producto, MVP scope, roles, docs/ index (docs/MEMORY.md), docs/pendientes.md — Roadmap fases 2-4, deuda técnica, docs/vencimientos.md — Control fechas vencimiento, alertas, UI (40 tests)
+Cohesion: 0.15
+Nodes (14): §17.3 codebase-memory-mcp (grafo AST local), §17 Grafos de conocimiento (graphify y codebase-memory-mcp), §17.2 graphify (CLI): query / path / explain / update, petShop Agent Instructions (AGENTS.md), claude-mem Cross-Session Memory (empty), CLAUDE.md — graphify usage pointer (@AGENTS.md), docs/arquitectura.md — Rutas API, BD, componentes, flujos, docs/CLAUDE.md — Instrucciones proyecto V3, swarm config (+6 more)
 
-### Community 73 - "notas-credito/route.ts"
+### Community 73 - "contabilidad/types.ts"
+Cohesion: 0.10
+Nodes (13): ChartOfAccount, CrearAsientoInput, CUENTAS, JournalDetail, JournalEntry, LineaAsiento, TipoCuenta, mockClaims (+5 more)
+
+### Community 74 - "worker-sin-acciones-admin.test.ts"
 Cohesion: 0.09
-Nodes (16): POST, POST, lineasNotaCreditoCOGS(), src_lib_validation_notacreditopostschema, mockClaims, mockDeshabilitado, mockFrom, mockGetStoreId (+8 more)
-
-### Community 74 - "api/productos/route.ts"
-Cohesion: 0.07
-Nodes (23): GET, POST, GET, PATCH, UpdateProveedorSchema, mockAuth, mockEliminarImagenProducto, mockFrom (+15 more)
+Nodes (15): DELETE, GET, GET, src_lib_validation_ordencompracreateschema, src_lib_validation_proveedorcreateschema, endpoints, endpointsSec35, Llamada (+7 more)
 
 ### Community 75 - "workers.test.ts"
 Cohesion: 0.18
@@ -667,9 +672,9 @@ Nodes (13): 8 módulos: POS, Inventario, Delivery Multi-Canal, Contabilidad, Cli
 Cohesion: 0.13
 Nodes (16): leaflet, react-leaflet, DefaultIcon, FlyTarget, Props, buildDisplayAddress(), extractCity(), LocationData (+8 more)
 
-### Community 79 - "§23.1 Ownership de nota_credito_items (IDOR)"
-Cohesion: 0.15
-Nodes (17): §9 Auditoría logAudit() (src/lib/audit.ts), Tablas hijas sin store_id (venta_items, nota_credito_items), §10 Contabilidad y sincronización con Hub, crearAsiento() (src/lib/contabilidad/generador-asientos.ts), syncProductsToHub() / syncPurchaseToHub() (src/lib/hub-sync.ts), §16 Módulos y rutas (orientativo), §6 Multi-tenancy y aislamiento de datos, §23.1 Ownership de nota_credito_items (IDOR) (+9 more)
+### Community 79 - "petShop — Session Bootstrap (MEMORY.md)"
+Cohesion: 0.17
+Nodes (13): §9 Auditoría logAudit() (src/lib/audit.ts), §18 Flujo antes de hacer cambios, §2 Gates mecánicos de cierre, §16 Módulos y rutas (orientativo), §20 Protocolo para cerrar un bug fix, §1 Reglas no negociables, §8 Validación con Zod (src/lib/validation/), Checklist antes de hacer PR (+5 more)
 
 ### Community 80 - "GET /api/dashboard/vencimientos"
 Cohesion: 0.18
@@ -680,24 +685,24 @@ Cohesion: 0.15
 Nodes (12): CLAUDE_FLOW_HOOKS_ENABLED, CLAUDE_FLOW_MAX_AGENTS, CLAUDE_FLOW_MEMORY_BACKEND, CLAUDE_FLOW_MODE, CLAUDE_FLOW_TOPOLOGY, npm_config_update_notifier, codebase-memory-mcp, npx (+4 more)
 
 ### Community 82 - "stores"
-Cohesion: 0.19
-Nodes (14): stores, canal_config, canal_liquidaciones, canal_ordenes, canal_producto_config, canales_externos, stock_reservas, idx_user_sessions_store_time (+6 more)
+Cohesion: 0.14
+Nodes (22): stores, canal_config, canal_liquidaciones, canal_ordenes, canal_producto_config, canales_externos, idx_canal_ordenes_expiry, idx_canal_ordenes_store_estado (+14 more)
 
-### Community 83 - "SuppliersPageFlujos.test.tsx"
-Cohesion: 0.11
-Nodes (10): parseFechaLocal(), SupplierHubPage(), CUENTAS, fallos, fetchMock, ITEMS_ENV, mockWriteFile, ORDENES (+2 more)
+### Community 83 - "BarcodeScanner.test.tsx"
+Cohesion: 0.18
+Nodes (8): 7. Alta de productos por código de barras con Open Pet Food Facts, @zxing/browser, BarcodeScanner(), MockBrowserMultiFormatReader, mockDecodeFromStream, mockStop, mockStream, mockTrackStop
 
-### Community 84 - "preparacion/route.ts"
-Cohesion: 0.09
-Nodes (28): ref_node_child_process, ref_node_http, ref_node_net, ref_node_path, GET, Params, adaptadoresImplementados(), CRONS_REQUERIDOS (+20 more)
+### Community 84 - "lib/canales-fase6.test.ts"
+Cohesion: 0.16
+Nodes (12): ref_node_child_process, ref_node_http, ref_node_net, ref_node_path, CRONS_REQUERIDOS, DatosPreparacion, EstadoItem, evaluarPreparacion() (+4 more)
 
 ### Community 86 - "011_libro_diario.sql"
 Cohesion: 0.18
 Nodes (14): chart_of_accounts, idx_chart_of_accounts_store, idx_journal_detail_cuenta, idx_journal_detail_entry, idx_journal_entries_referencia, idx_journal_entries_store_fecha, idx_journal_entries_tipo, idx_movimientos_automaticos_store (+6 more)
 
-### Community 87 - "autorizarCanales"
-Cohesion: 0.15
-Nodes (14): DELETE, PATCH, GET, POST, POST, tipoReal(), POST, autorizarCanales() (+6 more)
+### Community 87 - "security-alerts.ts"
+Cohesion: 0.25
+Nodes (10): ALERT_THRESHOLDS, AlertSeverity, alertStore, checkAuthThreshold(), getIP(), logSecurityAlert(), pageOnCall(), SecurityAlert (+2 more)
 
 ### Community 88 - "citas.test.ts"
 Cohesion: 0.17
@@ -719,9 +724,9 @@ Nodes (10): §23.2 Evento Clerk session.created (store_id nullable), §4 Stack t
 Cohesion: 0.14
 Nodes (14): scripts, audit:deps, build, dev, lint, lint:slop, start, test (+6 more)
 
-### Community 93 - "create/route.ts"
-Cohesion: 0.23
-Nodes (11): ClerkApiError, createClerkUser(), isClerkApiError(), isEmailTakenError(), POST, handleRouteError(), logError(), AdminUserCreateFullSchema (+3 more)
+### Community 93 - "productos.test.ts"
+Cohesion: 0.18
+Nodes (8): mockAuth, mockEliminarImagenProducto, mockFrom, mockGetStoreId, mockRpc, mockSingle, mockSyncProductsToHub, patchParams
 
 ### Community 94 - "canales-webhook.test.ts"
 Cohesion: 0.13
@@ -733,7 +738,7 @@ Nodes (28): annotationTarget(), FunctionExpression, functionName(), hasInformati
 
 ### Community 96 - "suppliers/page.tsx"
 Cohesion: 0.05
-Nodes (31): CuentaPagar, DetalleProveedor, EMPTY_FORM, OrdenCompra, OrdenItem, ProdRow, ProductoOpt, Proveedor (+23 more)
+Nodes (32): CuentaPagar, DetalleProveedor, EMPTY_FORM, OrdenCompra, OrdenItem, parseFechaLocal(), ProdRow, ProductoOpt (+24 more)
 
 ### Community 97 - "inventario-conteo.test.ts"
 Cohesion: 0.20
@@ -752,12 +757,12 @@ Cohesion: 0.25
 Nodes (8): GET, llamar(), mockDeshabilitado, mockEq, mockFrom, mockGetStoreId, mockSelect, mockSingle
 
 ### Community 101 - "rateLimit.ts"
-Cohesion: 0.12
-Nodes (25): ALERT_THRESHOLDS, AlertSeverity, alertStore, checkAuthThreshold(), getIP(), logSecurityAlert(), pageOnCall(), SecurityAlert (+17 more)
+Cohesion: 0.20
+Nodes (15): apiGeneralLimit, apiUsuarioLimit, aplicarRateLimit(), authLimit, contarEnBd(), createRateLimit(), defaultConfig, maxRequestsDesdeEnv() (+7 more)
 
-### Community 102 - "types/index.ts"
-Cohesion: 0.05
-Nodes (47): ExcepcionesEditor(), Props, DIAS, formatHora(), FormProps, FranjasEditor(), HorarioSemanalEditor(), inicializarSlots() (+39 more)
+### Community 102 - "HorarioSemanalEditor.tsx"
+Cohesion: 0.07
+Nodes (23): ExcepcionesEditor(), Props, DIAS, formatHora(), FormProps, FranjasEditor(), HorarioSemanalEditor(), inicializarSlots() (+15 more)
 
 ### Community 103 - "encargados.test.ts"
 Cohesion: 0.20
@@ -768,8 +773,8 @@ Cohesion: 0.18
 Nodes (8): excepcionParams, idParams, mockAuth, mockFrom, mockGetAdminStatus, mockGetStoreId, mockRequireStoreAdmin, mockSingle
 
 ### Community 105 - "CanalesUIRamas.test.tsx"
-Cohesion: 0.16
-Nodes (9): OrdenesCanalPage(), OrdenesCanalPage(), OrdenesCanalPage(), INTERVALO_AVISO_MS, fetchMock, mockPedidosCanales, mockPush, mockRedirect (+1 more)
+Cohesion: 0.14
+Nodes (10): OrdenesCanalPage(), OrdenesCanalPage(), OrdenesCanalPage(), INTERVALO_AVISO_MS, PedidosCanalesAviso(), fetchMock, mockPedidosCanales, mockPush (+2 more)
 
 ### Community 106 - "pdf-generator-boleta.test.ts"
 Cohesion: 0.17
@@ -788,24 +793,24 @@ Cohesion: 0.27
 Nodes (8): Predicción de Demanda Avanzada, GET /api/reports/prediccion, predictDemand() — WMA + regresión lineal + estacionalidad, Migración 019: campos de reorder en productos, sync_ventas_historico() (función SQL), Migración 018: tabla ventas_historico, Prediccion, ProductoBasico
 
 ### Community 110 - "outbox.ts"
-Cohesion: 0.11
-Nodes (37): @supabase/supabase-js, bodySchema, POST, POST, GET, reconciliar(), ADAPTADORES, canalHabilitadoEnDespliegue() (+29 more)
+Cohesion: 0.10
+Nodes (39): @supabase/supabase-js, GET, Params, POST, GET, reconciliar(), ADAPTADORES, adaptadoresImplementados() (+31 more)
 
 ### Community 111 - "AnaliticaTab.tsx"
-Cohesion: 0.11
-Nodes (19): date-fns, Alerta, AlertasConsumo(), AnaliticaTab(), getDashboardData(), getStockAlertas(), getVencimientos(), LoteDashboard (+11 more)
+Cohesion: 0.08
+Nodes (27): date-fns, Alerta, AlertasConsumo(), AnaliticaTab(), getDashboardData(), getStockAlertas(), getVencimientos(), LoteDashboard (+19 more)
 
 ### Community 112 - "anti-slop/index.ts"
 Cohesion: 0.10
 Nodes (26): @oxlint/plugins, antiSlopPlugin, noArrayFilterMapRule, isConditionalEmptyObjectSpread(), isEmptyObjectExpression(), noConditionalEmptyObjectSpreadRule, unwrapParentheses(), importedName() (+18 more)
 
 ### Community 113 - "Instalar petShop en una tienda nueva"
-Cohesion: 0.12
-Nodes (16): 0. Modelo, 10. Registro de instalaciones, 1. CSP y Clerk de producción (resuelto en `main`, 2026-10-11), 2. Rama y versión, 4. Clerk (una aplicación por tienda), 5.1 Fotos de producto (Cloudflare R2), 5.2 Email (Resend), 5.3 IA (OpenRouter) (+8 more)
+Cohesion: 0.22
+Nodes (9): 0. Modelo, 10. Registro de instalaciones, 2. Rama y versión, 4. Clerk (una aplicación por tienda), 6. Vercel, 7. Datos iniciales, 8. Verificación, 9. Actualizar una tienda desde `main` (supervisado) (+1 more)
 
-### Community 114 - "demand-forecasting.ts"
-Cohesion: 0.33
-Nodes (8): GET, calculateSeasonality(), ForecastResult, linearRegression(), MIN_DATOS_HISTORICOS, predictDemand(), SalesDataPoint, weightedMovingAverage()
+### Community 114 - "zod"
+Cohesion: 0.15
+Nodes (15): zod, GET, PATCH, UpdateProveedorSchema, GET, QuerySchema, GET, QuerySchema (+7 more)
 
 ### Community 115 - "CanalesFase5.test.tsx"
 Cohesion: 0.12
@@ -823,17 +828,17 @@ Nodes (7): createChain(), chain, mockAuth, setupExistingCierre(), setupFecha(), 
 Cohesion: 0.12
 Nodes (15): idx_clerk_users_business_id, idx_clerk_users_clerk_id, idx_clerk_users_is_disabled, idx_clerk_users_nombre, idx_clerk_users_store_id, idx_instagram_post_media_post, idx_instagram_posts_scheduled, idx_instagram_posts_store (+7 more)
 
-### Community 119 - "[canal]/page.tsx"
-Cohesion: 0.16
-Nodes (13): CanalConfigPage(), CANALES_INFO, CanalInfo, CampoCredencial, CAMPOS_CREDENCIALES, CanalConfigurableId, CANALES_INTEGRACION_PENDIENTE, esCanalConfigurable() (+5 more)
+### Community 119 - "CanalConfigPage.test.tsx"
+Cohesion: 0.33
+Nodes (4): fetchCalls, mockFetch, mockPush, renderPage()
 
 ### Community 120 - "api/ventas/route.ts"
-Cohesion: 0.13
-Nodes (20): 4.8 Contabilidad — por qué no se puede copiar el patrón de comisión de Rappi, postVenta(), POST, crearAsiento(), lineasVentaCanal(), lineasVentaConNc(), syncPurchaseToHub(), src_lib_validation_ventacreateschema (+12 more)
+Cohesion: 0.09
+Nodes (24): 3.2 Canales externos, GET, GET, GET, postVenta(), hubHeaders(), syncProductsToHub(), syncPurchaseToHub() (+16 more)
 
 ### Community 121 - "Stock y canales externos — contexto, decisiones y plan de ejecución"
 Cohesion: 0.08
-Nodes (25): 0. Cómo usar este documento (leer antes de tocar código), 1. Contexto del negocio, 2. Decisiones del usuario (vinculantes), 3.1 Stock (afecta a POS y canales), 3.3 Tests existentes relacionados (actualizar, no debilitar), 3.3b Verificación contra la BD real (Fase 0, 2026-09-24 — resultados Q1–Q3 pegados por el usuario), 3. Estado actual (hallazgos al 2026-09-24), 4.1 Reglas de stock (fuente única: BD) (+17 more)
+Nodes (24): 1. Contexto del negocio, 2. Decisiones del usuario (vinculantes), 3.1 Stock (afecta a POS y canales), 3.3 Tests existentes relacionados (actualizar, no debilitar), 3.3b Verificación contra la BD real (Fase 0, 2026-09-24 — resultados Q1–Q3 pegados por el usuario), 3. Estado actual (hallazgos al 2026-09-24), 4.1 Reglas de stock (fuente única: BD), 4.2 Recepción de una orden externa (aceptación automática, D5/D6) (+16 more)
 
 ### Community 122 - "tagged-values.ts"
 Cohesion: 0.15
@@ -847,12 +852,12 @@ Nodes (7): src_app_app_dashboard_components_analiticatab_default, DASHBOARD_BODY
 Cohesion: 0.33
 Nodes (7): AsientoHTML, clp(), DetalleLinea, fmtFecha(), generarHtmlLibroDiario(), LibroDiarioHTMLData, BASE_DATA
 
-### Community 125 - "alertas/route.ts"
-Cohesion: 0.26
-Nodes (10): GET, reintentoSchema, Alerta, armarAlertas(), esErrorCredenciales(), FilaConfigMenu, FilaOrdenFallida, FilaOutboxAlerta (+2 more)
+### Community 125 - "lib/canales-fase5.test.ts"
+Cohesion: 0.15
+Nodes (12): Alerta, armarAlertas(), esErrorCredenciales(), FilaConfigMenu, FilaOrdenFallida, FilaOutboxAlerta, NOMBRE_TRABAJO, TipoAlerta (+4 more)
 
 ### Community 126 - "[canal]/productos/route.ts"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (15): Contexto, GET, Params, precioCalculado(), putSchema, ItemCatalogo, armarCatalogo(), CatalogoVacioError (+7 more)
 
 ### Community 127 - "ai-vencimientos.test.ts"
@@ -867,17 +872,17 @@ Nodes (6): genericChain(), chain, mockAuth, mockCreateServiceClient, mockGetStor
 Cohesion: 0.22
 Nodes (4): mockAuth, mockFrom, mockGetAdminStatus, mockResolveAdminContext
 
-### Community 130 - "categorias/route.ts"
-Cohesion: 0.17
-Nodes (11): DELETE, PATCH, requireAdmin(), GET, POST, idParams, mockAuth, mockFrom (+3 more)
+### Community 130 - "categorias.test.ts"
+Cohesion: 0.20
+Nodes (7): GET, idParams, mockAuth, mockFrom, mockGetAdminStatus, mockGetStoreId, mockSingle
 
 ### Community 131 - "cuentas-pagar.test.ts"
 Cohesion: 0.20
 Nodes (3): mockFrom, mockGetStoreId, mockSingle
 
-### Community 132 - "react"
-Cohesion: 0.05
-Nodes (26): react, EncargadosTab(), Categoria, CategoriasTab(), ServiciosTab(), DevolucionItem, DevolucionModal(), DevolucionModalProps (+18 more)
+### Community 132 - "EncargadosTab.test.tsx"
+Cohesion: 0.18
+Nodes (4): EncargadosTab(), ENCARGADOS_MOCK, makeWrapper(), mockFetch
 
 ### Community 133 - "RPC crear_cita_tx"
 Cohesion: 0.25
@@ -887,9 +892,9 @@ Nodes (8): Decisión 9c: pg_advisory_xact_lock para conflictos de citas, RPC cre
 Cohesion: 0.29
 Nodes (8): /lib/api.ts — cliente HTTP centralizado, /store/auth.ts — Zustand (sesión del cliente), /store/cache.ts — Zustand + AsyncStorage, Comportamiento Offline, Pantalla 1: Autenticación por RUT, Pantalla 3: Búsqueda Federada, POST /api/auth/rut (endpoint del hub), validarRUT() — algoritmo módulo 11
 
-### Community 135 - "012_canales_hub.sql"
-Cohesion: 0.30
-Nodes (11): canal_config, canal_liquidaciones, canal_ordenes, canal_producto_config, canales_externos, idx_canal_ordenes_expiry, idx_canal_ordenes_store_estado, idx_canal_producto_config_store_canal (+3 more)
+### Community 135 - "clientes/[id]/route.ts"
+Cohesion: 0.27
+Nodes (6): DELETE, GET, PATCH, src_lib_validation_clienteupdateschema, mockFrom, mockGetStoreId
 
 ### Community 136 - "dictionary-types.ts"
 Cohesion: 0.21
@@ -905,7 +910,7 @@ Nodes (21): assertedExpression(), assertionFromExpression(), assertionIsNarrower
 
 ### Community 139 - "Conexión Shopify como canal de venta online — estudio y plan"
 Cohesion: 0.05
-Nodes (38): 0. Cómo se hizo este estudio — limitaciones que debes conocer, 10. Plan de fases propuesto, 1. Decisiones confirmadas contigo (2026-09-22), 2.1 Arquitectura: un Hub genérico con adaptadores por canal, 2.2 El pipeline canónico de venta: `aceptarOrdenExterna()` (`src/lib/canales/hub.ts:279-539`), 2.3 La reserva de stock (`stock_reservas`) existe en código pero **no está conectada**, 2.4 El webhook de intake solo funciona para Rappi — PedidosYa y UberEats están incompletos, 2.5 El push de catálogo/disponibilidad hacia los canales es manual, nunca automático (+30 more)
+Nodes (39): 0. Cómo se hizo este estudio — limitaciones que debes conocer, 10. Plan de fases propuesto, 1. Decisiones confirmadas contigo (2026-09-22), 2.1 Arquitectura: un Hub genérico con adaptadores por canal, 2.2 El pipeline canónico de venta: `aceptarOrdenExterna()` (`src/lib/canales/hub.ts:279-539`), 2.3 La reserva de stock (`stock_reservas`) existe en código pero **no está conectada**, 2.4 El webhook de intake solo funciona para Rappi — PedidosYa y UberEats están incompletos, 2.5 El push de catálogo/disponibilidad hacia los canales es manual, nunca automático (+31 more)
 
 ### Community 140 - "Rappi — salida a producción (Fase 6)"
 Cohesion: 0.20
@@ -923,9 +928,9 @@ Nodes (6): POST, DATOS_TIENDA, mockAuth, mockClerkClient, mockFrom, mockSingle
 Cohesion: 0.17
 Nodes (11): DashboardQuerySchema, FidelizacionQuerySchema, FidelizacionSchema, PagoSchema, ReciboGetSchema, RecomprasSchema, ReportsQuerySchema, SaldosFavorCreateSchema (+3 more)
 
-### Community 144 - "[ventaId]/route.ts"
-Cohesion: 0.27
-Nodes (8): fast-check, generarHTMLRecibo(), GET, ReciboCliente, ReciboDatos, ReciboItem, IVA_RATE, netoDesdeBruto()
+### Community 144 - "extraerIva"
+Cohesion: 0.67
+Nodes (4): 0. Cómo usar este documento (leer antes de tocar código), extraerIva(), IVA_RATE, netoDesdeBruto()
 
 ### Community 145 - "Sincronización de cada Store al Hub"
 Cohesion: 0.33
@@ -939,21 +944,21 @@ Nodes (7): Decisión 9a: solo staff agenda citas (sin autoservicio), Fase 1: Con
 Cohesion: 0.29
 Nodes (7): Estructura de navegación Expo Router (5 tabs), Checklist — App Móvil, Inicialización proyecto Expo (create-expo-app petshop-mobile), Fase 0 — Preparación (Semana 1), Fase 3 — Desarrollo App Móvil (Semanas 5-9), Fase 4 — QA, Lanzamiento y Monitoreo (Semanas 10-12), Plan de 12 semanas / 5 fases
 
-### Community 148 - "LicenciaCard.tsx"
-Cohesion: 0.24
-Nodes (8): LicenciaCard(), LicenseConfig, LicenseData, LicenseStatus, User, deshabilitarU1(), makeWrapper(), renderLicencia()
+### Community 148 - "ventas-fifo.test.ts"
+Cohesion: 0.22
+Nodes (7): POST, buildVentaMock(), DB_VENTA_FIFO, flatQueryMock(), mockDeshabilitado, mockFrom, mockRpc
 
 ### Community 149 - "admin-users-create.test.ts"
 Cohesion: 0.20
 Nodes (4): mockAuth, mockClerkClient, mockFrom, mockLogError
 
 ### Community 150 - "supply-chain.ts"
-Cohesion: 0.13
-Nodes (14): CuentasPagarSchema, CuentasPagarUpdateSchema, NotaCreditoPostSchema, NotasCreditoCreateSchema, OrdenCompraCreateSchema, OrdenCompraEditItemsSchema, OrdenCompraItemCreateSchema, OrdenCompraReceiveItemSchema (+6 more)
+Cohesion: 0.12
+Nodes (15): CuentasPagarSchema, CuentasPagarUpdateSchema, NotaCreditoPostSchema, NotasCreditoCreateSchema, OrdenCompraCreateSchema, OrdenCompraEditItemsSchema, OrdenCompraEstadoSchema, OrdenCompraItemCreateSchema (+7 more)
 
 ### Community 151 - "AuditoriaCard.tsx"
-Cohesion: 0.18
-Nodes (10): ACTION_COLORS, AuditFilters, AuditLog, ErrorFilters, ErrorLog, EVENT_TYPE_COLORS, RESULT_COLORS, SessionFilters (+2 more)
+Cohesion: 0.17
+Nodes (11): ACTION_COLORS, AuditFilters, AuditLog, AuditoriaCardProps, ErrorFilters, ErrorLog, EVENT_TYPE_COLORS, RESULT_COLORS (+3 more)
 
 ### Community 152 - "public.journal_entries"
 Cohesion: 0.20
@@ -967,25 +972,25 @@ Nodes (7): ref_node_crypto, a, body, cuerpo(), fallar(), sign, t
 Cohesion: 0.38
 Nodes (6): makeNCChain(), makeSUT(), makeVentasChain(), mockFrom, mockGetStoreId, mockVentas
 
-### Community 155 - "9. Registro de progreso"
+### Community 155 - "petShop — Faltantes de contaduría"
 Cohesion: 0.10
-Nodes (20): 9. Registro de progreso, 1. IVA de órdenes de compra (hallazgo 5 del informe de seguridad), 2. Mermas y ajustes de stock sin asiento contable, 3. Validar D24 con el contador: liquidaciones de canales externos, 4. ✅ Asientos que se podían perder en serverless (sin `after()`), 5. ✅ El backfill cubre pagos a proveedor y liquidaciones de canal, 6. Tests de contabilidad, 7. Ideas y alcances futuros (no comprometidos) (+12 more)
+Nodes (19): 1. IVA de órdenes de compra (hallazgo 5 del informe de seguridad), 2. Mermas y ajustes de stock sin asiento contable, 3. Validar D24 con el contador: liquidaciones de canales externos, 4. ✅ Asientos que se podían perder en serverless (sin `after()`), 5. ✅ El backfill cubre pagos a proveedor y liquidaciones de canal, 6. Tests de contabilidad, 7. Ideas y alcances futuros (no comprometidos), petShop — Faltantes de contaduría (+11 more)
 
 ### Community 156 - "canal_outbox"
 Cohesion: 0.33
 Nodes (8): canales_externos, canal_outbox, canal_outbox_dedupe_vivo, canal_outbox_pendientes, canal_outbox_store_created, canal_outbox_updated_at, idx_canal_ordenes_expiry, canal_ordenes
 
 ### Community 157 - "ventas.get.test.ts"
-Cohesion: 0.20
-Nodes (7): GET, MOCK_VENTAS, mockClaims, mockDeshabilitado, mockFrom, mockGetStoreId, QueryChain
+Cohesion: 0.22
+Nodes (6): MOCK_VENTAS, mockClaims, mockDeshabilitado, mockFrom, mockGetStoreId, QueryChain
 
 ### Community 158 - "088_indices_foreign_keys.sql"
 Cohesion: 0.33
 Nodes (8): idx_consumo_alertas_cliente_id, idx_consumo_alertas_mascota_id, idx_consumo_alertas_producto_id, idx_nota_credito_items_producto_id, idx_nota_credito_items_servicio_id, idx_nota_credito_items_venta_item_id, public.consumo_alertas, public.nota_credito_items
 
 ### Community 159 - "proxy.ts"
-Cohesion: 0.24
-Nodes (7): buildCsp(), clerkProdFrontendApi(), config, publicRoutes, skipLicenseCheck, workerAllowedRoutes, simulateLicenseCheck()
+Cohesion: 0.22
+Nodes (8): 1. CSP y Clerk de producción (resuelto en `main`, 2026-10-11), buildCsp(), clerkProdFrontendApi(), config, publicRoutes, skipLicenseCheck, workerAllowedRoutes, simulateLicenseCheck()
 
 ### Community 160 - "013_multi_channel_phase0_step2.sql"
 Cohesion: 0.25
@@ -1000,20 +1005,20 @@ Cohesion: 0.22
 Nodes (6): mockAuth, mockBan, mockIn, mockLogAudit, mockUnban, mockUpdate
 
 ### Community 164 - "button.tsx"
-Cohesion: 0.08
-Nodes (44): @base-ui/react, class-variance-authority, lucide-react, ImportError, ImportResult, NuevaMascota, AnalisisResultado, ESTRATEGIA_LABELS (+36 more)
+Cohesion: 0.07
+Nodes (47): @base-ui/react, class-variance-authority, lucide-react, ImportError, ImportResult, ModalClienteCreate(), NuevaMascota, CustomersPage() (+39 more)
 
-### Community 165 - "§17 Grafos de conocimiento (graphify y codebase-memory-mcp)"
-Cohesion: 0.20
-Nodes (11): §17.3 codebase-memory-mcp (grafo AST local), §18 Flujo antes de hacer cambios, §2 Gates mecánicos de cierre, §17 Grafos de conocimiento (graphify y codebase-memory-mcp), §17.2 graphify (CLI): query / path / explain / update, §20 Protocolo para cerrar un bug fix, §1 Reglas no negociables, claude-mem Cross-Session Memory (empty) (+3 more)
+### Community 165 - "ProductoImagenesField.tsx"
+Cohesion: 0.22
+Nodes (5): ImageSlot(), ImageSlotProps, ProductoImagenesField(), ProductoImagenesFieldProps, mockOnChange
 
-### Community 166 - "Inventario"
-Cohesion: 0.17
-Nodes (13): AppLayout (sidebar), HoverPrefetchLink, InventoryPage, LotesPanel, ModalOverlay, SugerenciasRecompra, UltimasVentas, Optimizador IA de Vencimientos (+5 more)
+### Community 166 - "Ráfaga de prefetch RSC por Link sin gating (ticket 6a76ccfa629628db21ebbe60)"
+Cohesion: 0.40
+Nodes (5): AppLayout (sidebar), HoverPrefetchLink, SugerenciasRecompra, UltimasVentas, Ráfaga de prefetch RSC por Link sin gating (ticket 6a76ccfa629628db21ebbe60)
 
-### Community 167 - "createServiceClient"
+### Community 167 - "audit.ts"
 Cohesion: 0.05
-Nodes (59): 3.2 Canales externos, GET, GET, POST, DELETE, GET, PATCH, GET (+51 more)
+Nodes (59): ClerkApiError, createClerkUser(), isClerkApiError(), isEmailTakenError(), POST, GET, reintentoSchema, bodySchema (+51 more)
 
 ### Community 168 - "Anexo A. Variables de entorno"
 Cohesion: 0.25
@@ -1035,9 +1040,9 @@ Nodes (7): idx_cuentas_pagar_store_id, idx_ordenes_compra_store_id, public.cuent
 Cohesion: 0.48
 Nodes (6): idx_instagram_post_media_post, idx_instagram_posts_scheduled, idx_instagram_posts_store, instagram_post_media, instagram_posts, trg_instagram_posts_updated_at
 
-### Community 173 - "SettingsPage.test.tsx"
-Cohesion: 0.33
-Nodes (4): makeWrapper(), mockUseAuth, renderPage(), base()
+### Community 173 - "settings/page.tsx"
+Cohesion: 0.16
+Nodes (10): FidelizacionNivel, SettingsPage(), StoreSettings, makeWrapper(), mockUseAuth, renderPage(), makeWrapper(), renderPage() (+2 more)
 
 ### Community 174 - "CatalogoCanal.tsx"
 Cohesion: 0.19
@@ -1048,8 +1053,8 @@ Cohesion: 0.33
 Nodes (6): 3.1 Crear el proyecto, 3.2 Esquema base: `migrations/000_baseline.sql`, 3.3 Lo que el baseline no trae, 3.4 Verificar, 3.5 Migraciones posteriores al baseline y su registro, 3. Supabase
 
 ### Community 176 - "PedidosCanales.tsx"
-Cohesion: 0.15
-Nodes (11): ETIQUETA_ESTADO, INTERVALO_MS, minutosDesde(), NOMBRE_CANAL, Orden, PedidosCanales(), PedidosCanalesPage(), EstadoOrden (+3 more)
+Cohesion: 0.17
+Nodes (9): ETIQUETA_ESTADO, INTERVALO_MS, minutosDesde(), NOMBRE_CANAL, Orden, PedidosCanales(), PedidosCanalesPage(), fetchMock (+1 more)
 
 ### Community 177 - "no-reduce-accumulator-copy.ts"
 Cohesion: 0.45
@@ -1079,25 +1084,25 @@ Nodes (10): mockAuth, mockFrom, mockGetStoreId, mockLogAudit, mockRpc, mockSync,
 Cohesion: 0.60
 Nodes (5): error_logs, idx_error_logs_endpoint, idx_error_logs_resolved, idx_error_logs_severity, idx_error_logs_store_time
 
-### Community 185 - "lotes-merma.test.ts"
-Cohesion: 0.33
-Nodes (5): mockAuth, mockGetStoreId, mockLogAudit, mockRpc, post()
+### Community 185 - "contabilidad-asientos-post.test.ts"
+Cohesion: 0.20
+Nodes (5): cierreChain(), chain, genericChain(), chain, LINEAS_VALIDAS
 
 ### Community 186 - "webhook/route.ts"
 Cohesion: 0.19
 Nodes (11): MEDIO: webhook de WhatsApp no está en publicRoutes (bloqueado por Clerk), CRÍTICO: webhook POST de WhatsApp sin verificación de firma HMAC, ALTO: PII de mensajes WhatsApp registrada en consola, src/app/api/webhooks/clerk/route.ts (referencia de verificación Svix), ref_crypto, GET, POST, NOTE: Do NOT log the body — it contains customer PII (phone numbers, message… (+3 more)
 
-### Community 187 - "settings/route.ts"
-Cohesion: 0.08
-Nodes (20): POST, BodySchema, GET, PATCH, StoreAddressSchema, StoreRutSchema, src_lib_validation_settingsupdateschema, src_lib_validation_storeaddressschema (+12 more)
+### Community 187 - "settings.test.ts"
+Cohesion: 0.25
+Nodes (4): mockAuth, mockFrom, mockGetStoreId, mockSingle
 
 ### Community 188 - "Tabla saldos_a_favor"
 Cohesion: 0.67
 Nodes (3): GET /api/saldos-a-favor?clienteId=, Tabla saldos_a_favor, Tipo de reembolso: saldo_a_favor (crédito para compras futuras)
 
-### Community 189 - "exigirStoreAdmin"
-Cohesion: 0.05
-Nodes (42): GET, GET, GET, GET, GET, GET, GET, GET (+34 more)
+### Community 189 - "getStoreId"
+Cohesion: 0.06
+Nodes (69): analizarConReintentoSiTimeout(), GET, maxDuration, POST, completarCita(), GET, PATCH, GET (+61 more)
 
 ### Community 191 - "no-unsafe-dictionary-type.ts"
 Cohesion: 0.33
@@ -1115,6 +1120,10 @@ Nodes (4): auth_failures, idx_auth_failures_attempted_at, idx_auth_failures_ip, 
 Cohesion: 0.70
 Nodes (4): idx_instagram_posts_scheduled, idx_instagram_posts_store_status, instagram_post_media, instagram_posts
 
+### Community 203 - "pos-recomendar.test.ts"
+Cohesion: 0.22
+Nodes (8): buildChain(), MOCK_CLIMA, MOCK_RECS, mockClimatico, mockFrom, mockGetStoreId, mockRecomendarPOS, setupSupabase()
+
 ### Community 204 - "public.venta_items"
 Cohesion: 0.50
 Nodes (4): idx_venta_items_mascota_id, idx_venta_items_producto_id, idx_venta_items_servicio_id, public.venta_items
@@ -1128,8 +1137,8 @@ Cohesion: 0.50
 Nodes (4): idx_ventas_canal, idx_ventas_mascota_id, idx_ventas_worker_clerk_id, public.ventas
 
 ### Community 225 - "ventas_historico"
-Cohesion: 0.83
-Nodes (3): idx_ventas_historico_fecha, idx_ventas_historico_producto, ventas_historico
+Cohesion: 0.36
+Nodes (6): idx_ventas_historico_fecha, idx_ventas_historico_producto, ventas_historico, idx_user_sessions_store_time, idx_user_sessions_user, user_sessions
 
 ### Community 227 - "migrations/072_imagen_url_2_producto.sql (planeada)"
 Cohesion: 0.67
@@ -1163,29 +1172,33 @@ Nodes (3): idx_cuentas_pagar_orden_id, idx_cuentas_pagar_proveedor_id, public.cu
 Cohesion: 0.67
 Nodes (3): idx_ordenes_compra_items_orden_id, idx_ordenes_compra_items_producto_id, public.ordenes_compra_items
 
+### Community 237 - "productos-imagenes.test.ts"
+Cohesion: 0.25
+Nodes (4): mockEliminar, mockGetStoreId, mockOptimizar, mockSubir
+
 ### Community 264 - "admin/page.tsx"
-Cohesion: 0.22
-Nodes (6): AdminRole, Store, AdminLayout(), AdminLayoutProps, NavItemProps, AuditoriaCard()
+Cohesion: 0.16
+Nodes (10): AdminRole, Store, AdminLayout(), AdminLayoutProps, NavItemProps, AuditoriaCard(), buildMeta(), mockReplace (+2 more)
 
 ### Community 267 - "LiquidacionesCanal.tsx"
 Cohesion: 0.29
 Nodes (9): clp(), ErroresLiquidacion, FormLiquidacion, Liquidacion, LiquidacionesCanal(), registrar(), resumenErrores(), VACIO (+1 more)
 
-### Community 268 - "HoverPrefetchLink.tsx"
-Cohesion: 0.22
-Nodes (7): Sugerencia, SugerenciasRecompra(), UltimasVentas(), VentaResumen, HoverPrefetchLink(), data, data
+### Community 268 - "react"
+Cohesion: 0.10
+Nodes (11): react, react-dom, AppLayout(), navItems, LicenseProvider(), LicenseWarningBanner(), LicenseWarningBannerProps, HoverPrefetchLink() (+3 more)
 
-### Community 269 - "settings/page.tsx"
-Cohesion: 0.24
-Nodes (9): GET, FidelizacionNivel, SettingsPage(), StoreSettings, fechaNegocioISO(), formatDateOnlyEsCL(), parseDateOnlyLocal(), computeLicenseStatus() (+1 more)
+### Community 269 - "servicios-disponibilidad.test.ts"
+Cohesion: 0.25
+Nodes (5): idParams, mockFrom, mockGetStoreId, SERVICIO_OK, Tablas
 
 ### Community 270 - "no-chained-type-assertions.ts"
 Cohesion: 0.46
 Nodes (7): isConstAssertion(), isForbiddenAssertionChain(), isOutermostAssertionInChain(), isTypeAssertionExpression(), noChainedTypeAssertionsRule, TypeAssertionExpression, unwrapParenthesizedExpression()
 
-### Community 273 - "lib/canales-fase5.test.ts"
-Cohesion: 0.08
-Nodes (19): ChartOfAccount, CrearAsientoInput, CUENTAS, JournalDetail, JournalEntry, LineaAsiento, TipoCuenta, usuarioDeshabilitado() (+11 more)
+### Community 273 - "contabilidad-crear-asiento.test.ts"
+Cohesion: 0.18
+Nodes (7): EntryResult, INPUT_BASE, LINEAS_BALANCEADAS, LINEAS_CERO, LINEAS_DESCUADRADAS, mockCreateServiceClient, MockOptions
 
 ### Community 274 - "ContabilidadPage.test.tsx"
 Cohesion: 0.20
@@ -1197,7 +1210,7 @@ Nodes (8): idParams, mockAuth, mockFrom, mockGetAdminStatus, mockGetStoreId, moc
 
 ### Community 276 - "InstagramPosts.test.tsx"
 Cohesion: 0.07
-Nodes (16): EditorContent(), InstagramEditor(), Producto, ProductTag, InstagramConfig, InstagramDashboard(), InstagramPost, InstagramPost (+8 more)
+Nodes (17): EditorContent(), InstagramEditor(), Producto, ProductTag, InstagramConfig, InstagramDashboard(), InstagramPost, InstagramPost (+9 more)
 
 ### Community 277 - "clerk.webhook.test.ts"
 Cohesion: 0.12
@@ -1208,12 +1221,12 @@ Cohesion: 0.20
 Nodes (8): nextConfig, securityHeaders, ref_child_process, archivos(), MIGRACIONES, ROOT, RUTAS_API, SRC
 
 ### Community 291 - "config/route.ts"
-Cohesion: 0.24
-Nodes (13): allCredentialsFilled(), externalStoreIdDe(), GET, PATCH, POST, CanalConfig, CANALES, CanalesPage() (+5 more)
+Cohesion: 0.16
+Nodes (21): allCredentialsFilled(), externalStoreIdDe(), GET, PATCH, POST, CanalConfigPage(), CANALES_INFO, CanalInfo (+13 more)
 
-### Community 293 - "lotes/[id]/route.ts"
-Cohesion: 0.20
-Nodes (11): DELETE, PATCH, requireAdmin(), getChangedFields(), src_lib_validation_loteupdateschema, idParams, LOTE_EXISTENTE, mockAuth (+3 more)
+### Community 293 - "lotes-id.test.ts"
+Cohesion: 0.25
+Nodes (6): idParams, LOTE_EXISTENTE, mockAuth, mockFrom, mockGetAdminStatus, mockGetStoreId
 
 ### Community 294 - "CatalogoCanal.test.tsx"
 Cohesion: 0.22
@@ -1231,17 +1244,13 @@ Nodes (5): DashboardTab, TabBar(), TabBarProps, TABS, DashboardTab
 Cohesion: 0.33
 Nodes (5): config, moduleNameMapper, testPathIgnorePatterns, transform, jest
 
-### Community 302 - "fidelizacion.test.ts"
-Cohesion: 0.25
-Nodes (3): GET, mockFrom, mockGetStoreId
-
 ### Community 305 - "api/hub-sync.test.ts"
 Cohesion: 0.33
 Nodes (3): mockAuth, mockGetStoreId, mockSyncProductsToHub
 
-### Community 309 - "AnaliticaTabKPIs.test.tsx"
+### Community 309 - "pos-granel.test.ts"
 Cohesion: 0.29
-Nodes (6): DASHBOARD_BODY, Endpoint, endpoints, makeWrapper(), setup(), VENCIMIENTOS_BODY
+Nodes (5): zustand, CartItem, localStorageMock, POSStore, storage
 
 ### Community 310 - "admin.test.ts"
 Cohesion: 0.25
@@ -1251,9 +1260,49 @@ Nodes (3): mockAuth, mockClerkClient, mockFrom
 Cohesion: 0.40
 Nodes (5): errorLogsInsert(), flushMicrotasks(), mockFrom, mockGetStoreId, mockInsert
 
+### Community 339 - "contabilidad-estado-resultado.test.ts"
+Cohesion: 0.33
+Nodes (4): buildStoreResponse(), DetalleRow, makeDb(), SingleResult
+
+### Community 340 - "whatsapp.send-alerts.test.ts"
+Cohesion: 0.29
+Nodes (5): BASE_ALERTA, BASE_STORE, mockFrom, mockGetStoreId, mockSendWhatsAppText
+
+### Community 341 - "5. Servicios externos"
+Cohesion: 0.33
+Nodes (6): 5.1 Fotos de producto (Cloudflare R2), 5.2 Email (Resend), 5.3 IA (OpenRouter), 5.4 Canales (Rappi / PedidosYa / Uber Eats / Instagram), 5.5 Hub central (opcional), 5. Servicios externos
+
+### Community 342 - "app/layout.tsx"
+Cohesion: 0.33
+Nodes (4): @clerk/localizations, src_app_globals, inter, metadata
+
+### Community 343 - "nota-credito/[id]/page.tsx"
+Cohesion: 0.33
+Nodes (3): react-barcode, NcData, qc
+
+### Community 344 - "whatsapp.ts"
+Cohesion: 0.53
+Nodes (4): buildConsumoAlertMessage(), buildReceiptMessage(), normalizeChileanPhone(), WhatsAppConfig
+
+### Community 345 - "clientes.post.test.ts"
+Cohesion: 0.40
+Nodes (3): mockChain, mockFrom, mockSingle
+
+### Community 346 - "dashboard.test.ts"
+Cohesion: 0.40
+Nodes (3): mockAuth, mockFrom, mockGetStoreId
+
+### Community 347 - "Gotchas frecuentes"
+Cohesion: 0.67
+Nodes (4): §10 Contabilidad y sincronización con Hub, crearAsiento() (src/lib/contabilidad/generador-asientos.ts), syncProductsToHub() / syncPurchaseToHub() (src/lib/hub-sync.ts), Gotchas frecuentes
+
 ## Ambiguous Edges - Review These
 - `canal_producto_config — precios diferenciados por canal (nueva tabla)` → `Contradicción: el doc afirma precios vienen 'no de productos' pero el checklist final dice 'con fallback a productos (si existe)'`  [AMBIGUOUS]
   docs/CAMBIOS_VENTAS_ESTRUCTURA.md · relation: conceptually_related_to
+- `§17 Grafos de conocimiento (graphify y codebase-memory-mcp)` → `claude-mem Cross-Session Memory (empty)`  [AMBIGUOUS]
+  .agents/rules/claude-mem-context.md · relation: conceptually_related_to
+- `CLAUDE.md — graphify usage pointer (@AGENTS.md)` → `docs/CLAUDE.md — Instrucciones proyecto V3, swarm config`  [AMBIGUOUS]
+  docs/MEMORY.md · relation: conceptually_related_to
 - `Contradicción: A01 afirma que vendedores DELETE es el único endpoint sin scope store_id, pero A04 reporta el mismo defecto en ordenes-compra PATCH` → `CRÍTICO: DELETE /api/vendedores sin verificación de store_id`  [AMBIGUOUS]
   docs/SECURITY.md · relation: conceptually_related_to
 - `Contradicción: A01 afirma que vendedores DELETE es el único endpoint sin scope store_id, pero A04 reporta el mismo defecto en ordenes-compra PATCH` → `ALTO: mass assignment + sin store_id en PATCH /api/ordenes-compra/[id]`  [AMBIGUOUS]
@@ -1266,15 +1315,11 @@ Nodes (5): errorLogsInsert(), flushMicrotasks(), mockFrom, mockGetStoreId, mockI
   docs/tests.md · relation: conceptually_related_to
 - `docs/tests.md — Suite de testing (172 tests, TDD London School)` → `Hero AmmaPet (petShop OS deck): +50 tiendas activas, 518 tests pasados, 99.9% uptime, <100ms`  [AMBIGUOUS]
   public/PRESENTACION-petShop-OS.html · relation: conceptually_related_to
-- `§17 Grafos de conocimiento (graphify y codebase-memory-mcp)` → `claude-mem Cross-Session Memory (empty)`  [AMBIGUOUS]
-  .agents/rules/claude-mem-context.md · relation: conceptually_related_to
-- `CLAUDE.md — graphify usage pointer (@AGENTS.md)` → `docs/CLAUDE.md — Instrucciones proyecto V3, swarm config`  [AMBIGUOUS]
-  docs/MEMORY.md · relation: conceptually_related_to
 - `§7 Supabase, service role y datos reales` → `Base de Datos — tablas principales (README, nombres en inglés)`  [AMBIGUOUS]
   README.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **1431 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1426 more)
+- **1432 isolated node(s):** `codebase-memory-mcp`, `npx`, `@claude-flow/cli`, `npm_config_update_notifier`, `CLAUDE_FLOW_MODE` (+1427 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2110 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **115 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -1283,6 +1328,10 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `canal_producto_config — precios diferenciados por canal (nueva tabla)` and `Contradicción: el doc afirma precios vienen 'no de productos' pero el checklist final dice 'con fallback a productos (si existe)'`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
+- **What is the exact relationship between `§17 Grafos de conocimiento (graphify y codebase-memory-mcp)` and `claude-mem Cross-Session Memory (empty)`?**
+  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
+- **What is the exact relationship between `CLAUDE.md — graphify usage pointer (@AGENTS.md)` and `docs/CLAUDE.md — Instrucciones proyecto V3, swarm config`?**
+  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Contradicción: A01 afirma que vendedores DELETE es el único endpoint sin scope store_id, pero A04 reporta el mismo defecto en ordenes-compra PATCH` and `CRÍTICO: DELETE /api/vendedores sin verificación de store_id`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Contradicción: A01 afirma que vendedores DELETE es el único endpoint sin scope store_id, pero A04 reporta el mismo defecto en ordenes-compra PATCH` and `ALTO: mass assignment + sin store_id en PATCH /api/ordenes-compra/[id]`?**
@@ -1290,8 +1339,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **What is the exact relationship between `Objetivo de coverage ≥80% (meta, no resultado)` and `Métricas de beneficio: -40% tiempo en caja, +25% ventas/cliente, 100% trazabilidad, 0 errores contables, +30% stock, x3 canales`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Pruebas E2E planeadas con Playwright (E-01 a E-10)` and `Gap: componentes React sin testear (SearchProductos, Carrito, TiendaCard, DevolucionModal)`?**
-  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **What is the exact relationship between `Pruebas de integración planeadas de API (I-01 a I-108)` and `Tests de vencimientos (vencimiento-helpers.test.ts, vencimientos.test.ts API)`?**
-  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **What is the exact relationship between `docs/tests.md — Suite de testing (172 tests, TDD London School)` and `Hero AmmaPet (petShop OS deck): +50 tiendas activas, 518 tests pasados, 99.9% uptime, <100ms`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._

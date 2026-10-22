@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { OrdenCompraCreateSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { hoyNegocioCompacto } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -40,8 +41,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 
   const { proveedor_id, items, fecha_estimada, notas } = parsed.data;
 
-  const hoy = new Date();
-  const numero = `OC-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+  const numero = `OC-${hoyNegocioCompacto()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
   const { data: orden, error: ordenError } = await supabase
     .from("ordenes_compra")

@@ -3,6 +3,8 @@
  * Los errores se loguean pero nunca bloquean la respuesta al cliente.
  */
 
+import { hoyNegocioISO } from "@/lib/dates";
+
 const HUB_URL = process.env.HUB_URL;
 const HUB_SYNC_SECRET = process.env.HUB_SYNC_SECRET;
 const STORE_ID = process.env.STORE_ID;
@@ -53,7 +55,7 @@ export function syncPurchaseToHub(rut: string, monto: number) {
       store_id: STORE_ID,
       rut,
       monto,
-      fecha: new Date().toISOString().split("T")[0],
+      fecha: hoyNegocioISO(),
     }),
   }).catch((err) => console.error("[hub-sync] purchase:", err));
 }

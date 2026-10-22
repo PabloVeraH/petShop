@@ -1060,6 +1060,30 @@ es una condición de carrera real (lost update) bajo requests concurrentes:
   este endpoint permitía doble gasto real (dos requests concurrentes con el
   mismo saldo) sin siquiera un piso en 0.
 
+### 23.7 Fechas de negocio en hora de Chile, nunca en la del servidor
+
+Vercel corre en UTC y `TZ` es una variable reservada (no configurable). Entre
+las ~20:00/21:00 y las 24:00 de Chile la fecha UTC ya es "mañana": "Ventas
+hoy", la fecha de los asientos, los números de comprobante, el bloqueo de
+licencia, el vencimiento de NC y la hora impresa en el recibo quedaban en el
+día siguiente o con 3-4 h de desfase (corregido 2026-10-22).
+
+En código de servidor, **toda** fecha u hora de negocio sale de
+`src/lib/dates.ts`: `hoyNegocioISO()`, `hoyNegocioCompacto()`,
+`anioMesNegocio()`, `sumarDiasISO()`, `diasEntreISO()`,
+`fechaNegocioDeTimestamp()` (columnas `timestamp without time zone`, que
+guardan UTC y llegan sin zona), `rangoDiaNegocio()`/`inicioMesNegocio()`
+(filtros sobre timestamps) y `fechaHoraNegocioEsCL()` (textos). Prohibido en
+servidor para fechas de negocio: `new Date().toISOString().split("T")[0]`,
+`.slice(0, 10)`, `getFullYear/getMonth/getDate/getDay`, `setHours(0,0,0,0)`,
+`startOfDay/endOfDay` de date-fns y `toLocale*String()` sin `timeZone`.
+Las columnas `date` se comparan como texto `YYYY-MM-DD` (`fecha < hoy`), no
+con `new Date(fecha) < new Date()`.
+
+Pendiente aparte: las funciones SQL usan `CURRENT_DATE` (UTC) en 16 lugares
+(número de comprobante de `crear_venta_tx`, FIFO de lotes, fecha de ingreso,
+licencia vigente); requieren su propia migración.
+
 ## 24. Checklist de seguridad (revisado 2026-10-13)
 
 Veinte controles que todo cambio debe preservar. La columna **Cómo se
