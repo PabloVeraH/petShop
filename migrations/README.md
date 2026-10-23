@@ -9,6 +9,7 @@
 | `089_rate_limit_global.sql` | Contador de rate limit compartido entre instancias (`rate_limit_contadores` + `rate_limit_hit`). Aplicada en mascotaspetshop 2026-10-16. **Pendiente de aplicar** en el demo; mientras tanto ahí el middleware usa el contador en memoria. |
 | `090_registro_migraciones.sql` | Crea `supabase_migrations.schema_migrations` (si no existe; misma tabla que usa Supabase) para registrar en la base qué migraciones tiene cada proyecto. Desde aquí cada migración se registra sola (ver reglas). Aplicada en mascotaspetshop 2026-10-16 (con 000/087/088/089 registradas a mano). **Pendiente de aplicar** en el demo. |
 | `091_seed_canales_externos.sql` | Filas del catálogo `canales_externos` (`pos`, `rappi`, `pedidosya`, `ubereats`, `instagram`), que el baseline (solo esquema) no trae: sin ellas toda venta falla por `ventas_canal_fkey`. No cambia nada en el demo (`ON CONFLICT DO NOTHING`). Aplicada en mascotaspetshop 2026-10-16. **Pendiente de aplicar** en el demo. Toda tienda nueva la necesita justo después del baseline. |
+| `092_fechas_hora_chile.sql` | Función `hoy_negocio()` (fecha en America/Santiago); las 10 funciones que usaban `CURRENT_DATE` (UTC en Supabase) pasan a usarla: comprobante de citas, FIFO y vencimiento de lotes, fecha de ingreso de lotes, licencia de canales, término estimado de alimento. También los defaults de `cuentas_pagar.fecha_emision` y `lotes_producto.fecha_ingreso`. Requiere la 090. **Pendiente de aplicar** en el demo y en mascotaspetshop. |
 | `historico/` | Migraciones anteriores al baseline. Solo referencia (el porqué de cada tabla/función). **No se ejecutan**: no reproducían el esquema real (nombres que no calzan con el historial del demo, 074–084 aplicadas sin registro). |
 
 ## Reglas desde el baseline
@@ -23,7 +24,7 @@
   toda venta daba 500 por `ventas_canal_fkey`, 2026-10-16).
 - Todo cambio de esquema es un archivo nuevo `NNN_descripcion.sql` con número
   mayor al último usado en `migrations/`, `historico/` y el demo. **El
-  siguiente libre es `092`** (la `086` es de sucursales; la `087`, search_path; la `088`, índices de FKs; la `089`, rate limit; la `090`, registro de migraciones; la `091`, filas de canales_externos).
+  siguiente libre es `093`** (la `086` es de sucursales; la `087`, search_path; la `088`, índices de FKs; la `089`, rate limit; la `090`, registro de migraciones; la `091`, filas de canales_externos; la `092`, fechas en hora de Chile).
 - Se aplican **en orden** y completas, pegando el archivo en el SQL Editor del
   proyecto (o `psql -f`). No usar `apply_migration` de la CLI/MCP: registra
   con una versión tipo fecha y la migración quedaría anotada dos veces.
@@ -32,7 +33,7 @@
   `.sql`):
   ```sql
   INSERT INTO supabase_migrations.schema_migrations (version, name)
-  VALUES ('092', '092_descripcion')
+  VALUES ('093', '093_descripcion')
   ON CONFLICT (version) DO NOTHING;
   ```
 - Ver qué tiene aplicado un proyecto:

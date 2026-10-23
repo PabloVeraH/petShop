@@ -1080,6 +1080,11 @@ servidor para fechas de negocio: `new Date().toISOString().split("T")[0]`,
 Las columnas `date` se comparan como texto `YYYY-MM-DD` (`fecha < hoy`), no
 con `new Date(fecha) < new Date()`.
 
+En SQL lo mismo: Supabase corre en UTC, así que `CURRENT_DATE` y
+`now()::date` dan la fecha UTC. Usa `public.hoy_negocio()` (migración 092)
+y, para la fecha de un timestamp,
+`((col AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago')::date`.
+
 Pendiente aparte: las funciones SQL usan `CURRENT_DATE` (UTC) en 16 lugares
 (número de comprobante de `crear_venta_tx`, FIFO de lotes, fecha de ingreso,
 licencia vigente); requieren su propia migración.
