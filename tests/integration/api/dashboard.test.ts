@@ -24,6 +24,7 @@ function chain() {
     neq:    jest.fn(),
     gte:    jest.fn(),
     lte:    jest.fn(),
+    lt:     jest.fn(),
     gt:     jest.fn(),
     in:     jest.fn(),
     order:  jest.fn(),
@@ -32,7 +33,7 @@ function chain() {
     then:   undefined as unknown as jest.Mock,
   };
   // Todos los chainables devuelven el mismo objeto (thenable)
-  ["select","eq","neq","gte","lte","gt","in","order"].forEach(k => c[k].mockReturnValue(c));
+  ["select","eq","neq","gte","lte","lt","gt","in","order"].forEach(k => c[k].mockReturnValue(c));
   // Hacer el chain thenable para que Promise.all funcione
   c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) =>
     resolve({ data: [], error: null, count: 0 })
@@ -66,6 +67,25 @@ describe("GET /api/dashboard", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("ventasHoy");
+  });
+
+  // I-753 — REGRESIÓN: Vercel corre en UTC y startOfDay() de date-fns usaba
+  // ese huso: desde las ~21:00 de Chile "Ventas hoy" pasaba a contar el día
+  // siguiente (UTC). El rango es el día de Chile: [00:00, 24:00) en UTC.
+  it("I-753: a las 22:30 de Chile 'Ventas hoy' filtra el día de Chile, no el día UTC", async () => {
+    jest.useFakeTimers({ now: new Date("2026-10-23T01:30:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+    try {
+      const ventasChain = chain();
+      mockFrom.mockReturnValue(ventasChain);
+      mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+      const { GET } = await import("@/app/api/dashboard/route");
+      const res = await GET();
+      expect(res.status).toBe(200);
+      expect(ventasChain.gte).toHaveBeenCalledWith("created_at", "2026-10-22T03:00:00.000Z");
+      expect(ventasChain.lt).toHaveBeenCalledWith("created_at", "2026-10-23T03:00:00.000Z");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   // I-77c: REGRESIÓN — storeWorker solo debe ver sus propias ventas.

@@ -4,6 +4,7 @@ import { createServiceClient }  from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { OptimizadorVencimientosRequestSchema } from "@/lib/validation";
 import { analizarVencimientosConIA } from "@/lib/openrouter";
+import { diasEntreISO, hoyNegocioISO, sumarDiasISO } from "@/lib/dates";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -71,7 +72,7 @@ export const GET = withErrorLogging(async () => {
 
   const currentMap = new Map((productosActuales ?? []).map(p => [p.id, p]));
 
-  const hoy = new Date();
+  const hoy = hoyNegocioISO();
   const validas: (typeof recs[number] & { datos_desactualizados: boolean })[] = [];
   let productosObsoletos = 0;
 
@@ -101,7 +102,7 @@ export const GET = withErrorLogging(async () => {
       Number(rec.stock) !== stockFresco;
     validas.push({
       ...rec,
-      dias_hasta_vencer: Math.floor((new Date(actual.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)),
+      dias_hasta_vencer: diasEntreISO(hoy, actual.fecha_vencimiento),
       stock: stockFresco,
       datos_desactualizados: datosDesactualizados,
     });
@@ -155,11 +156,11 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     ?? "openrouter/free";
 
   // 5. Obtener productos próximos a vencer con stock > 0
+  // Fechas en hora de Chile: toISOString() daba el día UTC, que desde las
+  // ~21:00 ya es mañana. dias_hasta_vencer = días de calendario exactos.
   const hoy = new Date();
-  const fechaLimite = new Date(hoy);
-  fechaLimite.setDate(fechaLimite.getDate() + diasAlerta);
-  const fechaLimiteStr = fechaLimite.toISOString().split("T")[0];
-  const fechaHoyStr    = hoy.toISOString().split("T")[0];
+  const fechaHoyStr    = hoyNegocioISO(hoy);
+  const fechaLimiteStr = sumarDiasISO(fechaHoyStr, diasAlerta);
 
   const { data: productos, error: productosError } = await supabase
     .from("productos")
@@ -204,9 +205,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     precio_actual:        Number(p.precio),
     costo:                p.costo ? Number(p.costo) : null,
     fecha_vencimiento:    p.fecha_vencimiento,
-    dias_hasta_vencer:    Math.floor(
-      (new Date(p.fecha_vencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
-    ),
+    dias_hasta_vencer:    diasEntreISO(fechaHoyStr, p.fecha_vencimiento),
     unidades_vendidas_30d: velocidadMap[p.id] ?? 0,
   }));
 

@@ -880,6 +880,29 @@ describe("GET /api/notas-credito", () => {
     const res = await GET(new NextRequest(`http://localhost/api/notas-credito?ventaId=${VENTA_ID}`));
     expect(res.status).toBe(401);
   });
+
+  // I-755 — REGRESIÓN: `new Date(fecha_vencimiento) < new Date()` toma la
+  // fecha como medianoche UTC: la NC dejaba de servir a las ~21:00 de Chile
+  // del día ANTERIOR a su vencimiento. El vencimiento es el último día válido
+  // (mismo criterio que crear_venta_tx: fecha_vencimiento >= hoy).
+  it("I-755: NC lookup — válida todo su último día (hora de Chile) y vencida desde el día siguiente", async () => {
+    const nc = { id: "nc-1", numero_nc: "NC-1", monto_total: 5000, fecha_vencimiento: "2026-10-22", estado: "activa" };
+    const ncChain = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: nc, error: null }) };
+    mockFrom.mockReturnValue(ncChain);
+    const { GET } = await import("@/app/api/notas-credito/route");
+    const consultar = () => GET(new NextRequest("http://localhost/api/notas-credito?numero_nc=NC-1"));
+    const doNotFake = ["nextTick", "setImmediate", "queueMicrotask"] as const;
+    try {
+      jest.useFakeTimers({ doNotFake: [...doNotFake], now: new Date("2026-10-22T01:30:00Z") }); // 21-10 22:30 Chile
+      expect((await consultar()).status).toBe(200);
+      jest.setSystemTime(new Date("2026-10-23T01:30:00Z")); // 22-10 22:30 Chile (último día)
+      expect((await consultar()).status).toBe(200);
+      jest.setSystemTime(new Date("2026-10-23T03:30:00Z")); // 23-10 00:30 Chile
+      expect((await consultar()).status).toBe(410);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("GET /api/saldos-a-favor", () => {

@@ -1,4 +1,5 @@
 import { createServiceClient } from "./supabase";
+import { diasEntreISO, hoyNegocioISO, sumarDiasISO } from "./dates";
 
 interface FoodAlert {
   id: string;
@@ -32,8 +33,8 @@ export async function sendEmailAlertsForStore(storeId: string): Promise<SendResu
 
   const diasAviso = store.email_reminder_dias_aviso ?? 5;
 
-  const fechaLimite = new Date();
-  fechaLimite.setDate(fechaLimite.getDate() + diasAviso);
+  // Fecha de Chile: el cron corre en UTC y toISOString() ya sería mañana.
+  const fechaLimite = sumarDiasISO(hoyNegocioISO(), diasAviso);
 
   const { data: alertas } = await supabase
     .from("consumo_alertas")
@@ -49,7 +50,7 @@ export async function sendEmailAlertsForStore(storeId: string): Promise<SendResu
     `)
     .eq("store_id", storeId)
     .eq("enviado", false)
-    .lte("fecha_estimada_termino", fechaLimite.toISOString().split("T")[0]);
+    .lte("fecha_estimada_termino", fechaLimite);
 
   if (!alertas || alertas.length === 0) {
     return { sent: 0, skipped: 0 };
@@ -62,7 +63,7 @@ export async function sendEmailAlertsForStore(storeId: string): Promise<SendResu
     porCliente.set(alerta.cliente_id, grupo);
   }
 
-  const hoy = new Date();
+  const hoy = hoyNegocioISO();
   let sent = 0;
   let skipped = 0;
 
@@ -75,9 +76,7 @@ export async function sendEmailAlertsForStore(storeId: string): Promise<SendResu
     const items = grupo.map(a => {
       const mascota = a.mascotas as { nombre: string } | null;
       const producto = a.productos as { nombre: string; precio: number } | null;
-      const diasRestantes = Math.ceil(
-        (new Date(a.fecha_estimada_termino).getTime() - hoy.getTime()) / 86_400_000
-      );
+      const diasRestantes = diasEntreISO(hoy, a.fecha_estimada_termino);
       return {
         mascotaNombre: mascota?.nombre ?? "tu mascota",
         productoNombre: producto?.nombre ?? "el alimento",

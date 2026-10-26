@@ -21,6 +21,12 @@ jest.mock("@/lib/supabase", () => ({
   createServiceClient: jest.fn(() => ({ from: mockFrom })),
 }));
 
+// Un 403 solo deja su registro de acceso denegado (withErrorLogging, U-230):
+// busca la tienda del usuario (clerk_users, vía getStoreId) e inserta en
+// audit_logs. Ningún log de ninguna tienda se consulta.
+const tablasConsultadas = () =>
+  mockFrom.mock.calls.map((c) => c[0]).filter((t) => t !== "audit_logs" && t !== "clerk_users");
+
 function claims(publicMetadata: Record<string, unknown>) {
   mockAuth.mockResolvedValue({ userId: USER_ID, sessionClaims: { sub: USER_ID, publicMetadata } });
 }
@@ -76,7 +82,7 @@ describe("SEC-16: PATCH /api/error-logs/[id]/resolve solo resuelve logs de la ti
     const res = await resolver();
 
     expect(res.status).toBe(403);
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(tablasConsultadas()).toEqual([]);
   });
 
   it("systemAdmin (confirmado en BD) resuelve sin filtro de tienda", async () => {
@@ -116,6 +122,6 @@ describe("SEC-17: endpoints de logs niegan a un storeAdmin sin storeId (antes de
     const res = await GET(new NextRequest(`http://localhost${path}`));
 
     expect(res.status).toBe(403);
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(tablasConsultadas()).toEqual([]);
   });
 });

@@ -39,11 +39,21 @@ describe("obtenerContextoClimatico", () => {
 
   // U-WX-03: temporada correcta en hemisferio sur (julio = invierno)
   it("U-WX-03: deriva temporada 'invierno' para julio en hemisferio sur", async () => {
-    jest.spyOn(Date.prototype, "getMonth").mockReturnValue(6); // julio = mes 6 (0-indexed)
+    // 15-07 al mediodía de Chile. El mes es el de Chile: el 31-08 a las 22:00
+    // (ya 1-09 en UTC) sigue siendo invierno — se verifica en U-WX-03b.
+    jest.useFakeTimers({ now: new Date("2026-07-15T16:00:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
     mockFetch.mockResolvedValue({ ok: true, json: async () => OPEN_METEO_RESPONSE });
     const ctx = await obtenerContextoClimatico(-38.74, -72.60);
     expect(ctx.temporada).toBe("invierno");
-    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it("U-WX-03b: el 31-08 a las 22:00 de Chile (1-09 en UTC) la temporada sigue siendo invierno", async () => {
+    jest.useFakeTimers({ now: new Date("2026-09-01T02:00:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+    mockFetch.mockResolvedValue({ ok: true, json: async () => OPEN_METEO_RESPONSE });
+    const ctx = await obtenerContextoClimatico(-38.75, -72.61);
+    expect(ctx.temporada).toBe("invierno");
+    jest.useRealTimers();
   });
 
   // U-WX-04: temperatura < 12 → esFrio = true

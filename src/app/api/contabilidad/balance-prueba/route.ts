@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getCuentaTipo } from "@/lib/contabilidad/types";
 import { withErrorLogging } from "@/lib/audit";
+import { hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -14,7 +15,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (denegado) return denegado;
   const supabase = createServiceClient();
 
-  const fecha = req.nextUrl.searchParams.get("fecha") ?? new Date().toISOString().split("T")[0];
+  const fecha = req.nextUrl.searchParams.get("fecha") ?? hoyNegocioISO();
   const desde = req.nextUrl.searchParams.get("desde") ?? "1970-01-01";
 
   // Obtener todas las líneas de asientos hasta la fecha indicada

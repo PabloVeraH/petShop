@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { generarHtmlBalancePrueba } from "@/lib/contabilidad/html-balance-prueba";
 import { getCuentaTipo } from "@/lib/contabilidad/types";
 import { withErrorLogging } from "@/lib/audit";
+import { hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -15,7 +16,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (denegado) return denegado;
   const supabase = createServiceClient();
 
-  const fecha = req.nextUrl.searchParams.get("fecha") ?? new Date().toISOString().split("T")[0];
+  const fecha = req.nextUrl.searchParams.get("fecha") ?? hoyNegocioISO();
   const desde = req.nextUrl.searchParams.get("desde") ?? "1970-01-01";
 
   const [{ data: store }, { data: entries, error }] = await Promise.all([
@@ -65,7 +66,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const html = generarHtmlBalancePrueba({
     periodo: `Hasta ${fecha}`,
     fecha,
-    fecha_elaboracion: new Date().toISOString().split("T")[0],
+    fecha_elaboracion: hoyNegocioISO(),
     empresa: { nombre: store?.name ?? "", rut: store?.rut ?? "" },
     cuentas,
     resumen: {

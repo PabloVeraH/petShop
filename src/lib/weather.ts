@@ -1,3 +1,5 @@
+import { anioMesNegocio } from "@/lib/dates";
+
 export interface WeatherContext {
   temperatura: number;
   descripcion: string;
@@ -30,7 +32,7 @@ function derivarTemporada(mes: number): WeatherContext["temporada"] {
 }
 
 function fallback(): WeatherContext {
-  const temporada = derivarTemporada(new Date().getMonth() + 1);
+  const temporada = derivarTemporada(anioMesNegocio().mes);
   return { temperatura: 15, descripcion: "variable", temporada, esFrio: false, esCalido: false };
 }
 
@@ -52,7 +54,7 @@ export async function obtenerContextoClimatico(lat: number, lon: number): Promis
     const data = await res.json();
     const temperatura = Math.round(data.current?.temperature_2m ?? 15);
     const weatherCode = data.current?.weather_code ?? 0;
-    const temporada = derivarTemporada(new Date().getMonth() + 1);
+    const temporada = derivarTemporada(anioMesNegocio().mes);
 
     const context: WeatherContext = {
       temperatura,

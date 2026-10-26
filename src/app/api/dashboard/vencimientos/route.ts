@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
+import { hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -9,7 +10,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const { storeId: store_id } = ctx;
   const supabase = createServiceClient();
 
-  const hoy = new Date().toISOString().split("T")[0];
+  const hoy = hoyNegocioISO();
 
   const { data, error } = await supabase
     .from("productos")

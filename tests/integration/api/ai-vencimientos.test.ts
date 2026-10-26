@@ -386,10 +386,11 @@ describe("GET /api/ai/vencimientos/optimizar", () => {
       sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } },
     });
 
-    const hoy = new Date();
-    const diasRestantes = Math.floor(
-      (new Date("2026-07-20").getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    // Reloj fijo: 10-07-2026 al mediodía de Chile → al 20-07 faltan 10 días de
+    // calendario (antes la cuenta usaba milisegundos desde "ahora" y daba 9
+    // durante el día).
+    jest.useFakeTimers({ now: new Date("2026-07-10T16:00:00Z"), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+    const diasRestantes = 10;
 
     mockFrom.mockImplementation((table: string) => {
       if (table === "ai_vencimientos_analisis") return {
@@ -438,6 +439,7 @@ describe("GET /api/ai/vencimientos/optimizar", () => {
     expect(body.recomendaciones[0].dias_hasta_vencer).toBe(diasRestantes);
     // Debe reportar cuántos fueron omitidos
     expect(body.productos_obsoletos).toBe(1);
+    jest.useRealTimers();
   });
 
   // I-AI-13: REGRESIÓN — producto activo pero sin fecha_vencimiento (se

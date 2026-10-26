@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,9 @@ type OrdenCompra = { id: string; numero: string; estado: string; total: number; 
 type OrdenItem = { id: string; cantidad_solicitada: number; cantidad_recibida: number | null; precio_unitario: number | null; nombre_nuevo: string | null; productos: { id: string; nombre: string; sku: string; tiene_vencimiento: boolean } | null };
 type CuentaPagar = { id: string; monto: number; fecha_vencimiento: string; estado: string; orden_id?: string };
 type ProductoOpt = { id: string; nombre: string; sku: string; precio: number };
+// lotes: la línea llegó con varias fechas de vencimiento (un lote por fecha);
+// reemplaza a fecha_vencimiento.
+type RecepcionItem = { cantidad: number; precio: string; fecha_vencimiento?: string; lotes?: { cantidad: number; fecha: string }[] };
 type SupplierStats = {
   orderCounts: Record<string, number>;
   payableCounts: Record<string, number>;
@@ -47,7 +51,7 @@ export default function SupplierHubPage() {
   const [showCreateOrderDialog, setShowCreateOrderDialog] = useState(false);
   const [selectedOrden, setSelectedOrden] = useState<string | null>(null);
   const [showReceiving, setShowReceiving] = useState<string | null>(null);
-  const [receivingForm, setReceivingForm] = useState<Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }>>({});
+  const [receivingForm, setReceivingForm] = useState<Record<string, RecepcionItem>>({});
   const [receivingError, setReceivingError] = useState("");
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [showEditItems, setShowEditItems] = useState<string | null>(null);
@@ -269,14 +273,18 @@ export default function SupplierHubPage() {
 
   const { mutate: recibirOrden, isPending: recibiendo } = useMutation({
     mutationFn: async () => {
-      const items = (ordenDetalle?.items ?? []).map(item => ({
-        id: item.id,
-        cantidad_recibida: receivingForm[item.id]?.cantidad ?? 0,
-        precio_unitario: parseFloat(receivingForm[item.id]?.precio ?? "0") || 0,
-        producto_id: item.productos?.id ?? undefined,
-        nombre_nuevo: item.nombre_nuevo ?? undefined,
-        fecha_vencimiento: receivingForm[item.id]?.fecha_vencimiento || undefined,
-      }));
+      const items = (ordenDetalle?.items ?? []).map(item => {
+        const lotes = receivingForm[item.id]?.lotes;
+        return {
+          id: item.id,
+          cantidad_recibida: receivingForm[item.id]?.cantidad ?? 0,
+          precio_unitario: parseFloat(receivingForm[item.id]?.precio ?? "0") || 0,
+          producto_id: item.productos?.id ?? undefined,
+          nombre_nuevo: item.nombre_nuevo ?? undefined,
+          fecha_vencimiento: lotes ? undefined : receivingForm[item.id]?.fecha_vencimiento || undefined,
+          lotes: lotes?.map(l => ({ cantidad: l.cantidad, fecha_vencimiento: l.fecha })),
+        };
+      });
       const res = await fetch(`/api/ordenes-compra/${selectedOrden}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -296,7 +304,16 @@ export default function SupplierHubPage() {
       setShowReceiving(null);
       setReceivingForm({});
     },
+    onError: (e: Error) => setReceivingError(e.message || "Error al recibir la orden"),
   });
+
+  function setLotesRecepcion(itemId: string, lotes: { cantidad: number; fecha: string }[]) {
+    setReceivingError("");
+    setReceivingForm(f => lotes.length > 1
+      ? { ...f, [itemId]: { ...f[itemId], lotes, fecha_vencimiento: undefined } }
+      // Con un solo lote vuelve al campo de vencimiento único.
+      : { ...f, [itemId]: { ...f[itemId], lotes: undefined, fecha_vencimiento: lotes[0]?.fecha || undefined } });
+  }
 
   const { mutate: pagarCuenta, isPending: pagando } = useMutation({
     mutationFn: async ({ id, metodo_pago }: { id: string; metodo_pago: string }) => {
@@ -360,7 +377,7 @@ export default function SupplierHubPage() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Pagos");
-    XLSX.writeFile(wb, `pagos-${selected?.nombre}-${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `pagos-${selected?.nombre}-${hoyNegocioISO()}.xlsx`);
   };
 
   // Phase 4: Save filter
@@ -683,7 +700,7 @@ export default function SupplierHubPage() {
                                         {oc.estado === "enviada" && (
                                           <Button size="sm" className="h-7 text-xs"
                                             onClick={() => {
-                                              const initial: Record<string, { cantidad: number; precio: string; fecha_vencimiento?: string }> = {};
+                                              const initial: Record<string, RecepcionItem> = {};
                                               (ordenDetalle.items ?? []).forEach((item) => { initial[item.id] = { cantidad: item.cantidad_solicitada, precio: "" }; });
                                               setReceivingForm(initial);
                                               setReceivingError("");
@@ -720,6 +737,8 @@ export default function SupplierHubPage() {
                                       <p className="text-xs font-medium text-gray-600">Confirmar recepción — ingrese precio y cantidades:</p>
                                       {(ordenDetalle.items ?? []).map(item => {
                                         const nombreProducto = item.productos?.nombre ?? item.nombre_nuevo ?? "Producto nuevo";
+                                        const lotes = receivingForm[item.id]?.lotes;
+                                        const cantidadRecibida = receivingForm[item.id]?.cantidad ?? item.cantidad_solicitada;
                                         return (
                                           <div key={item.id} className="bg-white rounded p-2 space-y-1.5">
                                             <p className="text-xs font-medium text-gray-700">{nombreProducto}</p>
@@ -754,22 +773,76 @@ export default function SupplierHubPage() {
                                                   }))}
                                                 />
                                               </div>
-                                              <div className="flex flex-col">
-                                                <label className="text-xs mb-0.5">
-                                                  <span className="text-gray-500">Vencimiento</span>
-                                                  {item.productos?.tiene_vencimiento && <span className="text-red-500 ml-0.5">*</span>}
-                                                </label>
-                                                <Input
-                                                  type="date"
-                                                  className={`w-32 h-7 text-xs ${item.productos?.tiene_vencimiento && !receivingForm[item.id]?.fecha_vencimiento ? "border-red-300" : ""}`}
-                                                  value={receivingForm[item.id]?.fecha_vencimiento ?? ""}
-                                                  onChange={e => { setReceivingError(""); setReceivingForm(f => ({
-                                                    ...f,
-                                                    [item.id]: { ...f[item.id], fecha_vencimiento: e.target.value }
-                                                  })); }}
-                                                />
-                                              </div>
+                                              {!lotes && (
+                                                <div className="flex flex-col">
+                                                  <label className="text-xs mb-0.5">
+                                                    <span className="text-gray-500">Vencimiento</span>
+                                                    {item.productos?.tiene_vencimiento && <span className="text-red-500 ml-0.5">*</span>}
+                                                  </label>
+                                                  <Input
+                                                    type="date"
+                                                    className={`w-32 h-7 text-xs ${item.productos?.tiene_vencimiento && !receivingForm[item.id]?.fecha_vencimiento ? "border-red-300" : ""}`}
+                                                    value={receivingForm[item.id]?.fecha_vencimiento ?? ""}
+                                                    onChange={e => { setReceivingError(""); setReceivingForm(f => ({
+                                                      ...f,
+                                                      [item.id]: { ...f[item.id], fecha_vencimiento: e.target.value }
+                                                    })); }}
+                                                  />
+                                                </div>
+                                              )}
                                             </div>
+                                            {lotes ? (
+                                              <div className="space-y-1">
+                                                <p className="text-xs text-gray-500">
+                                                  Lotes por vencimiento — suman {lotes.reduce((s, l) => s + l.cantidad, 0)} de {cantidadRecibida}
+                                                </p>
+                                                {lotes.map((l, idx) => (
+                                                  <div key={idx} className="flex items-center gap-2">
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      aria-label={`Cantidad lote ${idx + 1}`}
+                                                      className="w-16 h-7 text-xs"
+                                                      value={l.cantidad}
+                                                      onChange={e => setLotesRecepcion(item.id, lotes.map((x, i) => i === idx ? { ...x, cantidad: Number(e.target.value) } : x))}
+                                                    />
+                                                    <Input
+                                                      type="date"
+                                                      aria-label={`Vencimiento lote ${idx + 1}`}
+                                                      className={`w-32 h-7 text-xs ${!l.fecha ? "border-red-300" : ""}`}
+                                                      value={l.fecha}
+                                                      onChange={e => setLotesRecepcion(item.id, lotes.map((x, i) => i === idx ? { ...x, fecha: e.target.value } : x))}
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      aria-label={`Quitar lote ${idx + 1}`}
+                                                      className="text-xs text-red-400 hover:text-red-600"
+                                                      onClick={() => setLotesRecepcion(item.id, lotes.filter((_, i) => i !== idx))}
+                                                    >
+                                                      ✕
+                                                    </button>
+                                                  </div>
+                                                ))}
+                                                <button
+                                                  type="button"
+                                                  className="text-xs text-blue-600 hover:underline"
+                                                  onClick={() => setLotesRecepcion(item.id, [...lotes, { cantidad: 0, fecha: "" }])}
+                                                >
+                                                  + Agregar lote
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <button
+                                                type="button"
+                                                className="text-xs text-blue-600 hover:underline"
+                                                onClick={() => setLotesRecepcion(item.id, [
+                                                  { cantidad: cantidadRecibida, fecha: receivingForm[item.id]?.fecha_vencimiento ?? "" },
+                                                  { cantidad: 0, fecha: "" },
+                                                ])}
+                                              >
+                                                Dividir en lotes (varias fechas de vencimiento)
+                                              </button>
+                                            )}
                                           </div>
                                         );
                                       })}
@@ -787,10 +860,21 @@ export default function SupplierHubPage() {
                                             return;
                                           }
                                           const faltanFecha = (ordenDetalle?.items ?? []).filter(
-                                            it => it.productos?.tiene_vencimiento && !receivingForm[it.id]?.fecha_vencimiento
+                                            it => it.productos?.tiene_vencimiento && !receivingForm[it.id]?.fecha_vencimiento && !receivingForm[it.id]?.lotes
                                           );
                                           if (faltanFecha.length > 0) {
                                             setReceivingError(`Fecha de vencimiento requerida: ${faltanFecha.map(it => it.productos?.nombre ?? it.nombre_nuevo ?? "Producto").join(", ")}`);
+                                            return;
+                                          }
+                                          const lotesInvalidos = (ordenDetalle?.items ?? []).filter(it => {
+                                            const lotesIt = receivingForm[it.id]?.lotes;
+                                            if (!lotesIt) return false;
+                                            const cantidad = receivingForm[it.id]?.cantidad ?? it.cantidad_solicitada;
+                                            return lotesIt.some(l => l.cantidad <= 0 || !l.fecha) ||
+                                              lotesIt.reduce((s, l) => s + l.cantidad, 0) !== cantidad;
+                                          });
+                                          if (lotesInvalidos.length > 0) {
+                                            setReceivingError(`Cada lote necesita cantidad y vencimiento, y deben sumar la cantidad recibida: ${lotesInvalidos.map(it => it.productos?.nombre ?? it.nombre_nuevo ?? "Producto").join(", ")}`);
                                             return;
                                           }
                                           recibirOrden();

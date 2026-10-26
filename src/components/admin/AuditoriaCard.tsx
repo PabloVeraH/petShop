@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminRole } from "@/hooks/useAdminAuth";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
@@ -80,6 +81,7 @@ const ACTION_COLORS: Record<string, string> = {
   CREATE: "bg-green-100 text-green-800",
   UPDATE: "bg-blue-100 text-blue-800",
   DELETE: "bg-red-100 text-red-800",
+  VIEW: "bg-sky-100 text-sky-800",
   LOGIN_FAILED: "bg-orange-100 text-orange-800",
   EXPORT: "bg-gray-100 text-gray-800",
   SETTINGS: "bg-purple-100 text-purple-800",
@@ -256,7 +258,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `auditoria-${hoyNegocioISO()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -310,6 +312,7 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
             <option value="CREATE">CREATE</option>
             <option value="UPDATE">UPDATE</option>
             <option value="DELETE">DELETE</option>
+            <option value="VIEW">VIEW</option>
             <option value="LOGIN_FAILED">LOGIN_FAILED</option>
             <option value="EXPORT">EXPORT</option>
             <option value="SETTINGS">SETTINGS</option>
@@ -335,6 +338,8 @@ export function AuditoriaCard({ role }: AuditoriaCardProps) {
             <option value="proveedor">proveedor</option>
             <option value="cierre_mes">cierre_mes</option>
             <option value="report_export">report_export</option>
+            <option value="envio_alertas">envio_alertas</option>
+            <option value="acceso">acceso</option>
           </select>
           <select
             value={auditFilters.result}

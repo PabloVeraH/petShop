@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { hoyNegocioISO } from "@/lib/dates";
 import { useUser } from "@clerk/nextjs";
 
 interface ReportsData {
@@ -365,7 +366,7 @@ export default function ReportesTab() {
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${tipo}-${new Date().toISOString().split("T")[0]}.csv`;
+      a.download = `${tipo}-${hoyNegocioISO()}.csv`;
       a.click();
     } catch (e) {
       setExportError(`No se pudo exportar: ${e instanceof Error ? e.message : String(e)}`);

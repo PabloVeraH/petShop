@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { fechaNegocioISO } from "@/lib/dates";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ const LIMIT = 50;
 const DEFAULT_DAYS_BACK = 90;
 
 function toDateInput(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return fechaNegocioISO(d);
 }
 
 function defaultDesde(): string {

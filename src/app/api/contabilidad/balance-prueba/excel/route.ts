@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { generarExcelBalance } from "@/lib/contabilidad/excel-generator";
 import { getCuentaTipo } from "@/lib/contabilidad/types";
 import { withErrorLogging } from "@/lib/audit";
+import { anioMesNegocio, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -15,9 +16,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (denegado) return denegado;
   const supabase = createServiceClient();
 
-  const fecha = req.nextUrl.searchParams.get("fecha") ?? new Date().toISOString().split("T")[0];
+  const fecha = req.nextUrl.searchParams.get("fecha") ?? hoyNegocioISO();
   const mes = req.nextUrl.searchParams.get("mes");
-  const año = req.nextUrl.searchParams.get("año") ?? new Date().getFullYear().toString();
+  const año = req.nextUrl.searchParams.get("año") ?? String(anioMesNegocio().anio);
 
   let periodo: string;
   if (mes) {

@@ -32,11 +32,13 @@ describe("GET /api/reports - vencimientos section", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "user-789", storeId: STORE_ID });
-    jest.spyOn(Date.prototype, "toISOString").mockReturnValue(`${TODAY}T00:00:00.000Z`);
+    // "Hoy" fijo: mediodía de Chile de TODAY (la ruta usa hoyNegocioISO()).
+    jest.useFakeTimers({ now: new Date(`${TODAY}T15:00:00.000Z`), doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   function setupSupabaseMock(ventasData: unknown[] = [], productosData: unknown[] = []) {

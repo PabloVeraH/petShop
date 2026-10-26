@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
 import { getAdminStatus } from "@/lib/admin-check";
 import { logAudit, withErrorLogging } from "@/lib/audit";
+import { hoyNegocioISO, inicioDiaNegocio, inicioMesNegocio } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -22,26 +23,24 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   if (error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
 
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  // Inicio del mes y del día en hora de Chile (setHours usaba el huso del
+  // proceso, UTC en Vercel).
+  const inicioMes = inicioMesNegocio();
+  const inicioHoy = inicioDiaNegocio(hoyNegocioISO()).toISOString();
 
   const { data: ventasMes } = await supabase
     .from("ventas")
     .select("id, worker_clerk_id, total")
     .eq("store_id", storeId)
     .neq("estado", "anulada")
-    .gte("created_at", startOfMonth.toISOString());
+    .gte("created_at", inicioMes);
 
   const { data: ventasHoy } = await supabase
     .from("ventas")
     .select("id, worker_clerk_id, total")
     .eq("store_id", storeId)
     .neq("estado", "anulada")
-    .gte("created_at", startOfDay.toISOString());
+    .gte("created_at", inicioHoy);
 
   const totalesMes: Record<string, number> = {};
   const ventaMap = new Map<string, string | null>();

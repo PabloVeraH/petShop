@@ -36,6 +36,10 @@ jest.mock("@/lib/r2-storage", () => ({
   eliminarImagenProducto: mockR2,
 }));
 
+// Un 403 solo deja su registro de acceso denegado (withErrorLogging →
+// audit_logs, U-230); ninguna tabla de negocio se lee ni se escribe.
+const tablasDeNegocio = () => mockFrom.mock.calls.map((c) => c[0]).filter((t) => t !== "audit_logs");
+
 function sesion(publicMetadata: Record<string, unknown>) {
   mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
   mockAuth.mockResolvedValue({ userId: "u1", sessionClaims: { sub: "u1", publicMetadata } });
@@ -99,7 +103,9 @@ function suiteAdmin(nombre: string, lista: [string, Llamada][]) {
       sesion({ storeWorker: true, storeId: STORE_ID });
       const res = await llamar();
       expect(res.status).toBe(403);
-      expect(mockFrom).not.toHaveBeenCalled();
+      await new Promise((r) => setImmediate(r)); // drena el registro agendado con after()
+      expect(tablasDeNegocio()).toEqual([]);
+      expect(mockFrom).toHaveBeenCalledWith("audit_logs");
       expect(mockR2).not.toHaveBeenCalled();
     });
 
@@ -107,14 +113,14 @@ function suiteAdmin(nombre: string, lista: [string, Llamada][]) {
       sesion({ storeId: STORE_ID });
       const res = await llamar();
       expect(res.status).toBe(403);
-      expect(mockFrom).not.toHaveBeenCalled();
+      expect(tablasDeNegocio()).toEqual([]);
     });
 
     it.each(lista)("%s — storeAdmin de otra tienda → 403 sin tocar la BD", async (_n, llamar) => {
       sesion({ storeAdmin: true, storeId: OTRA_TIENDA });
       const res = await llamar();
       expect(res.status).toBe(403);
-      expect(mockFrom).not.toHaveBeenCalled();
+      expect(tablasDeNegocio()).toEqual([]);
     });
 
     it.each(lista)("%s — storeAdmin de la tienda pasa el guard (no 401/403)", async (_n, llamar) => {

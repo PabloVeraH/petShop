@@ -1,10 +1,10 @@
 import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { logAudit, getRequestMetadata, registrarConsulta, withErrorLogging } from "@/lib/audit";
 import { ClienteUpdateSchema, formatRUT } from "@/lib/validation";
 
-export const GET = withErrorLogging(async (_req: NextRequest,
+export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getStoreId();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,6 +41,14 @@ export const GET = withErrorLogging(async (_req: NextRequest,
     .eq("cliente_id", id)
     .eq("store_id", store_id)
     .single();
+
+  registrarConsulta(req, {
+    storeId: store_id,
+    userId: ctx.userId,
+    entityType: "cliente",
+    entityId: id,
+    changeDescription: "Ficha de cliente abierta",
+  });
 
   return NextResponse.json({
     ...cliente,

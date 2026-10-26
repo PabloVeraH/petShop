@@ -525,8 +525,9 @@ I-406/I-407/I-408.
 | LC-19 | fin = hoy + warning_days (fecha local) → isInWarningPeriod=true, no bloqueo | license-control | integration |
 | LC-20 | fin = hoy + warning_days + 1 → aún NO en aviso | license-control | integration |
 | LC-21 | fin = hoy + 10 → daysUntilExpiry = 10 (sin desplazamiento por zona horaria) | license-control | integration |
+| LC-22 | REGRESIÓN: el último día de licencia a las 22:30 de Chile (ya mañana en UTC) no bloquea; a las 00:30 del día siguiente sí (instantes fijos) | license-control | integration |
 
-## Unit — src/lib/dates.ts (U-150, U-151)
+## Unit — src/lib/dates.ts (U-150, U-151, U-223…U-229)
 
 REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea como medianoche UTC y formateado en América/Santiago desplaza la fecha 1 día antes. `parseDateOnlyLocal`/`formatDateOnlyEsCL` usan el sufijo `T00:00:00` para parsear en hora local y preservar el día sin importar el huso del proceso.
 
@@ -534,6 +535,19 @@ REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea 
 |----|-----------|-------|------|
 | U-150 | parseDateOnlyLocal: "2026-12-31" → medianoche LOCAL del 31-12 (no 30-12 por UTC) | lib/dates | unit |
 | U-151 | formatDateOnlyEsCL: "2026-05-01" → "01-05-2026" y "2026-12-31" → "31-12-2026", sin desfase | lib/dates | unit |
+| U-223 | hoyNegocioISO/hoyNegocioCompacto: a las 22:30 de Chile (ya día siguiente en UTC) devuelven la fecha de Chile | lib/dates | unit |
+| U-224 | anioMesNegocio y diaSemanaNegocio cambian a medianoche de Chile, no de UTC (31-12 22:00 sigue siendo 2026/12) | lib/dates | unit |
+| U-225 | sumarDiasISO/diasEntreISO: aritmética de calendario exacta en fin de mes, de año y cambio de horario | lib/dates | unit |
+| U-226 | fechaNegocioDeTimestamp interpreta los timestamp sin zona de la BD como UTC (con o sin microsegundos, Z u offset) | lib/dates | unit |
+| U-227 | inicioDiaNegocio: medianoche de Chile en UTC (−3 / −4) y 01:00 el día en que empieza el horario de verano | lib/dates | unit |
+| U-228 | Invariante: para cada día de 2026 el inicio cae en ese día y el instante anterior en el día previo | lib/dates | unit |
+| U-229 | rangoDiaNegocio [desde, hasta) e inicioMesNegocio devuelven límites UTC del día/mes de Chile | lib/dates | unit |
+| U-230 | withErrorLogging: un 403 con sesión inserta en audit_logs LOGIN_FAILED/`acceso`/failure con usuario, tienda, endpoint e IP | lib/audit | unit |
+| U-231 | withErrorLogging: 403 sin sesión (webhook), 200 y 404 no se registran | lib/audit | unit |
+| U-232 | withErrorLogging: si after() o el INSERT fallan, el 403 se devuelve igual | lib/audit | unit |
+| U-233 | registrarConsulta inserta una fila VIEW con usuario, tienda, entidad e IP | lib/audit | unit |
+| U-234 | registrarConsulta no lanza fuera de request scope ni si el INSERT falla | lib/audit | unit |
+| U-WX-03b | REGRESIÓN: el 31-08 a las 22:00 de Chile (1-09 en UTC) la temporada sigue siendo invierno (mes de Chile) | lib/weather | unit |
 
 ## AdminPage (AP-XX)
 
@@ -1936,6 +1950,27 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-744 | GET /api/tienda/nombre devuelve `{ name, rut }` (RUT de la tienda para el ticket de venta); tienda sin RUT → `rut: null` | GET /api/tienda/nombre | integration |
 | I-745 | CSV de ventas (`tipo=ventas`) incluye la columna Vendedor (nombre de `clerk_users`, nunca el email) tras Fecha, con una sola consulta por los `worker_clerk_id` de ventas ya filtradas por tienda; sin vendedor → vacío; sin ventas con vendedor no consulta `clerk_users` (I-745b) | GET /api/reports/export | integration |
 | I-746 | GET /api/reports/export solo para storeAdmin de la tienda o systemAdmin: storeWorker, storeAdmin de otra tienda o sesión sin metadata → 403 sin consultar datos (ventas e inventario); storeAdmin y systemAdmin → 200 CSV | GET /api/reports/export | integration |
+| I-747 | Recepción: una línea con `lotes[]` (varias fechas de vencimiento) crea un lote por fecha con `registrar_lote`, todos vinculados a la OC; la línea queda con la cantidad total | PATCH /api/ordenes-compra/[id] | integration |
+| I-748 | REGRESIÓN: varios lotes del mismo producto con stock suelto se numeran LOTE-1, LOTE-2 (antes el +1 del LOTE-0 se aplicaba a cada lote y saltaba a LOTE-3) | PATCH /api/ordenes-compra/[id] | integration |
+| I-749 | `lotes[]` que no suman `cantidad_recibida` → 400 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+| I-750 | `lotes[]` junto a `fecha_vencimiento` de la línea, lote con cantidad 0 o fecha inválida → 400 | PATCH /api/ordenes-compra/[id] | integration |
+| I-751 | IDOR: `lotes[]` de un producto de otra tienda → 404 sin escribir | PATCH /api/ordenes-compra/[id] | integration |
+| I-752 | Recibir con `lotes[]` sin sesión → 401 sin consultar la BD | PATCH /api/ordenes-compra/[id] | integration |
+| I-753 | REGRESIÓN: a las 22:30 de Chile "Ventas hoy" filtra `created_at` en [00:00, 24:00) de Chile expresado en UTC, no el día UTC | GET /api/dashboard | integration |
+| I-754 | REGRESIÓN: el recibo muestra fecha y hora de Chile de la venta (antes la hora UTC del servidor: 22:30 salía 01:30 del día siguiente) | GET /api/recibos/[ventaId] | integration |
+| I-755 | REGRESIÓN: una NC es válida todo su día de vencimiento en hora de Chile y vencida (410) desde el día siguiente (antes vencía a las ~21:00 del día anterior) | GET /api/notas-credito?numero_nc= | integration |
+| I-756 | El envío masivo de alertas por correo es solo para admin: storeWorker → 403 sin enviar ni auditar | POST /api/email/send-alerts | integration |
+| I-757 | Usuario deshabilitado → 403 sin enviar | POST /api/email/send-alerts | integration |
+| I-758 | El envío del admin queda en auditoría (CREATE `envio_alertas`, canal email, enviadas/omitidas, IP) | POST /api/email/send-alerts | integration |
+| I-759 | WhatsApp: storeWorker → 403 sin consultar alertas, sin enviar ni auditar | POST /api/whatsapp/send-alerts | integration |
+| I-760 | WhatsApp: todo envío del admin queda en auditoría, también el que no tenía alertas | POST /api/whatsapp/send-alerts | integration |
+| I-761 | Anular una venta queda en auditoría (UPDATE `venta`, quién, venta y monto) | PATCH /api/ventas/[id] | integration |
+| I-762 | Un intento de anulación rechazado (ya anulada, 409) queda en auditoría como `failure` con el motivo | PATCH /api/ventas/[id] | integration |
+| I-763 | storeWorker que intenta anular → 403: queda el acceso denegado en `audit_logs` y ninguna anulación | PATCH /api/ventas/[id] | integration |
+| I-764 | Abrir el recibo registra una consulta (VIEW) de esa venta; venta inexistente/otra tienda (404) no registra | GET /api/ventas/[id] | integration |
+| I-765 | Generar el recibo HTML registra una consulta (VIEW) de esa venta; 404 no registra | GET /api/recibos/[ventaId] | integration |
+| I-766 | El filtro `action=VIEW` es aceptado (antes 400) y llega a la query con el `store_id` propio | GET /api/audit-logs | integration |
+| CG-16 | Abrir la ficha de un cliente registra una consulta (VIEW) sin datos personales en la descripción; 404 no registra. CG-01…CG-15 viven en el mismo archivo y no estaban registrados | GET /api/clientes/[id] | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
 
@@ -2480,6 +2515,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SPF-11 | + Nueva OC abre el diálogo y al crear refresca las órdenes | SupplierHubPage | component |
 | SPF-12 | Cuentas por pagar: filtros, filtros guardados, exportar y pago múltiple con error parcial | SupplierHubPage | component |
 | SPF-13 | Pago individual con error visible; Escape cierra el modal | SupplierHubPage | component |
+| SPF-14 | Recibir OC: "Dividir en lotes" valida cantidad/fecha y suma de cada lote; PATCH envía `lotes[]` en vez de `fecha_vencimiento` | SupplierHubPage | component |
+| SPF-15 | Quitar lotes hasta uno vuelve a la fecha única conservando su valor; el error del servidor al recibir se muestra en pantalla | SupplierHubPage | component |
 | C-77 | Filtros de Actividad entran en la query y vuelven a página 1; systemAdmin ve Store ID | AuditoriaCard | component |
 | C-78 | Filtros de Errores y de Sesiones entran en sus queries | AuditoriaCard | component |
 | C-79 | Detalle de error (mensaje, stack, context); Cerrar y Escape | AuditoriaCard | component |
@@ -2493,6 +2530,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-87 | Imprimir no fija `size` en `@page` (solo `margin: 0`): con tamaño propio Chrome centraba el ticket en el papel 58×210 de la XP-58 (blanco arriba/abajo) o lo giraba si quedaba apaisado (2026-10-19). Reemplaza la medición del alto | SalesTicketPage | component |
 | C-88 | Letra impresa del ticket = tamaño en pantalla × zoom − 2 px en cada clase (text-lg/base/sm/xs) (en el test de C-86) | SalesTicketPage | component |
 | C-89 | Retirado 2026-10-19: el alto mínimo de página quedó sin objeto al eliminar `size` (ver C-87) | SalesTicketPage | component |
+| C-90 | "Enviar alertas pendientes" hace POST /api/email/send-alerts y muestra enviadas/omitidas; un 403 o 500 se muestra en pantalla | SettingsPage | component |
+| C-91 | Auditoría: filtros `VIEW` y entidad `acceso` entran en la query; filas VIEW y LOGIN_FAILED se muestran con su badge | AuditoriaCard | component |
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |

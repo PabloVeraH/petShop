@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
+import { diasEntreISO, hoyNegocioISO } from "@/lib/dates";
 
 // Motor de recompra inteligente: cruza consumo_alertas con proveedor_productos
 // para saber cuándo ordenar antes de que se acabe el stock
@@ -32,13 +33,12 @@ export const GET = withErrorLogging(async () => {
     .in("id", productoIds)
     .eq("store_id", store_id);
 
-  const hoy = new Date();
+  const hoy = hoyNegocioISO();
 
   const sugerencias = alertas.map((alerta) => {
     const prod = productos?.find((p) => p.id === alerta.producto_id);
     const pp = proveedorProductos?.filter((pp) => pp.producto_id === alerta.producto_id) ?? [];
-    const termino = new Date(alerta.fecha_estimada_termino!);
-    const diasRestantes = Math.round((termino.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    const diasRestantes = diasEntreISO(hoy, alerta.fecha_estimada_termino!);
     const mascota = alerta.mascotas as unknown as { nombre: string } | null;
     const cliente = alerta.clientes as unknown as { nombre: string } | null;
 

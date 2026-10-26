@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { ReportsQuerySchema } from "@/lib/validation";
 import { withErrorLogging } from "@/lib/audit";
+import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -38,7 +39,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // Ventas por día
   const ventasPorDia: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventas ?? []) {
-    const dia = v.created_at.split("T")[0];
+    const dia = fechaNegocioDeTimestamp(v.created_at);
     if (!ventasPorDia[dia]) ventasPorDia[dia] = { total: 0, transacciones: 0 };
     ventasPorDia[dia].total += Number(v.total);
     ventasPorDia[dia].transacciones += 1;
@@ -120,7 +121,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     : null;
 
   // Vencimientos
-  const hoy = new Date().toISOString().split("T")[0];
+  const hoy = hoyNegocioISO();
   const { data: productosConVencimiento } = await supabase
     .from("productos")
     .select("id, nombre, sku, stock, fecha_vencimiento, dias_alerta_expira")

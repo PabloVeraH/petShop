@@ -52,14 +52,20 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [sendingAlerts, setSendingAlerts] = useState(false);
   const [alertsResult, setAlertsResult] = useState<{ sent: number; skipped: number } | null>(null);
+  const [alertsError, setAlertsError] = useState("");
 
   const handleSendAlerts = useCallback(async () => {
     setSendingAlerts(true);
     setAlertsResult(null);
+    setAlertsError("");
     const res = await fetch("/api/email/send-alerts", { method: "POST" });
-    const data = await res.json();
     setSendingAlerts(false);
-    if (res.ok) setAlertsResult(data);
+    if (res.ok) {
+      setAlertsResult(await res.json());
+    } else {
+      // 403: solo el administrador de la tienda puede disparar el envío masivo.
+      setAlertsError(res.status === 403 ? "Solo un administrador puede enviar alertas" : "No se pudieron enviar las alertas");
+    }
   }, []);
 
   useEffect(() => {
@@ -463,6 +469,9 @@ export default function SettingsPage() {
               <span className="text-sm text-gray-600">
                 {alertsResult.sent} enviadas · {alertsResult.skipped} omitidas
               </span>
+            )}
+            {alertsError && (
+              <span role="alert" className="text-sm text-red-600">{alertsError}</span>
             )}
           </div>
         </div>

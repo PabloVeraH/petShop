@@ -7,6 +7,7 @@ import { AporteCapitalSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { createServiceClient } from "@/lib/supabase";
 import { checkExistingCierre } from "@/lib/contabilidad/cierre-mes";
+import { hoyNegocioISO } from "@/lib/dates";
 
 export const POST = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -27,7 +28,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
   const { cuentaDestino, monto, descripcion, fecha } = parsed.data;
-  const fechaAsiento = fecha ?? new Date().toISOString().split("T")[0];
+  const fechaAsiento = fecha ?? hoyNegocioISO();
 
   // El período contable ya puede estar cerrado. crearAsiento() rechaza
   // asientos con fecha dentro de un período cerrado (retorna null), pero

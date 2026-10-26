@@ -1,21 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { getStoreId } from "@/lib/auth";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { sendWhatsAppText, buildConsumoAlertMessage } from "@/lib/whatsapp";
-import { withErrorLogging } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
+import { hoyNegocioISO, sumarDiasISO } from "@/lib/dates";
 
 // POST /api/whatsapp/send-alerts
 // Finds pending consumo alerts, sends WhatsApp notifications, marks as sent.
-// Call from cron or manually from the settings page.
-export const POST = withErrorLogging(async () => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// Envío masivo a clientes: solo storeAdmin/systemAdmin, y queda en auditoría
+// quién lo disparó y su resultado.
+export const POST = withErrorLogging(async (req: NextRequest) => {
+  const ctx = await autorizarCanales({ soloAdmin: true });
+  if (!ctx.ok) return ctx.response;
   const { storeId } = ctx;
+
+  const responder = async (resultado: { sent: number; skipped: number }) => {
+    await logAudit({
+      storeId,
+      userId: ctx.userId,
+      action: "CREATE",
+      entityType: "envio_alertas",
+      newValues: { canal: "whatsapp", ...resultado },
+      changeDescription: `Envío masivo de alertas por WhatsApp: ${resultado.sent} enviadas, ${resultado.skipped} omitidas`,
+      ...getRequestMetadata(req),
+    });
+    return NextResponse.json(resultado);
+  };
 
   const supabase = createServiceClient();
 
   // Find alerts due within dias_aviso days, not yet sent
-  const today = new Date().toISOString().split("T")[0];
+  const today = hoyNegocioISO();
   const { data: alertas } = await supabase
     .from("consumo_alertas")
     .select(`
@@ -31,14 +46,10 @@ export const POST = withErrorLogging(async () => {
     `)
     .eq("store_id", storeId)
     .eq("enviado", false)
-    .lte("fecha_estimada_termino", (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 14); // look ahead 14 days max
-      return d.toISOString().split("T")[0];
-    })());
+    .lte("fecha_estimada_termino", sumarDiasISO(today, 14)); // look ahead 14 days max
 
   if (!alertas || alertas.length === 0) {
-    return NextResponse.json({ sent: 0, skipped: 0 });
+    return responder({ sent: 0, skipped: 0 });
   }
 
   // Fetch store WhatsApp config once (includes phone for vencimientos alerts)
@@ -49,7 +60,7 @@ export const POST = withErrorLogging(async () => {
     .single();
 
   if (!store?.whatsapp_enabled || !store.whatsapp_phone_number_id || !store.whatsapp_access_token) {
-    return NextResponse.json({ sent: 0, skipped: alertas.length });
+    return responder({ sent: 0, skipped: alertas.length });
   }
 
   let sent = 0;
@@ -104,7 +115,7 @@ export const POST = withErrorLogging(async () => {
   // VENCIMIENTOS — Alert tienda sobre productos próximos a vencer
   // ========================================
   try {
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = hoyNegocioISO();
 
     if (store?.whatsapp_enabled && store?.whatsapp_phone_number) {
       const { data: lotes } = await supabase
@@ -184,5 +195,5 @@ export const POST = withErrorLogging(async () => {
     console.error("Error sending vencimientos alerts:", error);
   }
 
-  return NextResponse.json({ sent, skipped });
+  return responder({ sent, skipped });
 }, { endpoint: "POST /api/whatsapp/send-alerts" });

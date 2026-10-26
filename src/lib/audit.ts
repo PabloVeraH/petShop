@@ -7,7 +7,7 @@ import { getStoreId } from "./auth";
 export interface AuditLogInput {
   storeId: string;
   userId: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN_FAILED" | "EXPORT" | "SETTINGS" | "BAN_USER" | "UNBAN_USER" | "AI_RECOMMENDATION" | "BACKFILL" | "CIERRE_MES";
+  action: "CREATE" | "UPDATE" | "DELETE" | "VIEW" | "LOGIN_FAILED" | "EXPORT" | "SETTINGS" | "BAN_USER" | "UNBAN_USER" | "AI_RECOMMENDATION" | "BACKFILL" | "CIERRE_MES";
   entityType: string;
   entityId?: string;
   oldValues?: Record<string, unknown>;
@@ -64,6 +64,21 @@ export async function logAudit(input: AuditLogInput) {
       message: `Failed to log audit: ${error.message}`,
       metadata: { entityType: input.entityType, entityId: input.entityId },
     });
+  }
+}
+
+// Registra una consulta (action VIEW: recibo, ficha de cliente) sin demorar
+// la respuesta: el INSERT se agenda con after(). Un fallo del registro nunca
+// cambia la respuesta de la ruta.
+export function registrarConsulta(
+  req: NextRequest,
+  input: Omit<AuditLogInput, "action" | "ipAddress" | "userAgent">,
+) {
+  const meta = getRequestMetadata(req);
+  try {
+    after(() => logAudit({ ...input, ...meta, action: "VIEW" }).catch(() => {}));
+  } catch {
+    // after() fuera de request scope: sin registro.
   }
 }
 
@@ -198,6 +213,29 @@ export function withErrorLogging<TArgs extends unknown[], TRes extends Response>
             severity: "ERROR",
           }).catch(() => {});
         });
+      }
+      if (res.status === 403) {
+        // Acceso denegado a un usuario con sesión (deshabilitado, sin el rol o
+        // de otra tienda): queda en audit_logs como LOGIN_FAILED. Sin sesión
+        // (webhooks) no hay a quién atribuirlo y no se registra. Un fallo del
+        // registro nunca cambia la respuesta.
+        try {
+          after(async () => {
+            const ctx = await bestEffortErrorContext();
+            if (!ctx.storeId || !ctx.userId) return;
+            await logAudit({
+              storeId: ctx.storeId,
+              userId: ctx.userId,
+              ...meta,
+              action: "LOGIN_FAILED",
+              entityType: "acceso",
+              changeDescription: `Acceso denegado: ${options.endpoint}`,
+              result: "failure",
+            }).catch(() => {});
+          });
+        } catch {
+          // after() fuera de request scope: sin registro.
+        }
       }
       return res;
     } catch (err) {

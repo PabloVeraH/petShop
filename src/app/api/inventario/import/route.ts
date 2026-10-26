@@ -6,6 +6,7 @@ import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { parseProductosXLSX, generateTemplateXLSX } from "@/lib/excel/parser";
 import { ProductoImportRowSchema } from "@/lib/validation";
+import { hoyNegocioISO } from "@/lib/dates";
 
 const MAX_ROWS = 500;
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -271,7 +272,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
         cantidad_inicial: prod.stock,
         cantidad_actual: prod.stock,
         fecha_vencimiento: row.fecha_vencimiento,
-        fecha_ingreso: new Date().toISOString().split("T")[0],
+        fecha_ingreso: hoyNegocioISO(),
         notas: "Inventario inicial — importación masiva",
       });
 

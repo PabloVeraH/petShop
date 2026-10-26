@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase";
+import { diaSemanaNegocio, hoyNegocioISO, sumarDiasISO } from "@/lib/dates";
 
 export interface SalesDataPoint {
   fecha: string;
@@ -64,7 +65,9 @@ export function calculateSeasonality(data: SalesDataPoint[]): Record<string, num
   const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
   for (const point of data) {
-    const dayIndex = new Date(point.fecha).getDay();
+    // fecha es "YYYY-MM-DD": new Date() la toma como medianoche UTC, así que
+    // el día de la semana se lee en UTC (getDay() dependía del TZ del proceso).
+    const dayIndex = new Date(point.fecha).getUTCDay();
     byDayOfWeek[dayNames[dayIndex]].push(point.cantidad);
   }
 
@@ -85,15 +88,14 @@ export async function predictDemand(
 ): Promise<ForecastResult> {
   const supabase = createServiceClient();
 
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 90);
+  const desde = sumarDiasISO(hoyNegocioISO(), -90);
 
   const { data: historico } = await supabase
     .from("ventas_historico")
     .select("fecha, cantidad, canal")
     .eq("producto_id", productoId)
     .eq("store_id", storeId)
-    .gte("fecha", desde.toISOString().split("T")[0])
+    .gte("fecha", desde)
     .order("fecha");
 
   if (!historico?.length || historico.length < MIN_DATOS_HISTORICOS) {
@@ -134,7 +136,7 @@ export async function predictDemand(
     if (tendencia === "alta") basePred *= 1.02;
     else if (tendencia === "baja") basePred *= 0.98;
 
-    const dayIndex = (new Date().getDay() + i) % 7;
+    const dayIndex = (diaSemanaNegocio() + i) % 7;
     const dayFactor = seasonality[dayNames[dayIndex]] || avgFactor;
 
     prediccion.push(Math.max(0, Math.round(basePred * (dayFactor / avgFactor))));

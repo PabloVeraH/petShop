@@ -113,6 +113,14 @@ export const OrdenCompraReceiveItemSchema = z.object({
   // registra el PRIMER lote del producto (se convierte en "LOTE-0"). Si se
   // omite, se usa productos.fecha_vencimiento.
   fecha_vencimiento_stock_existente: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  // Una misma línea puede llegar con varias fechas de vencimiento (ej. 100
+  // sacos: 50 vencen en noviembre y 50 en diciembre): cada entrada crea su
+  // propio lote. Reemplaza a fecha_vencimiento/numero_lote de la línea.
+  lotes: z.array(z.object({
+    cantidad: z.number().int().positive(),
+    fecha_vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    numero_lote: z.string().max(100).optional(),
+  })).min(1).max(20).optional(),
 }).refine(
   // Un item efectivamente recibido (cantidad > 0) debe tener precio > 0 — sin
   // esto, "Recibir OC" acepta silenciosamente precio 0 (fallback `|| 0` del
@@ -122,6 +130,12 @@ export const OrdenCompraReceiveItemSchema = z.object({
   // entrega parcial) no requieren precio.
   (item) => item.cantidad_recibida === 0 || item.precio_unitario > 0,
   { message: "precio_unitario debe ser mayor a 0 cuando cantidad_recibida > 0", path: ["precio_unitario"] }
+).refine(
+  (item) => !item.lotes || (!item.fecha_vencimiento && !item.numero_lote),
+  { message: "Use lotes o fecha_vencimiento/numero_lote, no ambos", path: ["lotes"] }
+).refine(
+  (item) => !item.lotes || item.lotes.reduce((s, l) => s + l.cantidad, 0) === item.cantidad_recibida,
+  { message: "La suma de las cantidades de los lotes debe ser igual a la cantidad recibida", path: ["lotes"] }
 );
 
 export const OrdenCompraReceiveSchema = z.object({

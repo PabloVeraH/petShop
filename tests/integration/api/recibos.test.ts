@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+// registrarConsulta se observa (su INSERT se prueba en tests/unit/lib/audit-registro.test.ts).
+const mockRegistrarConsulta = jest.fn();
+jest.mock("@/lib/audit", () => ({
+  ...jest.requireActual("@/lib/audit"),
+  registrarConsulta: (...a: unknown[]) => mockRegistrarConsulta(...a),
+}));
 
 import * as authModule from "@/lib/auth";
 import * as supabaseModule from "@/lib/supabase";
@@ -107,6 +113,83 @@ describe("GET /api/recibos/[ventaId]", () => {
     expect(data.html).toContain("$25.000");
     expect(data.numeroComprobante).toBe("20260417-ABC123D1");
     expect(data.total).toBe(25000);
+  });
+
+  it("I-765: generar el recibo queda registrado como consulta (VIEW) de esa venta y de quien lo pidió", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const venta = {
+      id: mockVentaId, store_id: mockStoreId, numero_comprobante: "20260417-ABC123D1",
+      total: 1000, subtotal: 840, descuento: 0, impuesto: 160, estado: "pagada",
+      created_at: "2026-04-17T10:00:00Z", clientes: null, worker_clerk_id: null,
+      venta_items: [{ cantidad: 1, precio_unitario: 1000, subtotal: 1000, productos: { nombre: "Snack", sku: "S1" } }],
+    };
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn()
+        .mockResolvedValueOnce({ data: venta, error: null })
+        .mockResolvedValue({ data: { name: "Tienda" }, error: null }),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "pagos" ? pagosChain : chain)),
+    });
+
+    const req = new NextRequest(`http://localhost/api/recibos/${mockVentaId}`);
+    const res = await GET(req, { params: Promise.resolve({ ventaId: mockVentaId }) });
+
+    expect(res.status).toBe(200);
+    expect(mockRegistrarConsulta).toHaveBeenCalledTimes(1);
+    expect(mockRegistrarConsulta).toHaveBeenCalledWith(req, expect.objectContaining({
+      storeId: mockStoreId,
+      userId: "user-1",
+      entityType: "venta",
+      entityId: mockVentaId,
+    }));
+  });
+
+  // I-754 — REGRESIÓN: toLocaleDateString/TimeString sin timeZone usaban el
+  // huso del servidor (UTC en Vercel): una venta de las 22:30 de Chile salía
+  // impresa el día siguiente a la 01:30. created_at llega de la BD sin zona
+  // (timestamp without time zone en UTC).
+  it("I-754: el recibo muestra fecha y hora de Chile de la venta", async () => {
+    const venta = {
+      id: mockVentaId, store_id: mockStoreId, numero_comprobante: "20261022-NOCHE001",
+      total: 1000, subtotal: 840, descuento: 0, impuesto: 160, estado: "completada",
+      created_at: "2026-10-23T01:30:00.123456",
+      clientes: null, worker: null,
+      venta_items: [{ cantidad: 1, precio_unitario: 1000, subtotal: 1000, productos: { nombre: "Snack", sku: "S1" } }],
+    };
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn()
+        .mockResolvedValueOnce({ data: venta, error: null })
+        .mockResolvedValue({ data: { name: "Tienda" }, error: null }),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "pagos" ? pagosChain : chain)),
+    });
+
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: Promise.resolve({ ventaId: mockVentaId }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.html).toContain("22-10-2026");
+    expect(data.html).toMatch(/10:30:00/); // es-CL: "10:30:00 p. m."
+    expect(data.html).not.toContain("23-10-2026");
+    expect(data.html).not.toMatch(/0?1:30:00/);
   });
 
   it("incluye múltiples métodos de pago en recibo", async () => {
@@ -216,6 +299,7 @@ describe("GET /api/recibos/[ventaId]", () => {
     const req = new NextRequest(`http://localhost/api/recibos/invalid-venta`);
     const res = await GET(req, { params: Promise.resolve({ ventaId: "invalid-venta" }) });
     expect(res.status).toBe(404);
+    expect(mockRegistrarConsulta).not.toHaveBeenCalled();
   });
 
   it("retorna 401 sin autenticación", async () => {

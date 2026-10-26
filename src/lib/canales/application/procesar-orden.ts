@@ -26,6 +26,7 @@ export const ORDEN_MAX_INTENTOS = 3;
 // importar este módulo, que depende de la outbox).
 export { USUARIO_SISTEMA } from "../domain/types";
 import { USUARIO_SISTEMA } from "../domain/types";
+import { fechaNegocioDeTimestamp, hoyNegocioCompacto, hoyNegocioISO } from "@/lib/dates";
 
 export type ResultadoProcesamiento =
   | { resultado: "omitida" }
@@ -175,8 +176,7 @@ export async function procesarOrden(
   const total = pItems.reduce((s, i) => s + i.subtotal, 0);
   const impuesto = extraerIva(total);
   const costoTotal = items.reduce((s, i) => s + i.cantidad * Number(porSku.get(i.sku)!.costo ?? 0), 0);
-  const hoy = new Date();
-  const numeroComprobante = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, "0")}${String(hoy.getDate()).padStart(2, "0")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const numeroComprobante = `${hoyNegocioCompacto()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
   const { data: ventaResult, error: txError } = await supabase.rpc("crear_venta_tx", {
     p_store_id: storeId,
@@ -260,7 +260,7 @@ export async function procesarOrden(
     result: "success",
   }).catch(() => {});
 
-  const fechaVenta = venta.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0];
+  const fechaVenta = venta.created_at ? fechaNegocioDeTimestamp(venta.created_at) : hoyNegocioISO();
   try {
     const asiento1 = await crearAsiento({
       storeId,

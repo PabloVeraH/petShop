@@ -27,6 +27,15 @@ jest.mock("next/server", () => {
     after: jest.fn((cb: () => void) => cb()),
   };
 });
+// withErrorLogging real; logAudit y registrarConsulta se observan (su INSERT
+// se prueba en tests/unit/lib/audit-registro.test.ts).
+const mockLogAudit = jest.fn().mockResolvedValue(undefined);
+const mockRegistrarConsulta = jest.fn();
+jest.mock("@/lib/audit", () => ({
+  ...jest.requireActual("@/lib/audit"),
+  logAudit: (...a: unknown[]) => mockLogAudit(...a),
+  registrarConsulta: (...a: unknown[]) => mockRegistrarConsulta(...a),
+}));
 
 import * as contabilidad from "@/lib/contabilidad/generador-asientos";
 
@@ -111,6 +120,33 @@ describe("GET /api/ventas/[id]", () => {
     expect(data.items[0].productos.nombre).toBe("Producto A");
   });
 
+  it("I-764: abrir el recibo queda registrado como consulta (VIEW) de esa venta", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, numero_comprobante: "20260417-ABC123", total: 1000, created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null },
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? chain : { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+    });
+
+    const req = new NextRequest("http://localhost/api/ventas/venta-1");
+    const res = await GET(req, { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(200);
+    expect(mockRegistrarConsulta).toHaveBeenCalledTimes(1);
+    expect(mockRegistrarConsulta).toHaveBeenCalledWith(req, expect.objectContaining({
+      storeId: mockStoreId,
+      userId: "user-1",
+      entityType: "venta",
+      entityId: mockVentaId,
+    }));
+  });
+
   it("retorna 404 si venta no existe", async () => {
     const ventaChain = {
       select: jest.fn().mockReturnThis(),
@@ -131,6 +167,8 @@ describe("GET /api/ventas/[id]", () => {
 
     expect(res.status).toBe(404);
     expect(data.error).toContain("no encontrada");
+    // Venta inexistente u otra tienda: no se registra consulta.
+    expect(mockRegistrarConsulta).not.toHaveBeenCalled();
   });
 
   it("retorna 401 sin autenticación", async () => {
@@ -492,6 +530,40 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     expect(contabilidad.crearAsiento).not.toHaveBeenCalled();
   });
 
+  it("I-761: la anulación queda en auditoría con quién, qué venta y el monto", async () => {
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(200);
+    expect(mockLogAudit).toHaveBeenCalledTimes(1);
+    expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: mockStoreId,
+      userId: mockUserId,
+      action: "UPDATE",
+      entityType: "venta",
+      entityId: mockVentaId,
+      newValues: { estado: "anulada", total: 20000 },
+    }));
+    expect(mockLogAudit.mock.calls[0][0].result).toBeUndefined();
+  });
+
+  it("I-762: un intento de anulación rechazado (ya anulada) queda en auditoría como failure", async () => {
+    mockRpc.mockResolvedValue(mockAnularVentaTxError("La venta ya está anulada"));
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(409);
+    expect(mockLogAudit).toHaveBeenCalledTimes(1);
+    expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: mockStoreId,
+      userId: mockUserId,
+      action: "UPDATE",
+      entityType: "venta",
+      entityId: mockVentaId,
+      result: "failure",
+      errorMessage: "La venta ya está anulada",
+    }));
+  });
+
   it("retorna 400 si action no es válido", async () => {
     const req = makeReq({ action: "rechazar" });
     const res = await PATCH(req, { params: Promise.resolve({ id: mockVentaId }) });
@@ -524,6 +596,21 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
       const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
       expect(res.status).toBe(403);
       expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    // I-763: el 403 lo registra withErrorLogging (acceso denegado, ver
+    // U-230); la ruta no anota una anulación que no ocurrió.
+    it("I-763: storeWorker → 403 deja el acceso denegado en auditoría y ninguna anulación", async () => {
+      mockClaims = { sub: "user-1", publicMetadata: { storeId: "store-1", storeWorker: true } };
+      const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+      expect(res.status).toBe(403);
+      // withErrorLogging real → after() (ejecutado en el acto por el mock) →
+      // getStoreId + INSERT en audit_logs; se drena la cadena de promesas.
+      await new Promise((r) => setImmediate(r));
+      const fromCalls = ((supabaseModule.createServiceClient as jest.Mock).mock.results
+        .map((r) => (r.value as { from: jest.Mock }).from.mock.calls)).flat();
+      expect(fromCalls).toContainEqual(["audit_logs"]);
+      expect(mockLogAudit).not.toHaveBeenCalled();
     });
 
     it("SEC-11: sesión sin publicMetadata → 403", async () => {

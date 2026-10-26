@@ -306,3 +306,54 @@ describe("SettingsPage — datos obligatorios de la tienda (C-73)", () => {
     expect(await screen.findByText("RUT de la tienda inválido")).toBeInTheDocument();
   });
 });
+
+// C-90: envío masivo de alertas por correo. Solo el admin entra a /settings
+// (proxy); el control real es el 403 de POST /api/email/send-alerts
+// (I-756) — aquí se prueba que la pantalla muestra el resultado o el error.
+describe("SettingsPage — enviar alertas pendientes (C-90)", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: true, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+  };
+
+  function montar(respuestaEnvio: { ok: boolean; status: number; body: object }) {
+    (global.fetch as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(url === "/api/email/send-alerts"
+        ? { ok: respuestaEnvio.ok, status: respuestaEnvio.status, json: () => Promise.resolve(respuestaEnvio.body) }
+        : { ok: true, status: 200, json: () => Promise.resolve(base) }));
+  }
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("C-90: el botón hace POST /api/email/send-alerts y muestra enviadas/omitidas", async () => {
+    montar({ ok: true, status: 200, body: { sent: 3, skipped: 1 } });
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar alertas pendientes" }));
+
+    expect(await screen.findByText("3 enviadas · 1 omitidas")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith("/api/email/send-alerts", { method: "POST" });
+  });
+
+  it("C-90: un 403 del servidor se muestra en pantalla, no se silencia", async () => {
+    montar({ ok: false, status: 403, body: { error: "Forbidden" } });
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar alertas pendientes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Solo un administrador puede enviar alertas");
+    expect(screen.queryByText(/enviadas ·/)).not.toBeInTheDocument();
+  });
+
+  it("C-90: otro error (500) muestra un mensaje genérico", async () => {
+    montar({ ok: false, status: 500, body: { error: "Error interno del servidor" } });
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar alertas pendientes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudieron enviar las alertas");
+  });
+});

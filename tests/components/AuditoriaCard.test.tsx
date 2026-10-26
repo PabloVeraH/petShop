@@ -234,6 +234,28 @@ describe("AuditoriaCard component", () => {
     });
   });
 
+  // C-91: registros nuevos (consultas y accesos denegados) se filtran y se ven.
+  it("C-91: filtros VIEW y entidad 'acceso' entran en la query; las filas VIEW y LOGIN_FAILED se muestran con su badge", async () => {
+    const vista = { ...mockLogs[0], id: "log-v", action: "VIEW", entity_type: "venta", change_description: "Recibo de la venta 20261026-AAA abierto", new_values: null };
+    const denegado = { ...mockLogs[0], id: "log-d", action: "LOGIN_FAILED", entity_type: "acceso", change_description: "Acceso denegado: PATCH /api/ventas/id", result: "failure", new_values: null };
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ data: [vista, denegado], count: 2 }) });
+
+    render(<AuditoriaCard role="storeAdmin" />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    expect(screen.getByText(/Recibo de la venta 20261026-AAA abierto/)).toBeInTheDocument();
+    expect(screen.getByText(/Acceso denegado: PATCH \/api\/ventas\/id/)).toBeInTheDocument();
+    const badgeVista = screen.getAllByText("VIEW").find((b) => b.tagName === "SPAN")!;
+    expect(badgeVista.className).toContain("bg-sky-100");
+
+    fireEvent.change(screen.getByDisplayValue("Todas las acciones"), { target: { value: "VIEW" } });
+    await waitFor(() => expect(mockFetch.mock.calls.at(-1)![0]).toContain("action=VIEW"));
+    await waitFor(() => expect(screen.queryByText("Cargando...")).not.toBeInTheDocument(), { timeout: 3000 });
+
+    fireEvent.change(screen.getByDisplayValue("Todas las entidades"), { target: { value: "acceso" } });
+    await waitFor(() => expect(mockFetch.mock.calls.at(-1)![0]).toContain("entity_type=acceso"));
+  });
+
   // C-32
   it("C-32: botón Siguiente incrementa página", async () => {
     mockFetch.mockResolvedValue({
