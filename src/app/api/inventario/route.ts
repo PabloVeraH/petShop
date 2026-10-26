@@ -22,7 +22,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   let query = supabase
     .from("productos")
-    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, precio_venta_kg, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, imagen_url, imagen_url_2")
+    .select("id, nombre, sku, precio, costo, stock, stock_minimo, marca, peso_gramos, precio_venta_kg, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, categoria_id, codigo_barra, imagen_url, imagen_url_2")
     .eq("store_id", store_id)
     .eq("activo", true)
     .order("nombre");

@@ -1777,6 +1777,8 @@ imágenes no tenían ningún test.
 | CMP-IMG-06 | La subida incluye productoId en el FormData (organización por producto en R2) | ProductoImagenesField | component |
 | FP-13 | Guardar producto nuevo con foto subida incluye imagen_url en el body real del POST a /api/productos | InventoryPage | component |
 | FP-14 | Editar producto con foto existente: la miniatura se prellena y imagen_url viaja intacta en el PATCH | InventoryPage | component |
+| FP-15 | Editar producto: el popup muestra su código de barra y lo conserva en el PATCH | InventoryPage | component |
+| FP-16 | Borrar el código de barra al editar manda `""` en el PATCH (el servidor lo deja en null); antes mandaba undefined y no se podía borrar | InventoryPage | component |
 
 ---
 
@@ -1970,6 +1972,7 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-764 | Abrir el recibo registra una consulta (VIEW) de esa venta; venta inexistente/otra tienda (404) no registra | GET /api/ventas/[id] | integration |
 | I-765 | Generar el recibo HTML registra una consulta (VIEW) de esa venta; 404 no registra | GET /api/recibos/[ventaId] | integration |
 | I-766 | El filtro `action=VIEW` es aceptado (antes 400) y llega a la query con el `store_id` propio | GET /api/audit-logs | integration |
+| I-767 | REGRESIÓN: el listado de inventario incluye `codigo_barra` (el popup de edición de /inventory lo mostraba vacío) | GET /api/inventario | integration |
 | CG-16 | Abrir la ficha de un cliente registra una consulta (VIEW) sin datos personales en la descripción; 404 no registra. CG-01…CG-15 viven en el mismo archivo y no estaban registrados | GET /api/clientes/[id] | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
