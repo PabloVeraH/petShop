@@ -1,5 +1,5 @@
 /**
- * Tests I-101 a I-103: POST /api/whatsapp/send-alerts
+ * Tests I-101 a I-103, I-759 a I-760: POST /api/whatsapp/send-alerts
  */
 import { NextRequest } from "next/server";
 
@@ -8,8 +8,21 @@ const STORE_ID = "123e4567-e89b-12d3-a456-426614174000";
 const mockGetStoreId = jest.fn();
 const mockFrom = jest.fn();
 const mockSendWhatsAppText = jest.fn();
+const mockAuth = jest.fn();
+const mockLogAudit = jest.fn().mockResolvedValue(undefined);
 
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
+jest.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: jest.fn().mockResolvedValue(false) }));
+jest.mock("@/lib/audit", () => ({
+  withErrorLogging: (handler: unknown) => handler,
+  logAudit: mockLogAudit,
+  getRequestMetadata: jest.fn(() => ({ ipAddress: "127.0.0.1", userAgent: "test-agent" })),
+}));
+
+const ADMIN = { sub: "u1", publicMetadata: { storeId: STORE_ID, storeAdmin: true } };
+const WORKER = { sub: "u1", publicMetadata: { storeId: STORE_ID } };
+const req = () => new NextRequest("http://localhost/api/whatsapp/send-alerts", { method: "POST" });
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/whatsapp", () => ({
   sendWhatsAppText: mockSendWhatsAppText,
@@ -90,6 +103,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({ sessionClaims: ADMIN });
   });
 
   // I-101
@@ -98,7 +112,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([BASE_ALERTA], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST();
+    const res = await POST(req());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBeGreaterThanOrEqual(0);
@@ -109,7 +123,7 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST();
+    const res = await POST(req());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sent).toBe(0);
@@ -121,10 +135,35 @@ describe("POST /api/whatsapp/send-alerts", () => {
     const fromImpl = makeFrom([alertaSinTelefono], BASE_STORE, []);
     mockFrom.mockImplementation(fromImpl);
     const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
-    const res = await POST();
+    const res = await POST(req());
     expect(res.status).toBe(200);
     expect(mockSendWhatsAppText).not.toHaveBeenCalled();
     const body = await res.json();
     expect(body.skipped).toBeGreaterThanOrEqual(1);
+  });
+
+  it("I-759: un vendedor (storeWorker) recibe 403, no se consulta ni se envía nada", async () => {
+    mockAuth.mockResolvedValue({ sessionClaims: WORKER });
+    mockFrom.mockImplementation(makeFrom([BASE_ALERTA], BASE_STORE, []));
+    const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
+    const res = await POST(req());
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockSendWhatsAppText).not.toHaveBeenCalled();
+    expect(mockLogAudit).not.toHaveBeenCalled();
+  });
+
+  it("I-760: todo envío del admin queda en auditoría, también el que no tenía alertas", async () => {
+    mockFrom.mockImplementation(makeFrom([], BASE_STORE, []));
+    const { POST } = await import("@/app/api/whatsapp/send-alerts/route");
+    await POST(req());
+    expect(mockLogAudit).toHaveBeenCalledTimes(1);
+    expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: STORE_ID,
+      userId: "u1",
+      action: "CREATE",
+      entityType: "envio_alertas",
+      newValues: { canal: "whatsapp", sent: 0, skipped: 0 },
+    }));
   });
 });

@@ -401,6 +401,14 @@ globalmente la política de `await` como parte de un cambio no relacionado.
 No registres secretos ni payloads sensibles; incluye actor, tenant, recurso y
 acción; evita duplicar eventos en reintentos.
 
+Registro automático (2026-10-26): `withErrorLogging` anota todo 403 con
+sesión como `LOGIN_FAILED` / entidad `acceso` (rol insuficiente,
+deshabilitado, otra tienda); los intentos de contraseña fallida no pasan por
+la app (los valida Clerk) y se ven en su panel. Las consultas que importa
+rastrear (recibo de una venta, ficha de cliente) usan
+`registrarConsulta()` → `VIEW`, agendado con `after()`. No registres
+búsquedas ni listados: llenan la tabla sin aportar.
+
 ## 10. Contabilidad y sincronización con Hub
 
 Dos convenciones asíncronas DISTINTAS — no las trates igual:

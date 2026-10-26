@@ -14,12 +14,14 @@ const MASCOTA_ID = "123e4567-e89b-12d3-a456-426614174030";
 
 const mockGetStoreId = jest.fn();
 const mockFrom       = jest.fn();
+const mockRegistrarConsulta = jest.fn();
 
 jest.mock("@/lib/auth",     () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 jest.mock("@/lib/audit", () => ({
   withErrorLogging: (handler: unknown) => handler,
   logAudit:           jest.fn().mockResolvedValue(undefined),
+  registrarConsulta:  (...a: unknown[]) => mockRegistrarConsulta(...a),
   getRequestMetadata: jest.fn().mockResolvedValue({ ipAddress: "127.0.0.1", userAgent: "test" }),
 }));
 
@@ -179,6 +181,37 @@ describe("GET /api/clientes/[id]", () => {
     const body = await res.json();
     expect(body.ventas).toHaveLength(1);
     expect(body.ventas[0].total).toBe(15000);
+  });
+
+  it("CG-16: abrir la ficha queda registrado como consulta (VIEW) del cliente, sin datos personales en la descripción", async () => {
+    mockFrom.mockImplementation((table: string) =>
+      table === "clientes"
+        ? chain({ single: jest.fn().mockResolvedValue({ data: { id: CLIENTE_ID, nombre: "Juan Pérez", mascotas: [] }, error: null }) })
+        : chain({ limit: jest.fn().mockResolvedValue({ data: [], error: null }) })
+    );
+    const { GET } = await import("@/app/api/clientes/[id]/route");
+    const req = new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`);
+    const res = await GET(req, makeParams(CLIENTE_ID));
+
+    expect(res.status).toBe(200);
+    expect(mockRegistrarConsulta).toHaveBeenCalledTimes(1);
+    expect(mockRegistrarConsulta).toHaveBeenCalledWith(req, expect.objectContaining({
+      storeId: STORE_ID,
+      userId: "u1",
+      entityType: "cliente",
+      entityId: CLIENTE_ID,
+    }));
+    expect(JSON.stringify(mockRegistrarConsulta.mock.calls[0][1])).not.toContain("Juan");
+  });
+
+  it("CG-16: cliente inexistente o de otra tienda (404) no registra consulta", async () => {
+    mockFrom.mockReturnValue(
+      chain({ single: jest.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } }) })
+    );
+    const { GET } = await import("@/app/api/clientes/[id]/route");
+    const res = await GET(new NextRequest(`http://localhost/api/clientes/${CLIENTE_ID}`), makeParams(CLIENTE_ID));
+    expect(res.status).toBe(404);
+    expect(mockRegistrarConsulta).not.toHaveBeenCalled();
   });
 
   it("CG-14: incluye saldo_disponible del cliente en la respuesta", async () => {

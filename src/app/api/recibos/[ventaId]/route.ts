@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
-import { withErrorLogging } from "@/lib/audit";
+import { registrarConsulta, withErrorLogging } from "@/lib/audit";
 import { esc } from "@/lib/email";
 import { fechaHoraNegocioEsCL } from "@/lib/dates";
 
@@ -72,6 +72,14 @@ export const GET = withErrorLogging(async (req: NextRequest,
     worker,
     items,
     pagos: pagos ?? [],
+  });
+
+  registrarConsulta(req, {
+    storeId: store_id,
+    userId: ctx.userId,
+    entityType: "venta",
+    entityId: ventaId,
+    changeDescription: `Recibo de la venta ${venta.numero_comprobante ?? ventaId} generado`,
   });
 
   return NextResponse.json({

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { anularVenta } from "@/lib/ventas/anular-venta";
-import { withErrorLogging } from "@/lib/audit";
+import { logAudit, getRequestMetadata, registrarConsulta, withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { auth } from "@clerk/nextjs/server";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 
-export const GET = withErrorLogging(async (_req: NextRequest,
+export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
   // Admin: cualquier venta de su tienda. Worker (QA 2026-09-27): solo ventas
   // de su tienda creadas hoy (recibo del POS recién cobrado; en el POS se
@@ -64,6 +64,14 @@ export const GET = withErrorLogging(async (_req: NextRequest,
     .select("id, metodo, monto, numero_transaccion, nota_credito_id")
     .eq("venta_id", id);
 
+  registrarConsulta(req, {
+    storeId: store_id,
+    userId: ctx.userId,
+    entityType: "venta",
+    entityId: id,
+    changeDescription: `Recibo de la venta ${venta.numero_comprobante ?? id} abierto`,
+  });
+
   return NextResponse.json({ ...venta, worker, items: items ?? [], pagos: pagos ?? [] });
 }, { endpoint: "GET /api/ventas/id" });
 
@@ -92,9 +100,34 @@ export const PATCH = withErrorLogging(async (req: NextRequest,
   // vive en el servicio compartido src/lib/ventas/anular-venta.ts (Fase 3.1 del
   // plan de canales: también lo usa la cancelación de órdenes de canal).
   const resultado = await anularVenta(supabase, store_id, id, ctx.userId);
+  const { ipAddress, userAgent } = getRequestMetadata(req);
   if (!resultado.ok) {
+    await logAudit({
+      storeId: store_id,
+      userId: ctx.userId,
+      action: "UPDATE",
+      entityType: "venta",
+      entityId: id,
+      changeDescription: "Intento de anular venta",
+      ipAddress,
+      userAgent,
+      result: "failure",
+      errorMessage: resultado.error,
+    });
     return NextResponse.json({ error: resultado.error }, { status: resultado.status });
   }
+
+  await logAudit({
+    storeId: store_id,
+    userId: ctx.userId,
+    action: "UPDATE",
+    entityType: "venta",
+    entityId: id,
+    newValues: { estado: "anulada", total: resultado.venta.total },
+    changeDescription: `Venta ${resultado.venta.numero_comprobante ?? id} anulada por $${resultado.venta.total}`,
+    ipAddress,
+    userAgent,
+  });
 
   return NextResponse.json(resultado.venta);
 }, { endpoint: "PATCH /api/ventas/id" });

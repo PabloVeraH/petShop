@@ -248,6 +248,25 @@ describe("GET /api/audit-logs", () => {
     expect(c.eq).toHaveBeenCalledWith("entity_type", "venta");
   });
 
+  // I-766: las consultas registradas (VIEW) se pueden filtrar; antes el
+  // schema solo aceptaba las acciones de escritura y respondía 400.
+  it("I-766: filtro action=VIEW es aceptado y llega a la query", async () => {
+    mockAuth.mockResolvedValue({
+      userId: USER_ID,
+      sessionClaims: { publicMetadata: { storeId: STORE_ID, storeAdmin: true } },
+    });
+    mockGetAdminStatus.mockReturnValue({ isSystemAdmin: false, isStoreAdmin: true, storeId: STORE_ID, userId: USER_ID });
+    const c = chain([auditLog({ action: "VIEW", entity_type: "cliente" })], 1);
+    mockFrom.mockImplementation((table: string) => (table === "clerk_users" ? userChain() : c));
+
+    const { GET } = await import("@/app/api/audit-logs/route");
+    const res = await GET(makeUrl("/api/audit-logs", { action: "VIEW" }));
+
+    expect(res.status).toBe(200);
+    expect(c.eq).toHaveBeenCalledWith("action", "VIEW");
+    expect(c.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
   // I-229
   it("I-229: filtro de fechas funciona", async () => {
     mockAuth.mockResolvedValue({
