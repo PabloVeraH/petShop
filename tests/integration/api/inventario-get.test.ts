@@ -72,6 +72,28 @@ describe("GET /api/inventario", () => {
     expect(data[0].nombre).toBe("Producto A");
   });
 
+  // I-767 — REGRESIÓN: el popup de edición de /inventory mostraba vacío el
+  // código de barra porque este listado (su única fuente) no lo seleccionaba.
+  it("I-767: el listado incluye codigo_barra (lo usa el popup de edición)", async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({
+        data: [{ id: "prod-1", nombre: "Producto A", stock: 1, stock_minimo: 0, fecha_vencimiento: null, codigo_barra: "7801234567890" }],
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({ from: jest.fn().mockReturnValue(chain) });
+
+    const res = await GET(new NextRequest("http://localhost/api/inventario"));
+    const data = await res.json();
+
+    const columnas = (chain.select.mock.calls[0][0] as string).split(",").map((c) => c.trim());
+    expect(columnas).toContain("codigo_barra");
+    expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+    expect(data[0].codigo_barra).toBe("7801234567890");
+  });
+
   it("filtra por búsqueda en nombre o SKU", async () => {
     const result = {
       data: [

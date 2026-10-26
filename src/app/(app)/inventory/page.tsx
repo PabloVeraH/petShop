@@ -231,7 +231,9 @@ export default function InventoryPage() {
           precio_oferta: form.precio_oferta ? Number(form.precio_oferta) : undefined,
           en_oferta: form.en_oferta,
           categoria_id: form.categoria_id || null,
-          codigo_barra: form.codigo_barra || undefined,
+          // Al editar se manda tal cual: "" borra el código (PATCH lo guarda
+          // como null). Al crear, vacío = sin código.
+          codigo_barra: editando ? form.codigo_barra : form.codigo_barra || undefined,
           precio_venta_kg: form.precio_venta_kg ? Number(form.precio_venta_kg) : null,
           imagen_url: form.imagen_url ?? null,
           imagen_url_2: form.imagen_url_2 ?? null,

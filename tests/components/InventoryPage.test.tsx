@@ -486,6 +486,49 @@ describe("InventoryPage — formulario de producto", () => {
 
     await waitFor(() => expect(screen.queryByText(`Editar: ${PRODUCTO_CON_FOTO.nombre}`)).not.toBeInTheDocument());
   });
+
+  // FP-15/FP-16: el código de barra del producto se prellena al editar y se
+  // puede borrar (antes el popup lo mostraba vacío: GET /api/inventario no lo
+  // traía — I-767 — y el PATCH mandaba undefined al vaciarlo).
+  function setupEdicion(producto: Record<string, unknown>) {
+    (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL, init?: RequestInit) => {
+      const u = url.toString();
+      if (u.includes("/api/inventario")) return Promise.resolve({ ok: true, json: () => Promise.resolve([producto]) } as Response);
+      if (init?.method === "PATCH") return Promise.resolve({ ok: true, json: () => Promise.resolve(producto) } as Response);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    });
+  }
+  const bodyDelPatch = () => {
+    const call = (global.fetch as jest.Mock).mock.calls.find(([u, i]) => u === "/api/productos/p1" && i?.method === "PATCH");
+    return call ? JSON.parse((call[1] as RequestInit).body as string) : undefined;
+  };
+
+  it("FP-15: al editar, el popup muestra el código de barra del producto y lo conserva en el PATCH", async () => {
+    setupEdicion({ ...PRODUCTO, codigo_barra: "7801234567890" });
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => screen.getByText(PRODUCTO.nombre));
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+    expect(screen.getByPlaceholderText("7891234567890")).toHaveValue("7801234567890");
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(bodyDelPatch()?.codigo_barra).toBe("7801234567890"));
+    await waitFor(() => expect(screen.queryByText(`Editar: ${PRODUCTO.nombre}`)).not.toBeInTheDocument());
+  });
+
+  it("FP-16: borrar el código de barra al editar manda \"\" en el PATCH (el servidor lo deja en null)", async () => {
+    setupEdicion({ ...PRODUCTO, codigo_barra: "7801234567890" });
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => screen.getByText(PRODUCTO.nombre));
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+    fireEvent.change(screen.getByPlaceholderText("7891234567890"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(bodyDelPatch()).toBeDefined());
+    expect(bodyDelPatch()).toHaveProperty("codigo_barra", "");
+    await waitFor(() => expect(screen.queryByText(`Editar: ${PRODUCTO.nombre}`)).not.toBeInTheDocument());
+  });
 });
 
 describe("InventoryPage — acciones responsivas", () => {
