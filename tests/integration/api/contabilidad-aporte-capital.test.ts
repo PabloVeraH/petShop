@@ -216,9 +216,14 @@ describe("POST /api/contabilidad/aporte-capital", () => {
 
   // I-505b — sin fecha en el body, la ruta usa la fecha de hoy (comportamiento
   // preexistente documentado) y NO inyecta una fecha vacía a crearAsiento.
-  it("I-505b: sin fecha en el body, crearAsiento recibe la fecha de hoy", async () => {
-    const hoy = new Date().toISOString().split("T")[0];
+  // "Hoy" es la fecha de Chile: reloj fijo a las 22:30 de Chile (01:30 UTC del
+  // día siguiente). Antes el esperado salía de toISOString() y el test fallaba
+  // entre las ~21:00 y 24:00 de Chile. Solo se fija Date (la ruta usa await).
+  it("I-505b: sin fecha en el body, crearAsiento recibe la fecha de hoy en Chile", async () => {
+    jest.useFakeTimers({ now: new Date("2026-10-23T01:30:00Z"), doNotFake: ["nextTick", "setImmediate", "setTimeout", "setInterval", "queueMicrotask"] });
+    const hoy = "2026-10-22";
     const res = await POST(makeRequest({ cuentaDestino: "caja", monto: 5000 }));
+    jest.useRealTimers();
 
     expect(res.status).toBe(201);
     expect(crearAsiento).toHaveBeenCalledWith(
