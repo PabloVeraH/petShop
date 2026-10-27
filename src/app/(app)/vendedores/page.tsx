@@ -212,7 +212,9 @@ export default function VendedoresPage() {
       </div>
 
       <Dialog open={showDetail} onOpenChange={(open) => { if (!open) setShowDetail(false); }}>
-        <DialogContent className="max-w-2xl">
+        {/* sm:max-w-*: DialogContent trae sm:max-w-sm, que en pantallas sm+
+            ganaba sobre un max-w-* sin prefijo (el popup quedaba en 24rem). */}
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {selectedWorker?.nombre ?? selectedWorker?.email}

@@ -40,8 +40,8 @@ jest.mock("@/components/ui/button", () => ({
 jest.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children, open }: { children: ReactNode; open?: boolean }) =>
     open ? <div data-testid="dialog-root">{children}</div> : null,
-  DialogContent: ({ children }: { children: ReactNode }) =>
-    <div data-testid="dialog-content">{children}</div>,
+  DialogContent: ({ children, className }: { children: ReactNode; className?: string }) =>
+    <div data-testid="dialog-content" className={className}>{children}</div>,
   DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
 }));
@@ -153,6 +153,18 @@ describe("VendedoresPage — detalle y meta mensual", () => {
     await waitFor(() => {
       expect(screen.getByText(/María Pérez/i)).toBeInTheDocument();
     });
+  });
+
+  // V-11 — REGRESIÓN: el popup pedía max-w-2xl sin prefijo y el sm:max-w-sm
+  // de DialogContent lo dejaba en 24rem (la tabla de ventas no cabía). El
+  // ancho debe pedirse con prefijo sm: para reemplazarlo (ver DLG-03).
+  it("V-11: el popup de detalle pide un ancho sm:max-w-3xl (cabe la tabla de ventas)", async () => {
+    render(<VendedoresPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("María Pérez")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("Ver detalle")[0]);
+
+    const contenido = await screen.findByTestId("dialog-content");
+    expect(contenido.className).toContain("sm:max-w-3xl");
   });
 
   // V-03 — REGRESIÓN principal

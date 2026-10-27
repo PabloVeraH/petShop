@@ -58,3 +58,29 @@ describe("DialogContent — scroll en viewports pequeños (DLG-01/DLG-02)", () =
     expect(popup.className).toContain("max-h-[85vh]");
   });
 });
+
+// DLG-03 — REGRESIÓN: la base trae sm:max-w-sm (24rem). Un ancho pedido sin
+// prefijo (max-w-2xl) no lo reemplaza y en pantallas sm+ el popup quedaba en
+// 24rem (detalle de /vendedores). Pedido como sm:max-w-*, cn (tailwind-merge)
+// descarta el sm:max-w-sm de la base.
+describe("DialogContent — ancho pedido por la pantalla (DLG-03)", () => {
+  it("DLG-03: className sm:max-w-3xl reemplaza el sm:max-w-sm de la base", () => {
+    render(
+      <Dialog open>
+        <DialogContent className="sm:max-w-3xl">contenido</DialogContent>
+      </Dialog>,
+    );
+    const clases = screen.getByTestId("mock-popup").className.split(/\s+/);
+    expect(clases).toContain("sm:max-w-3xl");
+    expect(clases).not.toContain("sm:max-w-sm");
+  });
+
+  it("DLG-03: sin className se mantiene el ancho por defecto sm:max-w-sm", () => {
+    render(
+      <Dialog open>
+        <DialogContent>contenido</DialogContent>
+      </Dialog>,
+    );
+    expect(screen.getByTestId("mock-popup").className.split(/\s+/)).toContain("sm:max-w-sm");
+  });
+});

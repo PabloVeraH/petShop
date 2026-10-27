@@ -590,6 +590,7 @@ REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea 
 | V-08 | RUT input muestra el RUT del trabajador cuando existe | VendedoresPage | component |
 | V-09 | Guardar cambios envía RUT en body de PATCH y cierra modal | VendedoresPage | component |
 | V-10 | REGRESIÓN (ticket Trello 6a61a7d503d4609a4cea7cdc): Meta mensual con signo negativo muestra error y bloquea Guardar (no trunca a positivo en silencio) | VendedoresPage | component |
+| V-11 | REGRESIÓN: el popup "Ver detalle" pide `sm:max-w-3xl` (antes `max-w-2xl` sin prefijo quedaba en 24rem y la tabla de ventas no cabía) | VendedoresPage | component |
 | POS-01 | SearchProductos renderiza y desmonta sin error de timer | SearchProductos | component |
 | POS-02 | RecomendacionesIA renderiza sin cliente y desmonta sin error de fetch | RecomendacionesIA | component |
 | CT-01 | Click Eliminar en categoría abre modal de confirmación | CategoriasTab | component |
@@ -1080,6 +1081,7 @@ tienen `fecha_vencimiento` persistida (I-AI-17).
 |--------|----------------------------------------------------------|------------------|-----------|
 | DLG-01 | DialogContent lleva clase `overflow-y-auto`              | `dialog.tsx`     | component |
 | DLG-02 | DialogContent lleva clase `max-h-[85vh]`                 | `dialog.tsx`     | component |
+| DLG-03 | Un ancho `sm:max-w-*` reemplaza el `sm:max-w-sm` de la base (un `max-w-*` sin prefijo no lo hace); sin className se mantiene `sm:max-w-sm` | `dialog.tsx` | component |
 
 ## Convención de IDs
 
