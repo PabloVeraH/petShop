@@ -32,7 +32,10 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
   const [editNombre, setEditNombre] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");
   const [editError, setEditError] = useState<string>("");
+  const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
   const canCreate = canCreateUser(role);
+  // Solo el systemAdmin cambia contraseñas (el servidor lo exige igual).
+  const canChangePassword = role === "systemAdmin";
   const canDelete = canDeleteUser(role);
 
   // Una respuesta de error ({ error }) no es una lista: se convierte en error
@@ -132,8 +135,8 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
             const currentRole = user.system_admin ? "systemAdmin" : user.store_admin ? "storeAdmin" : "storeWorker";
             const isEditing = editingUserId === user.clerk_id;
             return (
+              <div key={user.clerk_id}>
               <div
-                key={user.clerk_id}
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-[rgba(212,165,116,0.03)] border-b border-[rgba(45,52,54,0.06)] last:border-0"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -206,6 +209,16 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
                       ✏
                     </button>
                   )}
+                  {canChangePassword && !isEditing && (
+                    <button
+                      onClick={() => setPasswordUserId(passwordUserId === user.clerk_id ? null : user.clerk_id)}
+                      className="w-8 h-8 flex items-center justify-center rounded-md border border-[rgba(45,52,54,0.15)] text-[#555] hover:bg-[rgba(45,52,54,0.05)] hover:border-[rgba(45,52,54,0.3)] transition-all"
+                      title="Cambiar contraseña"
+                      aria-label={`Cambiar contraseña de ${user.email}`}
+                    >
+                      🔑
+                    </button>
+                  )}
                   {canDelete && !isEditing && (
                     <button
                       onClick={() => deleteUserMutation.mutate(user.clerk_id)}
@@ -217,6 +230,10 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
                     </button>
                   )}
                 </div>
+              </div>
+              {canChangePassword && passwordUserId === user.clerk_id && (
+                <CambiarPasswordForm clerkId={user.clerk_id} email={user.email} onClose={() => setPasswordUserId(null)} />
+              )}
               </div>
             );
           })
@@ -305,32 +322,12 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           autoComplete="off"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
-        <div className="relative">
-          <input
-            type={verPassword ? "text" : "password"}
-            required
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            // "new-password" (no "off"): es la forma estándar de decirle al gestor de
-            // contraseñas del navegador "esto no es un login existente, no sugieras ni
-            // ofrezcas guardar credenciales guardadas aquí" — más confiable entre
-            // navegadores que autoComplete="off" para inputs type="password".
-            autoComplete="new-password"
-            className="w-full pl-3 pr-10 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
-          />
-          {/* Ver/ocultar contraseña: type="button" para no enviar el formulario. */}
-          <button
-            type="button"
-            onClick={() => setVerPassword((v) => !v)}
-            aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-            aria-pressed={verPassword}
-            title={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-            className="absolute inset-y-0 right-0 flex items-center px-3 text-[#888] hover:text-[#2d3436] focus:outline-none focus-visible:text-[#1a5f3f]"
-          >
-            {verPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-          </button>
-        </div>
+        <CampoPassword
+          value={formData.password}
+          onChange={(password) => setFormData({ ...formData, password })}
+          visible={verPassword}
+          onToggle={() => setVerPassword((v) => !v)}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
@@ -380,6 +377,110 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           </span>
         )}
       </div>
+    </form>
+  );
+}
+
+// Campo de contraseña con botón "ojo" para verla u ocultarla.
+function CampoPassword({ value, onChange, visible, onToggle, placeholder = "Contraseña" }: {
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggle: () => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        type={visible ? "text" : "password"}
+        required
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        // "new-password" (no "off"): es la forma estándar de decirle al gestor de
+        // contraseñas del navegador "esto no es un login existente, no sugieras ni
+        // ofrezcas guardar credenciales guardadas aquí" — más confiable entre
+        // navegadores que autoComplete="off" para inputs type="password".
+        autoComplete="new-password"
+        className="w-full pl-3 pr-10 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
+      />
+      {/* Ver/ocultar contraseña: type="button" para no enviar el formulario. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        aria-pressed={visible}
+        title={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-[#888] hover:text-[#2d3436] focus:outline-none focus-visible:text-[#1a5f3f]"
+      >
+        {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+
+// Cambio de contraseña de un usuario: solo se muestra al systemAdmin
+// (conveniencia de UX; el control real es POST /api/admin/users/[id]/password).
+function CambiarPasswordForm({ clerkId, email, onClose }: { clerkId: string; email: string; onClose: () => void }) {
+  const [password, setPassword] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/users/${clerkId}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cambiar la contraseña");
+      return data;
+    },
+    onSuccess: () => {
+      setPassword("");
+      setVisible(false);
+      setMessage({ ok: true, text: "Contraseña cambiada. El usuario deberá iniciar sesión de nuevo." });
+    },
+    onError: (e: Error) => setMessage({ ok: false, text: e.message }),
+  });
+
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); setMessage(null); mutation.mutate(); }}
+      className="mt-2 mb-1 p-3 rounded-lg bg-[#f8f6f1] border border-[rgba(212,165,116,0.2)]"
+    >
+      <p className="text-xs text-[#666] mb-2">Nueva contraseña para {email}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:w-64">
+          <CampoPassword
+            value={password}
+            onChange={setPassword}
+            visible={visible}
+            onToggle={() => setVisible((v) => !v)}
+            placeholder="Nueva contraseña"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="px-3 py-2 text-xs font-medium bg-[#1a5f3f] text-white rounded-md hover:bg-[#0d4730] disabled:opacity-50 transition-colors"
+        >
+          {mutation.isPending ? "Guardando..." : "Guardar contraseña"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-3 py-2 text-xs font-medium border border-[rgba(45,52,54,0.2)] text-[#666] rounded-md hover:bg-gray-50 transition-colors"
+        >
+          Cerrar
+        </button>
+      </div>
+      {message && (
+        <p role={message.ok ? "status" : "alert"} className={`mt-2 text-xs font-medium ${message.ok ? "text-green-600" : "text-red-600"}`}>
+          {message.text}
+        </p>
+      )}
     </form>
   );
 }
