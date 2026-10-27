@@ -2535,6 +2535,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-89 | Retirado 2026-10-19: el alto mínimo de página quedó sin objeto al eliminar `size` (ver C-87) | SalesTicketPage | component |
 | C-90 | "Enviar alertas pendientes" hace POST /api/email/send-alerts y muestra enviadas/omitidas; un 403 o 500 se muestra en pantalla | SettingsPage | component |
 | C-91 | Auditoría: filtros `VIEW` y entidad `acceso` entran en la query; filas VIEW y LOGIN_FAILED se muestran con su badge | AuditoriaCard | component |
+| C-92 | Crear usuario: el botón ojo alterna la contraseña oculta/visible (aria-label y aria-pressed), no envía el formulario, la contraseña viaja igual y vuelve a quedar oculta al crear | UsuariosCard | component |
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |

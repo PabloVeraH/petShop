@@ -163,3 +163,65 @@ describe("UsuariosCard — autoComplete en formularios (C-41, C-44)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Error al cargar usuarios (200)");
   });
 });
+
+// C-92: botón "ojo" para ver/ocultar la contraseña al crear un usuario.
+describe("UsuariosCard — ver/ocultar contraseña al crear (C-92)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/admin/users?storeId=")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(DEFAULT_USERS) });
+      }
+      if (url.includes("/api/admin/users/create")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+  });
+
+  it("C-92: el ojo alterna la contraseña entre oculta y visible, con su texto accesible", async () => {
+    render(<UsuariosCard store={{ id: "store-1" }} role="storeAdmin" />, { wrapper: makeWrapper() });
+    fireEvent.click(screen.getByText("+ Crear usuario"));
+
+    const password = await screen.findByPlaceholderText("Contraseña");
+    fireEvent.change(password, { target: { value: "ClaveSegura123!" } });
+    expect(password).toHaveAttribute("type", "password");
+
+    const mostrar = screen.getByRole("button", { name: "Mostrar contraseña" });
+    expect(mostrar).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(mostrar);
+
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("ClaveSegura123!");
+    const ocultar = screen.getByRole("button", { name: "Ocultar contraseña" });
+    expect(ocultar).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(ocultar);
+    expect(password).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "Mostrar contraseña" })).toBeInTheDocument();
+    // autoComplete se mantiene con la contraseña visible u oculta (C-41).
+    expect(password).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("C-92: apretar el ojo no envía el formulario; con la contraseña visible se crea el usuario con ella", async () => {
+    render(<UsuariosCard store={{ id: "store-1" }} role="storeAdmin" />, { wrapper: makeWrapper() });
+    fireEvent.click(screen.getByText("+ Crear usuario"));
+
+    fireEvent.change(await screen.findByPlaceholderText("Email"), { target: { value: "nuevo@test.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Contraseña"), { target: { value: "ClaveSegura123!" } });
+    fireEvent.change(screen.getByPlaceholderText("Nombre"), { target: { value: "Ana" } });
+    fireEvent.change(screen.getByPlaceholderText("Apellido"), { target: { value: "Pérez" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar contraseña" }));
+    const creates = () => mockFetch.mock.calls.filter(([u]) => String(u).includes("/api/admin/users/create"));
+    expect(creates()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
+    await waitFor(() => expect(creates()).toHaveLength(1));
+    expect(JSON.parse(creates()[0][1].body)).toMatchObject({ email: "nuevo@test.com", password: "ClaveSegura123!" });
+
+    // Tras crear, el formulario se limpia y la contraseña vuelve a quedar oculta.
+    await screen.findByText("Usuario creado correctamente");
+    expect(screen.getByPlaceholderText("Contraseña")).toHaveAttribute("type", "password");
+  });
+});

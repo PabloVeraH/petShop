@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Eye, EyeOff } from "lucide-react";
 import { AdminRole, canCreateUser, canDeleteUser } from "@/hooks/useAdminAuth";
 
 interface StoreUser {
@@ -247,6 +248,7 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
     role: role === "systemAdmin" ? "storeWorker" : "storeWorker",
   });
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [verPassword, setVerPassword] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -271,6 +273,7 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
         lastName: "",
         role: role === "systemAdmin" ? "storeWorker" : "storeWorker",
       });
+      setVerPassword(false);
       queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
       setTimeout(() => {
         onSuccess();
@@ -302,19 +305,32 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
           autoComplete="off"
           className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
         />
-        <input
-          type="password"
-          required
-          placeholder="Contraseña"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          // "new-password" (no "off"): es la forma estándar de decirle al gestor de
-          // contraseñas del navegador "esto no es un login existente, no sugieras ni
-          // ofrezcas guardar credenciales guardadas aquí" — más confiable entre
-          // navegadores que autoComplete="off" para inputs type="password".
-          autoComplete="new-password"
-          className="px-3 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
-        />
+        <div className="relative">
+          <input
+            type={verPassword ? "text" : "password"}
+            required
+            placeholder="Contraseña"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            // "new-password" (no "off"): es la forma estándar de decirle al gestor de
+            // contraseñas del navegador "esto no es un login existente, no sugieras ni
+            // ofrezcas guardar credenciales guardadas aquí" — más confiable entre
+            // navegadores que autoComplete="off" para inputs type="password".
+            autoComplete="new-password"
+            className="w-full pl-3 pr-10 py-2 border border-[rgba(45,52,54,0.15)] rounded-lg text-sm focus:border-[#d4a574] focus:outline-none bg-white"
+          />
+          {/* Ver/ocultar contraseña: type="button" para no enviar el formulario. */}
+          <button
+            type="button"
+            onClick={() => setVerPassword((v) => !v)}
+            aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-pressed={verPassword}
+            title={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-[#888] hover:text-[#2d3436] focus:outline-none focus-visible:text-[#1a5f3f]"
+          >
+            {verPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
