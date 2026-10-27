@@ -547,6 +547,7 @@ REGRESIÓN del ticket 6a77ef3a0ed45ac54505c62a: `new Date("YYYY-MM-DD")` parsea 
 | U-232 | withErrorLogging: si after() o el INSERT fallan, el 403 se devuelve igual | lib/audit | unit |
 | U-233 | registrarConsulta inserta una fila VIEW con usuario, tienda, entidad e IP | lib/audit | unit |
 | U-234 | registrarConsulta no lanza fuera de request scope ni si el INSERT falla | lib/audit | unit |
+| U-235 | REGRESIÓN: logAudit con un entityId que no es uuid (id de Clerk) no pierde la fila: entity_id vacío y el id en new_values.entity_ref | lib/audit | unit |
 | U-WX-03b | REGRESIÓN: el 31-08 a las 22:00 de Chile (1-09 en UTC) la temporada sigue siendo invierno (mes de Chile) | lib/weather | unit |
 
 ## AdminPage (AP-XX)
@@ -1981,6 +1982,17 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-773 | Contraseña corta, ausente o no string → 400 sin tocar Clerk | POST /api/admin/users/[id]/password | integration |
 | I-774 | Usuario inexistente → 404 sin tocar Clerk | POST /api/admin/users/[id]/password | integration |
 | I-775 | Clerk rechaza la contraseña (filtrada) → 422 con su mensaje y auditoría failure sin la contraseña | POST /api/admin/users/[id]/password | integration |
+| I-776 | REGRESIÓN: editar usuario queda en auditoría sin entity_id (el id de Clerk no es uuid y la fila se perdía), con clerk_id, antes/después y la tienda del usuario | PATCH /api/admin/users/[id] | integration |
+| I-777 | Clerk rechaza la edición → 422 con su mensaje y auditoría failure; I-777b: falla el guardado en la base → 500 y failure | PATCH /api/admin/users/[id] | integration |
+| I-778 | REGRESIÓN: eliminar quita tienda y roles en Clerk, bloquea al usuario y recién entonces borra la fila (antes solo borraba la fila y el usuario seguía entrando); queda en auditoría | DELETE /api/admin/users/[id] | integration |
+| I-779 | Si Clerk no puede bloquearlo → 502, la fila no se borra y auditoría failure | DELETE /api/admin/users/[id] | integration |
+| I-780 | Usuario que ya no existe en Clerk (404) → se borra la fila igual | DELETE /api/admin/users/[id] | integration |
+| I-781 | Bloqueado en Clerk pero falla el borrado en la base → 500 y auditoría failure que lo explica | DELETE /api/admin/users/[id] | integration |
+| I-782 | El systemAdmin no puede eliminarse a sí mismo (400 sin tocar Clerk) | DELETE /api/admin/users/[id] | integration |
+| I-783 | Usuario inexistente → 404 sin tocar Clerk | DELETE /api/admin/users/[id] | integration |
+| I-784 | storeAdmin y storeWorker no pueden eliminar (403 sin bloquear ni borrar) | DELETE /api/admin/users/[id] | integration |
+| I-785 | Asignar usuario queda en auditoría sin entity_id y con clerk_id; falla del guardado → 500 y failure (antes se ignoraba) | POST /api/admin/users | integration |
+| I-786 | Editar vendedor queda en auditoría sin entity_id y con clerk_id; vendedor inexistente u otra tienda → 404 sin auditar | PATCH /api/workers | integration |
 | CG-16 | Abrir la ficha de un cliente registra una consulta (VIEW) sin datos personales en la descripción; 404 no registra. CG-01…CG-15 viven en el mismo archivo y no estaban registrados | GET /api/clientes/[id] | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
@@ -2545,6 +2557,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-91 | Auditoría: filtros `VIEW` y entidad `acceso` entran en la query; filas VIEW y LOGIN_FAILED se muestran con su badge | AuditoriaCard | component |
 | C-92 | Crear usuario: el botón ojo alterna la contraseña oculta/visible (aria-label y aria-pressed), no envía el formulario, la contraseña viaja igual y vuelve a quedar oculta al crear | UsuariosCard | component |
 | C-93 | Cambiar contraseña: solo el systemAdmin ve 🔑 (UX; el control real es I-769); POST con la nueva, aviso de éxito y campo limpio; el rechazo del servidor se muestra; Cerrar no llama a la API | UsuariosCard | component |
+| C-94 | Eliminar usuario pide confirmación (bloquea su acceso); sin confirmar no llama a la API; confirmado → DELETE; el error del servidor se muestra | UsuariosCard | component |
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |

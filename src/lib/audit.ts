@@ -38,17 +38,25 @@ export function redactarSecretos(valores?: Record<string, unknown>): Record<stri
   return limpio;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function logAudit(input: AuditLogInput) {
   const supabase = createServiceClient();
+
+  // audit_logs.entity_id es uuid: un id que no lo es (ej. el de Clerk,
+  // "user_…") hacía que Postgres rechazara la fila entera y la auditoría se
+  // perdía. Se guarda en new_values.entity_ref y entity_id queda vacío.
+  const entityIdValido = input.entityId === undefined || UUID.test(input.entityId);
+  const newValues = entityIdValido ? input.newValues : { ...input.newValues, entity_ref: input.entityId };
 
   const { error } = await supabase.from("audit_logs").insert({
     store_id: input.storeId,
     user_id: input.userId,
     action: input.action,
     entity_type: input.entityType,
-    entity_id: input.entityId,
+    entity_id: entityIdValido ? input.entityId : undefined,
     old_values: redactarSecretos(input.oldValues),
-    new_values: redactarSecretos(input.newValues),
+    new_values: redactarSecretos(newValues),
     change_description: input.changeDescription,
     ip_address: input.ipAddress,
     user_agent: input.userAgent,

@@ -12,8 +12,17 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 jest.mock("@/lib/validation", () => ({
   ...jest.requireActual("@/lib/validation"),
 }));
+const mockLogAudit = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/lib/audit", () => ({
-  withErrorLogging: (handler: unknown) => handler, logAudit: jest.fn() }));
+  withErrorLogging: (handler: unknown) => handler,
+  logAudit: (...a: unknown[]) => mockLogAudit(...a),
+  getRequestMetadata: () => ({ ipAddress: "10.0.0.1", userAgent: "jest" }),
+}));
+// after() requiere request scope: en tests corre el callback en el acto.
+jest.mock("next/server", () => ({
+  ...jest.requireActual("next/server"),
+  after: jest.fn((cb: () => void) => cb()),
+}));
 jest.mock("@clerk/nextjs/server", () => ({
   auth: () => mockAuth(),
 }));
@@ -248,6 +257,42 @@ describe("PATCH /api/workers", () => {
     expect(res.status).toBe(200);
     expect(captured[0]).toHaveProperty("meta_ventas", 500000);
     expect(captured[0]).toHaveProperty("updated_at");
+  });
+
+  // I-786: el id de Clerk no es uuid: va en old/new_values, no en entity_id
+  // (la fila de auditoría se rechazaba entera). Vendedor de otra tienda o
+  // inexistente: 404 sin actualizar ni auditar.
+  it("I-786: editar un vendedor queda en auditoría sin entity_id y con clerk_id; inexistente → 404 sin auditar", async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return makeSelectChain({ rut: null, meta_ventas: 100 });
+      return { ...makeUpdateChain(), update: jest.fn(() => ({ eq: jest.fn().mockReturnThis(), error: null })) };
+    });
+    const { PATCH } = await import("@/app/api/workers/route");
+    const patch = () => PATCH(new NextRequest("http://localhost/api/workers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clerk_id: "user_c1", meta_ventas: 500000 }),
+    }));
+
+    expect((await patch()).status).toBe(200);
+    const fila = mockLogAudit.mock.calls.at(-1)![0];
+    expect(fila).not.toHaveProperty("entityId");
+    expect(fila).toMatchObject({
+      storeId: STORE_ID,
+      action: "UPDATE",
+      entityType: "clerk_users",
+      oldValues: { clerk_id: "user_c1", meta_ventas: 100 },
+      newValues: { clerk_id: "user_c1", meta_ventas: 500000 },
+      ipAddress: "10.0.0.1",
+    });
+
+    mockLogAudit.mockClear();
+    callCount = 0;
+    mockFrom.mockImplementation(() => makeSelectChain(null));
+    expect((await patch()).status).toBe(404);
+    expect(mockLogAudit).not.toHaveBeenCalled();
   });
 
   it("I-406: retorna 401 si no hay sesión", async () => {

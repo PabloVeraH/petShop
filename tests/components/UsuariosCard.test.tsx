@@ -295,3 +295,55 @@ describe("UsuariosCard — cambiar contraseña (C-93)", () => {
     expect(mockFetch.mock.calls.some(([u]) => String(u).includes("/password"))).toBe(false);
   });
 });
+
+// C-94: eliminar un usuario también lo bloquea en Clerk (I-778): se pide
+// confirmación y el error del servidor se muestra.
+describe("UsuariosCard — eliminar usuario (C-94)", () => {
+  function montar(respuesta: { ok: boolean; status: number; body: object }) {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/admin/users?storeId=")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(DEFAULT_USERS) });
+      }
+      if (init?.method === "DELETE") {
+        return Promise.resolve({ ok: respuesta.ok, status: respuesta.status, json: () => Promise.resolve(respuesta.body) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+  }
+  const deletes = () => mockFetch.mock.calls.filter(([, i]) => i?.method === "DELETE");
+  let confirmar: jest.SpyInstance;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    confirmar = jest.spyOn(window, "confirm");
+  });
+  afterEach(() => confirmar.mockRestore());
+
+  it("C-94: si no se confirma, no se llama a la API", async () => {
+    confirmar.mockReturnValue(false);
+    montar({ ok: true, status: 200, body: { ok: true } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByTitle("Eliminar usuario"));
+    expect(confirmar).toHaveBeenCalledWith(expect.stringContaining("admin@test.com"));
+    expect(deletes()).toHaveLength(0);
+  });
+
+  it("C-94: confirmado → DELETE /api/admin/users/{id}", async () => {
+    confirmar.mockReturnValue(true);
+    montar({ ok: true, status: 200, body: { ok: true } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByTitle("Eliminar usuario"));
+    await waitFor(() => expect(deletes()).toHaveLength(1));
+    expect(deletes()[0][0]).toBe("/api/admin/users/user-1");
+  });
+
+  it("C-94: si el servidor no pudo bloquearlo (502), el error se muestra", async () => {
+    confirmar.mockReturnValue(true);
+    montar({ ok: false, status: 502, body: { error: "No se pudo bloquear el usuario; no se eliminó" } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByTitle("Eliminar usuario"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo bloquear el usuario; no se eliminó");
+  });
+});

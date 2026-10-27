@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getAdminStatus, requireSystemAdmin, requireSystemAdminConsistent } from "@/lib/admin-check";
@@ -83,7 +83,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   // Sync clerk_users — nombre solo se incluye si Clerk lo tiene (no sobreescribir con null)
   const supabase = createServiceClient();
   const nombre = [target.firstName, target.lastName].filter(Boolean).join(" ") || null;
-  await supabase.from("clerk_users").upsert(
+  const { error: upsertError } = await supabase.from("clerk_users").upsert(
     {
       clerk_id: target.id,
       email,
@@ -96,18 +96,23 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     { onConflict: "clerk_id" }
   );
 
+  // El id de Clerk ("user_…") no es uuid: va en new_values, no en entity_id
+  // (audit_logs.entity_id es uuid y la fila entera se rechazaba).
   const { ipAddress, userAgent } = getRequestMetadata(req);
-  logAudit({
+  after(() => logAudit({
     storeId,
     userId: admin!.userId,
     action: "CREATE",
     entityType: "usuario",
-    entityId: target.id,
-    newValues: { email, role },
-    changeDescription: `Usuario ${email} creado con rol ${role}`,
+    newValues: { clerk_id: target.id, email, role },
+    changeDescription: upsertError
+      ? `Asignar ${email} con rol ${role} falló al guardar`
+      : `Usuario ${email} asignado con rol ${role}`,
     ipAddress,
     userAgent,
-  }).catch(() => {});
+    ...(upsertError ? { result: "failure" as const, errorMessage: upsertError.message } : {}),
+  }).catch(() => {}));
 
+  if (upsertError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   return NextResponse.json({ ok: true, clerkId: target.id });
 }, { endpoint: "POST /api/admin/users" });

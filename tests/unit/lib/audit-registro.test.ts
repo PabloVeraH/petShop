@@ -104,7 +104,7 @@ describe("registrarConsulta", () => {
       storeId: "store-1",
       userId: "worker-1",
       entityType: "venta",
-      entityId: "venta-1",
+      entityId: "323e4567-e89b-12d3-a456-426614174002",
       changeDescription: "Recibo de la venta 20261026-AAA abierto",
     });
     await drenar();
@@ -116,7 +116,7 @@ describe("registrarConsulta", () => {
       user_id: "worker-1",
       action: "VIEW",
       entity_type: "venta",
-      entity_id: "venta-1",
+      entity_id: "323e4567-e89b-12d3-a456-426614174002",
       ip_address: "10.0.0.1",
       result: "success",
     });
@@ -130,5 +130,30 @@ describe("registrarConsulta", () => {
     mockInsert.mockRejectedValueOnce(new Error("db caída"));
     expect(() => registrarConsulta(req(), { storeId: "s", userId: "u", entityType: "cliente" })).not.toThrow();
     await drenar();
+  });
+});
+
+describe("logAudit — entity_id no uuid", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("U-235: un entityId que no es uuid (id de Clerk) no se pierde: entity_id vacío y el id en new_values.entity_ref", async () => {
+    const { logAudit } = await import("@/lib/audit");
+    await logAudit({
+      storeId: "store-1",
+      userId: "admin-1",
+      action: "UPDATE",
+      entityType: "usuario",
+      entityId: "user_2abcDEF123",
+      newValues: { rol: "storeAdmin" },
+    });
+    const fila = mockInsert.mock.calls[0][0];
+    expect(fila.entity_id).toBeUndefined();
+    expect(fila.new_values).toEqual({ rol: "storeAdmin", entity_ref: "user_2abcDEF123" });
+
+    const UUID = "123e4567-e89b-12d3-a456-426614174000";
+    await logAudit({ storeId: "store-1", userId: "admin-1", action: "UPDATE", entityType: "venta", entityId: UUID, newValues: { a: 1 } });
+    const filaUuid = mockInsert.mock.calls[1][0];
+    expect(filaUuid.entity_id).toBe(UUID);
+    expect(filaUuid.new_values).toEqual({ a: 1 });
   });
 });

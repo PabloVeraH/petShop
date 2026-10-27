@@ -1,10 +1,10 @@
 import { getStoreId } from "@/lib/auth";
 import { auth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
 import { getAdminStatus } from "@/lib/admin-check";
-import { logAudit, withErrorLogging } from "@/lib/audit";
+import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { hoyNegocioISO, inicioDiaNegocio, inicioMesNegocio } from "@/lib/dates";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
@@ -119,6 +119,8 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     .eq("clerk_id", clerk_id)
     .eq("store_id", storeId)
     .single();
+  // Vendedor inexistente o de otra tienda: no se actualiza ni se audita nada.
+  if (!before) return NextResponse.json({ error: "Vendedor no encontrado" }, { status: 404 });
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (rut !== undefined) updates.rut = rut ?? null;
@@ -130,17 +132,24 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     .eq("clerk_id", clerk_id)
     .eq("store_id", storeId);
 
-  if (error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
-
-  logAudit({
+  // El id de Clerk ("user_…") no es uuid: va en old/new_values, no en
+  // entity_id (audit_logs.entity_id es uuid y la fila entera se rechazaba).
+  const auditoria = {
     storeId,
     userId: userId!,
-    action: "UPDATE",
+    action: "UPDATE" as const,
     entityType: "clerk_users",
-    entityId: clerk_id,
-    oldValues: before ?? undefined,
-    newValues: updates as Record<string, unknown>,
-  });
+    oldValues: { clerk_id, ...before },
+    newValues: { clerk_id, ...updates },
+    ...getRequestMetadata(req),
+  };
+
+  if (error) {
+    await logAudit({ ...auditoria, changeDescription: "Editar vendedor falló al guardar", result: "failure", errorMessage: error.message });
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
+
+  after(() => logAudit({ ...auditoria, changeDescription: "Vendedor actualizado (RUT / meta de ventas)" }).catch(() => {}));
 
   return NextResponse.json({ ok: true });
 }, { endpoint: "PATCH /api/workers" });
