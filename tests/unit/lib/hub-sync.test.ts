@@ -152,10 +152,15 @@ describe("lib/hub-sync (con HUB_URL, HUB_SYNC_SECRET y STORE_ID)", () => {
     await Promise.resolve();
   });
 
-  it("U-26: syncPurchaseToHub incluye store_id y fecha en payload", () => {
+  // La fecha es la de Chile (hoyNegocioISO): con el reloj fijo a las 22:30 de
+  // Chile (01:30 UTC del día siguiente). Antes el esperado se calculaba con
+  // toISOString() y el test fallaba entre las ~21:00 y 24:00 de Chile.
+  it("U-26: syncPurchaseToHub incluye store_id y fecha (de Chile) en payload", () => {
     const { syncPurchaseToHub } = require("@/lib/hub-sync");
-    const today = new Date().toISOString().split("T")[0];
+    jest.useFakeTimers({ now: new Date("2026-10-23T01:30:00Z") });
+    const today = "2026-10-22";
     syncPurchaseToHub("11.111.111-1", 25000);
+    jest.useRealTimers();
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:3001/functions/v1/sync-purchase",
       expect.objectContaining({
@@ -172,8 +177,10 @@ describe("lib/hub-sync (con HUB_URL, HUB_SYNC_SECRET y STORE_ID)", () => {
 
   it("U-18: syncPurchaseToHub envía RUT, monto, store_id y fecha en body", () => {
     const { syncPurchaseToHub } = require("@/lib/hub-sync");
-    const today = new Date().toISOString().split("T")[0];
+    jest.useFakeTimers({ now: new Date("2026-10-23T01:30:00Z") }); // 22:30 del 22-10 en Chile
+    const today = "2026-10-22";
     syncPurchaseToHub("11.111.111-1", 25000);
+    jest.useRealTimers();
     expect(mockFetch).toHaveBeenCalledWith(
       "http://localhost:3001/functions/v1/sync-purchase",
       expect.objectContaining({
