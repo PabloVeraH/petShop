@@ -362,7 +362,7 @@ export function OptimizadorVencimientosTab() {
       )}
       {detalle && (
         <Dialog open={!!detalle} onOpenChange={(open) => { if (!open) setDetalle(null); }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Badge className={URGENCIA_COLORS[detalle.urgencia]}>{detalle.urgencia}</Badge>
