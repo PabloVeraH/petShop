@@ -225,3 +225,73 @@ describe("UsuariosCard — ver/ocultar contraseña al crear (C-92)", () => {
     expect(screen.getByPlaceholderText("Contraseña")).toHaveAttribute("type", "password");
   });
 });
+
+// C-93: cambiar la contraseña de un usuario — solo lo ve el systemAdmin. Es
+// conveniencia de UX: el control real es el 403 de
+// POST /api/admin/users/[id]/password (I-769, I-770).
+describe("UsuariosCard — cambiar contraseña (C-93)", () => {
+  function montar(respuesta: { ok: boolean; status: number; body: object }) {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/admin/users?storeId=")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(DEFAULT_USERS) });
+      }
+      if (url.includes("/password")) {
+        return Promise.resolve({ ok: respuesta.ok, status: respuesta.status, json: () => Promise.resolve(respuesta.body) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+  }
+  beforeEach(() => jest.clearAllMocks());
+
+  it.each(["storeAdmin", "storeWorker"] as const)("C-93: %s no ve el botón de cambiar contraseña", async (rol) => {
+    montar({ ok: true, status: 200, body: { ok: true } });
+    render(<UsuariosCard store={{ id: "store-1" }} role={rol} />, { wrapper: makeWrapper() });
+    await screen.findByText("admin@test.com");
+    expect(screen.queryByRole("button", { name: /Cambiar contraseña/ })).not.toBeInTheDocument();
+  });
+
+  it("C-93: systemAdmin cambia la contraseña: POST a /api/admin/users/{id}/password con la nueva, y aviso de éxito", async () => {
+    montar({ ok: true, status: 200, body: { ok: true } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cambiar contraseña de admin@test.com" }));
+    const campo = screen.getByPlaceholderText("Nueva contraseña");
+    expect(campo).toHaveAttribute("type", "password");
+    fireEvent.change(campo, { target: { value: "NuevaClave2026!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar contraseña" }));
+    expect(campo).toHaveAttribute("type", "text");
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar contraseña" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Contraseña cambiada");
+    const llamada = mockFetch.mock.calls.find(([u]) => String(u).includes("/password"));
+    expect(llamada[0]).toBe("/api/admin/users/user-1/password");
+    expect(llamada[1].method).toBe("POST");
+    expect(JSON.parse(llamada[1].body)).toEqual({ password: "NuevaClave2026!" });
+    // El campo se limpia y vuelve a quedar oculto.
+    expect(screen.getByPlaceholderText("Nueva contraseña")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Nueva contraseña")).toHaveAttribute("type", "password");
+  });
+
+  it("C-93: el rechazo del servidor (contraseña filtrada) se muestra en pantalla", async () => {
+    montar({ ok: false, status: 422, body: { error: "Password has been found in an online data breach." } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cambiar contraseña de admin@test.com" }));
+    fireEvent.change(screen.getByPlaceholderText("Nueva contraseña"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar contraseña" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Password has been found in an online data breach.");
+  });
+
+  it("C-93: Cerrar oculta el formulario sin llamar a la API", async () => {
+    montar({ ok: true, status: 200, body: { ok: true } });
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cambiar contraseña de admin@test.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    expect(screen.queryByPlaceholderText("Nueva contraseña")).not.toBeInTheDocument();
+    expect(mockFetch.mock.calls.some(([u]) => String(u).includes("/password"))).toBe(false);
+  });
+});

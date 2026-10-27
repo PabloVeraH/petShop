@@ -68,6 +68,12 @@ export const AdminUserCreateFullSchema = z.object({
   meta_ventas: z.number().positive().optional(),
 });
 
+// Cambio de contraseña de otro usuario (solo systemAdmin). Mismo mínimo que
+// al crear; Clerk además rechaza contraseñas filtradas.
+export const AdminUserPasswordSchema = z.object({
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(128),
+});
+
 export const UserDisableSchema = z.object({
   userIds: z.array(z.string()).min(1, "Debes seleccionar al menos un usuario"),
   action: z.enum(["disable", "enable"]),

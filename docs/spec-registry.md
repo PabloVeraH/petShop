@@ -1973,6 +1973,14 @@ reemplazaron por tests reales en `tests/components/SearchProductosGranel.test.ts
 | I-765 | Generar el recibo HTML registra una consulta (VIEW) de esa venta; 404 no registra | GET /api/recibos/[ventaId] | integration |
 | I-766 | El filtro `action=VIEW` es aceptado (antes 400) y llega a la query con el `store_id` propio | GET /api/audit-logs | integration |
 | I-767 | REGRESIÓN: el listado de inventario incluye `codigo_barra` (el popup de edición de /inventory lo mostraba vacío) | GET /api/inventario | integration |
+| I-768 | Cambio de contraseña sin sesión → 403 sin tocar Clerk | POST /api/admin/users/[id]/password | integration |
+| I-769 | storeAdmin, storeWorker o sin rol → 403 sin tocar Clerk ni auditar (solo systemAdmin cambia contraseñas) | POST /api/admin/users/[id]/password | integration |
+| I-770 | JWT con systemAdmin que la BD ya no confirma → 403 | POST /api/admin/users/[id]/password | integration |
+| I-771 | systemAdmin: la contraseña va a Clerk (`updateUser`) y se cierran las sesiones del usuario | POST /api/admin/users/[id]/password | integration |
+| I-772 | El cambio queda en auditoría (admin, usuario afectado, tienda del usuario) sin la contraseña | POST /api/admin/users/[id]/password | integration |
+| I-773 | Contraseña corta, ausente o no string → 400 sin tocar Clerk | POST /api/admin/users/[id]/password | integration |
+| I-774 | Usuario inexistente → 404 sin tocar Clerk | POST /api/admin/users/[id]/password | integration |
+| I-775 | Clerk rechaza la contraseña (filtrada) → 422 con su mensaje y auditoría failure sin la contraseña | POST /api/admin/users/[id]/password | integration |
 | CG-16 | Abrir la ficha de un cliente registra una consulta (VIEW) sin datos personales en la descripción; 404 no registra. CG-01…CG-15 viven en el mismo archivo y no estaban registrados | GET /api/clientes/[id] | integration |
 
 ### Integración — conteo, NC, GET productos/inventario, PATCH productos
@@ -2536,6 +2544,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-90 | "Enviar alertas pendientes" hace POST /api/email/send-alerts y muestra enviadas/omitidas; un 403 o 500 se muestra en pantalla | SettingsPage | component |
 | C-91 | Auditoría: filtros `VIEW` y entidad `acceso` entran en la query; filas VIEW y LOGIN_FAILED se muestran con su badge | AuditoriaCard | component |
 | C-92 | Crear usuario: el botón ojo alterna la contraseña oculta/visible (aria-label y aria-pressed), no envía el formulario, la contraseña viaja igual y vuelve a quedar oculta al crear | UsuariosCard | component |
+| C-93 | Cambiar contraseña: solo el systemAdmin ve 🔑 (UX; el control real es I-769); POST con la nueva, aviso de éxito y campo limpio; el rechazo del servidor se muestra; Cerrar no llama a la API | UsuariosCard | component |
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |
