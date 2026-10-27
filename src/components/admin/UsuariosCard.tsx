@@ -33,6 +33,7 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
   const [editEmail, setEditEmail] = useState<string>("");
   const [editError, setEditError] = useState<string>("");
   const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string>("");
   const canCreate = canCreateUser(role);
   // Solo el systemAdmin cambia contraseñas (el servidor lo exige igual).
   const canChangePassword = role === "systemAdmin";
@@ -89,9 +90,18 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
       return data;
     },
     onSuccess: () => {
+      setDeleteError("");
       queryClient.invalidateQueries({ queryKey: ["store-users", store.id] });
     },
+    onError: (e: Error) => setDeleteError(e.message),
   });
+
+  // Eliminar también bloquea al usuario en Clerk: se pide confirmación.
+  function eliminar(user: StoreUser) {
+    if (!window.confirm(`¿Eliminar a ${user.email}? Se bloqueará su acceso y no podrá volver a entrar.`)) return;
+    setDeleteError("");
+    deleteUserMutation.mutate(user.clerk_id);
+  }
 
   return (
     <div className="bg-white rounded-lg border border-[rgba(45,52,54,0.12)] p-6">
@@ -121,6 +131,8 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
           }}
         />
       )}
+
+      {deleteError && <p role="alert" className="mb-2 text-xs text-red-600">{deleteError}</p>}
 
       {/* Users List */}
       <div className="space-y-2">
@@ -221,7 +233,7 @@ export function UsuariosCard({ store, role }: UsuariosCardProps) {
                   )}
                   {canDelete && !isEditing && (
                     <button
-                      onClick={() => deleteUserMutation.mutate(user.clerk_id)}
+                      onClick={() => eliminar(user)}
                       disabled={deleteUserMutation.isPending}
                       className="w-8 h-8 flex items-center justify-center rounded-md border border-[rgba(220,100,100,0.3)] text-[#dc6464] hover:bg-[rgba(220,100,100,0.1)] hover:border-[rgba(220,100,100,0.6)] transition-all disabled:opacity-50"
                       title="Eliminar usuario"

@@ -17,6 +17,11 @@ jest.mock("@clerk/nextjs/server", () => ({
   clerkClient: mockClerkClient,
 }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
+// after() requiere request scope: en tests corre el callback en el acto.
+jest.mock("next/server", () => ({
+  ...jest.requireActual("next/server"),
+  after: jest.fn((cb: () => void) => cb()),
+}));
 
 /**
  * Crea una cadena de mock para supabase.from(table).select()...
