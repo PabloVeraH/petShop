@@ -188,3 +188,54 @@ describe("POST /api/ai/pos/recomendar", () => {
     expect(mockRecomendarPOS).toHaveBeenCalled();
   });
 });
+// I-POS-10/11 — IDOR: el cliente se leía solo por id; con el UUID de un
+// cliente de OTRA tienda, su nombre y sus mascotas llegaban al prompt del LLM.
+// mascotas no tiene store_id: queda protegida por el cliente ya verificado.
+describe("POST /api/ai/pos/recomendar — aislamiento de tienda", () => {
+  const filtros: Record<string, unknown[][]> = {};
+  function setupConFiltros(clienteDeLaTienda: boolean) {
+    for (const k of Object.keys(filtros)) delete filtros[k];
+    mockFrom.mockImplementation((table: string) => {
+      filtros[table] = filtros[table] ?? [];
+      const resp =
+        table === "clientes" ? { data: clienteDeLaTienda ? { nombre: "Juan" } : null, error: null }
+        : table === "stores" ? { data: { openrouter_model: "m", ciudad: "Santiago" }, error: null }
+        : table === "productos" ? { data: [{ id: PRODUCTO_ID, nombre: "Royal Canin", precio: 25000, categoria_id: null }], error: null }
+        : { data: table === "ai_pos_cache" ? null : [], error: null };
+      const proxy: Record<string, unknown> = new Proxy({}, {
+        get(_t, prop: string) {
+          if (prop === "then") return (res: (v: unknown) => void, rej?: (e: unknown) => void) => Promise.resolve(resp).then(res, rej);
+          if (prop === "catch") return (fn: (e: unknown) => void) => Promise.resolve(resp).catch(fn);
+          return (...args: unknown[]) => { if (prop === "eq") filtros[table].push(args); return proxy; };
+        },
+      });
+      return proxy;
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.OPENROUTER_API_KEY = "sk-test";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockClimatico.mockResolvedValue(MOCK_CLIMA);
+    mockRecomendarPOS.mockResolvedValue(MOCK_RECS);
+  });
+  afterEach(() => { delete process.env.OPENROUTER_API_KEY; });
+
+  it("I-POS-10: el cliente se busca filtrando por la tienda de la sesión", async () => {
+    setupConFiltros(true);
+    const res = await POST(makeRequest({ clienteId: CLIENTE_ID }));
+    expect(res.status).toBe(200);
+    expect(filtros.clientes).toContainEqual(["store_id", STORE_ID]);
+    expect(filtros.clientes).toContainEqual(["id", CLIENTE_ID]);
+  });
+
+  it("I-POS-11: cliente de otra tienda → 404 sin leer sus mascotas ni llamar al LLM", async () => {
+    setupConFiltros(false);
+    const res = await POST(makeRequest({ clienteId: CLIENTE_ID, mascotaId: "423e4567-e89b-12d3-a456-426614174003" }));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Cliente no encontrado" });
+    expect(filtros.mascotas).toBeUndefined();
+    expect(mockRecomendarPOS).not.toHaveBeenCalled();
+  });
+});

@@ -2503,6 +2503,9 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEC-33 | Guarda: todo endpoint con `formData()` limita tamaño y tipo de archivo | src/app/api | unit |
 | SEC-34 | Guarda: headers globales con HSTS ≥ 1 año, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy; el middleware agrega el CSP | next.config.ts / middleware | unit |
 | SEC-35 | REGRESIÓN (decisión 2026-10-13): storeWorker, usuario sin rol o storeAdmin de otra tienda → 403 sin BD ni R2 en POST/DELETE /api/productos/imagenes, GET /api/contabilidad/asientos y GET de libro-diario, balance-prueba y estado-resultado (+ /excel y /pdf); storeAdmin de la tienda pasa; el storeWorker SÍ puede crear órdenes de compra (POST /api/ordenes-compra) | 12 handlers | integration |
+| SEC-36 | REGRESIÓN: el recibo tiene el mismo alcance que GET /api/ventas/[id]: el worker solo obtiene ventas de hoy o propias (otra → 404 genérico sin datos del cliente), sin el email del vendedor; el admin, cualquiera de su tienda; deshabilitado → 403 | GET /api/recibos/[ventaId] | integration |
+| I-POS-10 | El recomendador busca el cliente filtrando por la tienda de la sesión | POST /api/ai/pos/recomendar | integration |
+| I-POS-11 | REGRESIÓN (IDOR): cliente de otra tienda → 404 sin leer sus mascotas ni llamar al LLM. I-POS-01…09 viven en el mismo archivo y no estaban registrados | POST /api/ai/pos/recomendar | integration |
 
 ## Pendientes del informe de seguridad, hallazgo 7 (2026-10-13)
 

@@ -1,16 +1,29 @@
-import { getStoreId } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
 import { registrarConsulta, withErrorLogging } from "@/lib/audit";
 import { esc } from "@/lib/email";
-import { fechaHoraNegocioEsCL } from "@/lib/dates";
+import { fechaHoraNegocioEsCL, fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
+import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
+import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 
 export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ ventaId: string }> }) => {
-  const ctx = await getStoreId();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Mismo alcance que GET /api/ventas/[id] (SEC-14): el admin, cualquier
+  // venta de su tienda; el worker, solo las de hoy o aquellas en que él es el
+  // vendedor. Antes bastaba una sesión de la tienda y un worker obtenía el
+  // recibo (con datos del cliente) de cualquier venta.
+  const ctx = await autorizarCanales({ soloAdmin: false });
+  if (!ctx.ok) return ctx.response;
   const { storeId: store_id } = ctx;
+  const { sessionClaims } = await auth();
+  let esAdmin = true;
+  try {
+    requireStoreAdmin(getAdminStatus(sessionClaims), store_id);
+  } catch {
+    esAdmin = false;
+  }
   const supabase = createServiceClient();
 
   const { ventaId } = await params;
@@ -37,6 +50,14 @@ export const GET = withErrorLogging(async (req: NextRequest,
     return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
   }
 
+  // Otra venta → 404 genérico (no confirma que exista).
+  if (!esAdmin) {
+    const deHoy = fechaNegocioDeTimestamp(venta.created_at) === hoyNegocioISO();
+    const esSuya = venta.worker_clerk_id === ctx.userId;
+    if (!deHoy && !esSuya) return NextResponse.json({ error: "Venta no encontrada" }, { status: 404 });
+  }
+
+  // El worker solo recibe el nombre del vendedor (lo que muestra el recibo).
   let worker = null;
   if (venta.worker_clerk_id) {
     const { data: workerData } = await supabase
@@ -44,7 +65,7 @@ export const GET = withErrorLogging(async (req: NextRequest,
       .select("nombre, email")
       .eq("clerk_id", venta.worker_clerk_id)
       .single();
-    worker = workerData;
+    worker = workerData && !esAdmin ? { ...workerData, email: null } : workerData;
   }
 
   // Obtener pagos
