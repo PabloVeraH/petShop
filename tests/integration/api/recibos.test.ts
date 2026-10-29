@@ -3,6 +3,13 @@ import { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth");
 jest.mock("@/lib/supabase");
+// Sesión de Clerk (admin-check real): storeAdmin de la tienda por defecto.
+const ADMIN_CLAIMS = { sub: "user-1", publicMetadata: { storeId: "store-1", storeAdmin: true } };
+let mockClaims: Record<string, unknown> = ADMIN_CLAIMS;
+jest.mock("@clerk/nextjs/server", () => ({ auth: () => Promise.resolve({ sessionClaims: mockClaims }) }));
+// usuarioDeshabilitado lo consulta autorizarCanales: usuario habilitado por defecto.
+const mockDeshabilitado = jest.fn().mockResolvedValue(false);
+jest.mock("@/lib/usuario-habilitado", () => ({ usuarioDeshabilitado: (...a: unknown[]) => mockDeshabilitado(...a) }));
 // registrarConsulta se observa (su INSERT se prueba en tests/unit/lib/audit-registro.test.ts).
 const mockRegistrarConsulta = jest.fn();
 jest.mock("@/lib/audit", () => ({
@@ -19,7 +26,9 @@ describe("GET /api/recibos/[ventaId]", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId });
+    mockClaims = ADMIN_CLAIMS;
+    mockDeshabilitado.mockResolvedValue(false);
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
   });
 
   it("genera HTML de recibo exitosamente", async () => {
@@ -651,5 +660,90 @@ describe("GET /api/recibos/[ventaId]", () => {
 
     expect(html).not.toContain("<img");
     for (const t of ["Cliente &lt;img", "Prod &lt;img", "Tienda &lt;img", "Vend &lt;img", "Efectivo&lt;img"]) expect(html).toContain(t);
+  });
+});
+
+// SEC-36 — el recibo tiene el mismo alcance que GET /api/ventas/[id] (SEC-14):
+// el worker solo obtiene recibos de ventas de hoy o aquellas en que él es el
+// vendedor. Antes bastaba una sesión de la tienda: un worker obtenía el
+// recibo (con RUT, email y teléfono del cliente) de cualquier venta.
+describe("SEC-36: GET /api/recibos/[ventaId] — alcance del worker", () => {
+  const WORKER = "user-worker";
+  const ANTIGUA = "2025-01-15T15:00:00Z";
+
+  function montar(venta: Record<string, unknown>) {
+    const ventaCompleta = {
+      id: "venta-1", store_id: "store-1", numero_comprobante: "20250115-AAA", total: 1000, subtotal: 840,
+      descuento: 0, impuesto: 160, estado: "pagada",
+      clientes: { id: "c1", nombre: "Juan Pérez", rut: "12.345.678-5", email: "juan@cliente.cl", telefono: "+56911112222" },
+      venta_items: [{ cantidad: 1, precio_unitario: 1000, subtotal: 1000, productos: { nombre: "Snack", sku: "S1" } }],
+      ...venta,
+    } as Record<string, unknown>;
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn((): Promise<unknown> => Promise.resolve({ data: null, error: null })),
+    };
+    let llamadas = 0;
+    chain.single.mockImplementation(() => {
+      llamadas++;
+      if (llamadas === 1) return Promise.resolve({ data: ventaCompleta, error: null });
+      if (llamadas === 2 && ventaCompleta.worker_clerk_id) return Promise.resolve({ data: { nombre: null, email: "ana@tienda.cl" }, error: null });
+      return Promise.resolve({ data: { name: "Tienda" }, error: null });
+    });
+    const pagos = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), order: jest.fn().mockResolvedValue({ data: [], error: null }) };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "pagos" ? pagos : chain)),
+    });
+    return chain;
+  }
+  const get = () => GET(new NextRequest("http://localhost/api/recibos/venta-1"), { params: Promise.resolve({ ventaId: "venta-1" }) });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: "store-1", userId: WORKER });
+    mockClaims = { sub: WORKER, publicMetadata: { storeId: "store-1", storeWorker: true } };
+    mockDeshabilitado.mockResolvedValue(false);
+  });
+  afterEach(() => { mockClaims = ADMIN_CLAIMS; });
+
+  it("SEC-36: venta antigua de OTRO vendedor → 404 genérico, sin datos del cliente", async () => {
+    montar({ created_at: ANTIGUA, worker_clerk_id: "otro-vendedor" });
+    const res = await get();
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Venta no encontrada" });
+    expect(JSON.stringify(body)).not.toContain("juan@cliente.cl");
+    expect(mockRegistrarConsulta).not.toHaveBeenCalled();
+  });
+
+  it("SEC-36: venta antigua sin vendedor → 404", async () => {
+    montar({ created_at: ANTIGUA, worker_clerk_id: null });
+    expect((await get()).status).toBe(404);
+  });
+
+  it("SEC-36: venta de hoy de otro vendedor → 200 (recibo del cajero), sin el email del vendedor", async () => {
+    montar({ created_at: new Date().toISOString(), worker_clerk_id: "otro-vendedor" });
+    const res = await get();
+    expect(res.status).toBe(200);
+    expect((await res.json()).html).not.toContain("ana@tienda.cl");
+  });
+
+  it("SEC-36: venta antigua en que él es el vendedor → 200", async () => {
+    montar({ created_at: ANTIGUA, worker_clerk_id: WORKER });
+    expect((await get()).status).toBe(200);
+  });
+
+  it("SEC-36: el admin obtiene cualquier recibo de su tienda, aunque sea antiguo y de otro", async () => {
+    mockClaims = ADMIN_CLAIMS;
+    montar({ created_at: ANTIGUA, worker_clerk_id: "otro-vendedor" });
+    expect((await get()).status).toBe(200);
+  });
+
+  it("SEC-36: worker deshabilitado → 403", async () => {
+    mockDeshabilitado.mockResolvedValue(true);
+    montar({ created_at: new Date().toISOString(), worker_clerk_id: WORKER });
+    expect((await get()).status).toBe(403);
   });
 });

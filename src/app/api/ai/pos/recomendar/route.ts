@@ -82,12 +82,18 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   const alimentoMap = new Map(catalogo.map((p) => [p.id, p.nombre]));
 
   if (clienteId) {
+    // Ownership: el cliente debe ser de esta tienda. Antes se leía solo por id
+    // y, con el UUID de un cliente de otra tienda, su nombre y sus mascotas
+    // llegaban al prompt (IDOR). mascotas no tiene store_id: queda protegida
+    // por el cliente_id ya verificado.
     const { data: cli } = await supabase
       .from("clientes")
       .select("nombre")
       .eq("id", clienteId)
-      .single();
-    clienteNombre = cli?.nombre ?? "Cliente";
+      .eq("store_id", store_id)
+      .maybeSingle();
+    if (!cli) return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    clienteNombre = cli.nombre ?? "Cliente";
 
     // Mascotas — filtrar por mascotaId si viene especificado
     const mascotaQuery = supabase
