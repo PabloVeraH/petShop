@@ -148,16 +148,15 @@ async function handlePatchUser(
     // Se envía el objeto completo (systemAdmin/storeAdmin/storeWorker/storeId)
     // en vez de solo las claves que cambian, para no depender de si Clerk
     // mergea o reemplaza publicMetadata — así el resultado es correcto en ambos casos.
+    // El systemAdmin conserva su tienda: con storeId null el webhook de Clerk
+    // dejaba clerk_users.store_id en null y el usuario desaparecía de la lista.
     await client.users.updateUserMetadata(clerkId, {
-      publicMetadata:
-        role === "systemAdmin"
-          ? { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: null }
-          : {
-              systemAdmin: false,
-              storeAdmin: role === "storeAdmin",
-              storeWorker: role === "storeWorker",
-              storeId: targetStoreId,
-            },
+      publicMetadata: {
+        systemAdmin: role === "systemAdmin",
+        storeAdmin: role === "storeAdmin",
+        storeWorker: role === "storeWorker",
+        storeId: targetStoreId,
+      },
     });
 
     // Add new email address as primary and verified (después de sincronizar el
@@ -195,7 +194,7 @@ async function handlePatchUser(
   }
 
   const updates: Record<string, unknown> = { ...flags };
-  if (role !== "systemAdmin") updates.store_id = targetStoreId;
+  updates.store_id = targetStoreId;
   if (nombre) updates.nombre = nombre.trim();
   if (email && email !== oldUser?.email) updates.email = email;
 
