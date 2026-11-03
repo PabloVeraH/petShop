@@ -433,8 +433,9 @@ describe("PATCH /api/admin/users/[id]", () => {
     });
   });
 
-  // I-448: promoción a systemAdmin → publicMetadata limpio, sin storeId/storeAdmin/storeWorker residual
-  it("I-448: systemAdmin promueve storeWorker→systemAdmin → Clerk publicMetadata limpio (sin storeId residual)", async () => {
+  // I-448: promoción a systemAdmin → sin storeAdmin/storeWorker residual, pero
+  // conserva su tienda (con storeId null el webhook lo sacaba de la lista de la tienda)
+  it("I-448: systemAdmin promueve storeWorker→systemAdmin → Clerk sin rol de tienda residual y conserva storeId", async () => {
     mockAuth.mockResolvedValue({
       userId: USER_ID,
       sessionClaims: { publicMetadata: { systemAdmin: true } },
@@ -457,7 +458,7 @@ describe("PATCH /api/admin/users/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(mockUpdateUserMetadata).toHaveBeenCalledWith(TARGET_ID, {
-      publicMetadata: { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: null },
+      publicMetadata: { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: STORE_ID },
     });
   });
 
