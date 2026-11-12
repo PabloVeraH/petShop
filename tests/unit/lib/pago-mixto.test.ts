@@ -201,3 +201,11 @@ describe("CitaAccionSchema — completar con pagos[]", () => {
     expect(ok({ pagos: [{ metodo: "transferencia", monto: 1000 }] })).toBe(false);
   });
 });
+
+describe("validarPagos — revisión de seguridad (M1)", () => {
+  it("U-257: NC o saldo a favor por $0 se rechazan aunque la venta sea de $0 (la NC quedaría 'usada' sin pagar nada)", () => {
+    expect(validarPagos([{ metodo: "nota_credito", monto: 0, notaCreditoId: NC_ID }], 0)).toMatch(/entero mayor a 0/);
+    expect(validarPagos([{ metodo: "saldo_a_favor", monto: 0 }], 0, CLIENTE)).toMatch(/entero mayor a 0/);
+    expect(validarPagos([{ metodo: "efectivo", monto: 0 }], 0)).toBeNull();
+  });
+});

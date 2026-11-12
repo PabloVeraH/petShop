@@ -214,7 +214,16 @@ async function postVenta(req: NextRequest) {
   // el total que calcula el servidor. La RPC repite todas estas reglas.
   const pagos = normalizarPagos(parsed.data, total);
   const errorPagos = validarPagos(pagos, total, clienteId);
-  if (errorPagos) return NextResponse.json({ error: errorPagos }, { status: 400 });
+  if (errorPagos) {
+    // El POS arma los montos con los precios del carrito (localStorage); si un
+    // precio u oferta cambió mientras tanto, el total del servidor es otro. No
+    // se cobra un monto distinto del real: se le dice al cajero cómo seguir.
+    const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+    const error = sumaPagos !== total
+      ? `${errorPagos}. Los precios pueden haber cambiado: quite y vuelva a agregar los productos y cobre de nuevo.`
+      : errorPagos;
+    return NextResponse.json({ error, total }, { status: 400 });
+  }
 
   // Pre-validación de la NC (mensajes claros antes de abrir la transacción).
   // La autoridad es aplicar_pagos: reclamo atómico con FOR UPDATE.
@@ -315,7 +324,17 @@ async function postVenta(req: NextRequest) {
   // contables) — todos esos ya se dispararon (o se están disparando) para el
   // intento original.
   if (!created) {
-    return NextResponse.json(venta);
+    // Los pagos REALES de esa venta (el cajero pudo cambiar los montos antes
+    // de reintentar): el POS arma con ellos el aviso de cuánto boletear.
+    const { data: pagosVenta } = await supabase
+      .from("pagos")
+      .select("metodo, monto")
+      .eq("venta_id", venta.id as string)
+      .eq("store_id", store_id);
+    return NextResponse.json({
+      ...venta,
+      pagos: (pagosVenta ?? []).map((p) => ({ metodo: p.metodo as string, monto: Math.round(Number(p.monto)) })),
+    });
   }
 
   // Etiqueta decidida por la RPC (validar_pagos): método único o 'mixto'.
@@ -518,5 +537,5 @@ async function postVenta(req: NextRequest) {
     }
   });
 
-  return NextResponse.json(venta);
+  return NextResponse.json({ ...venta, pagos: pagos.map(({ metodo, monto }) => ({ metodo, monto })) });
 }

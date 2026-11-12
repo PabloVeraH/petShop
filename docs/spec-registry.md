@@ -2702,3 +2702,9 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-108 | muestra el total a boletear que devuelve /api/reports | reportes/dashboard (pago mixto) | component |
 | C-109 | período sin montos a boletear → estado vacío | reportes/dashboard (pago mixto) | component |
 | C-110 | muestra el total a boletear de hoy que devuelve /api/dashboard | reportes/dashboard (pago mixto) | component |
+| U-257 | REVISIÓN (M1): NC o saldo a favor por $0 se rechazan aunque la venta sea de $0 | validarPagos | unit |
+| I-833 | REVISIÓN (M2): suma distinta del total del servidor → 400 con el total real y cómo seguir | POST /api/ventas | integration |
+| I-834 | REVISIÓN (B5): la respuesta trae los pagos de la venta (los reales de la BD en un reintento idempotente) | POST /api/ventas | integration |
+| PP-19 | REVISIÓN (B5): el aviso de boleta usa los pagos que devuelve el servidor | POSPage | component |
+| PMX-SQL-16 | REVISIÓN (C1, CRÍTICO): orden de canal externo con los parámetros exactos de procesar-orden.ts crea la venta con pago 'plataforma'; 'plataforma' sigue prohibido en el POS | migración 093 | sql |
+| PMX-SQL-17 | REVISIÓN (M1): NC o saldo a favor por $0 → PV001, la NC queda activa | migración 093 | sql |

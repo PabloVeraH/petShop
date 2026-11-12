@@ -186,6 +186,41 @@ BEGIN
   ASSERT (r->>'created')::boolean AND r->'venta'->>'metodo_pago' = 'efectivo', 'PMX-SQL-15 venta $0';
   PERFORM t.falla('PMX-SQL-15b', $q$SELECT t.venta('[{"metodo":"efectivo","monto":0},{"metodo":"efectivo","monto":17000}]')$q$, 'PV001');
 
+  -- PMX-SQL-17 (revisión, M1): una NC o saldo a favor por $0 en una venta de $0
+  -- se rechaza: la NC quedaría 'usada' sin pagar nada.
+  UPDATE notas_credito SET estado = 'activa' WHERE numero_nc = 'NC-SALDO';
+  PERFORM t.falla('PMX-SQL-17a', $q$SELECT public.crear_venta_tx(
+    p_store_id => '00000000-0000-0000-0000-00000000000a',
+    p_items => '[{"producto_id":"00000000-0000-0000-0000-0000000000f1","cantidad":1,"precio_unitario":17000,"subtotal":17000,"es_granel":false}]',
+    p_cliente_id => '00000000-0000-0000-0000-0000000000c1', p_worker_clerk_id => NULL, p_subtotal => 17000, p_descuento_pct => 100, p_impuesto => 0, p_total => 0,
+    p_metodo_pago => NULL, p_canal => 'pos', p_procedencia => 'presencial', p_numero_comprobante => 'T-NC0',
+    p_pago_nc => NULL, p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]', p_dias_aviso => 5,
+    p_pagos => '[{"metodo":"nota_credito","monto":0,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"}]')$q$, 'PV001');
+  ASSERT (SELECT estado FROM notas_credito WHERE numero_nc = 'NC-SALDO') = 'activa', 'PMX-SQL-17a NC intacta';
+  PERFORM t.falla('PMX-SQL-17b', $q$SELECT public.crear_venta_tx(
+    p_store_id => '00000000-0000-0000-0000-00000000000a',
+    p_items => '[{"producto_id":"00000000-0000-0000-0000-0000000000f1","cantidad":1,"precio_unitario":17000,"subtotal":17000,"es_granel":false}]',
+    p_cliente_id => '00000000-0000-0000-0000-0000000000c1', p_worker_clerk_id => NULL, p_subtotal => 17000, p_descuento_pct => 100, p_impuesto => 0, p_total => 0,
+    p_metodo_pago => NULL, p_canal => 'pos', p_procedencia => 'presencial', p_numero_comprobante => 'T-SF0',
+    p_pago_nc => NULL, p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]', p_dias_aviso => 5,
+    p_pagos => '[{"metodo":"saldo_a_favor","monto":0}]')$q$, 'PV001');
+
+  -- PMX-SQL-16 (revisión, C1): orden de canal externo con los parámetros
+  -- EXACTOS de src/lib/canales/application/procesar-orden.ts (formato legado,
+  -- p_metodo_pago 'plataforma') crea la venta con un pago 'plataforma'.
+  r := public.crear_venta_tx(
+    p_store_id => '00000000-0000-0000-0000-00000000000a',
+    p_items => '[{"producto_id":"00000000-0000-0000-0000-0000000000f1","cantidad":1,"precio_unitario":17000,"subtotal":17000}]',
+    p_cliente_id => NULL, p_worker_clerk_id => NULL, p_subtotal => 17000, p_descuento_pct => 0, p_impuesto => 2714, p_total => 17000,
+    p_metodo_pago => 'plataforma', p_canal => 'rappi', p_procedencia => 'rappi', p_numero_comprobante => 'T-RAPPI',
+    p_pago_nc => NULL, p_numero_transaccion => 'RAPPI-123', p_fidelizacion_niveles => '[]', p_dias_aviso => 5,
+    p_idempotency_key => 'canal:rappi:RAPPI-123', p_user_id => NULL);
+  v_id := (r->'venta'->>'id')::uuid;
+  ASSERT (r->>'created')::boolean AND r->'venta'->>'metodo_pago' = 'plataforma', 'PMX-SQL-16 venta de canal';
+  ASSERT (SELECT count(*) FROM pagos WHERE venta_id = v_id AND metodo = 'plataforma' AND monto = 17000 AND numero_transaccion = 'RAPPI-123') = 1, 'PMX-SQL-16 pago plataforma';
+  -- 'plataforma' sigue prohibido en el POS (PMX-SQL-05d) y en citas.
+  PERFORM t.falla('PMX-SQL-16b', $q$SELECT t.venta(NULL, p_metodo => 'plataforma')$q$, 'PV001');
+
   -- PMX-SQL-12: idempotencia — misma key → misma venta, sin pagos duplicados.
   r := t.venta('[{"metodo":"efectivo","monto":17000}]', p_key => 'key-1');
   v_id := (r->'venta'->>'id')::uuid;

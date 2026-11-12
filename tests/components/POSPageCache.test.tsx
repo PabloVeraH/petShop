@@ -179,3 +179,28 @@ describe("POSPage — aviso de boleta tras la venta (PP-18)", () => {
     openSpy.mockRestore();
   });
 });
+
+// PP-19 — revisión (B5): en un reintento idempotente el servidor devuelve la
+// venta ORIGINAL con sus pagos reales; el aviso de boleta usa esos pagos, no
+// los que el cajero tenga en pantalla.
+describe("POSPage — aviso de boleta con los pagos del servidor (PP-19)", () => {
+  it("PP-19: si la respuesta trae pagos (100 % débito), el aviso usa esos y no los enviados (efectivo)", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const store = makeMockStore();
+    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) =>
+      typeof selector === "function" ? selector(store) : store
+    );
+    mockCreateVenta.mockResolvedValue({ id: "venta-pp19", pagos: [{ metodo: "debito", monto: 1000 }] });
+    const openSpy = jest.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<POSPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    await act(async () => { fireEvent.click(screen.getByTestId("confirm-pago")); });
+
+    expect(screen.getByTestId("aviso-ultima-venta")).toHaveTextContent("El voucher Transbank cubre el total");
+    expect(screen.getByTestId("aviso-ultima-venta")).not.toHaveTextContent("Emitir boleta");
+    openSpy.mockRestore();
+  });
+});

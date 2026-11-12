@@ -89,8 +89,12 @@ export function validarFormaPagos(pagos: PagoInput[]): string | null {
   for (const p of pagos) {
     if (!(METODOS_PAGO as readonly string[]).includes(p.metodo)) return `Método de pago no permitido: ${p.metodo}`;
     // $0 solo como pago único de una venta de $0 (100 % de descuento, I-50);
-    // la suma exacta contra el total lo garantiza.
-    if (!Number.isInteger(p.monto) || p.monto < 0 || (p.monto === 0 && pagos.length > 1)) {
+    // la suma exacta contra el total lo garantiza. Nunca con crédito interno:
+    // una NC por $0 quedaría "usada" sin pagar nada.
+    if (
+      !Number.isInteger(p.monto) || p.monto < 0 ||
+      (p.monto === 0 && (pagos.length > 1 || METODOS_CREDITO_INTERNO.has(p.metodo)))
+    ) {
       return "Cada monto debe ser un entero mayor a 0";
     }
     if (METODOS_CON_TRX.has(p.metodo) && !p.numeroTransaccion?.trim()) {

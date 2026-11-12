@@ -22,6 +22,8 @@ const mockRpc = jest.fn();
 const mockGetStoreId = jest.fn();
 let ncRow: Record<string, unknown> | null = null;
 const ncEqs: unknown[][] = [];
+let pagosDb: { metodo: string; monto: number | string }[] = [];
+const pagosEqs: unknown[][] = [];
 
 jest.mock("@/lib/auth", () => ({ getStoreId: () => mockGetStoreId() }));
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
@@ -45,6 +47,7 @@ function chain(table: string) {
   for (const m of ["select", "insert", "update", "upsert", "in", "gt", "order", "limit"]) c[m] = jest.fn(self);
   c.eq = jest.fn((...args: unknown[]) => {
     if (table === "notas_credito") ncEqs.push(args);
+    if (table === "pagos") pagosEqs.push(args);
     return c;
   });
   c.single = jest.fn(async () => {
@@ -55,6 +58,7 @@ function chain(table: string) {
   });
   // Lecturas sin .single(): productos (precio) y venta_items.
   c.then = (resolve: (v: unknown) => void) => {
+    if (table === "pagos") return resolve({ data: pagosDb, error: null });
     if (table === "productos") {
       return resolve({ data: [{ id: PRODUCTO_ID, nombre: "Saco", precio: 8500, precio_oferta: null, en_oferta: false, stock: 10, costo: 4000 }], error: null });
     }
@@ -89,6 +93,8 @@ const NC_OK = { id: NC_ID, numero_nc: "NC-77", monto_total: 3000, fecha_vencimie
 beforeEach(() => {
   jest.clearAllMocks();
   ncEqs.length = 0;
+  pagosEqs.length = 0;
+  pagosDb = [];
   ncRow = NC_OK;
   mockGetStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
   mockRpc.mockResolvedValue({ data: { venta: VENTA, created: true }, error: null });
@@ -251,5 +257,36 @@ describe("POST /api/ventas — pago mixto", () => {
     expect(res.status).toBe(200);
     expect(crearAsiento).not.toHaveBeenCalled();
     expect(sendBoletaEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/ventas — revisión de seguridad (M2, B5)", () => {
+  it("I-833: suma distinta del total del servidor → 400 con el total real y cómo seguir (precios cambiados)", async () => {
+    const res = await post({ items: ITEMS, pagos: [{ metodo: "efectivo", monto: 16000 }] });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.total).toBe(17000);
+    expect(body.error).toMatch(/no coincide con el total \(\$17\.000\)/);
+    expect(body.error).toMatch(/quite y vuelva a agregar los productos/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("I-834: la respuesta trae los pagos de la venta: los enviados si se creó; los REALES de la BD en un reintento idempotente", async () => {
+    let res = await post({
+      items: ITEMS,
+      pagos: [{ metodo: "efectivo", monto: 5000 }, { metodo: "debito", monto: 12000, numeroTransaccion: "T" }],
+    });
+    expect((await res.json()).pagos).toEqual([{ metodo: "efectivo", monto: 5000 }, { metodo: "debito", monto: 12000 }]);
+
+    // Reintento: el cajero cambió los montos, pero la venta original ya existía.
+    mockRpc.mockResolvedValue({ data: { venta: VENTA, created: false }, error: null });
+    pagosDb = [{ metodo: "efectivo", monto: "17000.00" }];
+    res = await post({
+      items: ITEMS,
+      idempotencyKey: "123e4567-e89b-12d3-a456-426614174099",
+      pagos: [{ metodo: "credito", monto: 17000, numeroTransaccion: "T2" }],
+    });
+    expect((await res.json()).pagos).toEqual([{ metodo: "efectivo", monto: 17000 }]);
+    expect(pagosEqs).toContainEqual(["store_id", STORE_ID]);
   });
 });

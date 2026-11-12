@@ -229,3 +229,26 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
   - Umbral 135 UF: `stores.umbral_identificacion_comprador`, editable en
     /settings; el POS lo lee de `GET /api/tienda/nombre` (query `store-name`).
 - 2026-11-12: F10 hecha por un agente (revisada): reportes y dashboard reparten las ventas mixtas por pago y devuelven montoBoleta/boletaPorMetodo; el CSV agrega "Detalle pagos" y "Monto a boletear". AGENTS.md §23.8 documenta la invariante.
+- 2026-11-12: revisión independiente (agente revisor, solo lectura, con sondas
+  SQL reales). Corregido en esta rama:
+  - **C1 (CRÍTICO)**: las órdenes de canal externo (procesar-orden.ts envían
+    `p_metodo_pago='plataforma'`) habrían fallado con PV001 tras la 093.
+    `validar_pagos` acepta 'plataforma' solo si `p_canal <> 'pos'`
+    (PMX-SQL-16). Mi grep inicial de llamadores no encontró esa llamada:
+    lección para el gate §2.2.
+  - M1: NC/saldo por $0 quemaban la NC (U-257, PMX-SQL-17).
+  - M2: precio cambiado con el carrito abierto → mensaje con el total real
+    y cómo seguir (I-833); la validación del servidor no se relaja.
+  - B4: `completar_cita_tx` con `search_path 'public', 'pg_temp'`.
+  - B5: el aviso de boleta usa los pagos que devuelve el servidor (I-834, PP-19).
+  Pendiente (fuera de alcance, documentado):
+  - B1 (preexistente): el reverso de una venta de cita debita VENTAS, no
+    VENTAS_SERVICIOS (cuadra, pero no es el espejo exacto). También en backfill.
+  - B2 (decisión de negocio): una NC tipo saldo_a_favor cuya venta de origen no
+    tiene cliente no está respaldada por saldo; si se usa en una venta con
+    cliente y esa venta se anula, `anular_venta_tx` (paso 6) acredita el monto
+    al cliente de la venta anulada. El crédito se conserva, cambia de dueño.
+  - B3 (preexistente, anterior a esta rama): `anular_venta_tx` paso 5 cancela
+    NCs sin `AND estado='activa'` y bloquea saldo→NC (orden inverso a
+    `aplicar_pagos`): ante concurrencia exacta, deadlock (500, sin daño) o
+    doble descuento acotado en 0. Fix sugerido en una migración propia.

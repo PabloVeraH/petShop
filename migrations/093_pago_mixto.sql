@@ -31,8 +31,13 @@
 --   - El reclamo de la NC exige store_id, estado 'activa' y que no esté vencida
 --     también en crear_venta_tx (antes solo lo validaba la ruta; el UPDATE de
 --     la RPC no filtraba por tienda ni estado).
---   - Métodos 'saldo_favor', 'plataforma' y 'mixto' ya no se aceptan como
---     método de un pago (registraban un pago "con crédito" sin consumirlo).
+--   - Métodos 'saldo_favor' y 'mixto' ya no se aceptan como método de un pago
+--     (registraban un pago "con crédito" sin consumirlo). 'plataforma' solo en
+--     ventas de canal externo (procesar-orden.ts), nunca en el POS.
+--   - NC y saldo a favor siempre por un monto > 0 (una NC por $0 quedaba
+--     'usada' sin pagar nada).
+--   - completar_cita_tx pasa a search_path 'public', 'pg_temp' (igual que
+--     crear_venta_tx).
 --   - Montos en pesos enteros; la suma de los pagos debe ser exactamente el
 --     total.
 --
@@ -96,7 +101,10 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.validar_pagos(p_pagos jsonb, p_total numeric, p_cliente_id uuid) RETURNS text
+-- p_permitir_plataforma: las ventas de canal externo (Rappi, PedidosYa,
+-- UberEats; procesar-orden.ts) se registran con un único pago 'plataforma'
+-- (los cobra la plataforma). crear_venta_tx lo habilita solo si p_canal <> 'pos'.
+CREATE OR REPLACE FUNCTION public.validar_pagos(p_pagos jsonb, p_total numeric, p_cliente_id uuid, p_permitir_plataforma boolean DEFAULT false) RETURNS text
     LANGUAGE plpgsql IMMUTABLE
     SET search_path TO 'public', 'pg_temp'
     AS $$
@@ -119,15 +127,18 @@ BEGIN
     SELECT * FROM jsonb_to_recordset(p_pagos)
       AS x(metodo text, monto numeric, numero_transaccion text, nota_credito_id uuid)
   LOOP
-    IF v_pago.metodo IS NULL OR v_pago.metodo NOT IN
-       ('efectivo', 'debito', 'credito', 'transferencia', 'nota_credito', 'saldo_a_favor') THEN
+    IF v_pago.metodo IS NULL OR (v_pago.metodo NOT IN
+       ('efectivo', 'debito', 'credito', 'transferencia', 'nota_credito', 'saldo_a_favor')
+       AND NOT (p_permitir_plataforma AND v_pago.metodo = 'plataforma')) THEN
       RAISE EXCEPTION 'Pagos inválidos: método de pago no permitido (%)', COALESCE(v_pago.metodo, 'vacío')
         USING ERRCODE = 'PV001';
     END IF;
     -- $0 solo como pago único de una venta de $0 (100 % de descuento); la suma
     -- exacta contra el total lo garantiza.
+    -- Un crédito interno por $0 no paga nada pero igual reclamaría la NC
+    -- (quedaría 'usada' sin descontar): siempre > 0.
     IF v_pago.monto IS NULL OR v_pago.monto < 0 OR v_pago.monto <> trunc(v_pago.monto)
-       OR (v_pago.monto = 0 AND v_n > 1) THEN
+       OR (v_pago.monto = 0 AND (v_n > 1 OR v_pago.metodo IN ('nota_credito', 'saldo_a_favor'))) THEN
       RAISE EXCEPTION 'Pagos inválidos: cada monto debe ser un entero mayor a 0' USING ERRCODE = 'PV001';
     END IF;
     IF v_pago.metodo IN ('debito', 'credito', 'transferencia')
@@ -253,10 +264,10 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.pagos_desde_legado(text, jsonb, text, numeric) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.validar_pagos(jsonb, numeric, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.validar_pagos(jsonb, numeric, uuid, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.aplicar_pagos(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.pagos_desde_legado(text, jsonb, text, numeric) TO service_role;
-GRANT EXECUTE ON FUNCTION public.validar_pagos(jsonb, numeric, uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.validar_pagos(jsonb, numeric, uuid, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.aplicar_pagos(uuid, uuid, uuid, jsonb) TO service_role;
 
 -- ── 3. RPC de cobro ─────────────────────────────────────────────────────────
@@ -265,7 +276,7 @@ DROP FUNCTION IF EXISTS public.completar_cita_tx(uuid, uuid, text, text, numeric
 
 CREATE OR REPLACE FUNCTION public.completar_cita_tx(p_cita_id uuid, p_store_id uuid, p_metodo_pago text, p_numero_transaccion text, p_impuesto numeric, p_pago_nc jsonb, p_fidelizacion_niveles jsonb, p_completado_por text, p_pagos jsonb DEFAULT NULL::jsonb) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
+    SET search_path TO 'public', 'pg_temp'
     AS $$
 DECLARE
   v_cita               RECORD;
@@ -408,7 +419,7 @@ BEGIN
   --     Lista nueva (p_pagos) o parámetros antiguos convertidos. Se valida
   --     antes de tocar nada: suma exacta contra p_total, forma y cardinalidad.
   v_pagos := COALESCE(p_pagos, public.pagos_desde_legado(p_metodo_pago, p_pago_nc, p_numero_transaccion, p_total));
-  v_metodo_pago_final := public.validar_pagos(v_pagos, p_total, p_cliente_id);
+  v_metodo_pago_final := public.validar_pagos(v_pagos, p_total, p_cliente_id, p_canal <> 'pos');
 
   -- ── 2. Crear venta ────────────────────────────────────────────────────────
   -- Envuelto en su propio bloque para capturar la carrera: dos requests

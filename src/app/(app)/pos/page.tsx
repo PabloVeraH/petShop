@@ -100,7 +100,9 @@ export default function POSPage() {
       }),
     onSuccess: (data, pagos) => {
       idempotencyKeyRef.current = null;
-      setPagosUltimaVenta(pagos);
+      // Pagos que devuelve el servidor (en un reintento idempotente son los de
+      // la venta original, no los que haya en pantalla); si no vienen, los enviados.
+      setPagosUltimaVenta(Array.isArray(data?.pagos) ? data.pagos : pagos);
       clearCart();
       setShowPagoModal(false);
       setVentaError(null);
