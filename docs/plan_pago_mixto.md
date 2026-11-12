@@ -177,7 +177,7 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
 - [x] **F8 — UI cita.** `ModalCobroCita` con `SelectorPagos`; tests.
 - [x] **F9 — Fiscal: documentos.** Recibo HTML, PDF, correo, detalle de venta
       con `montoBoleta`; tests.
-- [ ] **F10 — Reportes/dashboard.** Desglose por `pagos` y total a boletear;
+- [x] **F10 — Reportes/dashboard.** Desglose por `pagos` y total a boletear;
       tests.
 - [x] **F11 — Aviso 135 UF.** Config en admin (storeAdmin + auditoría) y
       lectura en POS; tests.
@@ -228,3 +228,4 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
     ventas anuladas ni de canal externo.
   - Umbral 135 UF: `stores.umbral_identificacion_comprador`, editable en
     /settings; el POS lo lee de `GET /api/tienda/nombre` (query `store-name`).
+- 2026-11-12: F10 hecha por un agente (revisada): reportes y dashboard reparten las ventas mixtas por pago y devuelven montoBoleta/boletaPorMetodo; el CSV agrega "Detalle pagos" y "Monto a boletear". AGENTS.md §23.8 documenta la invariante.

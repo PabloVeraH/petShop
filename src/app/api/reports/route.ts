@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { ReportsQuerySchema } from "@/lib/validation";
 import { withErrorLogging } from "@/lib/audit";
 import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
+import { cargarPagosPorVenta, metodosParaAgrupar, resumenBoleta, ventasConPagos } from "@/lib/reports/pagos-reporte";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -81,12 +82,16 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
-  // Métodos de pago breakdown
+  // Métodos de pago breakdown: una venta mixta se reparte entre sus métodos
+  // reales (tabla pagos); el resto sigue por ventas.metodo_pago.
+  const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventas ?? []));
   const metodos: Record<string, number> = {};
   for (const v of ventas ?? []) {
-    const m = v.metodo_pago ?? "efectivo";
-    metodos[m] = (metodos[m] ?? 0) + Number(v.total);
+    for (const p of metodosParaAgrupar(v, pagosPorVenta)) {
+      metodos[p.metodo] = (metodos[p.metodo] ?? 0) + p.monto;
+    }
   }
+  const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventas ?? [], pagosPorVenta);
 
   // Ventas por canal breakdown
   const canales: Record<string, { total: number; transacciones: number }> = {};
@@ -178,6 +183,8 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     topProductos,
     topClientes,
     metodos,
+    montoBoleta,
+    boletaPorMetodo,
     canales,
     procedencias,
     prediccion7dias,

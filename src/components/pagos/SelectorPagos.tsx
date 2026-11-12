@@ -96,7 +96,6 @@ export default function SelectorPagos({
 }: SelectorPagosProps) {
   const suma = filas.reduce((s, f) => s + (Number.isFinite(f.monto) ? f.monto : 0), 0);
   const resto = total - suma;
-  const usaNc = filas.some((f) => f.metodo === "nota_credito");
   const usaSaldo = filas.some((f) => f.metodo === "saldo_a_favor");
 
   // Si cambia el total (p. ej. el descuento) y había un solo pago en dinero
@@ -114,14 +113,14 @@ export default function SelectorPagos({
     }
   }, [total, filas, onChange]);
 
-  // Saldo a favor del cliente (solo si hay una fila de saldo).
-  const [saldo, setSaldo] = useState<number | null>(null);
+  // Saldo a favor del cliente (solo si hay una fila de saldo). El valor
+  // vigente se deriva en el render: sin fila de saldo o sin cliente es null,
+  // sin tener que resetear estado dentro del efecto.
+  const [saldoConsultado, setSaldo] = useState<number | null>(null);
   const [saldoError, setSaldoError] = useState<string | null>(null);
+  const saldo = usaSaldo && clienteId ? saldoConsultado : null;
   useEffect(() => {
-    if (!usaSaldo || !clienteId) {
-      setSaldo(null);
-      return;
-    }
+    if (!usaSaldo || !clienteId) return;
     let vigente = true;
     fetch(`/api/saldos-a-favor?clienteId=${encodeURIComponent(clienteId)}`)
       .then(async (r) => {

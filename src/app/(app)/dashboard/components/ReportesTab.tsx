@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { hoyNegocioISO } from "@/lib/dates";
 import { useUser } from "@clerk/nextjs";
+import MontoBoleta from "./MontoBoleta";
 
 interface ReportsData {
   periodo: number;
@@ -13,6 +14,8 @@ interface ReportsData {
   topProductos: { nombre: string; cantidad: number; revenue: number }[];
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
+  montoBoleta?: number;
+  boletaPorMetodo?: Record<string, number>;
   canales: Record<string, { total: number; transacciones: number }>;
   procedencias: Record<string, { total: number; transacciones: number }>;
   prediccion7dias: number | null;
@@ -450,6 +453,8 @@ export default function ReportesTab() {
               </div>
             ))}
           </div>
+
+          <MontoBoleta monto={data.montoBoleta} porMetodo={data.boletaPorMetodo} />
 
           {/* Ventas por día */}
           <div className="bg-white rounded-lg border border-gray-200 p-5">

@@ -83,14 +83,10 @@ let mockWorkers: Array<{
   ventas_mes: number; ventas_hoy: number;
 }> = [];
 
-// Respuestas por URL: workers, búsqueda de NC por código y saldo a favor.
-let mockNcRespuesta: { ok: boolean; body: unknown } = { ok: true, body: { data: null } };
-global.fetch = jest.fn().mockImplementation((url: string) => {
-  if (url.startsWith("/api/notas-credito")) {
-    return Promise.resolve({ ok: mockNcRespuesta.ok, json: async () => mockNcRespuesta.body });
-  }
-  return Promise.resolve({ ok: true, json: async () => mockWorkers });
-});
+// Workers. El flujo de NC y saldo a favor se prueba en SelectorPagos.test.tsx.
+global.fetch = jest.fn().mockImplementation(() =>
+  Promise.resolve({ ok: true, json: async () => mockWorkers })
+);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

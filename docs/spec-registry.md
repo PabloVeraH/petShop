@@ -2678,3 +2678,27 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-830 | GET /api/tienda/nombre: expone solo nombre, RUT y umbral 135 UF (null si no está configurado) | GET /api/tienda/nombre | integration |
 | I-831 | PATCH /api/settings: el admin guarda/limpia el umbral 135 UF; un PATCH que no lo menciona no lo toca | PATCH /api/settings | integration |
 | I-832 | PATCH /api/settings: umbral 0, negativo, decimal o texto → 400 sin escribir | PATCH /api/settings | integration |
+| U-270 | cargarPagosPorVenta hace UNA query a pagos filtrada por store_id y agrupa por venta | reportes/dashboard (pago mixto) | unit |
+| U-271 | sin ventas no consulta la BD | reportes/dashboard (pago mixto) | unit |
+| U-272 | solo la venta mixta se reparte; las demás siguen por metodo_pago | reportes/dashboard (pago mixto) | unit |
+| U-273 | montoBoleta — tarjeta 100 % = 0; efectivo + débito = solo efectivo | reportes/dashboard (pago mixto) | unit |
+| U-274 | venta POS antigua sin filas en pagos usa su metodo_pago por el total; canal externo no boletea | reportes/dashboard (pago mixto) | unit |
+| U-275 | ventasConPagos pide pagos de las mixtas y de las POS, no de las de canal no mixtas | reportes/dashboard (pago mixto) | unit |
+| I-816 | la venta mixta se reparte entre sus métodos y 'mixto' no aparece | reportes/dashboard (pago mixto) | integration |
+| I-817 | montoBoleta = efectivo de la mixta + venta antigua sin pagos; tarjeta y canal no suman | reportes/dashboard (pago mixto) | integration |
+| I-818 | la query a pagos es una sola y filtra por el store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-819 | sin sesión → 401 sin consultar pagos | reportes/dashboard (pago mixto) | integration |
+| I-820 | período sin ventas → montoBoleta 0 y sin query a pagos | reportes/dashboard (pago mixto) | integration |
+| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta | reportes/dashboard (pago mixto) | integration |
+| I-822 | la query a pagos filtra por store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-823 | storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id | reportes/dashboard (pago mixto) | integration |
+| I-824 | sin sesión → 401 | reportes/dashboard (pago mixto) | integration |
+| I-825 | CSV con 'Detalle pagos' (escapado) y 'Monto a boletear'; venta antigua usa metodo_pago | reportes/dashboard (pago mixto) | integration |
+| I-826 | detalle con coma o comilla se escapa con esc() | reportes/dashboard (pago mixto) | integration |
+| I-827 | una sola query a pagos, con store_id de la sesión; storeWorker → 403 sin consultar | reportes/dashboard (pago mixto) | integration |
+| C-105 | muestra el total y el desglose por método con etiquetas legibles | reportes/dashboard (pago mixto) | component |
+| C-106 | estado vacío (solo tarjeta o sin ventas) → $0 y 'Sin montos a boletear' | reportes/dashboard (pago mixto) | component |
+| C-107 | sin el campo en la respuesta no se renderiza (no inventa un $0) | reportes/dashboard (pago mixto) | component |
+| C-108 | muestra el total a boletear que devuelve /api/reports | reportes/dashboard (pago mixto) | component |
+| C-109 | período sin montos a boletear → estado vacío | reportes/dashboard (pago mixto) | component |
+| C-110 | muestra el total a boletear de hoy que devuelve /api/dashboard | reportes/dashboard (pago mixto) | component |
