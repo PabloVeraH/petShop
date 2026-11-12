@@ -68,6 +68,13 @@ DECLARE
   v_citas    INTEGER;
   v_servicios INTEGER;
 BEGIN
+  -- La 093 usa public.hoy_negocio() (092) dentro de funciones plpgsql: sin la
+  -- 092 se crearía igual (Postgres no valida esas llamadas al crear) y
+  -- fallaría recién al cobrar con una NC. Visto en mascotaspetshop 2026-11-12.
+  IF to_regprocedure('public.hoy_negocio()') IS NULL THEN
+    RAISE EXCEPTION '093 abortada: falta la migración 092 (public.hoy_negocio()). Aplique 092_fechas_hora_chile.sql y vuelva a ejecutar.';
+  END IF;
+
   SELECT count(*) INTO v_citas FROM public.citas
    WHERE estado = 'confirmada' AND precio IS NOT NULL AND precio <> trunc(precio);
   SELECT count(*) INTO v_servicios FROM public.servicios

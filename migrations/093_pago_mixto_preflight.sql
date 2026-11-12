@@ -2,12 +2,19 @@
 -- nada. Correrla en el SQL Editor del proyecto ANTES de aplicar la 093 y
 -- revisar cada resultado con el dueño de la tienda. Ver migrations/README.md.
 --
+-- OJO: el SQL Editor de Supabase muestra SOLO el resultado de la última
+-- consulta. Ejecutar cada consulta por separado (seleccionarla y Run).
+--
 -- Cada consulta devuelve filas solo si hay algo que revisar. Vacío = OK.
 -- BLOQUEANTE = la 093 aborta sola si existe (guarda de datos, sección 0).
 -- AVISO      = la 093 se aplica, pero cambia lo que se puede hacer con esos datos.
 
 -- 0. ¿Ya está aplicada? (si devuelve una fila, NO volver a aplicar sin revisar)
 SELECT version, name FROM supabase_migrations.schema_migrations WHERE version = '093';
+
+-- 0b. BLOQUEANTE: requiere la 092 (public.hoy_negocio()). Si devuelve una fila,
+--     aplicar primero migrations/092_fechas_hora_chile.sql.
+SELECT 'falta la 092' AS revision WHERE to_regprocedure('public.hoy_negocio()') IS NULL;
 
 -- 1. BLOQUEANTE: citas confirmadas con precio con decimales. Los pagos son en
 --    pesos enteros: estas citas no se podrían cobrar. Redondear el precio.
