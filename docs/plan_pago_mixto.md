@@ -181,7 +181,7 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
       tests.
 - [x] **F11 — Aviso 135 UF.** Config en admin (storeAdmin + auditoría) y
       lectura en POS; tests.
-- [ ] **F12 — Cierre.** `npm run build && npm test`, `typecheck`, `lint`,
+- [x] **F12 — Cierre.** `npm run build && npm test`, `typecheck`, `lint`,
       `test:security`, `test:coverage` (archivos nuevos > 0 %), revisión de
       diff, review independiente, `graphify update .`, spec-registry,
       AGENTS.md, formato §22.
@@ -252,3 +252,4 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
     NCs sin `AND estado='activa'` y bloquea saldo→NC (orden inverso a
     `aplicar_pagos`): ante concurrencia exacta, deadlock (500, sin daño) o
     doble descuento acotado en 0. Fix sugerido en una migración propia.
+- 2026-11-12: F12 cerrada. Verificado: typecheck OK, lint 0 errores, `npm test` 3070/3070 (236 suites), test:security 13/13, audit:deps 0 vulnerabilidades, build OK, `bash tests/sql/run.sh` OK, cobertura de líneas 98,4 % en los archivos nuevos. Pendiente: F13 (aplicar la 093 al demo, requiere OK explícito).
