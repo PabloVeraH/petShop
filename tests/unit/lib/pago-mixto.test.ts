@@ -214,3 +214,20 @@ describe("validarPagos — revisión de seguridad (M1)", () => {
     expect(validarPagos([{ metodo: "efectivo", monto: 0 }], 0)).toBeNull();
   });
 });
+
+describe("validarPagos — medios sin repetir", () => {
+  it("U-258: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan); medios distintos sí", () => {
+    expect(validarPagos([{ metodo: "efectivo", monto: 5000 }, { metodo: "efectivo", monto: 12000 }], 17000))
+      .toMatch(/No se puede repetir el medio de pago: efectivo/);
+    expect(validarPagos([
+      { metodo: "debito", monto: 5000, numeroTransaccion: "T1" },
+      { metodo: "efectivo", monto: 2000 },
+      { metodo: "debito", monto: 10000, numeroTransaccion: "T2" },
+    ], 17000)).toMatch(/No se puede repetir el medio de pago: débito/);
+    expect(validarPagos([
+      { metodo: "efectivo", monto: 5000 },
+      { metodo: "debito", monto: 2000, numeroTransaccion: "T1" },
+      { metodo: "credito", monto: 10000, numeroTransaccion: "T2" },
+    ], 17000)).toBeNull();
+  });
+});

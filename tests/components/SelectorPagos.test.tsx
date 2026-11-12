@@ -1,5 +1,5 @@
 /**
- * SP-01…SP-10: SelectorPagos (src/components/pagos/SelectorPagos.tsx) — pago
+ * SEL-01…SEL-10: SelectorPagos (src/components/pagos/SelectorPagos.tsx) — pago
  * mixto, docs/plan_pago_mixto.md F7. Los gates de UI (opciones deshabilitadas,
  * montos máximos) son conveniencia: la autoridad es el servidor (validarPagos +
  * RPC aplicar_pagos; I-787…I-799 y PMX-SQL-*).
@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("SelectorPagos — nota de crédito", () => {
-  it("SP-01: validar la NC consulta el código (URL codificada) y aplica mín(disponible, lo que falta)", async () => {
+  it("SEL-01: validar la NC consulta el código (URL codificada) y aplica mín(disponible, lo que falta)", async () => {
     respuestas["/api/notas-credito"] = {
       ok: true,
       body: { data: { id: "nc-1", numero_nc: "NC 1", monto_disponible: 3000, fecha_vencimiento: null } },
@@ -63,7 +63,7 @@ describe("SelectorPagos — nota de crédito", () => {
     expect(screen.getByTestId("resto-pago")).toHaveTextContent("Falta $7.000");
   });
 
-  it("SP-02: una NC mayor a lo que falta se aplica solo por lo que falta", async () => {
+  it("SEL-02: una NC mayor a lo que falta se aplica solo por lo que falta", async () => {
     respuestas["/api/notas-credito"] = { ok: true, body: { data: { id: "nc-1", numero_nc: "NC-1", monto_disponible: 50000, fecha_vencimiento: null } } };
     render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "nota_credito" } });
@@ -73,7 +73,7 @@ describe("SelectorPagos — nota de crédito", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("OK");
   });
 
-  it("SP-03: el error de la API (p. ej. reembolso directo, 409) se muestra y la fila queda sin NC", async () => {
+  it("SEL-03: el error de la API (p. ej. reembolso directo, 409) se muestra y la fila queda sin NC", async () => {
     respuestas["/api/notas-credito"] = { ok: false, body: { error: "Esta nota de crédito ya se reembolsó directamente al cliente" } };
     render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "nota_credito" } });
@@ -84,7 +84,7 @@ describe("SelectorPagos — nota de crédito", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("Valida la nota de crédito");
   });
 
-  it("SP-04: errorFilas rechaza un monto de NC mayor a su disponible aunque la suma cuadre", () => {
+  it("SEL-04: errorFilas rechaza un monto de NC mayor a su disponible aunque la suma cuadre", () => {
     const f: FilaPago[] = [{ id: "a", metodo: "nota_credito", monto: 5000, nc: { id: "nc", numero_nc: "N", monto_disponible: 3000, fecha_vencimiento: null } },
       { id: "b", metodo: "efectivo", monto: 5000 }];
     expect(errorFilas(f, 10000)).toMatch(/\$3\.000 disponibles/);
@@ -92,7 +92,7 @@ describe("SelectorPagos — nota de crédito", () => {
 });
 
 describe("SelectorPagos — saldo a favor", () => {
-  it("SP-05: con cliente muestra el saldo disponible y rechaza montos mayores", async () => {
+  it("SEL-05: con cliente muestra el saldo disponible y rechaza montos mayores", async () => {
     respuestas["/api/saldos-a-favor"] = { ok: true, body: { saldo_disponible: 2500 } };
     render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "saldo_a_favor" } });
@@ -106,14 +106,14 @@ describe("SelectorPagos — saldo a favor", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("OK");
   });
 
-  it("SP-06: si la consulta de saldo falla, el error se muestra", async () => {
+  it("SEL-06: si la consulta de saldo falla, el error se muestra", async () => {
     respuestas["/api/saldos-a-favor"] = { ok: false, body: { error: "Error consultando saldo" } };
     render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "saldo_a_favor" } });
     expect(await screen.findByText("Error consultando saldo")).toBeInTheDocument();
   });
 
-  it("SP-07: con NC en una fila, otra fila no puede elegir saldo a favor ni otra NC (D8)", () => {
+  it("SEL-07: con NC en una fila, otra fila no puede elegir saldo a favor ni otra NC (D8)", () => {
     const inicial: FilaPago[] = [
       { id: "a", metodo: "nota_credito", monto: 0 },
       { id: "b", metodo: "efectivo", monto: 10000 },
@@ -127,14 +127,14 @@ describe("SelectorPagos — saldo a favor", () => {
 });
 
 describe("SelectorPagos — filas", () => {
-  it("SP-08: máximo 5 medios: con 5 filas desaparece 'Agregar' aunque falte monto", () => {
+  it("SEL-08: máximo 5 medios: con 5 filas desaparece 'Agregar' aunque falte monto", () => {
     const inicial: FilaPago[] = Array.from({ length: 5 }, (_, i) => ({ id: String(i), metodo: "efectivo" as const, monto: 1000 }));
     render(<Harness total={10000} inicial={inicial} />);
     expect(screen.getByTestId("resto-pago")).toHaveTextContent("Falta $5.000");
     expect(screen.queryByText("+ Agregar medio de pago")).not.toBeInTheDocument();
   });
 
-  it("SP-09: quitar una fila la elimina y recalcula el resto; con una sola fila no hay botón Quitar", () => {
+  it("SEL-09: quitar una fila la elimina y recalcula el resto; con una sola fila no hay botón Quitar", () => {
     const inicial: FilaPago[] = [{ id: "a", metodo: "efectivo", monto: 4000 }, { id: "b", metodo: "efectivo", monto: 6000 }];
     render(<Harness total={10000} inicial={inicial} />);
     fireEvent.click(screen.getByLabelText("Quitar pago 2"));
@@ -143,7 +143,7 @@ describe("SelectorPagos — filas", () => {
     expect(screen.queryByLabelText(/Quitar pago/)).not.toBeInTheDocument();
   });
 
-  it("SP-10: cambiar de débito a efectivo descarta el N° de transacción", () => {
+  it("SEL-10: cambiar de débito a efectivo descarta el N° de transacción", () => {
     const inicial: FilaPago[] = [{ id: "a", metodo: "debito", monto: 10000, numeroTransaccion: "T-1" }];
     render(<Harness total={10000} inicial={inicial} />);
     expect(screen.getByLabelText("N° de transacción del pago 1")).toHaveValue("T-1");
@@ -155,9 +155,43 @@ describe("SelectorPagos — filas", () => {
 });
 
 describe("SelectorPagos — dueño de la NC (093)", () => {
-  it("SP-11: sin cliente en la venta, 'Nota de crédito' no se puede elegir (UX; el control real es del servidor, I-835/PMX-SQL-18)", () => {
+  it("SEL-11: sin cliente en la venta, 'Nota de crédito' no se puede elegir (UX; el control real es del servidor, I-835/PMX-SQL-18)", () => {
     render(<Harness total={10000} />);
     const opcion = Array.from((metodo(1) as HTMLSelectElement).options).find((o) => o.value === "nota_credito")!;
     expect(opcion.disabled).toBe(true);
+  });
+});
+
+describe("SelectorPagos — medios sin repetir", () => {
+  it("SEL-12: un medio elegido en una fila queda deshabilitado en las demás (en ambos sentidos)", () => {
+    const inicial: FilaPago[] = [
+      { id: "a", metodo: "efectivo", monto: 4000 },
+      { id: "b", metodo: "debito", monto: 6000, numeroTransaccion: "T" },
+    ];
+    render(<Harness total={10000} inicial={inicial} />);
+    const opciones = (i: number) => Object.fromEntries(
+      Array.from((metodo(i) as HTMLSelectElement).options).map((o) => [o.value, o.disabled])
+    );
+    expect(opciones(1)).toMatchObject({ efectivo: false, debito: true, credito: false, transferencia: false });
+    expect(opciones(2)).toMatchObject({ efectivo: true, debito: false, credito: false, transferencia: false });
+  });
+
+  it("SEL-13: 'Agregar' propone el primer medio libre; sin medios libres el botón no aparece", () => {
+    const inicial: FilaPago[] = [{ id: "a", metodo: "efectivo", monto: 4000 }];
+    render(<Harness total={10000} inicial={inicial} />);
+    fireEvent.click(screen.getByText("+ Agregar medio de pago"));
+    expect(metodo(2)).toHaveValue("debito");
+    expect(monto(2)).toHaveValue(6000);
+
+    // Con los 4 medios en dinero usados y sin cliente (no hay NC ni saldo), ya no hay a qué agregar.
+    fireEvent.change(monto(2), { target: { value: "1000" } });
+    fireEvent.click(screen.getByText("+ Agregar medio de pago"));
+    expect(metodo(3)).toHaveValue("credito");
+    fireEvent.change(monto(3), { target: { value: "1000" } });
+    fireEvent.click(screen.getByText("+ Agregar medio de pago"));
+    expect(metodo(4)).toHaveValue("transferencia");
+    fireEvent.change(monto(4), { target: { value: "1000" } });
+    expect(screen.getByTestId("resto-pago")).toHaveTextContent("Falta");
+    expect(screen.queryByText("+ Agregar medio de pago")).not.toBeInTheDocument();
   });
 });
