@@ -185,7 +185,7 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
       `test:security`, `test:coverage` (archivos nuevos > 0 %), revisión de
       diff, review independiente, `graphify update .`, spec-registry,
       AGENTS.md, formato §22.
-- [ ] **F13 — Infra (con confirmación).** Mostrar SQL 093, aplicar al demo
+- [x] **F13 — Infra (con confirmación).** Mostrar SQL 093, aplicar al demo
       solo con OK explícito, verificar con SELECTs y transacción con ROLLBACK.
 
 ## 6. Riesgos conocidos
@@ -281,3 +281,4 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
   5. Suite completa + build; luego F13 (aplicar en el demo: correr primero el
      preflight) y push + PR (el usuario ya autorizó ambos).
 - 2026-11-12: dueño de la NC TERMINADO. Endpoint de búsqueda por código exige el cliente y compara con el dueño; SelectorPagos no ofrece NC sin cliente; crear NC acepta `clienteId` y el modal de devolución lo pide (búsqueda por RUT) cuando la venta no tiene. Verificado: `npm test` 3078/3078, SQL OK, build OK, lint/typecheck 0 errores. README de migraciones: preflight obligatorio. Siguiente: F13 (demo) y PR.
+- 2026-11-12: F13 hecha. El usuario aplicó la 093 en el demo (SQL Editor). Verificado con lecturas (registrada, firmas, search_path, sin grants a anon/authenticated, columnas, backfill de 11 NC) y con pruebas reales revertidas: venta mixta, PV001, crear NC con dueño y saldo, PV008 con otro cliente, consumo por el dueño y anulación que devuelve el crédito. Sin residuos. Quedan 15 NC activas sin dueño en el demo (datos de prueba). PR #1 abierto. Pendiente: aplicar en mascotaspetshop con el preflight y desplegar.
