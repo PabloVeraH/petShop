@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { extraerIva } from "@/lib/tax";
 import type { CrearAsientoInput, LineaAsiento, TipoMovimiento } from "./types";
 import { CUENTAS } from "./types";
+import { METODOS_CREDITO_INTERNO, etiquetaMetodo } from "@/lib/ventas/pagos";
 
 async function nextNumeroAsiento(supabase: ReturnType<typeof createServiceClient>, storeId: string): Promise<number> {
   const { data } = await supabase
@@ -195,23 +196,47 @@ export async function crearAsiento(input: CrearAsientoInput): Promise<string | n
 // Builders por tipo de movimiento
 // ─────────────────────────────────────────────────────────
 
-export function lineasVenta(params: {
-  metodoPago: string;
+// Cuenta que recibe cada medio de pago: efectivo → Caja; tarjeta y
+// transferencia → Banco; crédito interno (NC, saldo a favor) → Saldos a Favor,
+// porque no entra dinero: se consume un pasivo (ticket Trello
+// 6a5f9ad3fbf979e68251d40e). Métodos legados ('saldo_favor', 'plataforma')
+// caen en Banco, igual que con los builders anteriores, para que el reverso
+// de una venta antigua espeje cómo se contabilizó.
+function cuentaDeMetodoPago(metodo: string) {
+  if (METODOS_CREDITO_INTERNO.has(metodo)) return CUENTAS.SALDOS_FAVOR;
+  return metodo === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
+}
+
+export interface PagoAsiento {
+  metodo: string;
+  monto: number;
+}
+
+// Asiento de ingreso de una venta o cita del POS pagada con 1..N medios (pago
+// mixto, docs/plan_pago_mixto.md): una línea de débito por pago, en su cuenta.
+// El IVA no depende de cómo se pagó (DL 825 art. 9): se extrae del total una
+// vez. El llamador garantiza Σ pagos = total; si no, crearAsiento lo rechaza
+// por desbalanceado.
+export function lineasVentaPagos(params: {
+  pagos: PagoAsiento[];
   montoNeto: number;
   iva: number;
-  total: number;
+  cuentaIngreso?: "VENTAS" | "VENTAS_SERVICIOS";
 }): LineaAsiento[] {
-  const cuentaCaja = params.metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
-
+  const servicio = params.cuentaIngreso === "VENTAS_SERVICIOS";
+  const ingreso = servicio ? CUENTAS.VENTAS_SERVICIOS : CUENTAS.VENTAS;
   return [
-    {
-      cuentaCodigo: cuentaCaja.codigo,
-      cuentaNombre: cuentaCaja.nombre,
-      cuentaTipo: cuentaCaja.tipo,
-      debito: params.total,
-      credito: 0,
-      descripcionLinea: "Cobro venta",
-    },
+    ...params.pagos.map((p) => {
+      const cuenta = cuentaDeMetodoPago(p.metodo);
+      return {
+        cuentaCodigo: cuenta.codigo,
+        cuentaNombre: cuenta.nombre,
+        cuentaTipo: cuenta.tipo,
+        debito: p.monto,
+        credito: 0,
+        descripcionLinea: `Cobro ${servicio ? "cita" : "venta"} — ${etiquetaMetodo(p.metodo).toLowerCase()}`,
+      };
+    }),
     {
       cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
       cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
@@ -221,13 +246,56 @@ export function lineasVenta(params: {
       descripcionLinea: "IVA 19%",
     },
     {
+      cuentaCodigo: ingreso.codigo,
+      cuentaNombre: ingreso.nombre,
+      cuentaTipo: ingreso.tipo,
+      debito: 0,
+      credito: params.montoNeto,
+      descripcionLinea: servicio ? "Ingreso por servicio" : "Ingreso por venta",
+    },
+  ];
+}
+
+// Reverso exacto de lineasVentaPagos (anulación completa): cada línea de cobro
+// se acredita en su misma cuenta y por su mismo monto. El crédito interno
+// vuelve a Saldos a Favor, nunca a Caja/Banco, que no recibieron ese dinero
+// (acreditar el total a Caja/Banco las inflaba, ticket Trello
+// 6a5f9ad3fbf979e68251d40e).
+export function lineasAnulacionVentaPagos(params: {
+  pagos: PagoAsiento[];
+  montoNeto: number;
+  iva: number;
+}): LineaAsiento[] {
+  return [
+    {
       cuentaCodigo: CUENTAS.VENTAS.codigo,
       cuentaNombre: CUENTAS.VENTAS.nombre,
       cuentaTipo: CUENTAS.VENTAS.tipo,
-      debito: 0,
-      credito: params.montoNeto,
-      descripcionLinea: "Ingreso por venta",
+      debito: params.montoNeto,
+      credito: 0,
+      descripcionLinea: "Reverso ingreso por venta anulada",
     },
+    {
+      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
+      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
+      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
+      debito: params.iva,
+      credito: 0,
+      descripcionLinea: "Reverso IVA débito fiscal",
+    },
+    ...params.pagos.map((p) => {
+      const cuenta = cuentaDeMetodoPago(p.metodo);
+      return {
+        cuentaCodigo: cuenta.codigo,
+        cuentaNombre: cuenta.nombre,
+        cuentaTipo: cuenta.tipo,
+        debito: 0,
+        credito: p.monto,
+        descripcionLinea: METODOS_CREDITO_INTERNO.has(p.metodo)
+          ? "Reacreditación de saldo a favor por anulación"
+          : `Reverso cobro — ${etiquetaMetodo(p.metodo).toLowerCase()}`,
+      };
+    }),
   ];
 }
 
@@ -287,151 +355,6 @@ export function lineasVentaCanal(params: {
       descripcionLinea: "Ingreso por venta",
     },
   ];
-}
-
-export function lineasVentaConNc(params: {
-  montoNeto: number;
-  iva: number;
-  total: number;
-  montoNc: number;
-  montoResto: number;
-  metodoPagoResto?: string;
-}): LineaAsiento[] {
-  const lineas: LineaAsiento[] = [];
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
-    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
-    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
-    debito: params.montoNc,
-    credito: 0,
-    descripcionLinea: "Pago con Nota de Crédito",
-  });
-
-  if (params.montoResto > 0) {
-    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
-    lineas.push({
-      cuentaCodigo: cuentaCaja.codigo,
-      cuentaNombre: cuentaCaja.nombre,
-      cuentaTipo: cuentaCaja.tipo,
-      debito: params.montoResto,
-      credito: 0,
-      descripcionLinea: "Cobro diferencia venta",
-    });
-  }
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
-    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
-    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
-    debito: 0,
-    credito: params.iva,
-    descripcionLinea: "IVA 19%",
-  });
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.VENTAS.codigo,
-    cuentaNombre: CUENTAS.VENTAS.nombre,
-    cuentaTipo: CUENTAS.VENTAS.tipo,
-    debito: 0,
-    credito: params.montoNeto,
-    descripcionLinea: "Ingreso por venta",
-  });
-
-  return lineas;
-}
-
-// Asiento de ingreso del cobro de una cita completada (servicio). Espejo de
-// lineasVenta pero acreditando VENTAS_SERVICIOS (410103) en vez de VENTAS —
-// separa la línea de negocio de servicios en el Estado de Resultado (Fase 4).
-export function lineasVentaServicio(params: {
-  metodoPago: string;
-  montoNeto: number;
-  iva: number;
-  total: number;
-}): LineaAsiento[] {
-  const cuentaCaja = params.metodoPago === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
-
-  return [
-    {
-      cuentaCodigo: cuentaCaja.codigo,
-      cuentaNombre: cuentaCaja.nombre,
-      cuentaTipo: cuentaCaja.tipo,
-      debito: params.total,
-      credito: 0,
-      descripcionLinea: "Cobro cita (servicio)",
-    },
-    {
-      cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
-      cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
-      cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
-      debito: 0,
-      credito: params.iva,
-      descripcionLinea: "IVA 19%",
-    },
-    {
-      cuentaCodigo: CUENTAS.VENTAS_SERVICIOS.codigo,
-      cuentaNombre: CUENTAS.VENTAS_SERVICIOS.nombre,
-      cuentaTipo: CUENTAS.VENTAS_SERVICIOS.tipo,
-      debito: 0,
-      credito: params.montoNeto,
-      descripcionLinea: "Ingreso por servicio",
-    },
-  ];
-}
-
-// Asiento del cobro de cita pagada total o parcialmente con nota de crédito.
-// Espejo de lineasVentaConNc acreditando VENTAS_SERVICIOS (410103).
-export function lineasVentaServicioConNc(params: {
-  montoNeto: number;
-  iva: number;
-  total: number;
-  montoNc: number;
-  montoResto: number;
-  metodoPagoResto?: string;
-}): LineaAsiento[] {
-  const lineas: LineaAsiento[] = [];
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
-    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
-    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
-    debito: params.montoNc,
-    credito: 0,
-    descripcionLinea: "Pago con Nota de Crédito",
-  });
-
-  if (params.montoResto > 0) {
-    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
-    lineas.push({
-      cuentaCodigo: cuentaCaja.codigo,
-      cuentaNombre: cuentaCaja.nombre,
-      cuentaTipo: cuentaCaja.tipo,
-      debito: params.montoResto,
-      credito: 0,
-      descripcionLinea: "Cobro diferencia cita",
-    });
-  }
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
-    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
-    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
-    debito: 0,
-    credito: params.iva,
-    descripcionLinea: "IVA 19%",
-  });
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.VENTAS_SERVICIOS.codigo,
-    cuentaNombre: CUENTAS.VENTAS_SERVICIOS.nombre,
-    cuentaTipo: CUENTAS.VENTAS_SERVICIOS.tipo,
-    debito: 0,
-    credito: params.montoNeto,
-    descripcionLinea: "Ingreso por servicio",
-  });
-
-  return lineas;
 }
 
 export function lineasNotaCredito(params: {
@@ -641,66 +564,6 @@ export function lineasAnulacionVentaCanal(params: {
       descripcionLinea: "Reverso cobro venta anulada",
     },
   ];
-}
-
-// Reverso de asiento de venta pagada total o parcialmente con nota de
-// crédito / saldo a favor (anulación completa). Espejo exacto de
-// lineasVentaConNc: el crédito consumido se reacredita a Saldos a Favor
-// (pasivo) — NUNCA a Caja/Banco, que no recibieron ese dinero — y solo el
-// resto pagado en dinero revierte a Caja|Banco. Usar
-// lineasAnulacionVentaCanal para estas ventas acredita el TOTAL a
-// Caja|Banco: infla esas cuentas (puede llevarlas a saldo negativo, ticket
-// Trello 6a5f9ad3fbf979e68251d40e) y deja el pasivo Saldos a Favor sin
-// reacreditar.
-export function lineasAnulacionVentaConNc(params: {
-  montoNeto: number;
-  iva: number;
-  montoNc: number;
-  montoResto: number;
-  metodoPagoResto?: string;
-}): LineaAsiento[] {
-  const lineas: LineaAsiento[] = [];
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.VENTAS.codigo,
-    cuentaNombre: CUENTAS.VENTAS.nombre,
-    cuentaTipo: CUENTAS.VENTAS.tipo,
-    debito: params.montoNeto,
-    credito: 0,
-    descripcionLinea: "Reverso ingreso por venta anulada",
-  });
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.IVA_PAGAR.codigo,
-    cuentaNombre: CUENTAS.IVA_PAGAR.nombre,
-    cuentaTipo: CUENTAS.IVA_PAGAR.tipo,
-    debito: params.iva,
-    credito: 0,
-    descripcionLinea: "Reverso IVA débito fiscal",
-  });
-
-  lineas.push({
-    cuentaCodigo: CUENTAS.SALDOS_FAVOR.codigo,
-    cuentaNombre: CUENTAS.SALDOS_FAVOR.nombre,
-    cuentaTipo: CUENTAS.SALDOS_FAVOR.tipo,
-    debito: 0,
-    credito: params.montoNc,
-    descripcionLinea: "Reacreditación de saldo a favor por anulación",
-  });
-
-  if (params.montoResto > 0) {
-    const cuentaCaja = params.metodoPagoResto === "efectivo" ? CUENTAS.CAJA : CUENTAS.BANCO;
-    lineas.push({
-      cuentaCodigo: cuentaCaja.codigo,
-      cuentaNombre: cuentaCaja.nombre,
-      cuentaTipo: cuentaCaja.tipo,
-      debito: 0,
-      credito: params.montoResto,
-      descripcionLinea: "Reverso cobro diferencia venta anulada",
-    });
-  }
-
-  return lineas;
 }
 
 // Reverso de COGS (inventario reincorporado al stock por anulación de venta)

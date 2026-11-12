@@ -2590,3 +2590,131 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | IGP-08 | REGRESIÓN: editar carga el post aunque no sea borrador; PATCH sin `borrador` | Instagram editor | component |
 | IGP-09 | REGRESIÓN: "Guardar como Borrador" manda `borrador: true`; errores visibles | Instagram editor | component |
 | I-REC-13 | REGRESIÓN: el HTML del recibo escapa nombres de cliente, producto, tienda, vendedor y método de pago (antes se interpolaban crudos) | GET /api/recibos/[ventaId] | integration |
+| U-236 | Pago mixto: acepta 1, 2 y 3 medios con suma exacta | validarPagos (src/lib/ventas/pagos.ts) | unit |
+| U-237 | Pago mixto: suma menor o mayor al total se rechaza (sin tolerancia ni vuelto) | validarPagos | unit |
+| U-238 | Pago mixto: negativos, decimales y $0 junto a otros pagos se rechazan; $0 solo como pago único de una venta de $0 | validarPagos | unit |
+| U-239 | Pago mixto: débito/crédito/transferencia exigen número de transacción por fila | validarPagos | unit |
+| U-240 | Pago mixto: NC exige notaCreditoId; notaCreditoId solo en NC; máx. 1 NC y 1 saldo; nunca NC + saldo (D8) | validarPagos | unit |
+| U-241 | Pago mixto: saldo a favor exige cliente; más de 5 medios o lista vacía se rechazan | validarPagos | unit |
+| U-242 | Pago mixto: métodos plataforma, mixto y saldo_favor no se aceptan como pago | validarPagos | unit |
+| U-243 | normalizarPagos: formato legado (un método, NC parcial, NC total) → pagos[] | normalizarPagos | unit |
+| U-244 | normalizarPagos usa pagos[] tal cual; pagosParaRpc pasa a snake_case sin TRX vacío | normalizarPagos / pagosParaRpc | unit |
+| U-245 | calcularMontoBoleta (Res. Ex. SII 176/2020): tarjeta no se boletea; efectivo, transferencia, NC y saldo sí | calcularMontoBoleta | unit |
+| U-246 | desgloseBoleta agrupa por método y omite tarjetas | desgloseBoleta | unit |
+| U-247 | VentaCreateSchema acepta pagos[] sin metodoPago y el formato legado | VentaCreateSchema | unit |
+| U-248 | VentaCreateSchema rechaza pagos[] junto con metodoPago, pagoNc o numeroTransaccion | VentaCreateSchema | unit |
+| U-249 | VentaCreateSchema: sin pagos ni metodoPago → error; legado endurecido (mixto, saldo_favor, plataforma, NC sin pagoNc) | VentaCreateSchema | unit |
+| U-250 | VentaCreateSchema aplica reglas de forma de pagos[] y rechaza pagos[] en canales externos | VentaCreateSchema | unit |
+| U-251 | CitaAccionSchema completar: pagos[], legado o nada (cita sin precio); nunca ambos | CitaAccionSchema | unit |
+| U-252 | lineasVentaPagos: efectivo + débito → Caja y Banco por su monto; balanceado | generador-asientos | unit |
+| U-253 | lineasVentaPagos: NC + efectivo + crédito → una línea por pago; saldo a favor → Saldos a Favor | generador-asientos | unit |
+| U-254 | lineasAnulacionVentaPagos es el inverso exacto de lineasVentaPagos, línea a línea | generador-asientos | unit |
+| U-255 | lineasVentaPagos de una cita acredita VENTAS_SERVICIOS | generador-asientos | unit |
+| U-256 | PROPIEDAD (fast-check): cualquier partición en 1..5 pagos → Σ debe = Σ haber = total, también en el reverso | generador-asientos | unit |
+| I-787 | POST /api/ventas pago mixto: efectivo + débito → p_pagos exactos y asiento con Caja y Banco por su monto | POST /api/ventas | integration |
+| I-788 | POST /api/ventas pago mixto: sin sesión → 401 sin RPC | POST /api/ventas | integration |
+| I-789 | POST /api/ventas pago mixto: la suma se valida contra el total del servidor; distinta → 400 sin RPC | POST /api/ventas | integration |
+| I-790 | POST /api/ventas pago mixto: store_id malicioso en el body se ignora | POST /api/ventas | integration |
+| I-791 | POST /api/ventas pago mixto: NC de otra tienda (IDOR) → 404, búsqueda filtrada por tienda, sin RPC | POST /api/ventas | integration |
+| I-792 | POST /api/ventas: NC con reembolso directo → 409 sin RPC (D7) | POST /api/ventas | integration |
+| I-793 | POST /api/ventas: saldo a favor sin cliente → 400; con cliente → viaja en p_pagos | POST /api/ventas | integration |
+| I-794 | POST /api/ventas: errores PV001…PV007 de la RPC se mapean a HTTP (saldo insuficiente no es stock) | POST /api/ventas | integration |
+| I-795 | POST /api/ventas: pagos[] + metodoPago, más de 5 medios o NC + saldo → 400 sin RPC | POST /api/ventas | integration |
+| I-796 | POST /api/ventas: pagos[] en canal externo → 400 | POST /api/ventas | integration |
+| I-797 | POST /api/ventas: legado endurecido (mixto, saldo_favor, plataforma, NC sin pagoNc) → 400 | POST /api/ventas | integration |
+| I-798 | POST /api/ventas: el correo lleva el desglose real de pagos (NC con su número) | POST /api/ventas | integration |
+| I-799 | POST /api/ventas pago mixto: reintento idempotente no repite asiento ni correo | POST /api/ventas | integration |
+| I-800 | REGRESIÓN: anular venta mixta efectivo + débito revierte ambos pagos (antes solo el primero, .find) | anular-venta | integration |
+| I-801 | Anulación: pagos que no suman el total o canal externo → reverso de un solo método | anular-venta | integration |
+| I-802 | GET /api/notas-credito?numero_nc: NC con reembolso directo → 409 (D7) | GET /api/notas-credito | integration |
+| I-803 | GET /api/notas-credito?numero_nc: monto_disponible = mín(NC, saldo del cliente de origen); sin saldo → 409 (D8) | GET /api/notas-credito | integration |
+| I-804 | GET /api/notas-credito?numero_nc: no expone store_id ni venta_id | GET /api/notas-credito | integration |
+| I-805 | Backfill contable: venta mixta → una línea de cobro por pago; pagos que no cuadran → un cobro por el total | POST /api/contabilidad/backfill | integration |
+| I-CITA-78 | Cita con pagos[] efectivo + saldo a favor → p_pagos y asiento con una línea por pago | PATCH /api/citas/[id] | integration |
+| I-CITA-79 | Cita: pagos[] que no suman el precio → 400 sin RPC | PATCH /api/citas/[id] | integration |
+| I-CITA-80 | Cita: saldo a favor sin cliente → 400; pagos[] + metodoPago → 400 | PATCH /api/citas/[id] | integration |
+| I-CITA-81 | Cita: NC con reembolso directo → 409 sin RPC (D7) | PATCH /api/citas/[id] | integration |
+| I-CITA-82 | Cita: saldo insuficiente de la RPC (PV006) → 409 | PATCH /api/citas/[id] | integration |
+| PMX-SQL-01…15 | RPC real (Postgres local, `bash tests/sql/run.sh`): pagos mixtos, suma exacta, forma, NC (reembolso directo, vencida, usada, otra tienda, saldo gastado), saldo a favor (descuento, insuficiente, sin cliente, otra tienda), anulación reacredita, parámetros legados, idempotencia, venta $0, citas | migración 093 | sql |
+| S-07/S-26/S-43/S-44 | (actualizados por pago mixto F7) el store no contiene estado de cobro; un blob antiguo con NC a medio cobrar no se vuelve a persistir | usePOSStore | unit |
+| MP-13…MP-15 | (actualizados F7) N° de transacción por fila: débito lo pide, efectivo no, crédito sin TRX bloquea Cobrar | ModalPago | component |
+| MP-17…MP-19 | (actualizados F7) apertura neutra: blob viejo con NC heredada se ignora; un pago en efectivo por el total; reabrir tras cobro mixto vuelve a un pago | ModalPago | component |
+| MP-26 | Pago mixto: Cobrar envía los pagos elegidos (efectivo + débito con TRX) | ModalPago | component |
+| MP-27 | Pago mixto: con resto ≠ 0 Cobrar se deshabilita e informa Falta/Sobra | ModalPago | component |
+| MP-28 | Aviso de boleta (Res. 176): efectivo + débito → boletear solo el efectivo; 100 % tarjeta → voucher cubre | ModalPago | component |
+| MP-29 | Si cambia el total (descuento), un pago único por el total lo sigue | ModalPago | component |
+| MP-30 | Aviso 135 UF solo sobre el umbral configurado; no bloquea | ModalPago | component |
+| MP-31 | Saldo a favor no elegible sin cliente (UX; control real I-793) | ModalPago | component |
+| SP-01 | SelectorPagos: validar NC (URL codificada) aplica mín(disponible, lo que falta) | SelectorPagos | component |
+| SP-02 | SelectorPagos: NC mayor a lo que falta se aplica solo por lo que falta | SelectorPagos | component |
+| SP-03 | SelectorPagos: error de la API de NC (reembolso directo) se muestra y la fila queda sin NC | SelectorPagos | component |
+| SP-04 | errorFilas: monto de NC mayor a su disponible se rechaza aunque la suma cuadre | SelectorPagos | component |
+| SP-05 | SelectorPagos: saldo a favor muestra el disponible y rechaza montos mayores | SelectorPagos | component |
+| SP-06 | SelectorPagos: error al consultar el saldo se muestra | SelectorPagos | component |
+| SP-07 | SelectorPagos: con NC, otra fila no puede elegir saldo a favor ni otra NC (D8) | SelectorPagos | component |
+| SP-08 | SelectorPagos: máximo 5 medios | SelectorPagos | component |
+| SP-09 | SelectorPagos: quitar fila recalcula el resto; una sola fila no se puede quitar | SelectorPagos | component |
+| SP-10 | SelectorPagos: cambiar de débito a efectivo descarta el TRX | SelectorPagos | component |
+| PP-18 | POS: tras cobrar queda visible "Emitir boleta SII por $X" hasta cerrarlo o abrir otro cobro | POSPage | component |
+| COB-01…COB-08 | (reescritos F8) cobro de cita con SelectorPagos: desglose, efectivo, TRX, NC total/parcial/inexistente, error del PATCH | ModalCobroCita | component |
+| COB-09 | Cobro de cita efectivo + saldo a favor del cliente de la cita → PATCH con ambos pagos | ModalCobroCita | component |
+| COB-10 | Cobro de cita: aviso de boleta (crédito + efectivo → boletear el efectivo) | ModalCobroCita | component |
+| C-95 | Detalle de venta: pago mixto → "Emitir boleta SII por $X" con desglose, sin débito | SalesTicketPage | component |
+| C-96 | Detalle de venta: 100 % tarjeta → "El voucher Transbank cubre el total" | SalesTicketPage | component |
+| C-97 | Detalle de venta: NC y saldo a favor entran en el monto a boletear | SalesTicketPage | component |
+| C-98 | Detalle de venta: sin aviso para canales externos ni ventas anuladas | SalesTicketPage | component |
+| C-99 | Detalle de venta: sin canal se trata como POS; sin pagos no hay aviso | SalesTicketPage | component |
+| C-100 | Ticket: leyenda "No válido como documento tributario" impresa; aviso fuera de lo impreso; sin "boleta" | SalesTicketPage | component |
+| C-101 | Ticket: métodos con etiqueta legible (Mixto, Saldo a favor, Débito) | SalesTicketPage | component |
+| C-115 | Settings: umbral 135 UF se muestra, se edita en pesos y vaciarlo envía null | SettingsPage | component |
+| U-260 | PDF: título "COMPROBANTE DE VENTA" con leyenda, sin "boleta" (D12) | pdf-generator | unit |
+| U-261 | PDF: formas de pago con etiquetaMetodo | pdf-generator | unit |
+| U-262 | Correo: "Comprobante de venta" + leyenda, sin "boleta" | email | unit |
+| U-263 | Correo: métodos con etiquetaMetodo y TRX escapado | email | unit |
+| U-264 | Correo: asunto "Comprobante de venta…" y adjunto comprobante-*.pdf | email | unit |
+| I-806 | Recibo HTML: título de comprobante y leyenda, sin "boleta" | GET /api/recibos/[ventaId] | integration |
+| I-807 | Recibo HTML: métodos legibles (Débito #TRX, Nota de crédito, Saldo a favor) | GET /api/recibos/[ventaId] | integration |
+| I-808 | GET /api/ventas/[id] devuelve canal, filtrando por store_id | GET /api/ventas/[id] | integration |
+| I-830 | GET /api/tienda/nombre: expone solo nombre, RUT y umbral 135 UF (null si no está configurado) | GET /api/tienda/nombre | integration |
+| I-831 | PATCH /api/settings: el admin guarda/limpia el umbral 135 UF; un PATCH que no lo menciona no lo toca | PATCH /api/settings | integration |
+| I-832 | PATCH /api/settings: umbral 0, negativo, decimal o texto → 400 sin escribir | PATCH /api/settings | integration |
+| U-270 | cargarPagosPorVenta hace UNA query a pagos filtrada por store_id y agrupa por venta | reportes/dashboard (pago mixto) | unit |
+| U-271 | sin ventas no consulta la BD | reportes/dashboard (pago mixto) | unit |
+| U-272 | solo la venta mixta se reparte; las demás siguen por metodo_pago | reportes/dashboard (pago mixto) | unit |
+| U-273 | montoBoleta — tarjeta 100 % = 0; efectivo + débito = solo efectivo | reportes/dashboard (pago mixto) | unit |
+| U-274 | venta POS antigua sin filas en pagos usa su metodo_pago por el total; canal externo no boletea | reportes/dashboard (pago mixto) | unit |
+| U-275 | ventasConPagos pide pagos de las mixtas y de las POS, no de las de canal no mixtas | reportes/dashboard (pago mixto) | unit |
+| I-816 | la venta mixta se reparte entre sus métodos y 'mixto' no aparece | reportes/dashboard (pago mixto) | integration |
+| I-817 | montoBoleta = efectivo de la mixta + venta antigua sin pagos; tarjeta y canal no suman | reportes/dashboard (pago mixto) | integration |
+| I-818 | la query a pagos es una sola y filtra por el store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-819 | sin sesión → 401 sin consultar pagos | reportes/dashboard (pago mixto) | integration |
+| I-820 | período sin ventas → montoBoleta 0 y sin query a pagos | reportes/dashboard (pago mixto) | integration |
+| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta | reportes/dashboard (pago mixto) | integration |
+| I-822 | la query a pagos filtra por store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-823 | storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id | reportes/dashboard (pago mixto) | integration |
+| I-824 | sin sesión → 401 | reportes/dashboard (pago mixto) | integration |
+| I-825 | CSV con 'Detalle pagos' (escapado) y 'Monto a boletear'; venta antigua usa metodo_pago | reportes/dashboard (pago mixto) | integration |
+| I-826 | detalle con coma o comilla se escapa con esc() | reportes/dashboard (pago mixto) | integration |
+| I-827 | una sola query a pagos, con store_id de la sesión; storeWorker → 403 sin consultar | reportes/dashboard (pago mixto) | integration |
+| C-105 | muestra el total y el desglose por método con etiquetas legibles | reportes/dashboard (pago mixto) | component |
+| C-106 | estado vacío (solo tarjeta o sin ventas) → $0 y 'Sin montos a boletear' | reportes/dashboard (pago mixto) | component |
+| C-107 | sin el campo en la respuesta no se renderiza (no inventa un $0) | reportes/dashboard (pago mixto) | component |
+| C-108 | muestra el total a boletear que devuelve /api/reports | reportes/dashboard (pago mixto) | component |
+| C-109 | período sin montos a boletear → estado vacío | reportes/dashboard (pago mixto) | component |
+| C-110 | muestra el total a boletear de hoy que devuelve /api/dashboard | reportes/dashboard (pago mixto) | component |
+| U-257 | REVISIÓN (M1): NC o saldo a favor por $0 se rechazan aunque la venta sea de $0 | validarPagos | unit |
+| I-833 | REVISIÓN (M2): suma distinta del total del servidor → 400 con el total real y cómo seguir | POST /api/ventas | integration |
+| I-834 | REVISIÓN (B5): la respuesta trae los pagos de la venta (los reales de la BD en un reintento idempotente) | POST /api/ventas | integration |
+| PP-19 | REVISIÓN (B5): el aviso de boleta usa los pagos que devuelve el servidor | POSPage | component |
+| PMX-SQL-16 | REVISIÓN (C1, CRÍTICO): orden de canal externo con los parámetros exactos de procesar-orden.ts crea la venta con pago 'plataforma'; 'plataforma' sigue prohibido en el POS | migración 093 | sql |
+| PMX-SQL-17 | REVISIÓN (M1): NC o saldo a favor por $0 → PV001, la NC queda activa | migración 093 | sql |
+| U-236 | (actualizado) acepta 1–3 medios con suma exacta; con NC exige cliente (solo el dueño la usa) | validarPagos | unit |
+| I-835 | GET /api/notas-credito?numero_nc: sin cliente en la venta → 400; NC de otro cliente → 409; NC sin dueño → 409 | GET /api/notas-credito | integration |
+| I-836 | POST /api/notas-credito: clienteId viaja como p_cliente_id (null si no viene); PV009 → 400; clienteId inválido → 400 | POST /api/notas-credito | integration |
+| I-837 | POST /api/ventas: NC sin cliente en la venta → 400; de otro cliente → 409; sin dueño → 409; sin llegar a la RPC | POST /api/ventas | integration |
+| I-CITA-83 | Cita: la NC de otro cliente no paga la cita → 409 sin RPC | PATCH /api/citas/[id] | integration |
+| SP-11 | SelectorPagos: sin cliente en la venta, "Nota de crédito" no se puede elegir (UX) | SelectorPagos | component |
+| DV-23 | Devolución de venta con cliente: no pide cliente ni envía clienteId | DevolucionModal | component |
+| DV-24 | Devolución de venta sin cliente: Confirmar bloqueado hasta buscar el cliente por RUT; el POST lleva su id | DevolucionModal | component |
+| DV-25 | Devolución: RUT sin cliente registrado → mensaje y sigue bloqueado | DevolucionModal | component |
+| PMX-SQL-18…22 | Dueño de la NC: otro cliente o venta sin cliente → PV008; NC sin dueño → PV008; crear NC exige cliente (PV009) y suma el saldo al dueño; anular devuelve el crédito al dueño (venta que la usó y venta de origen) | migración 093 | sql |

@@ -1,0 +1,2 @@
+# Scripts de shell siempre con LF: bash falla con CRLF (core.autocrlf=true en Windows).
+*.sh text eol=lf

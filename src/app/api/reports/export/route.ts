@@ -4,6 +4,8 @@ import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { exigirStoreAdmin } from "@/lib/admin-check";
 import { hoyNegocioISO, instanteDeTimestamp, ZONA_NEGOCIO } from "@/lib/dates";
+import { calcularMontoBoleta, etiquetaMetodo } from "@/lib/ventas/pagos";
+import { cargarPagosPorVenta, esVentaPos, pagosDeVenta } from "@/lib/reports/pagos-reporte";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -29,7 +31,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (tipo === "ventas") {
     let query = supabase
       .from("ventas")
-      .select("numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, estado, worker_clerk_id, clientes(nombre, rut)")
+      .select("id, numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, canal, estado, worker_clerk_id, clientes(nombre, rut)")
       .eq("store_id", store_id)
       .order("created_at", { ascending: false });
     if (desde) query = query.gte("created_at", desde);
@@ -49,9 +51,13 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       for (const w of workers ?? []) if (w.nombre) nombreVendedor[w.clerk_id] = w.nombre;
     }
 
-    csv = "Comprobante,Fecha,Vendedor,Cliente,RUT,Total,Subtotal,Descuento,IVA,Método,Estado\n";
+    // Pagos de todas las ventas exportadas en una sola query (store_id de la sesión).
+    const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, (data ?? []).map((v) => v.id));
+
+    csv = "Comprobante,Fecha,Vendedor,Cliente,RUT,Total,Subtotal,Descuento,IVA,Método,Estado,Detalle pagos,Monto a boletear\n";
     for (const v of data ?? []) {
       const cliente = v.clientes as unknown as { nombre: string; rut: string } | null;
+      const pagos = pagosDeVenta(v, pagosPorVenta);
       csv += [
         esc(v.numero_comprobante),
         esc(instanteDeTimestamp(v.created_at).toLocaleString("es-CL", { timeZone: ZONA_NEGOCIO })),
@@ -64,6 +70,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
         Math.round(Number(v.impuesto)),
         esc(v.metodo_pago),
         esc(v.estado),
+        esc(pagos.map((p) => `${etiquetaMetodo(p.metodo)} $${Math.round(p.monto).toLocaleString("es-CL")}`).join("; ")),
+        // Solo ventas del POS: las de canal no pasan por el cobro con boleta.
+        esVentaPos(v) ? calcularMontoBoleta(pagos) : "",
       ].join(",") + "\n";
     }
   } else if (tipo === "inventario") {

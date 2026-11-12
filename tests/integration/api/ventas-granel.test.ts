@@ -49,7 +49,7 @@ describe("createVenta — propagación es_granel al backend", () => {
         es_granel: true,
         gramos: 800,
       }],
-      metodoPago: "efectivo",
+      pagos: [{ metodo: "efectivo", monto: 8000 }],
       descuentoPct: 0,
       procedencia: "presencial",
     });
@@ -77,7 +77,7 @@ describe("createVenta — propagación es_granel al backend", () => {
         gramos: 500,
         abrir_saco: true,
       }],
-      metodoPago: "efectivo",
+      pagos: [{ metodo: "efectivo", monto: 8000 }],
       descuentoPct: 0,
       procedencia: "presencial",
     });
@@ -97,7 +97,7 @@ describe("createVenta — propagación es_granel al backend", () => {
         precio_unitario: 56000,
         subtotal: 56000,
       }],
-      metodoPago: "efectivo",
+      pagos: [{ metodo: "efectivo", monto: 8000 }],
       descuentoPct: 0,
       procedencia: "presencial",
     });
@@ -118,7 +118,7 @@ describe("createVenta — propagación es_granel al backend", () => {
     await expect(
       createVenta({
         items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, precio_unitario: 10000, subtotal: 5000, es_granel: true }],
-        metodoPago: "efectivo",
+        pagos: [{ metodo: "efectivo", monto: 8000 }],
         descuentoPct: 0,
         procedencia: "presencial",
       })
@@ -137,7 +137,7 @@ describe("createVenta — propagación es_granel al backend", () => {
     await expect(
       createVenta({
         items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, precio_unitario: 10000, subtotal: 5000, es_granel: true }],
-        metodoPago: "efectivo",
+        pagos: [{ metodo: "efectivo", monto: 8000 }],
         descuentoPct: 0,
         procedencia: "presencial",
       })

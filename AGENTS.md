@@ -1097,6 +1097,36 @@ Pendiente aparte: las funciones SQL usan `CURRENT_DATE` (UTC) en 16 lugares
 (número de comprobante de `crear_venta_tx`, FIFO de lotes, fecha de ingreso,
 licencia vigente); requieren su propia migración.
 
+### 23.8 Pago mixto: una sola regla de pagos, en la RPC (migración 093)
+
+Una venta del POS o una cita se paga con 1 a 5 medios (`pagos[]`). La
+autoridad es `validar_pagos` / `aplicar_pagos` (llamadas por `crear_venta_tx`
+y `completar_cita_tx`); `src/lib/ventas/pagos.ts` repite las reglas para
+fallar temprano. No agregues un tercer camino de cobro que inserte en `pagos`
+por su cuenta.
+
+- `Σ pagos.monto = ventas.total`, montos enteros; `$0` solo como pago único
+  de una venta de `$0`. `ventas.metodo_pago` (método único o `'mixto'`) lo
+  decide **solo** `validar_pagos`.
+- Una NC con `tipo_reembolso <> 'saldo_a_favor'` no paga nada (el dinero ya se
+  devolvió). Pagar con una NC descuenta el saldo del cliente de la venta de
+  origen **condicionalmente** (`saldo_disponible >= monto`, sin piso 0): la NC
+  y el saldo son el mismo dinero. Nunca NC + saldo a favor en la misma venta.
+- Dueño de la NC: `notas_credito.cliente_id`. Toda NC nueva exige cliente
+  (el de la venta o el que registra el cajero) y **solo ese cliente la usa**;
+  la anulación devuelve el crédito al dueño. No vuelvas a deducir el dueño de
+  la venta de origen.
+- Contabilidad: una línea de cobro por pago (`lineasVentaPagos`); el reverso
+  espeja **cada** pago (`lineasAnulacionVentaPagos`). Antes la anulación
+  revertía solo el primer pago en dinero.
+- Fiscal (docs/pago_complementario.md §6.0): el sistema no emite boletas. El
+  voucher Transbank cubre solo la parte con tarjeta; `calcularMontoBoleta` es
+  la única fórmula de "cuánto boletear". Ningún documento del sistema se
+  rotula "Boleta".
+
+Pruebas contra la RPC real: `bash tests/sql/run.sh` (Postgres local en Docker,
+nunca Supabase).
+
 ## 24. Checklist de seguridad (revisado 2026-10-13)
 
 Veinte controles que todo cambio debe preservar. La columna **Cómo se

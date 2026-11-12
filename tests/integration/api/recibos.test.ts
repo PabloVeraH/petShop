@@ -284,8 +284,9 @@ describe("GET /api/recibos/[ventaId]", () => {
 
     expect(res.status).toBe(200);
     expect(data.html).toContain("Efectivo");
-    expect(data.html).toContain("Credito");
-    expect(data.html).toContain("000789456123");
+    // Etiqueta de dominio (etiquetaMetodo), no el código capitalizado.
+    expect(data.html).toContain("Crédito #000789456123");
+    expect(data.html).not.toContain("Credito");
   });
 
   it("retorna 400 sin ventaId", async () => {
@@ -659,7 +660,55 @@ describe("GET /api/recibos/[ventaId]", () => {
     const { html } = await res.json();
 
     expect(html).not.toContain("<img");
-    for (const t of ["Cliente &lt;img", "Prod &lt;img", "Tienda &lt;img", "Vend &lt;img", "Efectivo&lt;img"]) expect(html).toContain(t);
+    // Un método desconocido pasa tal cual por etiquetaMetodo y se sigue escapando.
+    for (const t of ["Cliente &lt;img", "Prod &lt;img", "Tienda &lt;img", "Vend &lt;img", "efectivo&lt;img"]) expect(html).toContain(t);
+  });
+
+  // Recibo mínimo con los pagos dados (venta, tienda; sin vendedor).
+  async function htmlConPagos(pagos: { metodo: string; monto: number; numero_transaccion: string | null }[]) {
+    const singles = [
+      { data: { id: mockVentaId, store_id: mockStoreId, numero_comprobante: "N-1", total: 17000, subtotal: 17000,
+        descuento: 0, impuesto: 2714, estado: "pagada", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null,
+        clientes: null, venta_items: [] }, error: null },
+      { data: { name: "Tienda", rut: "1-9", address: null }, error: null },
+    ];
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(() => Promise.resolve(singles.shift() ?? { data: null, error: null })),
+    };
+    const pagosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: pagos, error: null }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "pagos" ? pagosChain : chain)),
+    });
+    const res = await GET(new NextRequest(`http://localhost/api/recibos/${mockVentaId}`), { params: Promise.resolve({ ventaId: mockVentaId }) });
+    expect(res.status).toBe(200);
+    return (await res.json()).html as string;
+  }
+
+  // I-806 — decisión D12 (docs/pago_complementario.md §6.0): la tienda no emite
+  // boletas desde el sistema; el recibo se rotula como comprobante y lo dice.
+  it("I-806: el recibo se rotula 'Comprobante de venta', con la leyenda 'No válido como documento tributario' y sin 'Boleta'", async () => {
+    const html = await htmlConPagos([{ metodo: "efectivo", monto: 17000, numero_transaccion: null }]);
+    expect(html).toContain("<title>Comprobante de venta N-1</title>");
+    expect(html).toContain("No válido como documento tributario");
+    expect(html).not.toMatch(/boleta/i);
+  });
+
+  // I-807 — pago mixto: cada medio con su etiqueta de dominio; antes salía el
+  // código crudo capitalizado ("Nota_credito", "Saldo_a_favor", "Debito").
+  it("I-807: los métodos de pago se muestran con etiquetaMetodo (Débito, Nota de crédito, Saldo a favor), no el código crudo", async () => {
+    const html = await htmlConPagos([
+      { metodo: "debito", monto: 10000, numero_transaccion: "TRX-1" },
+      { metodo: "nota_credito", monto: 4000, numero_transaccion: null },
+      { metodo: "saldo_a_favor", monto: 3000, numero_transaccion: null },
+    ]);
+    for (const t of ["Débito #TRX-1", "Nota de crédito", "Saldo a favor"]) expect(html).toContain(t);
+    for (const t of ["Nota_credito", "Saldo_a_favor", "Debito"]) expect(html).not.toContain(t);
   });
 });
 

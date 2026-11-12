@@ -1,21 +1,43 @@
 import {
-  lineasVenta,
+  lineasVentaPagos,
+  lineasAnulacionVentaPagos,
   lineasVentaCOGS,
   lineasNotaCredito,
   lineasCompra,
   lineasPagoProveedor,
   lineasCierreCOGS,
   lineasAnulacionVentaCanal,
-  lineasAnulacionVentaConNc,
   lineasAnulacionCOGS,
   lineasNotaCreditoCOGS,
-  lineasVentaConNc,
   lineasAporteCapital,
-  lineasVentaServicio,
-  lineasVentaServicioConNc,
 } from "@/lib/contabilidad/generador-asientos";
 
 import { CUENTAS } from "@/lib/contabilidad/types";
+import { extraerIva } from "@/lib/tax";
+import fc from "fast-check";
+
+// Desde la migración 093 (pago mixto) los asientos de venta, cita y anulación
+// se arman con lineasVentaPagos / lineasAnulacionVentaPagos a partir de la
+// lista de pagos. Estos adaptadores expresan los escenarios que antes probaban
+// lineasVenta, lineasVentaConNc, lineasVentaServicio(ConNc) y
+// lineasAnulacionVentaConNc (eliminados) con los builders nuevos, para que
+// todas las aserciones previas sigan vigentes sobre el código real.
+type ParamsConNc = { montoNeto: number; iva: number; montoNc: number; montoResto: number; metodoPagoResto?: string };
+const pagosConNc = (p: ParamsConNc) => [
+  { metodo: "nota_credito", monto: p.montoNc },
+  // Antes, un resto sin método caía en Banco (≠ "efectivo"): "debito" equivale.
+  ...(p.montoResto > 0 ? [{ metodo: p.metodoPagoResto ?? "debito", monto: p.montoResto }] : []),
+];
+const lineasVenta = (p: { metodoPago: string; montoNeto: number; iva: number; total: number }) =>
+  lineasVentaPagos({ pagos: [{ metodo: p.metodoPago, monto: p.total }], montoNeto: p.montoNeto, iva: p.iva });
+const lineasVentaConNc = (p: ParamsConNc & { total: number }) =>
+  lineasVentaPagos({ pagos: pagosConNc(p), montoNeto: p.montoNeto, iva: p.iva });
+const lineasAnulacionVentaConNc = (p: ParamsConNc) =>
+  lineasAnulacionVentaPagos({ pagos: pagosConNc(p), montoNeto: p.montoNeto, iva: p.iva });
+const lineasVentaServicio = (p: { metodoPago: string; montoNeto: number; iva: number; total: number }) =>
+  lineasVentaPagos({ pagos: [{ metodo: p.metodoPago, monto: p.total }], montoNeto: p.montoNeto, iva: p.iva, cuentaIngreso: "VENTAS_SERVICIOS" });
+const lineasVentaServicioConNc = (p: ParamsConNc & { total: number }) =>
+  lineasVentaPagos({ pagos: pagosConNc(p), montoNeto: p.montoNeto, iva: p.iva, cuentaIngreso: "VENTAS_SERVICIOS" });
 
 describe("Generador de Asientos Contables", () => {
   describe("lineasVenta - Venta Efectivo", () => {
@@ -740,5 +762,89 @@ describe("lineasVentaServicioConNc — cobro de cita con nota de crédito", () =
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS_SERVICIOS.codigo)?.credito).toBe(8403);
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo)?.credito).toBe(1597);
     expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.COGS.codigo)).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pago mixto (migración 093, docs/plan_pago_mixto.md): una línea de cobro por
+// pago, en su cuenta, y reverso que espeja cada línea.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("lineasVentaPagos / lineasAnulacionVentaPagos — pago mixto", () => {
+  const sum = (ls: { debito: number; credito: number }[], k: "debito" | "credito") => ls.reduce((s, l) => s + l[k], 0);
+  // Venta de $17.000: neto 14.286 + IVA 2.714 (extraerIva).
+  const BASE = { montoNeto: 14286, iva: 2714 };
+
+  it("U-252: efectivo + débito → Caja y Banco por su monto, IVA y Ventas; balanceado al total", () => {
+    const lineas = lineasVentaPagos({ ...BASE, pagos: [{ metodo: "efectivo", monto: 5000 }, { metodo: "debito", monto: 12000 }] });
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)?.debito).toBe(5000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)?.debito).toBe(12000);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.IVA_PAGAR.codigo)?.credito).toBe(2714);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo)?.credito).toBe(14286);
+    expect(sum(lineas, "debito")).toBe(17000);
+    expect(sum(lineas, "credito")).toBe(17000);
+  });
+
+  it("U-253: NC + efectivo + crédito → tres líneas de cobro (Saldos a Favor, Caja, Banco); saldo a favor también va a Saldos a Favor", () => {
+    const lineas = lineasVentaPagos({
+      ...BASE,
+      pagos: [
+        { metodo: "nota_credito", monto: 3000 },
+        { metodo: "efectivo", monto: 2000 },
+        { metodo: "credito", monto: 12000 },
+      ],
+    });
+    const cobros = lineas.filter((l) => l.debito > 0);
+    expect(cobros.map((l) => [l.cuentaCodigo, l.debito])).toEqual([
+      [CUENTAS.SALDOS_FAVOR.codigo, 3000],
+      [CUENTAS.CAJA.codigo, 2000],
+      [CUENTAS.BANCO.codigo, 12000],
+    ]);
+    const conSaldo = lineasVentaPagos({ ...BASE, pagos: [{ metodo: "saldo_a_favor", monto: 4000 }, { metodo: "transferencia", monto: 13000 }] });
+    expect(conSaldo.find((l) => l.cuentaCodigo === CUENTAS.SALDOS_FAVOR.codigo)?.debito).toBe(4000);
+    expect(conSaldo.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)?.debito).toBe(13000);
+  });
+
+  it("U-254: el reverso es el inverso exacto línea a línea (mismas cuentas y montos, débito ↔ crédito)", () => {
+    const pagos = [
+      { metodo: "nota_credito", monto: 3000 },
+      { metodo: "efectivo", monto: 2000 },
+      { metodo: "debito", monto: 12000 },
+    ];
+    const original = lineasVentaPagos({ ...BASE, pagos });
+    const reverso = lineasAnulacionVentaPagos({ ...BASE, pagos });
+    const neto = new Map<string, number>();
+    for (const l of [...original, ...reverso]) {
+      neto.set(l.cuentaCodigo, (neto.get(l.cuentaCodigo) ?? 0) + l.debito - l.credito);
+    }
+    for (const [cuenta, saldo] of neto) expect([cuenta, saldo]).toEqual([cuenta, 0]);
+    // Caja y Banco revierten por lo que de verdad recibieron, no por el total.
+    expect(reverso.find((l) => l.cuentaCodigo === CUENTAS.CAJA.codigo)?.credito).toBe(2000);
+    expect(reverso.find((l) => l.cuentaCodigo === CUENTAS.BANCO.codigo)?.credito).toBe(12000);
+  });
+
+  it("U-255: cita → acredita VENTAS_SERVICIOS, no VENTAS", () => {
+    const lineas = lineasVentaPagos({ ...BASE, cuentaIngreso: "VENTAS_SERVICIOS", pagos: [{ metodo: "efectivo", monto: 17000 }] });
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS_SERVICIOS.codigo)?.credito).toBe(14286);
+    expect(lineas.find((l) => l.cuentaCodigo === CUENTAS.VENTAS.codigo)).toBeUndefined();
+  });
+
+  it("U-256 (propiedad): para cualquier partición del total en 1..5 pagos, Σ debe = Σ haber = total y el reverso netea a cero", () => {
+    const metodo = fc.constantFrom("efectivo", "debito", "credito", "transferencia", "nota_credito", "saldo_a_favor");
+    fc.assert(
+      fc.property(
+        fc.array(fc.record({ metodo, monto: fc.integer({ min: 1, max: 500000 }) }), { minLength: 1, maxLength: 5 }),
+        (pagos) => {
+          const total = pagos.reduce((s, p) => s + p.monto, 0);
+          const iva = extraerIva(total);
+          const params = { pagos, montoNeto: total - iva, iva };
+          const venta = lineasVentaPagos(params);
+          const anulacion = lineasAnulacionVentaPagos(params);
+          expect(sum(venta, "debito")).toBe(total);
+          expect(sum(venta, "credito")).toBe(total);
+          expect(sum(anulacion, "debito")).toBe(total);
+          expect(sum(anulacion, "credito")).toBe(total);
+        }
+      )
+    );
   });
 });

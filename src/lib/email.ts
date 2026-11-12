@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { generateBoletaPDF, type BoletaData } from "@/lib/reports/pdf-generator";
+import { etiquetaMetodo } from "@/lib/ventas/pagos";
 
 let _resend: Resend | null = null;
 
@@ -112,11 +113,12 @@ export async function sendBoletaEmail(params: {
   const { error } = await getResend().emails.send({
     from,
     to: params.to,
-    subject: `Boleta ${params.boleta.numeroComprobante} — ${params.boleta.storeName}`,
+    // No es una boleta (decisión D12): la tienda no emite DTE desde el sistema.
+    subject: `Comprobante de venta ${params.boleta.numeroComprobante} — ${params.boleta.storeName}`,
     html: buildBoletaEmailHTML(params.boleta),
     attachments: [
       {
-        filename: `boleta-${params.boleta.numeroComprobante}.pdf`,
+        filename: `comprobante-${params.boleta.numeroComprobante}.pdf`,
         content: pdfBuffer,
       },
     ],
@@ -146,11 +148,7 @@ export function buildBoletaEmailHTML(b: BoletaData): string {
     </tr>`).join("");
 
   const pagosHTML = b.pagos.map(p => {
-    const metodoLabels: Record<string, string> = {
-      efectivo: "Efectivo", debito: "Débito", credito: "Crédito",
-      transferencia: "Transferencia", nota_credito: "Nota de Crédito",
-    };
-    let label = metodoLabels[p.metodo] ?? p.metodo;
+    let label = etiquetaMetodo(p.metodo);
     if (p.numero_transaccion) label += ` #${p.numero_transaccion}`;
     return `<div style="display:flex;justify-content:space-between;"><span>${esc(label)}</span><span>${fmt(p.monto)}</span></div>`;
   }).join("");
@@ -160,7 +158,8 @@ export function buildBoletaEmailHTML(b: BoletaData): string {
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">
   <h2 style="color:#16a34a;">${esc(b.storeName)}</h2>
   ${b.storeRut ? `<p style="color:#666;margin-top:-12px;">RUT: ${esc(b.storeRut)}</p>` : ""}
-  <p style="font-size:13px;color:#555;">Boleta <strong>${esc(b.numeroComprobante)}</strong> · ${fecha}</p>
+  <p style="font-size:13px;color:#555;">Comprobante de venta <strong>${esc(b.numeroComprobante)}</strong> · ${fecha}</p>
+  <p style="font-size:12px;color:#b45309;">No válido como documento tributario</p>
   ${b.cliente ? `<p style="font-size:13px;">Cliente: <strong>${esc(b.cliente.nombre)}</strong>${b.cliente.rut ? ` (${esc(b.cliente.rut)})` : ""}</p>` : ""}
 
   <table style="width:100%;border-collapse:collapse;margin-top:16px;">
@@ -191,8 +190,8 @@ export function buildBoletaEmailHTML(b: BoletaData): string {
 
   <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
   <p style="font-size:11px;color:#999;">
-    Adjunto encontrarás la boleta en formato PDF.<br>
-    Este correo no constituye un documento tributario.
+    Adjunto encontrarás el comprobante de venta en formato PDF.<br>
+    Este correo y su adjunto no son válidos como documento tributario.
   </p>
 </body>
 </html>`;

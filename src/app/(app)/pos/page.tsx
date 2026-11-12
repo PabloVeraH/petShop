@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchJson } from "@/lib/api-client";
 import { useAuth } from "@clerk/nextjs";
 import { usePOSStore, calcularTotalCarrito } from "@/stores/pos";
 import { createVenta } from "./api";
@@ -12,6 +13,8 @@ import ModalPago from "./components/ModalPago";
 import RecomendacionesIA from "./components/RecomendacionesIA";
 import PedidosCanalesAviso from "./components/PedidosCanalesAviso";
 import { Button } from "@/components/ui/button";
+import { AvisoBoleta } from "@/components/pagos/SelectorPagos";
+import type { PagoInput } from "@/lib/ventas/pagos";
 
 export default function POSPage() {
   const [showClienteModal, setShowClienteModal] = useState(false);
@@ -33,7 +36,19 @@ export default function POSPage() {
   const isStoreAdmin = meta?.storeAdmin === true;
 
   const queryClient = useQueryClient();
-  const { items, clienteId, mascotaId, workerClerkId, metodoPago, numeroTransaccion, descuento, procedencia, pagoNc, notas, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
+  // Umbral de 135 UF configurado por la tienda (aviso de identificación del
+  // comprador en el modal de pago). Misma query que el layout (nombre de la
+  // tienda): comparten caché.
+  const { data: tienda } = useQuery<{ name: string; umbral_identificacion_comprador?: number | null }>({
+    queryKey: ["store-name"],
+    queryFn: () => fetchJson("/api/tienda/nombre"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const { items, clienteId, mascotaId, workerClerkId, descuento, procedencia, notas, enviarEmailRecibo, clearCart, setWorker } = usePOSStore();
+  // Pagos de la última venta registrada: el aviso de cuánto boletear queda
+  // visible hasta abrir el siguiente cobro (el cajero emite la boleta fuera
+  // del sistema, Res. Ex. SII 176/2020).
+  const [pagosUltimaVenta, setPagosUltimaVenta] = useState<PagoInput[] | null>(null);
   // Total calculado con calcularTotalCarrito(items, descuento) — la MISMA
   // función pura que Carrito.tsx y ModalPago.tsx, aplicada a los MISMOS
   // items/descuento ya destructurados arriba en este render. Evita
@@ -62,7 +77,7 @@ export default function POSPage() {
   }, []);
 
   const { mutate: procesarVenta, isPending } = useMutation({
-    mutationFn: () =>
+    mutationFn: (pagos: PagoInput[]) =>
       createVenta({
         items: items.map((i) => ({
           producto_id: i.producto_id,
@@ -76,17 +91,18 @@ export default function POSPage() {
         })),
         clienteId,
         workerClerkId,
-        metodoPago: metodoPago!,
-        numeroTransaccion,
+        pagos,
         descuentoPct: descuento,
         procedencia,
-        pagoNc,
         notas,
         enviarEmail: enviarEmailRecibo,
         idempotencyKey: idempotencyKeyRef.current ?? undefined,
       }),
-    onSuccess: (data) => {
+    onSuccess: (data, pagos) => {
       idempotencyKeyRef.current = null;
+      // Pagos que devuelve el servidor (en un reintento idempotente son los de
+      // la venta original, no los que haya en pantalla); si no vienen, los enviados.
+      setPagosUltimaVenta(Array.isArray(data?.pagos) ? data.pagos : pagos);
       clearCart();
       setShowPagoModal(false);
       setVentaError(null);
@@ -132,6 +148,20 @@ export default function POSPage() {
         )}
       </div>
 
+      {pagosUltimaVenta && (
+        <div className="flex items-start gap-2" data-testid="aviso-ultima-venta">
+          <div className="flex-1"><AvisoBoleta pagos={pagosUltimaVenta} /></div>
+          <button
+            type="button"
+            aria-label="Cerrar aviso de boleta"
+            onClick={() => setPagosUltimaVenta(null)}
+            className="text-gray-400 hover:text-gray-700 px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
         {/* Carrito + acciones — arriba en mobile, derecha en desktop */}
         <div className="flex flex-col gap-3 lg:order-last lg:col-span-1">
@@ -154,6 +184,7 @@ export default function POSPage() {
            <Button
             onClick={() => {
               idempotencyKeyRef.current = crypto.randomUUID();
+              setPagosUltimaVenta(null);
               setShowPagoModal(true);
             }}
             disabled={items.length === 0}
@@ -176,7 +207,8 @@ export default function POSPage() {
 
       {showPagoModal && (
         <ModalPago
-          onConfirm={() => procesarVenta()}
+          onConfirm={(pagos) => procesarVenta(pagos)}
+          umbralIdentificacion={tienda?.umbral_identificacion_comprador ?? null}
           onCancel={() => setShowPagoModal(false)}
           isLoading={isPending}
         />

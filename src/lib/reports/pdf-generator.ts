@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { etiquetaMetodo } from "@/lib/ventas/pagos";
 
 export interface BoletaData {
   numeroComprobante: string;
@@ -14,15 +15,6 @@ export interface BoletaData {
   total: number;
   pagos: Array<{ metodo: string; monto: number; numero_transaccion?: string }>;
 }
-
-const METODO_LABELS: Record<string, string> = {
-  efectivo: "Efectivo",
-  debito: "Débito",
-  credito: "Crédito",
-  transferencia: "Transferencia",
-  nota_credito: "Nota de Crédito",
-  mixto: "Mixto",
-};
 
 export function generateBoletaPDF(data: BoletaData): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -59,8 +51,14 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("BOLETA", pageWidth / 2, y, { align: "center" });
-  y += 7;
+  // La tienda no emite boletas desde el sistema (decisión D12,
+  // docs/pago_complementario.md §6.0): este PDF no puede rotularse "Boleta".
+  doc.text("COMPROBANTE DE VENTA", pageWidth / 2, y, { align: "center" });
+  y += 5;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("No válido como documento tributario", pageWidth / 2, y, { align: "center" });
+  y += 6;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -152,7 +150,7 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   doc.setFont("helvetica", "normal");
 
   for (const pago of data.pagos) {
-    let label = METODO_LABELS[pago.metodo] ?? pago.metodo;
+    let label = etiquetaMetodo(pago.metodo);
     if (pago.numero_transaccion) label += ` #${pago.numero_transaccion}`;
     doc.text(label, margin, y);
     doc.text(fmt(pago.monto), margin + contentWidth, y, { align: "right" });
@@ -166,8 +164,6 @@ export function generateBoletaPDF(data: BoletaData): jsPDF {
   y += 6;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Este documento NO constituye un documento tributario.", pageWidth / 2, y, { align: "center" });
-  y += 4;
   doc.text("Gracias por su compra.", pageWidth / 2, y, { align: "center" });
 
   return doc;

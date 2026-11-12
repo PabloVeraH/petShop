@@ -574,3 +574,53 @@ describe("PATCH /api/settings — secretos", () => {
     expect(JSON.stringify(body)).not.toContain("verify-real");
   });
 });
+
+// I-831…I-832 — umbral de 135 UF (pago mixto, plan F11): solo el admin lo
+// edita, se valida en el límite y entra en la auditoría de settings.
+describe("PATCH /api/settings — umbral de identificación del comprador (135 UF)", () => {
+  const patch = async (body: object) => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    return PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  };
+  let capturedUpdates: Record<string, unknown>[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    capturedUpdates = [];
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAsAdmin();
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { capturedUpdates.push(data); return c; }),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID }, error: null }),
+      };
+      return c;
+    });
+  });
+
+  it("I-831: el admin guarda el umbral en pesos y puede limpiarlo con null", async () => {
+    expect((await patch({ umbral_identificacion_comprador: 5363275 })).status).toBe(200);
+    expect(capturedUpdates[0]).toHaveProperty("umbral_identificacion_comprador", 5363275);
+
+    expect((await patch({ umbral_identificacion_comprador: null })).status).toBe(200);
+    expect(capturedUpdates[1]).toHaveProperty("umbral_identificacion_comprador", null);
+
+    // Un PATCH que no lo menciona no lo toca.
+    expect((await patch({ name: "Otra" })).status).toBe(200);
+    expect(capturedUpdates[2]).not.toHaveProperty("umbral_identificacion_comprador");
+  });
+
+  it("I-832: umbral 0, negativo, decimal o texto → 400 sin escribir", async () => {
+    for (const v of [0, -1, 1000.5, "5000000"]) {
+      const res = await patch({ umbral_identificacion_comprador: v });
+      expect([v, res.status]).toEqual([v, 400]);
+    }
+    expect(capturedUpdates).toHaveLength(0);
+  });
+});

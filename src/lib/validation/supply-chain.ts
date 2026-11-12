@@ -70,6 +70,9 @@ export const NotaCreditoPostSchema = z.object({
     (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
     { message: "El motivo debe tener al menos 5 caracteres" }
   ),
+  // Dueño de la NC (migración 093): obligatorio si la venta no tiene cliente;
+  // si la tiene, la NC es de ese cliente y no se puede cambiar.
+  clienteId: UUIDSchema.optional(),
 });
 
 export const OrdenesCompraCreateSchema = z.object({

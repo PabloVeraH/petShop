@@ -36,11 +36,8 @@ function makeMockStore(overrides: Record<string, unknown> = {}) {
     clienteId: undefined,
     mascotaId: undefined,
     workerClerkId: undefined,
-    metodoPago: "efectivo",
-    numeroTransaccion: undefined,
     descuento: 0,
     procedencia: "presencial",
-    pagoNc: undefined,
     enviarEmailRecibo: false,
     notas: "",
     clearCart: mockClearCart,
@@ -76,8 +73,9 @@ jest.mock("@/app/(app)/pos/components/ModalCliente", () => ({ __esModule: true, 
 jest.mock("@/app/(app)/pos/components/RecomendacionesIA", () => ({ __esModule: true, default: () => null }));
 jest.mock("@/app/(app)/pos/components/ModalPago", () => ({
   __esModule: true,
-  default: ({ onConfirm }: { onConfirm: () => void }) => (
-    <button onClick={onConfirm} data-testid="confirm-pago">Confirmar Pago</button>
+  // El modal real entrega los pagos elegidos (pago mixto); aquí, uno en efectivo.
+  default: ({ onConfirm }: { onConfirm: (pagos: { metodo: string; monto: number }[]) => void }) => (
+    <button onClick={() => onConfirm([{ metodo: "efectivo", monto: 1000 }])} data-testid="confirm-pago">Confirmar Pago</button>
   ),
 }));
 

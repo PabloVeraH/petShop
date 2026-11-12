@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { hoyNegocioISO, rangoDiaNegocio } from "@/lib/dates";
 import { withErrorLogging } from "@/lib/audit";
+import { cargarPagosPorVenta, metodosParaAgrupar, resumenBoleta, ventasConPagos } from "@/lib/reports/pagos-reporte";
 
 export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
@@ -114,11 +115,18 @@ export const GET = withErrorLogging(async () => {
   const transacciones = ventasHoy.filter((v) => totalNeto(v) > 0).length;
   const ticketPromedio = transacciones > 0 ? Math.round(totalVentasHoy / transacciones) : 0;
 
+  // Una venta mixta cuenta una vez para cada método real que usó (tabla
+  // pagos), así "mixto" no aparece como si fuera un medio de pago.
+  const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventasHoy));
   const metodoCounts: Record<string, number> = {};
   for (const v of ventasHoy) {
-    const m = v.metodo_pago ?? "efectivo";
-    metodoCounts[m] = (metodoCounts[m] ?? 0) + 1;
+    for (const m of new Set(metodosParaAgrupar(v, pagosPorVenta).map((p) => p.metodo))) {
+      metodoCounts[m] = (metodoCounts[m] ?? 0) + 1;
+    }
   }
+  // Monto bruto cobrado hoy que debe boletearse (lo que el voucher no cubre);
+  // no descuenta NC: la boleta se emitió por lo cobrado en la venta.
+  const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventasHoy, pagosPorVenta);
   const topMetodo = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
 
   // Ventas por canal
@@ -160,6 +168,8 @@ export const GET = withErrorLogging(async () => {
     transacciones,
     ticketPromedio,
     topMetodo,
+    montoBoleta,
+    boletaPorMetodo,
     topProductos,
     ultimasVentas,
     alertas,

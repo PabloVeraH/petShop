@@ -42,6 +42,11 @@ export const SettingsUpdateSchema = z.object({
   lat: z.number().min(-90).max(90).nullable().optional(),
   lon: z.number().min(-180).max(180).nullable().optional(),
   direccion: z.string().max(300).nullable().optional(),
+  // 135 UF en pesos (Ley 21.713; se fija cada año con la UF al 31-dic). Sobre
+  // este total el POS avisa que la boleta debe identificar al comprador.
+  // null = sin aviso. Mismo CHECK (> 0) que la columna (migración 093).
+  umbral_identificacion_comprador: z.number().int("El umbral debe ser un monto entero en pesos")
+    .positive("El umbral debe ser mayor a 0").max(1_000_000_000).nullable().optional(),
 });
 
 export const AdminUserAssignSchema = z.object({

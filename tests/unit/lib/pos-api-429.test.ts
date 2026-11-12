@@ -41,7 +41,7 @@ describe("POS api ante 429 (U-217)", () => {
   it("U-217: createVenta con 429 rechaza con el mensaje (la venta no se da por hecha)", async () => {
     fetchMock.mockResolvedValueOnce(r429());
     await expect(
-      createVenta({ items: [], metodoPago: "efectivo", descuentoPct: 0, procedencia: "tienda", idempotencyKey: "k-1" })
+      createVenta({ items: [], pagos: [{ metodo: "efectivo", monto: 8000 }], descuentoPct: 0, procedencia: "tienda", idempotencyKey: "k-1" })
     ).rejects.toMatchObject({ status: 429, message: MSG });
   });
 

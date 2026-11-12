@@ -89,7 +89,6 @@ describe("POS Store — estado y acciones", () => {
     usePOSStore.getState().addItem(ITEM_BASE);
     usePOSStore.getState().setDescuento(15);
     usePOSStore.getState().setProcedencia("instagram");
-    usePOSStore.getState().setMetodoPago("debito");
 
     usePOSStore.getState().clearCart();
 
@@ -97,7 +96,8 @@ describe("POS Store — estado y acciones", () => {
     expect(state.items).toHaveLength(0);
     expect(state.descuento).toBe(0);
     expect(state.procedencia).toBe("presencial");
-    expect(state.metodoPago).toBe("efectivo");
+    // El método de pago ya no vive en el store (pago mixto: estado local del modal).
+    expect(state).not.toHaveProperty("metodoPago");
     expect(state.clienteId).toBeUndefined();
   });
 });
@@ -284,20 +284,20 @@ describe("POS Store — persistencia en localStorage", () => {
     expect(last.state.procedencia).toBe("whatsapp");
   });
 
-  // S-43: REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd) — metodoPago, pagoNc y
-  // numeroTransaccion son estado transitorio del intento de cobro ACTUAL (elegido
-  // dentro de ModalPago), no parte de "la venta que se está armando" como items/
-  // clienteId/descuento. Persistirlos en localStorage junto con el carrito hace que
-  // una venta interrumpida a mitad de un pago mixto con NC (metodoPago="nota_credito"
-  // + pagoNc seteado, sin completar la venta) sobreviva a un reload y la próxima
-  // apertura del modal "herede" ese NC ajeno, con el panel "Pagar diferencia con" ya
-  // visible — exactamente el repro del ticket. No deben aparecer en el JSON guardado.
-  it("S-43: REGRESIÓN — metodoPago, numeroTransaccion y pagoNc NO se persisten en localStorage", () => {
-    usePOSStore.getState().addItem(ITEM_BASE);
-    usePOSStore.getState().setMetodoPago("nota_credito");
-    usePOSStore.getState().setNumeroTransaccion("TRX-VIEJO");
-    usePOSStore.getState().setPayNc({ nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 });
+  // S-43: REGRESIÓN (ticket Trello 6a619fafd0aa9aa5ad06b1dd) — el estado del
+  // cobro (método, TRX, NC) es transitorio del intento de cobro ACTUAL, no parte
+  // de "la venta que se está armando" como items/clienteId/descuento. Persistirlo
+  // hacía que un cobro con NC interrumpido sobreviviera a un reload y la próxima
+  // apertura del modal "heredara" esa NC ajena. Desde el pago mixto (F7) ese
+  // estado ni siquiera existe en el store: vive en ModalPago/SelectorPagos. Esta
+  // prueba fija las dos mitades de esa invariante.
+  it("S-43: REGRESIÓN — el store no expone estado de cobro y el JSON guardado no lo incluye", () => {
+    const s = usePOSStore.getState() as unknown as Record<string, unknown>;
+    for (const k of ["metodoPago", "numeroTransaccion", "pagoNc", "setMetodoPago", "setNumeroTransaccion", "setPayNc", "clearPayNc"]) {
+      expect(s[k]).toBeUndefined();
+    }
 
+    usePOSStore.getState().addItem(ITEM_BASE);
     const calls = localStorageMock.setItem.mock.calls;
     const last = JSON.parse(calls[calls.length - 1][1]);
     expect(last.state).not.toHaveProperty("metodoPago");
@@ -314,35 +314,31 @@ describe("POS Store — persistencia en localStorage", () => {
   // {...currentState, ...persistedState}). Simula un reload de página a mitad de un
   // pago con NC: el estado "rehidratado" no debe traer de vuelta metodoPago="nota_credito"
   // ni el pagoNc de la venta interrumpida.
-  it("S-44: REGRESIÓN — tras guardar con NC activo y rehidratar, metodoPago vuelve a 'efectivo' y pagoNc queda undefined", async () => {
+  // Variante del reload: un navegador con un blob de una versión ANTERIOR de la
+  // app (que sí guardaba metodoPago/pagoNc). Al rehidratar, el carrito vuelve,
+  // pero el estado de cobro viejo no se vuelve a escribir. Que el modal no lo
+  // lea lo prueba MP-27 (tests/components/ModalPago.test.tsx).
+  it("S-44: REGRESIÓN — un blob antiguo con NC a medio cobrar se rehidrata sin volver a persistir el estado de cobro", async () => {
     usePOSStore.getState().addItem(ITEM_BASE);
-    usePOSStore.getState().setMetodoPago("nota_credito");
-    usePOSStore.getState().setPayNc({ nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 });
+    const blob = JSON.parse(storage["pos-cart"]);
+    blob.state.metodoPago = "nota_credito";
+    blob.state.pagoNc = { nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 };
+    blob.state.numeroTransaccion = "TRX-VIEJO";
 
-    // Captura lo que realmente quedó en localStorage tras la venta interrumpida
-    // (con el fix, sin metodoPago/pagoNc — ver S-43).
-    const savedBlob = storage["pos-cart"];
-
-    // Simula un reload de página: el runtime reinicia con los defaults del store
-    // (create() nunca "recuerda" el estado en memoria de antes del reload)...
-    usePOSStore.setState(
-      { items: [], metodoPago: "efectivo", numeroTransaccion: undefined, pagoNc: undefined },
-      false
-    );
-    // ...pero ese setState de reseteo también dispara una escritura a localStorage
-    // (api.setState está envuelto por el middleware persist), lo que en este test
-    // sobreescribiría el blob capturado arriba. En un reload real eso no ocurre
-    // (el navegador ya tiene el blob previo antes de que el JS vuelva a ejecutar),
-    // así que se restaura explícitamente para simular ese punto de partida real.
-    storage["pos-cart"] = savedBlob;
-
+    // Reload: el runtime arranca con los defaults y el navegador trae el blob viejo.
+    usePOSStore.setState({ items: [] }, false);
+    storage["pos-cart"] = JSON.stringify(blob);
     await usePOSStore.persist.rehydrate();
 
-    const state = usePOSStore.getState();
-    expect(state.metodoPago).toBe("efectivo");
-    expect(state.pagoNc).toBeUndefined();
-    // El carrito (items) sí debe sobrevivir la rehidratación — no romper la persistencia legítima
-    expect(state.items).toHaveLength(1);
+    // El carrito (items) sí sobrevive — no romper la persistencia legítima.
+    expect(usePOSStore.getState().items).toHaveLength(1);
+
+    // La siguiente escritura ya no lleva el estado de cobro viejo.
+    usePOSStore.getState().setNotas("nota");
+    const guardado = JSON.parse(storage["pos-cart"]).state;
+    expect(guardado).not.toHaveProperty("metodoPago");
+    expect(guardado).not.toHaveProperty("pagoNc");
+    expect(guardado).not.toHaveProperty("numeroTransaccion");
   });
 });
 
@@ -399,17 +395,15 @@ describe("POS Store — email recibo toggle", () => {
   });
 
   // S-26: clearCart sí limpia el resto del estado
-  it("S-26: clearCart limpia items y clienteId, resetea metodoPago a efectivo, mantiene el worker", () => {
+  it("S-26: clearCart limpia items y clienteId, mantiene el worker", () => {
     usePOSStore.getState().setWorker("clerk_xyz");
     usePOSStore.getState().addItem(ITEM_BASE);
     usePOSStore.getState().setCliente("cli-99", undefined, 0, "a@b.com");
-    usePOSStore.getState().setMetodoPago("credito");
     usePOSStore.getState().clearCart();
 
     const s = usePOSStore.getState();
     expect(s.items).toHaveLength(0);
     expect(s.clienteId).toBeUndefined();
-    expect(s.metodoPago).toBe("efectivo");
     expect(s.workerClerkId).toBe("clerk_xyz"); // worker se mantiene
   });
 

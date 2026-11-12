@@ -1,5 +1,69 @@
 import { z } from "zod";
 import { UUIDSchema } from "./primitives";
+import { METODOS_PAGO, MAX_PAGOS, validarFormaPagos } from "@/lib/ventas/pagos";
+
+// Un medio de pago de una venta o cita (pago mixto, docs/plan_pago_mixto.md).
+export const PagoItemSchema = z.object({
+  metodo: z.enum(METODOS_PAGO),
+  // >= 0: un pago único de $0 es válido para una venta de $0 (100 % de
+  // descuento); validarFormaPagos rechaza $0 cuando hay varios pagos.
+  monto: z.number().int("Cada monto debe ser un entero en pesos").nonnegative("Cada monto debe ser mayor a 0"),
+  numeroTransaccion: z.string().max(100).optional(),
+  notaCreditoId: UUIDSchema.optional(),
+});
+
+export const PagosSchema = z
+  .array(PagoItemSchema)
+  .min(1, "Debe indicar al menos un medio de pago")
+  .max(MAX_PAGOS, `Máximo ${MAX_PAGOS} medios de pago por venta`)
+  .superRefine((pagos, ctx) => {
+    const error = validarFormaPagos(pagos);
+    if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });
+  });
+
+// Formato legado (un método + NC opcional). Solo métodos que se pueden pagar
+// sin consumir un crédito de otra forma: "saldo_favor", "plataforma" y
+// "mixto" registraban un pago "con crédito" sin consumir ningún crédito.
+const METODOS_LEGADO = ["efectivo", "debito", "credito", "transferencia", "nota_credito"] as const;
+
+// Reglas comunes de "pagos[] o formato legado, nunca ambos" para venta y cita.
+// `legadoOpcional`: la cita legada sin precio no envía ningún dato de pago.
+export function refinarPagosOLegado(
+  val: { pagos?: unknown; metodoPago?: string; numeroTransaccion?: string; pagoNc?: unknown },
+  ctx: z.RefinementCtx,
+  legadoOpcional = false
+) {
+  if (val.pagos !== undefined) {
+    if (val.metodoPago !== undefined || val.pagoNc !== undefined || val.numeroTransaccion !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Envíe los pagos en `pagos` o en el formato anterior (metodoPago), no ambos",
+        path: ["pagos"],
+      });
+    }
+    return;
+  }
+  if (val.metodoPago === undefined) {
+    if (!legadoOpcional) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe indicar los pagos de la venta", path: ["pagos"] });
+    }
+    return;
+  }
+  if (val.metodoPago === "nota_credito" && !val.pagoNc) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El pago con nota de crédito requiere validar la NC",
+      path: ["pagoNc"],
+    });
+  }
+  if (["debito", "credito", "transferencia"].includes(val.metodoPago) && !val.numeroTransaccion?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
+      path: ["numeroTransaccion"],
+    });
+  }
+}
 
 export const VentaItemSchema = z.object({
   producto_id: UUIDSchema,
@@ -34,7 +98,9 @@ export const VentaCreateSchema = z.object({
   clienteId: UUIDSchema.optional(),
   items: z.array(VentaItemSchema).min(1, "La venta debe tener al menos un producto"),
   descuentoPct: z.number().nonnegative().max(100).optional(),
-  metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia", "saldo_favor", "plataforma", "nota_credito", "mixto"]),
+  // Pago mixto: 1..5 medios. Excluyente con metodoPago/pagoNc/numeroTransaccion.
+  pagos: PagosSchema.optional(),
+  metodoPago: z.enum(METODOS_LEGADO).optional(),
   notas: z.string().max(255, "Las notas no pueden superar los 255 caracteres").optional().refine(
     (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
     { message: "Las notas deben tener al menos 5 caracteres" }
@@ -56,11 +122,13 @@ export const VentaCreateSchema = z.object({
   // desactualizados) siguen funcionando sin protección de idempotencia.
   idempotencyKey: z.string().uuid().optional(),
 }).superRefine((val, ctx) => {
-  if (["debito", "credito", "transferencia"].includes(val.metodoPago) && !val.numeroTransaccion?.trim()) {
+  refinarPagosOLegado(val, ctx);
+  // Los canales externos los cobra la plataforma: no hay pago mixto.
+  if (val.pagos !== undefined && val.canal !== "pos") {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
-      path: ["numeroTransaccion"],
+      message: "El pago con varios medios solo aplica a ventas del POS",
+      path: ["pagos"],
     });
   }
 });

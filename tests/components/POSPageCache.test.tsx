@@ -21,11 +21,8 @@ function makeMockStore(overrides: Record<string, unknown> = {}) {
     clienteId: undefined,
     mascotaId: undefined,
     workerClerkId: undefined,
-    metodoPago: "efectivo",
-    numeroTransaccion: undefined,
     descuento: 0,
     procedencia: "presencial",
-    pagoNc: undefined,
     enviarEmailRecibo: false,
     notas: "",
     clearCart: mockClearCart,
@@ -70,8 +67,9 @@ jest.mock("@/app/(app)/pos/components/ModalCliente", () => ({
 
 jest.mock("@/app/(app)/pos/components/ModalPago", () => ({
   __esModule: true,
-  default: ({ onConfirm }: { onConfirm: () => void }) => (
-    <button onClick={onConfirm} data-testid="confirm-pago">Confirmar Pago</button>
+  // El modal real entrega los pagos elegidos (pago mixto); aquí, uno en efectivo.
+  default: ({ onConfirm }: { onConfirm: (pagos: { metodo: string; monto: number }[]) => void }) => (
+    <button onClick={() => onConfirm([{ metodo: "efectivo", monto: 1000 }])} data-testid="confirm-pago">Confirmar Pago</button>
   ),
 }));
 
@@ -125,7 +123,7 @@ describe("POSPage — invalidación de caché post-venta", () => {
     // Verificar que createVenta fue llamada
     expect(mockCreateVenta).toHaveBeenCalledTimes(1);
     expect(mockCreateVenta).toHaveBeenCalledWith(
-      expect.objectContaining({ metodoPago: "efectivo" })
+      expect.objectContaining({ pagos: [{ metodo: "efectivo", monto: 1000 }] })
     );
 
     // DEBE invalidar ["productos"] con refetchType "all" (alineado con ["ventas"]).
@@ -145,5 +143,64 @@ describe("POSPage — invalidación de caché post-venta", () => {
 
     // clearCart debe haberse llamado
     expect(mockClearCart).toHaveBeenCalledTimes(1);
+  });
+});
+
+// PP-18 — pago mixto / Res. Ex. SII 176/2020: tras cobrar, el POS deja visible
+// cuánto boletear fuera del sistema hasta abrir el siguiente cobro.
+describe("POSPage — aviso de boleta tras la venta (PP-18)", () => {
+  it("PP-18: tras una venta en efectivo muestra 'Emitir boleta SII por $1.000'; se cierra con ✕ y al abrir otro cobro", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const store = makeMockStore();
+    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) =>
+      typeof selector === "function" ? selector(store) : store
+    );
+    mockCreateVenta.mockResolvedValue({ id: "venta-pp18" });
+    const openSpy = jest.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<POSPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+    expect(screen.queryByTestId("aviso-ultima-venta")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    await act(async () => { fireEvent.click(screen.getByTestId("confirm-pago")); });
+
+    expect(screen.getByTestId("aviso-ultima-venta")).toHaveTextContent("Emitir boleta SII por $1.000");
+    fireEvent.click(screen.getByLabelText("Cerrar aviso de boleta"));
+    expect(screen.queryByTestId("aviso-ultima-venta")).not.toBeInTheDocument();
+
+    // Otra venta: el aviso reaparece, y se limpia al abrir el siguiente cobro.
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    await act(async () => { fireEvent.click(screen.getByTestId("confirm-pago")); });
+    expect(screen.getByTestId("aviso-ultima-venta")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    expect(screen.queryByTestId("aviso-ultima-venta")).not.toBeInTheDocument();
+    openSpy.mockRestore();
+  });
+});
+
+// PP-19 — revisión (B5): en un reintento idempotente el servidor devuelve la
+// venta ORIGINAL con sus pagos reales; el aviso de boleta usa esos pagos, no
+// los que el cajero tenga en pantalla.
+describe("POSPage — aviso de boleta con los pagos del servidor (PP-19)", () => {
+  it("PP-19: si la respuesta trae pagos (100 % débito), el aviso usa esos y no los enviados (efectivo)", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const store = makeMockStore();
+    mockUsePOSStore.mockImplementation((selector?: (s: typeof store) => unknown) =>
+      typeof selector === "function" ? selector(store) : store
+    );
+    mockCreateVenta.mockResolvedValue({ id: "venta-pp19", pagos: [{ metodo: "debito", monto: 1000 }] });
+    const openSpy = jest.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<POSPage />, { wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    )});
+    fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+    await act(async () => { fireEvent.click(screen.getByTestId("confirm-pago")); });
+
+    expect(screen.getByTestId("aviso-ultima-venta")).toHaveTextContent("El voucher Transbank cubre el total");
+    expect(screen.getByTestId("aviso-ultima-venta")).not.toHaveTextContent("Emitir boleta");
+    openSpy.mockRestore();
   });
 });

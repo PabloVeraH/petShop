@@ -482,3 +482,62 @@ describe("DevolucionModal — granel", () => {
     expect(body.items).toEqual([{ ventaItemId: "item-granel", cantidadDevuelta: 0.6, restituirStock: true }]);
   });
 });
+
+// DV-23…DV-25 — dueño de la NC (migración 093): toda NC es de un cliente y
+// solo él la usa. El control real es crear_nota_credito_tx (PV009, I-836 y
+// PMX-SQL-20); aquí, que el cajero pueda registrarlo cuando la venta no tenía.
+describe("DevolucionModal — cliente de la NC (DV-23 a DV-25)", () => {
+  // Mismo paso 1 que el resto del archivo: marcar el primer ítem y continuar.
+  function selectItemAndAdvance() {
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
+  }
+
+  const OK_NC = { ok: true, json: async () => ({ numeroNc: "NC-1", notaCreditoId: "nc-1" }) };
+  const bodyPost = () => {
+    const call = (global.fetch as jest.Mock).mock.calls.find(([url, init]) => url === "/api/notas-credito" && init?.method === "POST");
+    return call ? JSON.parse(call[1].body) : undefined;
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("DV-23: venta con cliente → no pide cliente y no envía clienteId (la NC es del cliente de la venta)", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(OK_NC);
+    setup();
+    selectItemAndAdvance();
+    expect(screen.queryByTestId("dueno-nc")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+    await waitFor(() => expect(bodyPost()).toBeDefined());
+    expect(bodyPost()).not.toHaveProperty("clienteId");
+  });
+
+  it("DV-24: venta sin cliente → Confirmar bloqueado hasta buscar el cliente por RUT; el POST lleva su id", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(url.startsWith("/api/clientes")
+        ? { ok: true, json: async () => ({ id: "cli-9", nombre: "Ana Pérez", rut: "11.111.111-1" }) }
+        : OK_NC));
+    setup({ clienteId: null });
+    selectItemAndAdvance();
+    expect(screen.getByTestId("dueno-nc")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Confirmar devolución/i })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText("RUT del cliente"), { target: { value: "11.111.111-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByText("Ana Pérez")).toBeInTheDocument();
+    expect((global.fetch as jest.Mock)).toHaveBeenCalledWith("/api/clientes?rut=11.111.111-1");
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar devolución/i }));
+    await waitFor(() => expect(bodyPost()).toEqual(expect.objectContaining({ clienteId: "cli-9" })));
+  });
+
+  it("DV-25: RUT sin cliente registrado → mensaje y sigue bloqueado", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(url.startsWith("/api/clientes") ? { ok: true, json: async () => null } : OK_NC));
+    setup({ clienteId: null });
+    selectItemAndAdvance();
+    fireEvent.change(screen.getByPlaceholderText("RUT del cliente"), { target: { value: "22.222.222-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByText(/No hay un cliente con ese RUT/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Confirmar devolución/i })).toBeDisabled();
+  });
+});

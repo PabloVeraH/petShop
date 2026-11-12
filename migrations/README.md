@@ -9,10 +9,17 @@
 | `089_rate_limit_global.sql` | Contador de rate limit compartido entre instancias (`rate_limit_contadores` + `rate_limit_hit`). Aplicada en mascotaspetshop 2026-10-16 y en el demo 2026-10-22. |
 | `090_registro_migraciones.sql` | Crea `supabase_migrations.schema_migrations` (si no existe; misma tabla que usa Supabase) para registrar en la base qué migraciones tiene cada proyecto. Desde aquí cada migración se registra sola (ver reglas). Aplicada en mascotaspetshop 2026-10-16 y en el demo 2026-10-22 (en ambas con 000/087/088/089 registradas a mano; en el demo la tabla ya existía). |
 | `091_seed_canales_externos.sql` | Filas del catálogo `canales_externos` (`pos`, `rappi`, `pedidosya`, `ubereats`, `instagram`), que el baseline (solo esquema) no trae: sin ellas toda venta falla por `ventas_canal_fkey`. No cambia nada en el demo (`ON CONFLICT DO NOTHING`). Aplicada en mascotaspetshop 2026-10-16 y en el demo 2026-10-22 (ahí no cambió filas). Toda tienda nueva la necesita justo después del baseline. |
-| `092_fechas_hora_chile.sql` | Función `hoy_negocio()` (fecha en America/Santiago); las 10 funciones que usaban `CURRENT_DATE` (UTC en Supabase) pasan a usarla: comprobante de citas, FIFO y vencimiento de lotes, fecha de ingreso de lotes, licencia de canales, término estimado de alimento. También los defaults de `cuentas_pagar.fecha_emision` y `lotes_producto.fecha_ingreso`. Requiere la 090. Aplicada en el demo 2026-10-22. **Pendiente de aplicar** en mascotaspetshop. |
+| `092_fechas_hora_chile.sql` | Función `hoy_negocio()` (fecha en America/Santiago); las 10 funciones que usaban `CURRENT_DATE` (UTC en Supabase) pasan a usarla: comprobante de citas, FIFO y vencimiento de lotes, fecha de ingreso de lotes, licencia de canales, término estimado de alimento. También los defaults de `cuentas_pagar.fecha_emision` y `lotes_producto.fecha_ingreso`. Requiere la 090. Aplicada en el demo 2026-10-22 y en mascotaspetshop 2026-11-12. |
+| `093_pago_mixto.sql` | Pago mixto: `crear_venta_tx` y `completar_cita_tx` aceptan `p_pagos` (1 a 5 medios; sin él usan los parámetros antiguos), con validación y consumo de crédito en `validar_pagos` / `aplicar_pagos`. NC con reembolso directo ya no sirve como pago; pagar con NC exige saldo suficiente. Columna `stores.umbral_identificacion_comprador`. Dueño de la NC: `notas_credito.cliente_id` (backfill desde la venta de origen); `crear_nota_credito_tx` exige cliente y solo el dueño usa la NC. **Antes de aplicarla en una tienda, correr `093_pago_mixto_preflight.sql` (solo lectura) y resolver lo que reporte**: la 093 aborta sola si hay precios con decimales en citas/servicios, y lo demás (NC sin dueño, NC con reembolso directo) es para decidir con la tienda. **Aplicar ANTES de desplegar el código que envía `p_pagos`** (el código anterior sigue funcionando con la 093). Probada en Postgres local con `bash tests/sql/run.sh`. Aplicada en el demo y en mascotaspetshop 2026-11-12 (en mascotaspetshop, después de la 092). |
+| `093_pago_mixto_preflight.sql` | Revisión previa de la 093, **solo lectura**. No es una migración: no se registra ni cambia nada. |
 | `historico/` | Migraciones anteriores al baseline. Solo referencia (el porqué de cada tabla/función). **No se ejecutan**: no reproducían el esquema real (nombres que no calzan con el historial del demo, 074–084 aplicadas sin registro). |
 
 ## Reglas desde el baseline
+
+- **Revisión previa.** Si una migración trae un `NNN_*_preflight.sql`, correrlo
+  en el proyecto destino ANTES de aplicarla y revisar el resultado con la
+  tienda. Las migraciones que pueden chocar con datos existentes llevan además
+  una guarda que aborta sin aplicar nada (ej. sección 0 de la 093).
 
 - **No aplicar `000_baseline.sql` en el demo**: ya tiene todo eso.
 - **El baseline es solo esquema: no trae filas.** Toda tabla global de
@@ -24,7 +31,7 @@
   toda venta daba 500 por `ventas_canal_fkey`, 2026-10-16).
 - Todo cambio de esquema es un archivo nuevo `NNN_descripcion.sql` con número
   mayor al último usado en `migrations/`, `historico/` y el demo. **El
-  siguiente libre es `093`** (la `086` es de sucursales; la `087`, search_path; la `088`, índices de FKs; la `089`, rate limit; la `090`, registro de migraciones; la `091`, filas de canales_externos; la `092`, fechas en hora de Chile).
+  siguiente libre es `094`** (la `086` es de sucursales; la `087`, search_path; la `088`, índices de FKs; la `089`, rate limit; la `090`, registro de migraciones; la `091`, filas de canales_externos; la `092`, fechas en hora de Chile; la `093`, pago mixto).
 - Se aplican **en orden** y completas, pegando el archivo en el SQL Editor del
   proyecto (o `psql -f`). No usar `apply_migration` de la CLI/MCP: registra
   con una versión tipo fecha y la migración quedaría anotada dos veces.
