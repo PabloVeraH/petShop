@@ -357,3 +357,40 @@ describe("SettingsPage — enviar alertas pendientes (C-90)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No se pudieron enviar las alertas");
   });
 });
+
+// C-115 — umbral de 135 UF (pago mixto, plan F11). Solo el admin entra a
+// /settings; el control real es requireStoreAdmin en PATCH /api/settings (SEC-08).
+describe("SettingsPage — umbral de identificación del comprador (C-115)", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: true, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+    umbral_identificacion_comprador: 5363275,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth = { userId: "admin-1", sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } } };
+  });
+
+  const ultimoPatch = () => {
+    const patch = (global.fetch as jest.Mock).mock.calls.filter(([, init]) => init?.method === "PATCH").pop();
+    return patch ? JSON.parse(patch[1].body) : undefined;
+  };
+
+  it("C-115: muestra el umbral guardado, lo edita en pesos enteros y vaciarlo envía null", async () => {
+    await renderPage(base);
+    const input = await screen.findByLabelText("Umbral de identificación del comprador (pesos)");
+    expect(input).toHaveValue(5363275);
+
+    fireEvent.change(input, { target: { value: "5400000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(ultimoPatch()).toMatchObject({ umbral_identificacion_comprador: 5400000 }));
+
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(ultimoPatch()).toMatchObject({ umbral_identificacion_comprador: null }));
+  });
+});

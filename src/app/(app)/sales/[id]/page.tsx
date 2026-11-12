@@ -7,6 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { DevolucionModal } from "@/components/sales/DevolucionModal";
 import { ApiError, fetchJson } from "@/lib/api-client";
+import { calcularMontoBoleta, desgloseBoleta, etiquetaMetodo } from "@/lib/ventas/pagos";
 
 type NotaCreditoVenta = {
   id: string;
@@ -27,6 +28,7 @@ type VentaDetalle = {
   total: number;
   metodo_pago: string | null;
   estado: string;
+  canal?: string | null;
   created_at: string;
   clientes: { id: string; nombre: string; rut: string; telefono?: string } | null;
   worker: { nombre: string | null; email?: string } | null;
@@ -218,6 +220,14 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   // (ver AGENTS.md §23.3; mismo patrón que "Neto (sin IVA)" en /api/recibos/[ventaId]).
   const subtotalNeto = Number(data.total) - Number(data.impuesto);
 
+  // Monto a boletear (Res. Ex. SII 176/2020, docs/pago_complementario.md §4.9):
+  // el voucher Transbank solo cubre la parte con tarjeta. Las ventas de canal
+  // externo las cobra la plataforma; sin filas de pagos no hay base de cálculo.
+  const pagos = data.pagos ?? [];
+  const avisoBoleta =
+    (!data.canal || data.canal === "pos") && data.estado !== "anulada" && pagos.length > 0;
+  const montoBoleta = calcularMontoBoleta(pagos);
+
   const whatsappText = encodeURIComponent(
     `*Comprobante ${storeName}*\n` +
     `N°: ${data.numero_comprobante ?? data.id.slice(0, 8)}\n` +
@@ -313,6 +323,26 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
+      {/* Aviso al cajero (no se imprime: el ticket no es documento tributario) */}
+      {avisoBoleta && (
+        <div role="status" className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 print:hidden">
+          {montoBoleta > 0 ? (
+            <>
+              <p className="text-sm font-bold text-amber-800">
+                Emitir boleta SII por ${montoBoleta.toLocaleString("es-CL")}
+              </p>
+              <p className="text-xs text-amber-700">
+                {desgloseBoleta(pagos)
+                  .map((d) => `${etiquetaMetodo(d.metodo)} $${d.monto.toLocaleString("es-CL")}`)
+                  .join(" · ")}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-amber-800">El voucher Transbank cubre el total (no requiere boleta)</p>
+          )}
+        </div>
+      )}
+
       {/* Saldo a favor del cliente */}
       {data?.clientes && saldoFavor?.saldo_disponible > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 print:hidden">
@@ -335,6 +365,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           <h1 className="text-lg font-bold">{storeName}</h1>
           {storeRut && <p className="text-xs text-gray-600">RUT: {storeRut}</p>}
           <p className="text-xs text-gray-500">Comprobante de venta</p>
+          <p className="text-xs font-medium">No válido como documento tributario</p>
           <p className="text-sm font-medium mt-1">
             N° {data.numero_comprobante ?? data.id.slice(0, 8).toUpperCase()}
           </p>
@@ -394,16 +425,16 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           </div>
           <div className="flex justify-between text-gray-500 text-xs pt-1">
             <span>Método de pago</span>
-            <span className="capitalize">{data.metodo_pago ?? "efectivo"}</span>
+            <span>{etiquetaMetodo(data.metodo_pago ?? "efectivo")}</span>
           </div>
           {data.pagos && data.pagos.length > 1 && (
             <div className="space-y-0.5 pt-1">
               {data.pagos.map((p) => (
                 <div key={p.id} className="flex justify-between text-gray-400 text-xs">
-                  <span className="capitalize">
+                  <span>
                     {p.metodo === "nota_credito"
                       ? `NC${p.numero_transaccion ? ` ${p.numero_transaccion}` : ""}`
-                      : p.metodo}
+                      : etiquetaMetodo(p.metodo)}
                   </span>
                   <span>${Math.round(p.monto).toLocaleString("es-CL")}</span>
                 </div>

@@ -171,15 +171,15 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
 - [x] **F5 — API citas.** Mismo contrato; tests.
 - [x] **F6 — NC por código (D7).** `GET /api/notas-credito?numero_nc=` rechaza
       reembolso directo; test.
-- [ ] **F7 — UI POS.** `SelectorPagos`, `ModalPago`, store, `page.tsx`
+- [x] **F7 — UI POS.** `SelectorPagos`, `ModalPago`, store, `page.tsx`
       (banner boleta), `api.ts`; tests de componente (render, agregar/quitar,
       resto, Cobrar deshabilitado, body enviado, error de API, aviso boleta).
-- [ ] **F8 — UI cita.** `ModalCobroCita` con `SelectorPagos`; tests.
-- [ ] **F9 — Fiscal: documentos.** Recibo HTML, PDF, correo, detalle de venta
+- [x] **F8 — UI cita.** `ModalCobroCita` con `SelectorPagos`; tests.
+- [x] **F9 — Fiscal: documentos.** Recibo HTML, PDF, correo, detalle de venta
       con `montoBoleta`; tests.
 - [ ] **F10 — Reportes/dashboard.** Desglose por `pagos` y total a boletear;
       tests.
-- [ ] **F11 — Aviso 135 UF.** Config en admin (storeAdmin + auditoría) y
+- [x] **F11 — Aviso 135 UF.** Config en admin (storeAdmin + auditoría) y
       lectura en POS; tests.
 - [ ] **F12 — Cierre.** `npm run build && npm test`, `typecheck`, `lint`,
       `test:security`, `test:coverage` (archivos nuevos > 0 %), revisión de
@@ -218,3 +218,13 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
     proponer ese monto, no `monto_total`.
   - Anulación y backfill: si los pagos no suman el total (dato antiguo), se
     usa el asiento de un solo método por el total, como antes.
+- 2026-11-12: F7, F8, F9 y F11 hechas. F9 la hizo un agente (revisado). Notas:
+  - `SelectorPagos` (src/components/pagos/) es el único selector de pagos;
+    POS y citas lo usan. Un pago único sigue al total SOLO cuando el total
+    cambia (bug encontrado por MP-19: seguirlo en cada render revertía la
+    edición del cajero).
+  - Ticket/recibo/PDF/correo dicen "Comprobante de venta" + "No válido como
+    documento tributario". El aviso de boleta no se imprime y no aparece en
+    ventas anuladas ni de canal externo.
+  - Umbral 135 UF: `stores.umbral_identificacion_comprador`, editable en
+    /settings; el POS lo lee de `GET /api/tienda/nombre` (query `store-name`).

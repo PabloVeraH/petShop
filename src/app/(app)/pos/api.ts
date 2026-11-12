@@ -1,5 +1,6 @@
 import type { Producto, Cliente, Mascota, SacoAccionResultado } from "@/types";
 import { errorDeRespuesta, fetchJson } from "@/lib/api-client";
+import type { PagoInput } from "@/lib/ventas/pagos";
 
 // Todas las llamadas del POS distinguen 429/5xx de "sin datos": un error
 // lanza ApiError con un mensaje para el cajero ("Demasiadas solicitudes.
@@ -39,11 +40,9 @@ export async function createVenta({
   items,
   clienteId,
   workerClerkId,
-  metodoPago,
-  numeroTransaccion,
+  pagos,
   descuentoPct,
   procedencia,
-  pagoNc,
   notas,
   enviarEmail,
   idempotencyKey,
@@ -60,11 +59,10 @@ export async function createVenta({
   }[];
   clienteId?: string;
   workerClerkId?: string;
-  metodoPago: string;
-  numeroTransaccion?: string;
+  // Pago mixto: 1..5 medios; el servidor exige que sumen el total que él calcula.
+  pagos: PagoInput[];
   descuentoPct: number;
   procedencia: string;
-  pagoNc?: { nota_credito_id: string; numero_nc: string; monto: number };
   notas?: string;
   enviarEmail?: boolean;
   // UUID estable por intento de cobro — se reenvía igual en cada reintento
@@ -76,7 +74,7 @@ export async function createVenta({
   const res = await fetch("/api/ventas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, clienteId, workerClerkId, metodoPago, numeroTransaccion, descuentoPct, procedencia, pagoNc, notas, enviarEmail, idempotencyKey }),
+    body: JSON.stringify({ items, clienteId, workerClerkId, pagos, descuentoPct, procedencia, notas, enviarEmail, idempotencyKey }),
   });
   // 429: la venta NO se registró; mensaje con Retry-After. La idempotencyKey
   // se conserva en pos/page.tsx, así que reintentar el cobro es seguro.

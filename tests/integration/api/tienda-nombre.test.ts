@@ -30,24 +30,31 @@ describe("GET /api/tienda/nombre (I-734)", () => {
     jest.clearAllMocks();
     mockDeshabilitado.mockResolvedValue(false);
     mockGetStoreId.mockResolvedValue({ userId: "user-worker", storeId: STORE_ID });
-    mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: "76123456-7" }, error: null });
+    mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: "76123456-7", umbral_identificacion_comprador: 5363275 }, error: null });
     mockEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ select: mockSelect });
   });
 
-  it("I-734/I-744: cualquier usuario de la tienda (ej. storeWorker) recibe SOLO nombre y RUT, de SU tienda", async () => {
+  // Desde el pago mixto (I-830) también expone el umbral de 135 UF, que no es
+  // sensible; nada más (ni tokens ni licencia: SEC-07).
+  it("I-734/I-744: cualquier usuario de la tienda (ej. storeWorker) recibe SOLO nombre, RUT y umbral 135 UF, de SU tienda", async () => {
     const res = await llamar();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ name: "PetShop La Huella", rut: "76123456-7" });
+    expect(await res.json()).toEqual({ name: "PetShop La Huella", rut: "76123456-7", umbral_identificacion_comprador: 5363275 });
     expect(mockFrom).toHaveBeenCalledWith("stores");
-    expect(mockSelect).toHaveBeenCalledWith("name, rut");
+    expect(mockSelect).toHaveBeenCalledWith("name, rut, umbral_identificacion_comprador");
     expect(mockEq).toHaveBeenCalledWith("id", STORE_ID);
   });
 
   it("I-744: tienda sin RUT → rut null (nunca undefined)", async () => {
     mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: null }, error: null });
-    expect(await (await llamar()).json()).toEqual({ name: "PetShop La Huella", rut: null });
+    expect(await (await llamar()).json()).toEqual({ name: "PetShop La Huella", rut: null, umbral_identificacion_comprador: null });
+  });
+
+  it("I-830: sin umbral configurado → umbral_identificacion_comprador null (el POS no avisa)", async () => {
+    mockSingle.mockResolvedValue({ data: { name: "PetShop", rut: "1-9", umbral_identificacion_comprador: null }, error: null });
+    expect((await (await llamar()).json()).umbral_identificacion_comprador).toBeNull();
   });
 
   it("I-734: sin sesión → 401 sin consultar", async () => {

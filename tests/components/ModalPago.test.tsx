@@ -1,6 +1,8 @@
 /**
  * Tests MP-01 a MP-22: ModalPago
- * - MP-01 a MP-05: toggle "Enviar boleta por mail al cliente"
+ * - MP-01 a MP-05: toggle "Enviar comprobante por mail al cliente"
+ * - MP-13 a MP-15: número de transacción por fila (SelectorPagos)
+ * - MP-26 a MP-31: pago mixto (pagos[] al confirmar, resto, aviso de boleta)
  * - MP-06 a MP-10: dropdown "Asignar a vendedor"
  * - MP-17 a MP-19: reset de método de pago al montar
  * - MP-21/MP-22: etiqueta "Descuento fidelización" vs. descuento manual
@@ -16,13 +18,9 @@ import type { ReactNode } from "react";
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 const mockSetEnviarEmailRecibo = jest.fn();
-const mockSetMetodoPago        = jest.fn();
 const mockSetDescuento         = jest.fn();
 const mockSetProcedencia       = jest.fn();
-const mockSetNumeroTransaccion = jest.fn();
 const mockSetWorker            = jest.fn();
-const mockSetPayNc             = jest.fn();
-const mockClearPayNc           = jest.fn();
 const mockSetNotas             = jest.fn();
 
 // Variables mutables — se leen en la factory cada vez que el componente llama usePOSStore()
@@ -32,10 +30,11 @@ let mockWorkerClerkId: string | undefined   = undefined;
 let mockDescuento                           = 0;
 let mockFidelizacionDescuento               = 0;
 let mockSubtotalValue                       = 10000;
-let mockMetodoPago                          = "efectivo";
-let mockNumeroTransaccion: string | undefined = undefined;
-let mockPagoNc: { nota_credito_id: string; numero_nc: string; monto: number } | undefined = undefined;
 let mockNotas                               = "";
+let mockClienteId: string | undefined       = undefined;
+// Estado de cobro de una versión ANTERIOR del store (blob viejo de
+// localStorage rehidratado): el modal debe ignorarlo (MP-17).
+let mockEstadoLegado: Record<string, unknown> = {};
 
 // ModalPago ahora destructura `items` y computa subtotal/total con las
 // funciones puras reales de @/stores/pos (calcularSubtotalCarrito, etc.),
@@ -46,20 +45,15 @@ jest.mock("@/stores/pos", () => ({
   ...jest.requireActual("@/stores/pos"),
   usePOSStore: jest.fn(() => ({
     items: [{ id: "mock-item", producto_id: "p1", nombre: "Mock", precio: mockSubtotalValue, cantidad: 1, subtotal: mockSubtotalValue }],
+    ...mockEstadoLegado,
     descuento:             mockDescuento,
-    metodoPago:            mockMetodoPago,
-    setMetodoPago:         mockSetMetodoPago,
-    numeroTransaccion:     mockNumeroTransaccion,
-    setNumeroTransaccion:  mockSetNumeroTransaccion,
+    clienteId:             mockClienteId,
     setDescuento:          mockSetDescuento,
     fidelizacionDescuento: mockFidelizacionDescuento,
     workerClerkId:         mockWorkerClerkId,
     setWorker:             mockSetWorker,
     procedencia:           "presencial",
     setProcedencia:        mockSetProcedencia,
-    pagoNc:                mockPagoNc,
-    setPayNc:              mockSetPayNc,
-    clearPayNc:            mockClearPayNc,
     clienteEmail:          mockClienteEmail,
     enviarEmailRecibo:     mockEnviarEmailRecibo,
     setEnviarEmailRecibo:  mockSetEnviarEmailRecibo,
@@ -89,12 +83,14 @@ let mockWorkers: Array<{
   ventas_mes: number; ventas_hoy: number;
 }> = [];
 
-global.fetch = jest.fn().mockImplementation(() =>
-  Promise.resolve({
-    ok:   true,
-    json: async () => mockWorkers,
-  })
-);
+// Respuestas por URL: workers, búsqueda de NC por código y saldo a favor.
+let mockNcRespuesta: { ok: boolean; body: unknown } = { ok: true, body: { data: null } };
+global.fetch = jest.fn().mockImplementation((url: string) => {
+  if (url.startsWith("/api/notas-credito")) {
+    return Promise.resolve({ ok: mockNcRespuesta.ok, json: async () => mockNcRespuesta.body });
+  }
+  return Promise.resolve({ ok: true, json: async () => mockWorkers });
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,15 +101,19 @@ function makeWrapper() {
   );
 }
 
-function setup() {
+function setup(props: { umbralIdentificacion?: number | null } = {}) {
   const onConfirm = jest.fn();
   const onCancel  = jest.fn();
-  render(
-    <ModalPago onConfirm={onConfirm} onCancel={onCancel} isLoading={false} />,
+  const utils = render(
+    <ModalPago onConfirm={onConfirm} onCancel={onCancel} isLoading={false} {...props} />,
     { wrapper: makeWrapper() },
   );
-  return { onConfirm, onCancel };
+  return { onConfirm, onCancel, ...utils };
 }
+
+const cobrar = () => screen.getByRole("button", { name: /^Cobrar/ });
+const metodo = (i: number) => screen.getByLabelText(`Método del pago ${i}`);
+const monto = (i: number) => screen.getByLabelText(`Monto del pago ${i}`);
 
 // ── Import después de mocks ───────────────────────────────────────────────────
 
@@ -134,14 +134,16 @@ describe("ModalPago — toggle email al cliente", () => {
   it("MP-01: toggle NO se muestra cuando el cliente no tiene email", () => {
     // mockClienteEmail = undefined (default)
     setup();
-    expect(screen.queryByText(/Enviar boleta por mail/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Enviar comprobante por mail/)).not.toBeInTheDocument();
   });
 
   // MP-02
   it("MP-02: toggle SE muestra cuando el cliente tiene email", () => {
     mockClienteEmail = "juan@test.com";
     setup();
-    expect(screen.getByText(/Enviar boleta por mail/)).toBeInTheDocument();
+    // D12: lo que se envía es un comprobante, no una boleta (no es documento tributario).
+    expect(screen.getByText(/Enviar comprobante por mail/)).toBeInTheDocument();
+    expect(screen.queryByText(/Enviar boleta/)).not.toBeInTheDocument();
   });
 
   // MP-03
@@ -149,7 +151,7 @@ describe("ModalPago — toggle email al cliente", () => {
     mockClienteEmail      = "juan@test.com";
     mockEnviarEmailRecibo = false;
     setup();
-    const btn = screen.getByText(/Enviar boleta por mail/).closest("button");
+    const btn = screen.getByText(/Enviar comprobante por mail/).closest("button");
     expect(btn).toHaveTextContent("○");
   });
 
@@ -158,7 +160,7 @@ describe("ModalPago — toggle email al cliente", () => {
     mockClienteEmail      = "juan@test.com";
     mockEnviarEmailRecibo = false;
     setup();
-    fireEvent.click(screen.getByText(/Enviar boleta por mail/).closest("button")!);
+    fireEvent.click(screen.getByText(/Enviar comprobante por mail/).closest("button")!);
     expect(mockSetEnviarEmailRecibo).toHaveBeenCalledWith(true);
   });
 
@@ -167,7 +169,7 @@ describe("ModalPago — toggle email al cliente", () => {
     mockClienteEmail      = "juan@test.com";
     mockEnviarEmailRecibo = true;
     setup();
-    const btn = screen.getByText(/Enviar boleta por mail/).closest("button")!;
+    const btn = screen.getByText(/Enviar comprobante por mail/).closest("button")!;
     expect(btn).toHaveTextContent("✓");
     fireEvent.click(btn);
     expect(mockSetEnviarEmailRecibo).toHaveBeenCalledWith(false);
@@ -297,39 +299,36 @@ describe("ModalPago — IVA breakdown correcto (MP-11/MP-12)", () => {
 describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockMetodoPago         = "efectivo";
-    mockNumeroTransaccion  = undefined;
     mockSubtotalValue      = 10000;
     mockDescuento          = 0;
     mockClienteEmail       = undefined;
     mockEnviarEmailRecibo  = false;
     mockWorkerClerkId      = undefined;
+    mockClienteId          = undefined;
+    mockEstadoLegado       = {};
   });
 
-  // MP-13
-  it("MP-13: debito muestra label N° transacción con asterisco rojo", () => {
-    mockMetodoPago = "debito";
+  // MP-13 (pago mixto: el TRX es por fila)
+  it("MP-13: débito muestra el campo de N° de transacción marcado como obligatorio", () => {
     setup();
-    const label = screen.getByText(/Número de transacción/);
-    expect(label).toBeInTheDocument();
-    expect(label.innerHTML).toContain("*");
+    fireEvent.change(metodo(1), { target: { value: "debito" } });
+    expect(screen.getByLabelText("N° de transacción del pago 1")).toHaveAttribute("placeholder", "N° de transacción (obligatorio)");
   });
 
   // MP-14
-  it("MP-14: efectivo no muestra el campo N° transacción", () => {
-    mockMetodoPago = "efectivo";
+  it("MP-14: efectivo no muestra el campo N° de transacción", () => {
     setup();
-    expect(screen.queryByText(/Número de transacción/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/N° de transacción/)).not.toBeInTheDocument();
   });
 
   // MP-15
-  it("MP-15: credito con TRX vacío en blur muestra error obligatorio", () => {
-    mockMetodoPago        = "credito";
-    mockNumeroTransaccion = "";
+  it("MP-15: crédito sin TRX bloquea Cobrar y muestra el motivo; con TRX se habilita", () => {
     setup();
-    const input = screen.getByPlaceholderText("Ej: TRX123456789");
-    fireEvent.blur(input);
-    expect(screen.getByText("Campo obligatorio para pagos con débito/crédito/transferencia")).toBeInTheDocument();
+    fireEvent.change(metodo(1), { target: { value: "credito" } });
+    expect(cobrar()).toBeDisabled();
+    expect(screen.getByTestId("error-pago")).toHaveTextContent(/número de transacción es obligatorio/);
+    fireEvent.change(screen.getByLabelText("N° de transacción del pago 1"), { target: { value: "TRX-1" } });
+    expect(cobrar()).not.toBeDisabled();
   });
 });
 
@@ -343,7 +342,10 @@ describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
 // (blobs guardados por una versión anterior de la app, antes del fix de pos.ts, o un
 // Cancelar sin limpiar dentro de la misma sesión), ModalPago debe arrancar en un
 // estado neutro cada vez que se monta.
-describe("ModalPago — reset de método de pago al montar (MP-17 a MP-19)", () => {
+// Desde el pago mixto (F7) el estado del cobro es local al modal: cada
+// apertura arranca neutra por construcción, aunque el store traiga estado de
+// cobro de un blob viejo de localStorage.
+describe("ModalPago — estado neutro al montar (MP-17 a MP-19)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockClienteEmail      = undefined;
@@ -352,33 +354,46 @@ describe("ModalPago — reset de método de pago al montar (MP-17 a MP-19)", () 
     mockWorkers           = [];
     mockDescuento         = 0;
     mockSubtotalValue     = 10000;
-    mockNumeroTransaccion = undefined;
+    mockClienteId         = undefined;
+    mockEstadoLegado      = {};
   });
 
   // MP-17
-  it("MP-17: REGRESIÓN — abre con NC heredado (metodoPago='nota_credito' + pagoNc seteado) → resetea a efectivo y limpia pagoNc", () => {
-    mockMetodoPago = "nota_credito";
-    mockPagoNc = { nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 };
+  it("MP-17: REGRESIÓN — un store con NC heredada (blob viejo: metodoPago='nota_credito' + pagoNc) abre igual con un pago en efectivo por el total", () => {
+    mockEstadoLegado = {
+      metodoPago: "nota_credito",
+      pagoNc: { nota_credito_id: "nc-1", numero_nc: "NC-VIEJA", monto: 5000 },
+      numeroTransaccion: "TRX-VIEJO",
+    };
     setup();
-    expect(mockSetMetodoPago).toHaveBeenCalledWith("efectivo");
-    expect(mockClearPayNc).toHaveBeenCalled();
+    expect(screen.getAllByTestId(/^fila-pago-/)).toHaveLength(1);
+    expect(metodo(1)).toHaveValue("efectivo");
+    expect(monto(1)).toHaveValue(10000);
+    expect(screen.queryByText(/NC-VIEJA/)).not.toBeInTheDocument();
+    expect(cobrar()).not.toBeDisabled();
   });
 
-  // MP-18: caso ya cubierto antes del ticket (metodoPago vacío) — no debe dejar de funcionar
-  it("MP-18: metodoPago vacío (undefined) se inicializa a efectivo", () => {
-    mockMetodoPago = undefined as unknown as string;
-    mockPagoNc = undefined;
+  // MP-18
+  it("MP-18: apertura normal → un pago en efectivo por el total y 'Total cubierto'", () => {
     setup();
-    expect(mockSetMetodoPago).toHaveBeenCalledWith("efectivo");
+    expect(metodo(1)).toHaveValue("efectivo");
+    expect(monto(1)).toHaveValue(10000);
+    expect(screen.getByTestId("resto-pago")).toHaveTextContent("Total cubierto");
   });
 
-  // MP-19: caso normal — sin nada heredado, no debe disparar sets innecesarios
-  it("MP-19: metodoPago ya 'efectivo' sin pagoNc → no llama setMetodoPago ni clearPayNc", () => {
-    mockMetodoPago = "efectivo";
-    mockPagoNc = undefined;
+  // MP-19: Cancelar a mitad de un cobro mixto y reabrir no hereda nada.
+  it("MP-19: cerrar a mitad de un cobro mixto y reabrir → vuelve a un solo pago en efectivo", () => {
+    const { unmount } = setup();
+    // Con todo el total en un pago no hay "Agregar": primero se baja el monto.
+    expect(screen.queryByText("+ Agregar medio de pago")).not.toBeInTheDocument();
+    fireEvent.change(monto(1), { target: { value: "4000" } });
+    fireEvent.click(screen.getByText("+ Agregar medio de pago"));
+    expect(screen.getAllByTestId(/^fila-pago-/)).toHaveLength(2);
+    unmount();
+
     setup();
-    expect(mockSetMetodoPago).not.toHaveBeenCalled();
-    expect(mockClearPayNc).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId(/^fila-pago-/)).toHaveLength(1);
+    expect(monto(1)).toHaveValue(10000);
   });
 });
 
@@ -511,5 +526,86 @@ describe("ModalPago — alerta de venta sin vendedor asignado (MP-24/MP-25)", ()
     await waitFor(() => {
       expect(screen.queryByText(/No hay un vendedor seleccionado para esta venta/i)).not.toBeInTheDocument();
     });
+  });
+});
+
+// ── Pago mixto (MP-26 a MP-31) — docs/plan_pago_mixto.md F7 ───────────────────
+describe("ModalPago — pago mixto (MP-26 a MP-31)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockClienteEmail      = undefined;
+    mockEnviarEmailRecibo = false;
+    mockWorkerClerkId     = "user-actual";
+    mockWorkers           = [];
+    mockDescuento         = 0;
+    mockSubtotalValue     = 10000;
+    mockClienteId         = undefined;
+    mockEstadoLegado      = {};
+  });
+
+  function dividirEfectivoDebito() {
+    fireEvent.change(monto(1), { target: { value: "4000" } });
+    fireEvent.click(screen.getByText("+ Agregar medio de pago"));
+    fireEvent.change(metodo(2), { target: { value: "debito" } });
+    fireEvent.change(screen.getByLabelText("N° de transacción del pago 2"), { target: { value: " TRX-77 " } });
+  }
+
+  it("MP-26: Cobrar envía los pagos elegidos (efectivo $4.000 + débito $6.000 con TRX)", () => {
+    const { onConfirm } = setup();
+    dividirEfectivoDebito();
+    expect(monto(2)).toHaveValue(6000); // la fila nueva propone el resto
+    fireEvent.click(cobrar());
+    expect(onConfirm).toHaveBeenCalledWith([
+      { metodo: "efectivo", monto: 4000 },
+      { metodo: "debito", monto: 6000, numeroTransaccion: "TRX-77" },
+    ]);
+  });
+
+  it("MP-27: con resto distinto de 0 Cobrar queda deshabilitado y se informa cuánto falta o sobra", () => {
+    const { onConfirm } = setup();
+    fireEvent.change(monto(1), { target: { value: "7000" } });
+    expect(screen.getByTestId("resto-pago")).toHaveTextContent("Falta $3.000");
+    expect(cobrar()).toBeDisabled();
+    fireEvent.change(monto(1), { target: { value: "12000" } });
+    expect(screen.getByTestId("resto-pago")).toHaveTextContent("Sobra $2.000");
+    fireEvent.click(cobrar());
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("MP-28: aviso de boleta (Res. 176): solo efectivo/transferencia/crédito interno; 100 % tarjeta → voucher cubre", () => {
+    setup();
+    dividirEfectivoDebito();
+    expect(screen.getByTestId("aviso-boleta")).toHaveTextContent("Emitir boleta SII por $4.000");
+    expect(screen.getByTestId("aviso-boleta")).toHaveTextContent("Efectivo $4.000");
+    expect(screen.getByTestId("aviso-boleta")).not.toHaveTextContent("Débito");
+
+    fireEvent.click(screen.getByLabelText("Quitar pago 1"));
+    fireEvent.change(monto(1), { target: { value: "10000" } });
+    expect(screen.getByTestId("aviso-boleta")).toHaveTextContent("El voucher Transbank cubre el total");
+  });
+
+  it("MP-29: si cambia el total (descuento) y había un solo pago por el total, el pago lo sigue", () => {
+    const { rerender } = setup();
+    expect(monto(1)).toHaveValue(10000);
+    mockDescuento = 10;
+    rerender(<ModalPago onConfirm={jest.fn()} onCancel={jest.fn()} isLoading={false} />);
+    expect(monto(1)).toHaveValue(9000);
+    expect(cobrar()).toHaveTextContent("Cobrar $9.000");
+    expect(cobrar()).not.toBeDisabled();
+  });
+
+  it("MP-30: aviso 135 UF solo cuando el total supera el umbral configurado (no bloquea)", () => {
+    const { unmount } = setup({ umbralIdentificacion: 5000 });
+    expect(screen.getByTestId("aviso-135uf")).toHaveTextContent("nombre y RUT");
+    expect(cobrar()).not.toBeDisabled();
+    unmount();
+    setup({ umbralIdentificacion: null });
+    expect(screen.queryByTestId("aviso-135uf")).not.toBeInTheDocument();
+  });
+
+  it("MP-31: 'Saldo a favor' no se puede elegir sin cliente (conveniencia de UX; el control real es del servidor, I-793)", () => {
+    setup();
+    const opcion = Array.from((metodo(1) as HTMLSelectElement).options).find((o) => o.value === "saldo_a_favor")!;
+    expect(opcion.disabled).toBe(true);
   });
 });

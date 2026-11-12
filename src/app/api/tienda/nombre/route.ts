@@ -4,7 +4,8 @@ import { withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 
 // Nombre y RUT de la tienda para cualquier usuario de la tienda (sidebar y
-// recibo del POS). GET /api/settings es solo admin (SEC-07: tokens, licencia)
+// recibo del POS), más el umbral de 135 UF que el POS usa para avisar que la
+// boleta debe identificar al comprador (pago mixto, plan F11; no es sensible). GET /api/settings es solo admin (SEC-07: tokens, licencia)
 // y el storeWorker veía "PetShop" (QA 2026-09-27). Solo expone `name` y `rut`:
 // el RUT de la tienda es público (va impreso en cada recibo, igual que en
 // /api/recibos/[ventaId]).
@@ -14,10 +15,14 @@ export const GET = withErrorLogging(async () => {
 
   const { data, error } = await createServiceClient()
     .from("stores")
-    .select("name, rut")
+    .select("name, rut, umbral_identificacion_comprador")
     .eq("id", ctx.storeId)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
-  return NextResponse.json({ name: data.name, rut: data.rut ?? null });
+  return NextResponse.json({
+    name: data.name,
+    rut: data.rut ?? null,
+    umbral_identificacion_comprador: data.umbral_identificacion_comprador ?? null,
+  });
 }, { endpoint: "GET /api/tienda/nombre" });

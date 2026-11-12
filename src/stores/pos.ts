@@ -54,24 +54,19 @@ export function calcularImpuestoCarrito(items: CartItem[], descuentoPct: number)
   return extraerIva(sub - desc);
 }
 
-interface PagoNc {
-  nota_credito_id: string;
-  numero_nc: string;
-  monto: number;
-}
-
+// El estado del cobro (medios de pago, NC, TRX) NO vive en este store: es
+// local a ModalPago/SelectorPagos (pago mixto, docs/plan_pago_mixto.md), así
+// nunca se persiste ni sobrevive a un "Cancelar" o a un reload (ticket Trello
+// 6a619fafd0aa9aa5ad06b1dd).
 interface POSStore {
   items: CartItem[];
   clienteId?: string;
   clienteEmail?: string;
   mascotaId?: string;
   workerClerkId?: string;
-  metodoPago?: string;
-  numeroTransaccion?: string;
   descuento: number;
   fidelizacionDescuento: number;
   procedencia: string;
-  pagoNc?: PagoNc;
   notas: string;
   enviarEmailRecibo: boolean;
 
@@ -83,12 +78,8 @@ interface POSStore {
   clearCliente: () => void;
   setEnviarEmailRecibo: (v: boolean) => void;
   setWorker: (clerkId: string | undefined) => void;
-  setMetodoPago: (metodo: string) => void;
-  setNumeroTransaccion: (numero: string | undefined) => void;
   setDescuento: (descuento: number) => void;
   setProcedencia: (procedencia: string) => void;
-  setPayNc: (nc: PagoNc) => void;
-  clearPayNc: () => void;
   setNotas: (notas: string) => void;
 
   subtotal: () => number;
@@ -104,7 +95,6 @@ export const usePOSStore = create<POSStore>()(
       items: [],
       descuento: 0,
       fidelizacionDescuento: 0,
-      metodoPago: "efectivo",
       procedencia: "presencial",
       notas: "",
       enviarEmailRecibo: false,
@@ -167,12 +157,9 @@ export const usePOSStore = create<POSStore>()(
           clienteEmail: undefined,
           mascotaId: undefined,
           // workerClerkId se mantiene — el mismo cajero atiende ventas consecutivas
-          metodoPago: "efectivo",
-          numeroTransaccion: undefined,
           descuento: 0,
           fidelizacionDescuento: 0,
           procedencia: "presencial",
-          pagoNc: undefined,
           notas: "",
           enviarEmailRecibo: false,
         }),
@@ -200,17 +187,10 @@ export const usePOSStore = create<POSStore>()(
 
       setWorker: (workerClerkId) => set({ workerClerkId }),
 
-      setMetodoPago: (metodoPago) => set({ metodoPago }),
-
-      setNumeroTransaccion: (numeroTransaccion) => set({ numeroTransaccion }),
-
       setDescuento: (descuento) => set({ descuento }),
 
       setProcedencia: (procedencia) => set({ procedencia }),
 
-      setPayNc: (nc) => set({ pagoNc: nc }),
-
-      clearPayNc: () => set({ pagoNc: undefined }),
       setNotas: (notas) => set({ notas }),
 
       // precio ya incluye IVA
@@ -228,15 +208,12 @@ export const usePOSStore = create<POSStore>()(
     {
       name: "pos-cart",
       storage: createJSONStorage(() => localStorage),
-      // metodoPago, numeroTransaccion y pagoNc quedan FUERA a propósito: son
-      // estado transitorio del intento de cobro actual dentro de ModalPago, no
-      // parte de "la venta que se está armando" (a diferencia de items/clienteId/
-      // descuento, que sí deben sobrevivir un reload accidental). Persistirlos
-      // hacía que un cobro con Nota de Crédito interrumpido a mitad de camino
-      // (metodoPago="nota_credito" + pagoNc seteado, sin completar la venta)
-      // sobreviviera al reload y la siguiente apertura del modal heredara ese NC
-      // ajeno, bloqueando el cambio de método de pago (ticket Trello
-      // 6a619fafd0aa9aa5ad06b1dd). Ver S-43/S-44 en tests/unit/lib/pos-store.test.ts.
+      // Solo "la venta que se está armando" sobrevive a un reload. El estado del
+      // cobro ni siquiera está en el store (ver comentario de POSStore): antes,
+      // persistir metodoPago/pagoNc hacía que un cobro con NC interrumpido
+      // reapareciera tras recargar y bloqueara el cambio de método (ticket
+      // Trello 6a619fafd0aa9aa5ad06b1dd). Ver S-43/S-44 en
+      // tests/unit/lib/pos-store.test.ts.
       partialize: (state) => ({
         items: state.items,
         clienteId: state.clienteId,

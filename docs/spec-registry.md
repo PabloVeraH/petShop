@@ -2636,3 +2636,45 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-CITA-81 | Cita: NC con reembolso directo → 409 sin RPC (D7) | PATCH /api/citas/[id] | integration |
 | I-CITA-82 | Cita: saldo insuficiente de la RPC (PV006) → 409 | PATCH /api/citas/[id] | integration |
 | PMX-SQL-01…15 | RPC real (Postgres local, `bash tests/sql/run.sh`): pagos mixtos, suma exacta, forma, NC (reembolso directo, vencida, usada, otra tienda, saldo gastado), saldo a favor (descuento, insuficiente, sin cliente, otra tienda), anulación reacredita, parámetros legados, idempotencia, venta $0, citas | migración 093 | sql |
+| S-07/S-26/S-43/S-44 | (actualizados por pago mixto F7) el store no contiene estado de cobro; un blob antiguo con NC a medio cobrar no se vuelve a persistir | usePOSStore | unit |
+| MP-13…MP-15 | (actualizados F7) N° de transacción por fila: débito lo pide, efectivo no, crédito sin TRX bloquea Cobrar | ModalPago | component |
+| MP-17…MP-19 | (actualizados F7) apertura neutra: blob viejo con NC heredada se ignora; un pago en efectivo por el total; reabrir tras cobro mixto vuelve a un pago | ModalPago | component |
+| MP-26 | Pago mixto: Cobrar envía los pagos elegidos (efectivo + débito con TRX) | ModalPago | component |
+| MP-27 | Pago mixto: con resto ≠ 0 Cobrar se deshabilita e informa Falta/Sobra | ModalPago | component |
+| MP-28 | Aviso de boleta (Res. 176): efectivo + débito → boletear solo el efectivo; 100 % tarjeta → voucher cubre | ModalPago | component |
+| MP-29 | Si cambia el total (descuento), un pago único por el total lo sigue | ModalPago | component |
+| MP-30 | Aviso 135 UF solo sobre el umbral configurado; no bloquea | ModalPago | component |
+| MP-31 | Saldo a favor no elegible sin cliente (UX; control real I-793) | ModalPago | component |
+| SP-01 | SelectorPagos: validar NC (URL codificada) aplica mín(disponible, lo que falta) | SelectorPagos | component |
+| SP-02 | SelectorPagos: NC mayor a lo que falta se aplica solo por lo que falta | SelectorPagos | component |
+| SP-03 | SelectorPagos: error de la API de NC (reembolso directo) se muestra y la fila queda sin NC | SelectorPagos | component |
+| SP-04 | errorFilas: monto de NC mayor a su disponible se rechaza aunque la suma cuadre | SelectorPagos | component |
+| SP-05 | SelectorPagos: saldo a favor muestra el disponible y rechaza montos mayores | SelectorPagos | component |
+| SP-06 | SelectorPagos: error al consultar el saldo se muestra | SelectorPagos | component |
+| SP-07 | SelectorPagos: con NC, otra fila no puede elegir saldo a favor ni otra NC (D8) | SelectorPagos | component |
+| SP-08 | SelectorPagos: máximo 5 medios | SelectorPagos | component |
+| SP-09 | SelectorPagos: quitar fila recalcula el resto; una sola fila no se puede quitar | SelectorPagos | component |
+| SP-10 | SelectorPagos: cambiar de débito a efectivo descarta el TRX | SelectorPagos | component |
+| PP-18 | POS: tras cobrar queda visible "Emitir boleta SII por $X" hasta cerrarlo o abrir otro cobro | POSPage | component |
+| COB-01…COB-08 | (reescritos F8) cobro de cita con SelectorPagos: desglose, efectivo, TRX, NC total/parcial/inexistente, error del PATCH | ModalCobroCita | component |
+| COB-09 | Cobro de cita efectivo + saldo a favor del cliente de la cita → PATCH con ambos pagos | ModalCobroCita | component |
+| COB-10 | Cobro de cita: aviso de boleta (crédito + efectivo → boletear el efectivo) | ModalCobroCita | component |
+| C-95 | Detalle de venta: pago mixto → "Emitir boleta SII por $X" con desglose, sin débito | SalesTicketPage | component |
+| C-96 | Detalle de venta: 100 % tarjeta → "El voucher Transbank cubre el total" | SalesTicketPage | component |
+| C-97 | Detalle de venta: NC y saldo a favor entran en el monto a boletear | SalesTicketPage | component |
+| C-98 | Detalle de venta: sin aviso para canales externos ni ventas anuladas | SalesTicketPage | component |
+| C-99 | Detalle de venta: sin canal se trata como POS; sin pagos no hay aviso | SalesTicketPage | component |
+| C-100 | Ticket: leyenda "No válido como documento tributario" impresa; aviso fuera de lo impreso; sin "boleta" | SalesTicketPage | component |
+| C-101 | Ticket: métodos con etiqueta legible (Mixto, Saldo a favor, Débito) | SalesTicketPage | component |
+| C-115 | Settings: umbral 135 UF se muestra, se edita en pesos y vaciarlo envía null | SettingsPage | component |
+| U-260 | PDF: título "COMPROBANTE DE VENTA" con leyenda, sin "boleta" (D12) | pdf-generator | unit |
+| U-261 | PDF: formas de pago con etiquetaMetodo | pdf-generator | unit |
+| U-262 | Correo: "Comprobante de venta" + leyenda, sin "boleta" | email | unit |
+| U-263 | Correo: métodos con etiquetaMetodo y TRX escapado | email | unit |
+| U-264 | Correo: asunto "Comprobante de venta…" y adjunto comprobante-*.pdf | email | unit |
+| I-806 | Recibo HTML: título de comprobante y leyenda, sin "boleta" | GET /api/recibos/[ventaId] | integration |
+| I-807 | Recibo HTML: métodos legibles (Débito #TRX, Nota de crédito, Saldo a favor) | GET /api/recibos/[ventaId] | integration |
+| I-808 | GET /api/ventas/[id] devuelve canal, filtrando por store_id | GET /api/ventas/[id] | integration |
+| I-830 | GET /api/tienda/nombre: expone solo nombre, RUT y umbral 135 UF (null si no está configurado) | GET /api/tienda/nombre | integration |
+| I-831 | PATCH /api/settings: el admin guarda/limpia el umbral 135 UF; un PATCH que no lo menciona no lo toca | PATCH /api/settings | integration |
+| I-832 | PATCH /api/settings: umbral 0, negativo, decimal o texto → 400 sin escribir | PATCH /api/settings | integration |

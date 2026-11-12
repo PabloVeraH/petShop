@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { netoDesdeBruto } from "@/lib/tax";
 import { registrarConsulta, withErrorLogging } from "@/lib/audit";
 import { esc } from "@/lib/email";
+import { etiquetaMetodo } from "@/lib/ventas/pagos";
 import { fechaHoraNegocioEsCL, fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
@@ -143,7 +144,7 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
   const metodosDetalle = pagos
     .map((p) => {
       const monto = Number(p.monto);
-      let metodoTexto = p.metodo.charAt(0).toUpperCase() + p.metodo.slice(1);
+      let metodoTexto = etiquetaMetodo(p.metodo);
       if (p.numero_transaccion) {
         metodoTexto += ` #${p.numero_transaccion}`;
       }
@@ -184,12 +185,14 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
   const total = Number(venta.total);
   const neto = total - impuesto; // Neto sin IVA para mostrar en recibo
 
+  // No es una boleta (decisión D12, docs/pago_complementario.md §6.0): la
+  // tienda no emite documentos tributarios desde el sistema.
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recibo ${esc(venta.numero_comprobante)}</title>
+  <title>Comprobante de venta ${esc(venta.numero_comprobante)}</title>
   <style>
     * {
       margin: 0;
@@ -366,6 +369,8 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
       <div class="titulo">${esc(store?.name ?? "Tienda")}</div>
       <div class="subtitulo">RUT: ${esc(store?.rut ?? "N/A")}</div>
       ${store?.address ? `<div class="subtitulo">${esc(store.address)}</div>` : ""}
+      <div class="subtitulo">Comprobante de venta</div>
+      <div class="subtitulo"><strong>No válido como documento tributario</strong></div>
       <div class="numero-comprobante">${esc(venta.numero_comprobante)}</div>
       <div class="fecha-hora">${fechaFormato} ${horaFormato}</div>
     </div>
@@ -447,7 +452,6 @@ function generarHTMLRecibo({ venta, store, cliente, worker, items, pagos }: Reci
     <div class="pie">
       <p>Gracias por su compra</p>
       <p style="margin-top: 2mm; font-size: 9px;">Estado: ${esc(venta.estado)}</p>
-      <p style="margin-top: 2mm; font-size: 9px;">Este recibo NO constituye un documento tributario</p>
     </div>
   </div>
 </body>

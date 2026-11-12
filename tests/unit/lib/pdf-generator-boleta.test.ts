@@ -89,3 +89,34 @@ describe("generateBoletaPDF — Subtotal (U-120/U-121)", () => {
     expect(15126 + 2874).toBe(18000);
   });
 });
+
+// Decisión D12 (docs/pago_complementario.md §6.0): la tienda no emite boletas
+// desde el sistema; el PDF que se envía al cliente no puede rotularse "Boleta".
+describe("generateBoletaPDF — rótulo no tributario (U-260/U-261)", () => {
+  const textos = (doc: FakeJsPDF) => doc.textCalls.map(([t]) => t);
+
+  it("U-260: el título es 'COMPROBANTE DE VENTA' con la leyenda 'No válido como documento tributario', sin 'BOLETA'", () => {
+    const t = textos(generateBoletaPDF(baseBoleta()) as unknown as FakeJsPDF);
+    expect(t).toContain("COMPROBANTE DE VENTA");
+    expect(t).toContain("No válido como documento tributario");
+    // La leyenda va junto al título, no solo al pie.
+    expect(t.indexOf("No válido como documento tributario")).toBe(t.indexOf("COMPROBANTE DE VENTA") + 1);
+    expect(t.some((x) => /boleta/i.test(x))).toBe(false);
+  });
+
+  it("U-261: las formas de pago usan etiquetaMetodo (Saldo a favor, Nota de crédito, Débito #trx)", () => {
+    const t = textos(
+      generateBoletaPDF(
+        baseBoleta({
+          pagos: [
+            { metodo: "debito", monto: 5000, numero_transaccion: "TRX-9" },
+            { metodo: "nota_credito", monto: 4000 },
+            { metodo: "saldo_a_favor", monto: 2900 },
+          ],
+        })
+      ) as unknown as FakeJsPDF
+    );
+    expect(t).toEqual(expect.arrayContaining(["Débito #TRX-9", "Nota de crédito", "Saldo a favor"]));
+    expect(t).not.toContain("saldo_a_favor");
+  });
+});

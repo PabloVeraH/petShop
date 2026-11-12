@@ -147,6 +147,30 @@ describe("GET /api/ventas/[id]", () => {
     }));
   });
 
+  // I-808 — el detalle (/sales/[id]) decide con `canal` si avisa "Emitir
+  // boleta SII": las ventas de canal externo las cobra la plataforma.
+  it("I-808: devuelve el canal de la venta (columna pedida explícitamente) y sigue filtrando por la tienda", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, numero_comprobante: "N-1", total: 1000, canal: "rappi", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null },
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? chain : { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/ventas/venta-1"), { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).canal).toBe("rappi");
+    expect(chain.select.mock.calls[0][0]).toMatch(/\bcanal\b/);
+    expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+  });
+
   it("retorna 404 si venta no existe", async () => {
     const ventaChain = {
       select: jest.fn().mockReturnThis(),
