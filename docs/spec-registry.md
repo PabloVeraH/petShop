@@ -2718,3 +2718,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | DV-24 | Devolución de venta sin cliente: Confirmar bloqueado hasta buscar el cliente por RUT; el POST lleva su id | DevolucionModal | component |
 | DV-25 | Devolución: RUT sin cliente registrado → mensaje y sigue bloqueado | DevolucionModal | component |
 | PMX-SQL-18…22 | Dueño de la NC: otro cliente o venta sin cliente → PV008; NC sin dueño → PV008; crear NC exige cliente (PV009) y suma el saldo al dueño; anular devuelve el crédito al dueño (venta que la usó y venta de origen) | migración 093 | sql |
+| I-838 | POST /api/ventas: las notas internas se guardan recortadas, filtrando por venta y tienda; vacías o en blanco no escriben (antes se perdían: la columna no existía) | POST /api/ventas | integration |
+| I-839 | POST /api/ventas: si guardar las notas falla, la venta responde 200 y el error queda en el log (antes se ignoraba) | POST /api/ventas | integration |
+| I-840 | GET /api/ventas/[id] devuelve las notas internas (columna pedida explícitamente), filtrando por tienda | GET /api/ventas/[id] | integration |
+| C-116 | Detalle de venta: notas internas visibles fuera del ticket impreso; sin notas no hay bloque | SalesTicketPage | component |
+| NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
