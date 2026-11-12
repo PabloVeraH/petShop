@@ -351,3 +351,12 @@ describe("POST /api/ventas — notas internas", () => {
     spy.mockRestore();
   });
 });
+
+describe("POST /api/ventas — medios sin repetir", () => {
+  it("I-841: dos pagos con el mismo medio → 400 sin llegar a la RPC (aunque la UI lo impida, la API es el control real)", async () => {
+    const res = await post({ items: ITEMS, pagos: [{ metodo: "efectivo", monto: 5000 }, { metodo: "efectivo", monto: 12000 }] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/No se puede repetir el medio de pago/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+});

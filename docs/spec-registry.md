@@ -2645,16 +2645,16 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | MP-29 | Si cambia el total (descuento), un pago único por el total lo sigue | ModalPago | component |
 | MP-30 | Aviso 135 UF solo sobre el umbral configurado; no bloquea | ModalPago | component |
 | MP-31 | Saldo a favor no elegible sin cliente (UX; control real I-793) | ModalPago | component |
-| SP-01 | SelectorPagos: validar NC (URL codificada) aplica mín(disponible, lo que falta) | SelectorPagos | component |
-| SP-02 | SelectorPagos: NC mayor a lo que falta se aplica solo por lo que falta | SelectorPagos | component |
-| SP-03 | SelectorPagos: error de la API de NC (reembolso directo) se muestra y la fila queda sin NC | SelectorPagos | component |
-| SP-04 | errorFilas: monto de NC mayor a su disponible se rechaza aunque la suma cuadre | SelectorPagos | component |
-| SP-05 | SelectorPagos: saldo a favor muestra el disponible y rechaza montos mayores | SelectorPagos | component |
-| SP-06 | SelectorPagos: error al consultar el saldo se muestra | SelectorPagos | component |
-| SP-07 | SelectorPagos: con NC, otra fila no puede elegir saldo a favor ni otra NC (D8) | SelectorPagos | component |
-| SP-08 | SelectorPagos: máximo 5 medios | SelectorPagos | component |
-| SP-09 | SelectorPagos: quitar fila recalcula el resto; una sola fila no se puede quitar | SelectorPagos | component |
-| SP-10 | SelectorPagos: cambiar de débito a efectivo descarta el TRX | SelectorPagos | component |
+| SEL-01 | SelectorPagos: validar NC (URL codificada) aplica mín(disponible, lo que falta) | SelectorPagos | component |
+| SEL-02 | SelectorPagos: NC mayor a lo que falta se aplica solo por lo que falta | SelectorPagos | component |
+| SEL-03 | SelectorPagos: error de la API de NC (reembolso directo) se muestra y la fila queda sin NC | SelectorPagos | component |
+| SEL-04 | errorFilas: monto de NC mayor a su disponible se rechaza aunque la suma cuadre | SelectorPagos | component |
+| SEL-05 | SelectorPagos: saldo a favor muestra el disponible y rechaza montos mayores | SelectorPagos | component |
+| SEL-06 | SelectorPagos: error al consultar el saldo se muestra | SelectorPagos | component |
+| SEL-07 | SelectorPagos: con NC, otra fila no puede elegir saldo a favor ni otra NC (D8) | SelectorPagos | component |
+| SEL-08 | SelectorPagos: máximo 5 medios | SelectorPagos | component |
+| SEL-09 | SelectorPagos: quitar fila recalcula el resto; una sola fila no se puede quitar | SelectorPagos | component |
+| SEL-10 | SelectorPagos: cambiar de débito a efectivo descarta el TRX | SelectorPagos | component |
 | PP-18 | POS: tras cobrar queda visible "Emitir boleta SII por $X" hasta cerrarlo o abrir otro cobro | POSPage | component |
 | COB-01…COB-08 | (reescritos F8) cobro de cita con SelectorPagos: desglose, efectivo, TRX, NC total/parcial/inexistente, error del PATCH | ModalCobroCita | component |
 | COB-09 | Cobro de cita efectivo + saldo a favor del cliente de la cita → PATCH con ambos pagos | ModalCobroCita | component |
@@ -2713,7 +2713,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-836 | POST /api/notas-credito: clienteId viaja como p_cliente_id (null si no viene); PV009 → 400; clienteId inválido → 400 | POST /api/notas-credito | integration |
 | I-837 | POST /api/ventas: NC sin cliente en la venta → 400; de otro cliente → 409; sin dueño → 409; sin llegar a la RPC | POST /api/ventas | integration |
 | I-CITA-83 | Cita: la NC de otro cliente no paga la cita → 409 sin RPC | PATCH /api/citas/[id] | integration |
-| SP-11 | SelectorPagos: sin cliente en la venta, "Nota de crédito" no se puede elegir (UX) | SelectorPagos | component |
+| SEL-11 | SelectorPagos: sin cliente en la venta, "Nota de crédito" no se puede elegir (UX) | SelectorPagos | component |
 | DV-23 | Devolución de venta con cliente: no pide cliente ni envía clienteId | DevolucionModal | component |
 | DV-24 | Devolución de venta sin cliente: Confirmar bloqueado hasta buscar el cliente por RUT; el POST lleva su id | DevolucionModal | component |
 | DV-25 | Devolución: RUT sin cliente registrado → mensaje y sigue bloqueado | DevolucionModal | component |
@@ -2723,3 +2723,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-840 | GET /api/ventas/[id] devuelve las notas internas (columna pedida explícitamente), filtrando por tienda | GET /api/ventas/[id] | integration |
 | C-116 | Detalle de venta: notas internas visibles fuera del ticket impreso; sin notas no hay bloque | SalesTicketPage | component |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
+| U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |
+| SEL-12 | SelectorPagos: un medio elegido en una fila queda deshabilitado en las demás, en ambos sentidos | SelectorPagos | component |
+| SEL-13 | SelectorPagos: "Agregar" propone el primer medio libre; sin medios libres no aparece | SelectorPagos | component |
+| I-841 | POST /api/ventas: dos pagos con el mismo medio → 400 sin RPC | POST /api/ventas | integration |

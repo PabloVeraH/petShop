@@ -111,6 +111,9 @@ export function validarFormaPagos(pagos: PagoInput[]): string | null {
   // Una NC tipo saldo_a_favor y el saldo del cliente son el mismo dinero
   // (decisión D8 del plan): combinarlos en una venta abre un doble consumo.
   if (nNc > 0 && nSaldo > 0) return "No se puede combinar nota de crédito y saldo a favor en la misma venta";
+  // Cada medio una sola vez: dos pagos en efectivo (o con débito) son uno solo.
+  const repetido = pagos.find((p, i) => pagos.findIndex((q) => q.metodo === p.metodo) !== i);
+  if (repetido) return `No se puede repetir el medio de pago: ${etiquetaMetodo(repetido.metodo).toLowerCase()}`;
   return null;
 }
 

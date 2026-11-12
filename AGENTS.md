@@ -1108,6 +1108,8 @@ por su cuenta.
 - `Σ pagos.monto = ventas.total`, montos enteros; `$0` solo como pago único
   de una venta de `$0`. `ventas.metodo_pago` (método único o `'mixto'`) lo
   decide **solo** `validar_pagos`.
+- Cada medio de pago aparece una sola vez por venta (dos pagos en efectivo son
+  uno solo): lo impide la UI y lo rechaza `validarPagos` en la API.
 - Una NC con `tipo_reembolso <> 'saldo_a_favor'` no paga nada (el dinero ya se
   devolvió). Pagar con una NC descuenta el saldo del cliente de la venta de
   origen **condicionalmente** (`saldo_disponible >= monto`, sin piso 0): la NC
