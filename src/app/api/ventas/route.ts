@@ -230,7 +230,7 @@ async function postVenta(req: NextRequest) {
   const pagoNc = pagos.find((p) => p.metodo === "nota_credito");
   let numeroNc: string | undefined;
   if (pagoNc) {
-    const nc = await prevalidarNotaCredito(supabase, store_id, pagoNc.notaCreditoId as string, pagoNc.monto);
+    const nc = await prevalidarNotaCredito(supabase, store_id, pagoNc.notaCreditoId as string, pagoNc.monto, clienteId);
     if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
     numeroNc = nc.numeroNc;
   }

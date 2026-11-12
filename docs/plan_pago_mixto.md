@@ -253,3 +253,30 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
     `aplicar_pagos`): ante concurrencia exacta, deadlock (500, sin daño) o
     doble descuento acotado en 0. Fix sugerido en una migración propia.
 - 2026-11-12: F12 cerrada. Verificado: typecheck OK, lint 0 errores, `npm test` 3070/3070 (236 suites), test:security 13/13, audit:deps 0 vulnerabilidades, build OK, `bash tests/sql/run.sh` OK, cobertura de líneas 98,4 % en los archivos nuevos. Pendiente: F13 (aplicar la 093 al demo, requiere OK explícito).
+- 2026-11-12 (sesión cortada por límite de uso) — **EN CURSO: dueño de la NC**
+  (decisión del usuario: toda NC es de un cliente y solo él la usa; si la venta
+  no tenía cliente, se registra al crear la NC). Commit WIP; los tests de Jest
+  NO están en verde todavía.
+  Hecho y verificado:
+  - Migración 093: columna `notas_credito.cliente_id` + backfill desde la venta,
+    `crear_nota_credito_tx(..., p_cliente_id)` exige cliente (PV009),
+    `aplicar_pagos` exige que la venta sea del dueño (PV008),
+    `anular_venta_tx` devuelve el crédito al dueño. Guarda de datos (aborta si
+    hay precios con decimales) y `migrations/093_pago_mixto_preflight.sql`
+    (solo lectura). `bash tests/sql/run.sh` OK (PMX-SQL-18…22); la guarda se
+    probó abortando con un servicio de precio decimal.
+  - TS: `validarPagos` exige cliente con NC; PV008/PV009 mapeados;
+    `prevalidarNotaCredito(..., clienteId)` verifica el dueño (ventas y citas).
+  Falta:
+  1. `GET /api/notas-credito?numero_nc` → exigir `clienteId`, comparar con
+     `nc.cliente_id`, saldo desde `nc.cliente_id`.
+  2. `SelectorPagos`: NC deshabilitada sin cliente; `ValidadorNc` envía `&clienteId=`.
+  3. Crear NC: `NotaCreditoPostSchema.clienteId` opcional → `p_cliente_id`;
+     mapear PV009 a 400; `DevolucionModal` pide cliente (búsqueda por RUT,
+     `/api/clientes?rut=`) cuando la venta no tiene.
+  4. Actualizar mocks de tests (NC con `cliente_id`, ventas con `clienteId`):
+     ventas-pago-mixto, ventas.post (I-491), citas, notas-credito, SelectorPagos;
+     tests nuevos de dueño; registrar IDs; README de migraciones (preflight
+     obligatorio antes de migrar una tienda).
+  5. Suite completa + build; luego F13 (aplicar en el demo: correr primero el
+     preflight) y push + PR (el usuario ya autorizó ambos).

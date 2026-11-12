@@ -122,6 +122,10 @@ export function validarPagos(pagos: PagoInput[], total: number, clienteId?: stri
   if (pagos.some((p) => p.metodo === "saldo_a_favor") && !clienteId) {
     return "El saldo a favor requiere un cliente asociado a la venta";
   }
+  // Toda NC es de un cliente y solo él la usa (decisión 2026-11-12).
+  if (pagos.some((p) => p.metodo === "nota_credito") && !clienteId) {
+    return "La nota de crédito solo la puede usar su dueño: seleccione el cliente de la venta";
+  }
 
   const suma = pagos.reduce((s, p) => s + p.monto, 0);
   if (suma !== total) {
@@ -140,6 +144,8 @@ const HTTP_ERROR_PAGO: Record<string, number> = {
   PV005: 409, // NC con reembolso directo
   PV006: 409, // saldo a favor insuficiente
   PV007: 400, // saldo a favor sin cliente
+  PV008: 409, // NC de otro cliente o sin dueño
+  PV009: 400, // NC sin cliente al crearla / cliente inválido
 };
 
 export function estadoHttpErrorPago(code: string | undefined | null): number | null {

@@ -14,11 +14,12 @@ export async function prevalidarNotaCredito(
   supabase: SupabaseClient,
   storeId: string,
   notaCreditoId: string,
-  monto: number
+  monto: number,
+  clienteId: string | null | undefined
 ): Promise<ResultadoPrevalidacionNc> {
   const { data: nc } = await supabase
     .from("notas_credito")
-    .select("id, numero_nc, monto_total, fecha_vencimiento, estado, tipo_reembolso")
+    .select("id, numero_nc, monto_total, fecha_vencimiento, estado, tipo_reembolso, cliente_id")
     .eq("id", notaCreditoId)
     .eq("store_id", storeId)
     .single();
@@ -31,6 +32,13 @@ export async function prevalidarNotaCredito(
   if (nc.estado !== "activa") return { ok: false, status: 409, error: "NC ya fue utilizada o está inactiva" };
   if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
     return { ok: false, status: 410, error: "NC vencida" };
+  }
+  // Solo el dueño de la NC la usa (decisión 2026-11-12).
+  if (!nc.cliente_id) {
+    return { ok: false, status: 409, error: "Esta nota de crédito no tiene cliente asignado: asígnele su dueño antes de usarla" };
+  }
+  if (nc.cliente_id !== clienteId) {
+    return { ok: false, status: 409, error: "La nota de crédito pertenece a otro cliente" };
   }
   if (monto > Number(nc.monto_total)) return { ok: false, status: 400, error: "Monto NC no coincide" };
   return { ok: true, numeroNc: nc.numero_nc as string };

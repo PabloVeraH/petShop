@@ -228,7 +228,7 @@ async function completarCita(
 
   const pagoNc = pagos.find((p) => p.metodo === "nota_credito");
   if (pagoNc) {
-    const nc = await prevalidarNotaCredito(supabase, ctx.storeId, pagoNc.notaCreditoId as string, pagoNc.monto);
+    const nc = await prevalidarNotaCredito(supabase, ctx.storeId, pagoNc.notaCreditoId as string, pagoNc.monto, existing.cliente_id);
     if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
   }
 

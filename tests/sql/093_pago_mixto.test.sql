@@ -31,7 +31,8 @@ INSERT INTO stores (id, name, business_id) VALUES
   ('00000000-0000-0000-0000-00000000000b', 'Tienda B', '00000000-0000-0000-0000-0000000000b1');
 INSERT INTO clientes (id, store_id, rut, nombre) VALUES
   ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000000a', '11111111-1', 'Cliente A'),
-  ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-00000000000b', '22222222-2', 'Cliente B');
+  ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-00000000000b', '22222222-2', 'Cliente B'),
+  ('00000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-00000000000a', '33333333-3', 'Cliente C');
 INSERT INTO productos (id, store_id, sku, nombre, precio, stock) VALUES
   ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', 'SKU1', 'Saco 15 kg', 17000, 100);
 
@@ -40,17 +41,20 @@ INSERT INTO ventas (id, store_id, cliente_id, total, metodo_pago, estado, canal)
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000c1', 50000, 'efectivo', 'pagada', 'pos'),
   ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000c2', 50000, 'efectivo', 'pagada', 'pos');
 
-INSERT INTO notas_credito (id, store_id, venta_id, numero_nc, tipo_reembolso, monto_total, estado, fecha_vencimiento) VALUES
+-- cliente_id = dueño de la NC (093): solo ese cliente la usa como pago.
+INSERT INTO notas_credito (id, store_id, venta_id, numero_nc, tipo_reembolso, monto_total, estado, fecha_vencimiento, cliente_id) VALUES
   -- saldo_a_favor vigente, cliente A (su saldo se siembra abajo)
-  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-SALDO', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() + 30),
+  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-SALDO', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c1'),
   -- reembolso directo (el dinero ya se devolvió)
-  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-DIRECTO', 'reembolso_directo', 3000, 'activa', public.hoy_negocio() + 30),
+  ('00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-DIRECTO', 'reembolso_directo', 3000, 'activa', public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c1'),
   -- vencida
-  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-VENCIDA', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() - 1),
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-VENCIDA', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() - 1, '00000000-0000-0000-0000-0000000000c1'),
   -- ya usada
-  ('00000000-0000-0000-0000-0000000000e4', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-USADA', 'saldo_a_favor', 3000, 'usada', public.hoy_negocio() + 30),
+  ('00000000-0000-0000-0000-0000000000e4', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-USADA', 'saldo_a_favor', 3000, 'usada', public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c1'),
   -- de la tienda B
-  ('00000000-0000-0000-0000-0000000000e5', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000a2', 'NC-OTRA', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() + 30);
+  ('00000000-0000-0000-0000-0000000000e5', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000a2', 'NC-OTRA', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c2'),
+  -- anterior a la 093, sin dueño (su venta de origen no tenía cliente)
+  ('00000000-0000-0000-0000-0000000000e6', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000a1', 'NC-SIN-DUENO', 'saldo_a_favor', 3000, 'activa', public.hoy_negocio() + 30, NULL);
 
 INSERT INTO saldos_a_favor (store_id, cliente_id, saldo_disponible) VALUES
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000c1', 10000),
@@ -98,7 +102,7 @@ BEGIN
   -- PMX-SQL-03: NC + efectivo + crédito. La NC queda usada, el saldo del
   -- cliente de origen baja por el monto de la NC y la fila guarda el número.
   r := t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"},'
-               '{"metodo":"efectivo","monto":2000},{"metodo":"credito","monto":12000,"numero_transaccion":"T3"}]');
+               '{"metodo":"efectivo","monto":2000},{"metodo":"credito","monto":12000,"numero_transaccion":"T3"}]', '00000000-0000-0000-0000-0000000000c1');
   v_id := (r->'venta'->>'id')::uuid;
   ASSERT r->'venta'->>'metodo_pago' = 'mixto', 'PMX-SQL-03 mixto';
   ASSERT (SELECT estado FROM notas_credito WHERE numero_nc = 'NC-SALDO') = 'usada', 'PMX-SQL-03 NC usada';
@@ -139,7 +143,7 @@ BEGIN
   -- PMX-SQL-08 (D8): NC tipo saldo cuyo saldo ya se gastó → PV006, sin cambios.
   UPDATE notas_credito SET estado = 'activa' WHERE numero_nc = 'NC-SALDO';
   UPDATE saldos_a_favor SET saldo_disponible = 1000 WHERE cliente_id = '00000000-0000-0000-0000-0000000000c1';
-  PERFORM t.falla('PMX-SQL-08', $q$SELECT t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"},{"metodo":"efectivo","monto":14000}]')$q$, 'PV006');
+  PERFORM t.falla('PMX-SQL-08', $q$SELECT t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"},{"metodo":"efectivo","monto":14000}]', '00000000-0000-0000-0000-0000000000c1')$q$, 'PV006');
   ASSERT (SELECT estado FROM notas_credito WHERE numero_nc = 'NC-SALDO') = 'activa', 'PMX-SQL-08 NC no reclamada';
   ASSERT (SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c1') = 1000, 'PMX-SQL-08 saldo intacto';
 
@@ -166,7 +170,7 @@ BEGIN
   ASSERT r->'venta'->>'metodo_pago' = 'efectivo', 'PMX-SQL-11a';
   ASSERT (SELECT sum(monto) FROM pagos WHERE venta_id = (r->'venta'->>'id')::uuid) = 17000, 'PMX-SQL-11a monto';
   UPDATE notas_credito SET estado = 'activa' WHERE numero_nc = 'NC-SALDO';
-  r := t.venta(NULL, p_metodo => 'debito', p_trx => 'TL',
+  r := t.venta(NULL, p_cliente => '00000000-0000-0000-0000-0000000000c1', p_metodo => 'debito', p_trx => 'TL',
                p_pago_nc => '{"nota_credito_id":"00000000-0000-0000-0000-0000000000e1","numero_nc":"NC-SALDO","monto":3000}');
   ASSERT r->'venta'->>'metodo_pago' = 'mixto', 'PMX-SQL-11b mixto';
   ASSERT (SELECT count(*) FROM pagos WHERE venta_id = (r->'venta'->>'id')::uuid) = 2, 'PMX-SQL-11b filas';
@@ -227,6 +231,62 @@ BEGIN
   r := t.venta('[{"metodo":"efectivo","monto":17000}]', p_key => 'key-1');
   ASSERT NOT (r->>'created')::boolean AND (r->'venta'->>'id')::uuid = v_id, 'PMX-SQL-12 misma venta';
   ASSERT (SELECT count(*) FROM pagos WHERE venta_id = v_id) = 1, 'PMX-SQL-12 sin duplicar';
+END $$;
+
+-- ── Dueño de la NC (decisión 2026-11-12) ────────────────────────────────────
+DO $$
+DECLARE
+  r       jsonb;
+  v_vsc   uuid;   -- venta SIN cliente
+  v_item  uuid;
+  v_nc    uuid;
+  s3      numeric;
+  v_uso   uuid;
+BEGIN
+  UPDATE notas_credito SET estado = 'activa' WHERE numero_nc = 'NC-SALDO';
+  UPDATE saldos_a_favor SET saldo_disponible = 10000 WHERE cliente_id = '00000000-0000-0000-0000-0000000000c1';
+
+  -- PMX-SQL-18: la NC de C1 no la puede usar otro cliente (C3) ni una venta sin cliente.
+  PERFORM t.falla('PMX-SQL-18a', $q$SELECT t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"},{"metodo":"efectivo","monto":14000}]', '00000000-0000-0000-0000-0000000000c3')$q$, 'PV008');
+  PERFORM t.falla('PMX-SQL-18b', $q$SELECT t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e1"},{"metodo":"efectivo","monto":14000}]')$q$, 'PV008');
+  ASSERT (SELECT estado FROM notas_credito WHERE numero_nc = 'NC-SALDO') = 'activa', 'PMX-SQL-18 NC intacta';
+
+  -- PMX-SQL-19: una NC anterior a la 093 sin dueño no paga hasta asignarle uno.
+  PERFORM t.falla('PMX-SQL-19', $q$SELECT t.venta('[{"metodo":"nota_credito","monto":3000,"nota_credito_id":"00000000-0000-0000-0000-0000000000e6"},{"metodo":"efectivo","monto":14000}]', '00000000-0000-0000-0000-0000000000c1')$q$, 'PV008');
+
+  -- PMX-SQL-20: crear una NC exige cliente. Venta sin cliente: sin p_cliente_id
+  -- → PV009; con un cliente de OTRA tienda → PV009; con C3 → la NC es de C3 y
+  -- el saldo se le suma a él. Venta con cliente: no se puede cambiar el dueño.
+  r := t.venta('[{"metodo":"efectivo","monto":17000}]');
+  v_vsc := (r->'venta'->>'id')::uuid;
+  SELECT id INTO v_item FROM venta_items WHERE venta_id = v_vsc;
+  PERFORM t.falla('PMX-SQL-20a', format($q$SELECT public.crear_nota_credito_tx('00000000-0000-0000-0000-00000000000a', NULL, %L, %L, 'NC-T1', NULL, 'saldo_a_favor', NULL, public.hoy_negocio() + 30)$q$,
+    v_vsc, jsonb_build_array(jsonb_build_object('venta_item_id', v_item, 'cantidad_devuelta', 1, 'restituir_stock', false))), 'PV009');
+  PERFORM t.falla('PMX-SQL-20b', format($q$SELECT public.crear_nota_credito_tx('00000000-0000-0000-0000-00000000000a', NULL, %L, %L, 'NC-T2', NULL, 'saldo_a_favor', NULL, public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c2')$q$,
+    v_vsc, jsonb_build_array(jsonb_build_object('venta_item_id', v_item, 'cantidad_devuelta', 1, 'restituir_stock', false))), 'PV009');
+  SELECT COALESCE((SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c3'), 0) INTO s3;
+  r := public.crear_nota_credito_tx('00000000-0000-0000-0000-00000000000a', NULL, v_vsc,
+    jsonb_build_array(jsonb_build_object('venta_item_id', v_item, 'cantidad_devuelta', 1, 'restituir_stock', false)),
+    'NC-T3', NULL, 'saldo_a_favor', NULL, public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c3');
+  SELECT id INTO v_nc FROM notas_credito WHERE numero_nc = 'NC-T3';
+  ASSERT (SELECT cliente_id FROM notas_credito WHERE id = v_nc) = '00000000-0000-0000-0000-0000000000c3', 'PMX-SQL-20c dueño';
+  ASSERT (SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c3') = s3 + 17000, 'PMX-SQL-20c saldo al dueño';
+  PERFORM t.falla('PMX-SQL-20d', format($q$SELECT public.crear_nota_credito_tx('00000000-0000-0000-0000-00000000000a', NULL, '00000000-0000-0000-0000-0000000000a1', '[]', 'NC-T4', NULL, 'saldo_a_favor', NULL, public.hoy_negocio() + 30, '00000000-0000-0000-0000-0000000000c3')$q$), 'PV009');
+
+  -- PMX-SQL-21 (B2): C3 usa su NC en una venta suya; al anular ESA venta el
+  -- crédito vuelve a C3 (su dueño), no a otro cliente.
+  r := t.venta(jsonb_build_array(jsonb_build_object('metodo', 'nota_credito', 'monto', 17000, 'nota_credito_id', v_nc)), '00000000-0000-0000-0000-0000000000c3');
+  v_uso := (r->'venta'->>'id')::uuid;
+  ASSERT (SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c3') = s3, 'PMX-SQL-21 consumo';
+  PERFORM public.anular_venta_tx('00000000-0000-0000-0000-00000000000a', v_uso, NULL);
+  ASSERT (SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c3') = s3 + 17000, 'PMX-SQL-21 vuelve al dueño';
+
+  -- PMX-SQL-22: anular la venta de ORIGEN (sin cliente) con su NC activa revierte
+  -- el saldo del DUEÑO de la NC (antes quedaba sin revertir: la venta no tenía cliente).
+  UPDATE notas_credito SET estado = 'activa' WHERE id = v_nc;
+  PERFORM public.anular_venta_tx('00000000-0000-0000-0000-00000000000a', v_vsc, NULL);
+  ASSERT (SELECT estado FROM notas_credito WHERE id = v_nc) = 'anulada', 'PMX-SQL-22 NC anulada';
+  ASSERT (SELECT saldo_disponible FROM saldos_a_favor WHERE cliente_id = '00000000-0000-0000-0000-0000000000c3') = s3, 'PMX-SQL-22 saldo revertido al dueño';
 END $$;
 
 -- ── Citas ───────────────────────────────────────────────────────────────────
