@@ -16,9 +16,19 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // Lookup/validate a single NC by its code (used by POS for NC payment)
   const numeroNc = req.nextUrl.searchParams.get("numero_nc");
   if (numeroNc) {
+    // Solo el dueño de la NC la usa (decisión 2026-11-12): el POS envía el
+    // cliente de la venta. Sin cliente no hay a quién cobrarle con la NC.
+    const clienteVenta = req.nextUrl.searchParams.get("clienteId");
+    if (!clienteVenta) {
+      return NextResponse.json(
+        { error: "La nota de crédito solo la puede usar su dueño: seleccione el cliente de la venta" },
+        { status: 400 }
+      );
+    }
+
     let ncQuery = supabase
       .from("notas_credito")
-      .select("id, store_id, venta_id, numero_nc, monto_total, fecha_vencimiento, estado, tipo_reembolso")
+      .select("id, store_id, numero_nc, monto_total, fecha_vencimiento, estado, tipo_reembolso, cliente_id")
       .eq("numero_nc", numeroNc);
 
     if (!systemAdmin) ncQuery = ncQuery.eq("store_id", store_id);
@@ -44,26 +54,26 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       return NextResponse.json({ error: "NC vencida" }, { status: 410 });
     }
 
+    if (!nc.cliente_id) {
+      return NextResponse.json(
+        { error: "Esta nota de crédito no tiene cliente asignado: asígnele su dueño antes de usarla" },
+        { status: 409 }
+      );
+    }
+    if (nc.cliente_id !== clienteVenta) {
+      return NextResponse.json({ error: "La nota de crédito pertenece a otro cliente" }, { status: 409 });
+    }
+
     // Monto que la NC todavía puede pagar (D8): la NC sumó su monto al saldo a
-    // favor del cliente de la venta de origen, y usarla descuenta ese saldo.
-    // Si parte ya se gastó como saldo a favor, solo queda lo que resta. Sin
-    // cliente de origen no hay saldo asociado: vale su monto completo.
-    let montoDisponible = Number(nc.monto_total);
-    const { data: ventaOrigen } = await supabase
-      .from("ventas")
-      .select("cliente_id")
-      .eq("id", nc.venta_id)
+    // favor de su dueño, y usarla descuenta ese saldo. Si parte ya se gastó
+    // como saldo a favor, solo queda lo que resta.
+    const { data: saldo } = await supabase
+      .from("saldos_a_favor")
+      .select("saldo_disponible")
+      .eq("cliente_id", nc.cliente_id)
       .eq("store_id", nc.store_id)
       .maybeSingle();
-    if (ventaOrigen?.cliente_id) {
-      const { data: saldo } = await supabase
-        .from("saldos_a_favor")
-        .select("saldo_disponible")
-        .eq("cliente_id", ventaOrigen.cliente_id)
-        .eq("store_id", nc.store_id)
-        .maybeSingle();
-      montoDisponible = Math.min(montoDisponible, Math.max(0, Number(saldo?.saldo_disponible ?? 0)));
-    }
+    const montoDisponible = Math.min(Number(nc.monto_total), Math.max(0, Number(saldo?.saldo_disponible ?? 0)));
     if (montoDisponible <= 0) {
       return NextResponse.json(
         { error: "El saldo de esta nota de crédito ya fue utilizado como saldo a favor" },
@@ -119,7 +129,7 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { ventaId, items, tipoReembolso, metodoReembolso, motivo } = parsed.data;
+  const { ventaId, items, tipoReembolso, metodoReembolso, motivo, clienteId: clienteDueno } = parsed.data;
 
   // Número y vencimiento con la fecha de Chile (el servidor corre en UTC).
   const numero_nc = `NC-${hoyNegocioCompacto()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
@@ -141,6 +151,9 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     p_tipo_reembolso: tipoReembolso,
     p_metodo_reembolso: metodoReembolso ?? null,
     p_fecha_vencimiento: fechaVencimiento,
+    // Dueño de la NC si la venta no tenía cliente; la RPC verifica que sea de
+    // esta tienda y que no contradiga el cliente de la venta (PV009).
+    p_cliente_id: clienteDueno ?? null,
   });
 
   if (rpcError || !result) {
@@ -159,6 +172,10 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
     // Cantidad fuera de contrato (fracción en una línea por unidad, más de 3
     // decimales en granel, migración 078) es error del cliente, no del servidor.
     if (rpcError?.message?.startsWith("Cantidad inválida")) {
+      return NextResponse.json({ error: rpcError.message }, { status: 400 });
+    }
+    // NC sin cliente, cliente de otra tienda o distinto al de la venta (093).
+    if (rpcError?.code === "PV009") {
       return NextResponse.json({ error: rpcError.message }, { status: 400 });
     }
     return NextResponse.json(
@@ -202,8 +219,8 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
   after(async () => {
     try {
       let clienteNombre: string | undefined;
-      if (clienteId) {
-        const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", clienteId).single();
+      if (clienteId ?? clienteDueno) {
+        const { data: cli } = await supabase.from("clientes").select("nombre").eq("id", (clienteId ?? clienteDueno) as string).single();
         clienteNombre = cli?.nombre ?? undefined;
       }
 

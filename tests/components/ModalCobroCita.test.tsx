@@ -114,7 +114,7 @@ describe("ModalCobroCita (COB-XX)", () => {
     renderModal();
     await validarNc("NC-20260805-ABC123");
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith("/api/notas-credito?numero_nc=NC-20260805-ABC123"));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith("/api/notas-credito?numero_nc=NC-20260805-ABC123&clienteId=cli-1"));
     await waitFor(() => expect(screen.getByText("NC-20260805-ABC123")).toBeInTheDocument());
     expect(monto(1)).toHaveValue(15000);
   });

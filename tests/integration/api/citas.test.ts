@@ -791,7 +791,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-60: pagoNc de NC usada/inactiva → 409", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, estado: "usada" }, error: null });
+      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, estado: "usada" }, error: null });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
     const res = await PATCH(
       req(`/api/citas/${CITA_ID}`, "PATCH", {
@@ -808,7 +808,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-61: pagoNc de NC vencida → 410", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, fecha_vencimiento: "2026-01-01" }, error: null });
+      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, fecha_vencimiento: "2026-01-01" }, error: null });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
     const res = await PATCH(
       req(`/api/citas/${CITA_ID}`, "PATCH", {
@@ -825,7 +825,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-62: pagoNc.monto mayor al monto_total de la NC → 400", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, monto_total: 3000 }, error: null });
+      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, monto_total: 3000 }, error: null });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
     const res = await PATCH(
       req(`/api/citas/${CITA_ID}`, "PATCH", {
@@ -842,7 +842,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-63: NC que cubre TODO el total → RPC recibe un solo pago con NC, asiento sin resto", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, error: null })
       .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
     mockRpc.mockResolvedValue({ data: conMetodo("nota_credito"), error: null });
 
@@ -878,7 +878,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-64: NC parcial (mixto) → asiento con línea de NC y línea del resto", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, error: null })
       .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
     mockRpc.mockResolvedValue({ data: conMetodo("mixto"), error: null });
 
@@ -972,7 +972,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-70: pagoNc.monto mayor al total de la cita (aunque no exceda la NC) → 400 sin llamar al RPC", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, monto_total: 50000 }, error: null });
+      .mockResolvedValueOnce({ data: { ...{ id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, monto_total: 50000 }, error: null });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
     const res = await PATCH(
       req(`/api/citas/${CITA_ID}`, "PATCH", {
@@ -993,7 +993,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-71: RPC PV003 (NC reclamada por otra operación concurrente) → 409", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, error: null })
       .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
     mockRpc.mockResolvedValue({ data: null, error: { code: "PV003", message: "La nota de crédito ya no está disponible (fue usada por otra operación)" } });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
@@ -1014,7 +1014,7 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
   it("I-CITA-72: RPC PV001 (defensa en profundidad, pagos inválidos) → 400", async () => {
     mockSingle
       .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
-      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" }, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_CITA }, error: null })
       .mockResolvedValueOnce({ data: { fidelizacion_niveles: null }, error: null });
     mockRpc.mockResolvedValue({ data: null, error: { code: "PV001", message: "Pagos inválidos: la suma de los pagos no coincide con el total" } });
     const { PATCH } = await import("@/app/api/citas/[id]/route");
@@ -1096,6 +1096,20 @@ describe("PATCH /api/citas/[id] — completar con cobro (I-CITA-57+)", () => {
       { params: idParams }
     );
     expect(res.status).toBe(409);
+    expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
+  });
+
+  it("I-CITA-83: la NC de otro cliente no paga la cita → 409 sin RPC (solo el dueño la usa)", async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: CITA_CON_PRECIO, error: null })
+      .mockResolvedValueOnce({ data: { id: NC_ID, numero_nc: "NC-001", monto_total: 15000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: "otro-cliente" }, error: null });
+    const { PATCH } = await import("@/app/api/citas/[id]/route");
+    const res = await PATCH(
+      req(`/api/citas/${CITA_ID}`, "PATCH", { accion: "completar", pagos: [{ metodo: "nota_credito", monto: 15000, notaCreditoId: NC_ID }] }),
+      { params: idParams }
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/pertenece a otro cliente/);
     expect(mockRpc).not.toHaveBeenCalledWith("completar_cita_tx", expect.anything());
   });
 

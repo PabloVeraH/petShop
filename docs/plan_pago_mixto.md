@@ -280,3 +280,4 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
      obligatorio antes de migrar una tienda).
   5. Suite completa + build; luego F13 (aplicar en el demo: correr primero el
      preflight) y push + PR (el usuario ya autorizó ambos).
+- 2026-11-12: dueño de la NC TERMINADO. Endpoint de búsqueda por código exige el cliente y compara con el dueño; SelectorPagos no ofrece NC sin cliente; crear NC acepta `clienteId` y el modal de devolución lo pide (búsqueda por RUT) cuando la venta no tiene. Verificado: `npm test` 3078/3078, SQL OK, build OK, lint/typecheck 0 errores. README de migraciones: preflight obligatorio. Siguiente: F13 (demo) y PR.

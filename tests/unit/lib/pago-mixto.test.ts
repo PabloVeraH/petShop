@@ -29,7 +29,12 @@ describe("validarPagos — reglas de dominio", () => {
       { metodo: "nota_credito", monto: 3000, notaCreditoId: NC_ID },
       { metodo: "efectivo", monto: 2000 },
       { metodo: "credito", monto: 12000, numeroTransaccion: "TRX2" },
-    ], 17000)).toBeNull();
+    ], 17000, CLIENTE)).toBeNull();
+    // La NC solo la usa su dueño: sin cliente en la venta se rechaza.
+    expect(validarPagos([
+      { metodo: "nota_credito", monto: 3000, notaCreditoId: NC_ID },
+      { metodo: "efectivo", monto: 14000 },
+    ], 17000)).toMatch(/solo la puede usar su dueño/);
   });
 
   it("U-237: rechaza suma menor o mayor al total (sin tolerancia ni vuelto)", () => {

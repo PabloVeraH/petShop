@@ -88,7 +88,7 @@ function post(body: object) {
   }));
 }
 
-const NC_OK = { id: NC_ID, numero_nc: "NC-77", monto_total: 3000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" };
+const NC_OK = { id: NC_ID, numero_nc: "NC-77", monto_total: 3000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_ID };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -158,6 +158,7 @@ describe("POST /api/ventas — pago mixto", () => {
     ncRow = null; // con el filtro por store_id, la NC ajena no aparece
     const res = await post({
       items: ITEMS,
+      clienteId: CLIENTE_ID,
       pagos: [{ metodo: "nota_credito", monto: 3000, notaCreditoId: NC_ID }, { metodo: "efectivo", monto: 14000 }],
     });
     expect(res.status).toBe(404);
@@ -169,6 +170,7 @@ describe("POST /api/ventas — pago mixto", () => {
     ncRow = { ...NC_OK, tipo_reembolso: "reembolso_directo" };
     const res = await post({
       items: ITEMS,
+      clienteId: CLIENTE_ID,
       pagos: [{ metodo: "nota_credito", monto: 3000, notaCreditoId: NC_ID }, { metodo: "efectivo", monto: 14000 }],
     });
     expect(res.status).toBe(409);
@@ -192,7 +194,7 @@ describe("POST /api/ventas — pago mixto", () => {
 
   it("I-794: errores del cobro de la RPC se mapean por ERRCODE (saldo insuficiente NO se confunde con stock)", async () => {
     const casos: [string, number][] = [
-      ["PV001", 400], ["PV002", 404], ["PV003", 409], ["PV004", 410], ["PV005", 409], ["PV006", 409], ["PV007", 400],
+      ["PV001", 400], ["PV002", 404], ["PV003", 409], ["PV004", 410], ["PV005", 409], ["PV006", 409], ["PV007", 400], ["PV008", 409],
     ];
     for (const [code, status] of casos) {
       mockRpc.mockResolvedValueOnce({ data: null, error: { code, message: `Saldo a favor insuficiente (${code})` } });
@@ -288,5 +290,26 @@ describe("POST /api/ventas — revisión de seguridad (M2, B5)", () => {
     });
     expect((await res.json()).pagos).toEqual([{ metodo: "efectivo", monto: 17000 }]);
     expect(pagosEqs).toContainEqual(["store_id", STORE_ID]);
+  });
+});
+
+describe("POST /api/ventas — dueño de la NC (093)", () => {
+  const OTRO = "923e4567-e89b-12d3-a456-426614174099";
+  const pagosNc = [{ metodo: "nota_credito", monto: 3000, notaCreditoId: NC_ID }, { metodo: "efectivo", monto: 14000 }];
+
+  it("I-837: solo el dueño usa la NC — venta sin cliente → 400; de otro cliente → 409; NC sin dueño → 409; nunca llega a la RPC", async () => {
+    let res = await post({ items: ITEMS, pagos: pagosNc });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/solo la puede usar su dueño/);
+
+    res = await post({ items: ITEMS, clienteId: OTRO, pagos: pagosNc });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/pertenece a otro cliente/);
+
+    ncRow = { ...NC_OK, cliente_id: null };
+    res = await post({ items: ITEMS, clienteId: CLIENTE_ID, pagos: pagosNc });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/no tiene cliente asignado/);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

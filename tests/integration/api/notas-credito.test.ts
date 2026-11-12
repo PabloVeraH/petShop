@@ -196,6 +196,29 @@ describe("POST /api/notas-credito", () => {
     }));
   });
 
+  // I-836 — dueño de la NC (093): si la venta no tenía cliente, el cajero lo
+  // registra y viaja como p_cliente_id; la RPC lo valida (PV009 → 400).
+  it("I-836: clienteId del body viaja como p_cliente_id; sin él va null; PV009 de la RPC → 400", async () => {
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const crear = (extra: object) => POST(new NextRequest("http://localhost/api/notas-credito", {
+      method: "POST",
+      body: JSON.stringify({ ventaId: VENTA_ID, items: [{ ventaItemId: NC_ID, cantidadDevuelta: 1 }], tipoReembolso: "saldo_a_favor", ...extra }),
+    }));
+
+    expect((await crear({ clienteId: CLIENTE_ID })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("crear_nota_credito_tx", expect.objectContaining({ p_cliente_id: CLIENTE_ID }));
+
+    expect((await crear({})).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("crear_nota_credito_tx", expect.objectContaining({ p_cliente_id: null }));
+
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: "PV009", message: "La nota de crédito requiere un cliente: registre el cliente de la devolución" } });
+    const res = await crear({});
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/requiere un cliente/);
+
+    expect((await crear({ clienteId: "no-uuid" })).status).toBe(400);
+  });
+
   // SEC-12 — REGRESIÓN (QA 2026-09-27): cualquier usuario de la tienda podía
   // crear NC por API. Regla del negocio: devoluciones solo storeAdmin/systemAdmin.
   describe("SEC-12: crear NC exige storeAdmin/systemAdmin", () => {
@@ -886,15 +909,15 @@ describe("GET /api/notas-credito", () => {
   // del día ANTERIOR a su vencimiento. El vencimiento es el último día válido
   // (mismo criterio que crear_venta_tx: fecha_vencimiento >= hoy).
   it("I-755: NC lookup — válida todo su último día (hora de Chile) y vencida desde el día siguiente", async () => {
-    const nc = { id: "nc-1", store_id: STORE_ID, venta_id: null, numero_nc: "NC-1", monto_total: 5000, fecha_vencimiento: "2026-10-22", estado: "activa", tipo_reembolso: "saldo_a_favor" };
+    const nc = { id: "nc-1", store_id: STORE_ID, numero_nc: "NC-1", monto_total: 5000, fecha_vencimiento: "2026-10-22", estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_ID };
     const ncChain = {
       select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: nc, error: null }),
-      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }), // venta de origen sin cliente
+      maybeSingle: jest.fn().mockResolvedValue({ data: { saldo_disponible: 5000 }, error: null }), // saldo del dueño
     };
     mockFrom.mockReturnValue(ncChain);
     const { GET } = await import("@/app/api/notas-credito/route");
-    const consultar = () => GET(new NextRequest("http://localhost/api/notas-credito?numero_nc=NC-1"));
+    const consultar = () => GET(new NextRequest(`http://localhost/api/notas-credito?numero_nc=NC-1&clienteId=${CLIENTE_ID}`));
     const doNotFake = ["nextTick", "setImmediate", "queueMicrotask"] as const;
     try {
       jest.useFakeTimers({ doNotFake: [...doNotFake], now: new Date("2026-10-22T01:30:00Z") }); // 21-10 22:30 Chile
@@ -912,21 +935,24 @@ describe("GET /api/notas-credito", () => {
 // Búsqueda de NC por código para pagar en el POS (pago mixto, D7/D8 de
 // docs/plan_pago_mixto.md).
 describe("GET /api/notas-credito?numero_nc — NC como medio de pago", () => {
-  const VENTA_ORIGEN = "123e4567-e89b-12d3-a456-426614174777";
-  const ncBase = { id: "nc-1", store_id: STORE_ID, venta_id: VENTA_ORIGEN, numero_nc: "NC-1", monto_total: 5000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" };
+  const OTRO_CLIENTE = "923e4567-e89b-12d3-a456-426614174099";
+  const ncBase = { id: "nc-1", store_id: STORE_ID, numero_nc: "NC-1", monto_total: 5000, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_ID };
+  let saldoEqs: unknown[][] = [];
 
-  function mockTablas(nc: object, clienteOrigen: string | null, saldo: number | null) {
+  function mockTablas(nc: object, saldo: number | null) {
+    saldoEqs = [];
     mockFrom.mockImplementation((tabla: string) => {
-      const c = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn(), maybeSingle: jest.fn() };
+      const c = { select: jest.fn().mockReturnThis(), eq: jest.fn(), single: jest.fn(), maybeSingle: jest.fn() };
+      c.eq.mockImplementation((...a: unknown[]) => { if (tabla === "saldos_a_favor") saldoEqs.push(a); return c; });
       if (tabla === "notas_credito") c.single.mockResolvedValue({ data: nc, error: null });
-      if (tabla === "ventas") c.maybeSingle.mockResolvedValue({ data: clienteOrigen ? { cliente_id: clienteOrigen } : null, error: null });
       if (tabla === "saldos_a_favor") c.maybeSingle.mockResolvedValue({ data: saldo === null ? null : { saldo_disponible: saldo }, error: null });
       return c;
     });
   }
-  const consultar = async () => {
+  const consultar = async (clienteId: string | null = CLIENTE_ID) => {
     const { GET } = await import("@/app/api/notas-credito/route");
-    return GET(new NextRequest("http://localhost/api/notas-credito?numero_nc=NC-1"));
+    const q = clienteId ? `&clienteId=${clienteId}` : "";
+    return GET(new NextRequest(`http://localhost/api/notas-credito?numero_nc=NC-1${q}`));
   };
 
   beforeEach(() => {
@@ -935,30 +961,44 @@ describe("GET /api/notas-credito?numero_nc — NC como medio de pago", () => {
   });
 
   it("I-802: NC con reembolso directo → 409 (el dinero ya se devolvió; usarla cobraría dos veces)", async () => {
-    mockTablas({ ...ncBase, tipo_reembolso: "reembolso_directo" }, CLIENTE_ID, 5000);
+    mockTablas({ ...ncBase, tipo_reembolso: "reembolso_directo" }, 5000);
     const res = await consultar();
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/reembolsó directamente/);
   });
 
-  it("I-803: monto_disponible = mín(monto de la NC, saldo a favor del cliente de origen); sin saldo → 409; sin cliente → monto completo", async () => {
-    mockTablas(ncBase, CLIENTE_ID, 3200);
+  it("I-803: monto_disponible = mín(monto de la NC, saldo a favor de su DUEÑO); sin saldo → 409", async () => {
+    mockTablas(ncBase, 3200);
     let res = await consultar();
     expect(res.status).toBe(200);
     expect((await res.json()).data).toEqual(expect.objectContaining({ id: "nc-1", monto_total: 5000, monto_disponible: 3200 }));
+    expect(saldoEqs).toContainEqual(["cliente_id", CLIENTE_ID]);
+    expect(saldoEqs).toContainEqual(["store_id", STORE_ID]);
 
-    mockTablas(ncBase, CLIENTE_ID, 0);
+    mockTablas(ncBase, 0);
     res = await consultar();
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/ya fue utilizado/);
-
-    mockTablas(ncBase, null, null);
-    res = await consultar();
-    expect((await res.json()).data.monto_disponible).toBe(5000);
   });
 
-  it("I-804: la respuesta no expone store_id ni venta_id de la NC (solo lo que el POS necesita)", async () => {
-    mockTablas(ncBase, null, null);
+  it("I-835: solo el dueño usa la NC — sin cliente en la venta → 400; de otro cliente → 409; NC sin dueño → 409", async () => {
+    mockTablas(ncBase, 5000);
+    let res = await consultar(null);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/solo la puede usar su dueño/);
+
+    res = await consultar(OTRO_CLIENTE);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/pertenece a otro cliente/);
+
+    mockTablas({ ...ncBase, cliente_id: null }, 5000);
+    res = await consultar();
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/no tiene cliente asignado/);
+  });
+
+  it("I-804: la respuesta no expone store_id, venta_id ni cliente_id de la NC (solo lo que el POS necesita)", async () => {
+    mockTablas(ncBase, 5000);
     const body = await (await consultar()).json();
     expect(Object.keys(body.data).sort()).toEqual(["estado", "fecha_vencimiento", "id", "monto_disponible", "monto_total", "numero_nc"]);
   });

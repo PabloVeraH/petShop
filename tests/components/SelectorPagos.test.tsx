@@ -49,14 +49,15 @@ describe("SelectorPagos — nota de crédito", () => {
       ok: true,
       body: { data: { id: "nc-1", numero_nc: "NC 1", monto_disponible: 3000, fecha_vencimiento: null } },
     };
-    render(<Harness total={10000} />);
+    render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "nota_credito" } });
     expect(screen.getByTestId("error")).toHaveTextContent("Valida la nota de crédito");
     fireEvent.change(screen.getByLabelText("Código de la nota de crédito"), { target: { value: " NC 1 " } });
     fireEvent.click(screen.getByText("Validar"));
 
     await waitFor(() => expect(filas()[0]).toEqual({ metodo: "nota_credito", monto: 3000, nc: "nc-1" }));
-    expect(fetchMock).toHaveBeenCalledWith("/api/notas-credito?numero_nc=NC%201");
+    // El servidor verifica que la NC sea de este cliente.
+    expect(fetchMock).toHaveBeenCalledWith(`/api/notas-credito?numero_nc=NC%201&clienteId=${CLIENTE}`);
     expect(screen.getByText(/disponible \$3\.000/)).toBeInTheDocument();
     // Falta el resto: no se puede cobrar todavía.
     expect(screen.getByTestId("resto-pago")).toHaveTextContent("Falta $7.000");
@@ -64,7 +65,7 @@ describe("SelectorPagos — nota de crédito", () => {
 
   it("SP-02: una NC mayor a lo que falta se aplica solo por lo que falta", async () => {
     respuestas["/api/notas-credito"] = { ok: true, body: { data: { id: "nc-1", numero_nc: "NC-1", monto_disponible: 50000, fecha_vencimiento: null } } };
-    render(<Harness total={10000} />);
+    render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "nota_credito" } });
     fireEvent.change(screen.getByLabelText("Código de la nota de crédito"), { target: { value: "NC-1" } });
     fireEvent.click(screen.getByText("Validar"));
@@ -74,7 +75,7 @@ describe("SelectorPagos — nota de crédito", () => {
 
   it("SP-03: el error de la API (p. ej. reembolso directo, 409) se muestra y la fila queda sin NC", async () => {
     respuestas["/api/notas-credito"] = { ok: false, body: { error: "Esta nota de crédito ya se reembolsó directamente al cliente" } };
-    render(<Harness total={10000} />);
+    render(<Harness total={10000} clienteId={CLIENTE} />);
     fireEvent.change(metodo(1), { target: { value: "nota_credito" } });
     fireEvent.change(screen.getByLabelText("Código de la nota de crédito"), { target: { value: "NC-9" } });
     fireEvent.click(screen.getByText("Validar"));
@@ -150,5 +151,13 @@ describe("SelectorPagos — filas", () => {
     expect(screen.queryByLabelText(/N° de transacción/)).not.toBeInTheDocument();
     fireEvent.change(metodo(1), { target: { value: "credito" } });
     expect(screen.getByLabelText("N° de transacción del pago 1")).toHaveValue("");
+  });
+});
+
+describe("SelectorPagos — dueño de la NC (093)", () => {
+  it("SP-11: sin cliente en la venta, 'Nota de crédito' no se puede elegir (UX; el control real es del servidor, I-835/PMX-SQL-18)", () => {
+    render(<Harness total={10000} />);
+    const opcion = Array.from((metodo(1) as HTMLSelectElement).options).find((o) => o.value === "nota_credito")!;
+    expect(opcion.disabled).toBe(true);
   });
 });

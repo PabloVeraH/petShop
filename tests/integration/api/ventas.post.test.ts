@@ -432,7 +432,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           single: jest.fn().mockResolvedValue({
-            data: { id: NC_ID, numero_nc: "NC-0001", monto_total: NC_TOTAL, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" },
+            data: { id: NC_ID, numero_nc: "NC-0001", monto_total: NC_TOTAL, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor", cliente_id: CLIENTE_ID },
             error: null,
           }),
         };
@@ -459,6 +459,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
 
     const res = await POST(makeRequest({
       items: [VALID_ITEM],
+      clienteId: CLIENTE_ID,
       metodoPago: "nota_credito",
       pagoNc: { nota_credito_id: NC_ID, numero_nc: "NC-0001", monto: NC_TOTAL },
     }));

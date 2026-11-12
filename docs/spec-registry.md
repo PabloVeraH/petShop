@@ -2708,3 +2708,13 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | PP-19 | REVISIÓN (B5): el aviso de boleta usa los pagos que devuelve el servidor | POSPage | component |
 | PMX-SQL-16 | REVISIÓN (C1, CRÍTICO): orden de canal externo con los parámetros exactos de procesar-orden.ts crea la venta con pago 'plataforma'; 'plataforma' sigue prohibido en el POS | migración 093 | sql |
 | PMX-SQL-17 | REVISIÓN (M1): NC o saldo a favor por $0 → PV001, la NC queda activa | migración 093 | sql |
+| U-236 | (actualizado) acepta 1–3 medios con suma exacta; con NC exige cliente (solo el dueño la usa) | validarPagos | unit |
+| I-835 | GET /api/notas-credito?numero_nc: sin cliente en la venta → 400; NC de otro cliente → 409; NC sin dueño → 409 | GET /api/notas-credito | integration |
+| I-836 | POST /api/notas-credito: clienteId viaja como p_cliente_id (null si no viene); PV009 → 400; clienteId inválido → 400 | POST /api/notas-credito | integration |
+| I-837 | POST /api/ventas: NC sin cliente en la venta → 400; de otro cliente → 409; sin dueño → 409; sin llegar a la RPC | POST /api/ventas | integration |
+| I-CITA-83 | Cita: la NC de otro cliente no paga la cita → 409 sin RPC | PATCH /api/citas/[id] | integration |
+| SP-11 | SelectorPagos: sin cliente en la venta, "Nota de crédito" no se puede elegir (UX) | SelectorPagos | component |
+| DV-23 | Devolución de venta con cliente: no pide cliente ni envía clienteId | DevolucionModal | component |
+| DV-24 | Devolución de venta sin cliente: Confirmar bloqueado hasta buscar el cliente por RUT; el POST lleva su id | DevolucionModal | component |
+| DV-25 | Devolución: RUT sin cliente registrado → mensaje y sigue bloqueado | DevolucionModal | component |
+| PMX-SQL-18…22 | Dueño de la NC: otro cliente o venta sin cliente → PV008; NC sin dueño → PV008; crear NC exige cliente (PV009) y suma el saldo al dueño; anular devuelve el crédito al dueño (venta que la usó y venta de origen) | migración 093 | sql |

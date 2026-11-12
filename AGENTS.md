@@ -1112,6 +1112,10 @@ por su cuenta.
   devolvió). Pagar con una NC descuenta el saldo del cliente de la venta de
   origen **condicionalmente** (`saldo_disponible >= monto`, sin piso 0): la NC
   y el saldo son el mismo dinero. Nunca NC + saldo a favor en la misma venta.
+- Dueño de la NC: `notas_credito.cliente_id`. Toda NC nueva exige cliente
+  (el de la venta o el que registra el cajero) y **solo ese cliente la usa**;
+  la anulación devuelve el crédito al dueño. No vuelvas a deducir el dueño de
+  la venta de origen.
 - Contabilidad: una línea de cobro por pago (`lineasVentaPagos`); el reverso
   espeja **cada** pago (`lineasAnulacionVentaPagos`). Antes la anulación
   revertía solo el primer pago en dinero.

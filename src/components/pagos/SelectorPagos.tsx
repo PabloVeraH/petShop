@@ -161,7 +161,8 @@ export default function SelectorPagos({
         const otraNc = filas.some((f) => f.id !== fila.id && f.metodo === "nota_credito");
         const otroSaldo = filas.some((f) => f.id !== fila.id && f.metodo === "saldo_a_favor");
         const disponible = (m: MetodoPago) => {
-          if (m === "nota_credito") return !otraNc && !otroSaldo;
+          // NC y saldo son del cliente: sin cliente en la venta no se pueden usar.
+          if (m === "nota_credito") return !!clienteId && !otraNc && !otroSaldo;
           if (m === "saldo_a_favor") return !!clienteId && !otroSaldo && !otraNc;
           return true;
         };
@@ -218,6 +219,7 @@ export default function SelectorPagos({
             {fila.metodo === "nota_credito" && (
               <ValidadorNc
                 fila={fila}
+                clienteId={clienteId}
                 maxAplicable={total - (suma - (Number.isFinite(fila.monto) ? fila.monto : 0))}
                 onValidada={(nc, monto) => actualizar(fila.id, { nc, monto })}
               />
@@ -278,9 +280,10 @@ export function AvisoBoleta({ pagos }: { pagos: { metodo: string; monto: number 
 }
 
 function ValidadorNc({
-  fila, maxAplicable, onValidada,
+  fila, clienteId, maxAplicable, onValidada,
 }: {
   fila: FilaPago;
+  clienteId?: string;
   maxAplicable: number;
   onValidada: (nc: NcValidada, monto: number) => void;
 }) {
@@ -293,7 +296,10 @@ function ValidadorNc({
     setValidando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/notas-credito?numero_nc=${encodeURIComponent(codigo.trim())}`);
+      // El servidor verifica que la NC sea de este cliente (solo su dueño la usa).
+      const res = await fetch(
+        `/api/notas-credito?numero_nc=${encodeURIComponent(codigo.trim())}&clienteId=${encodeURIComponent(clienteId ?? "")}`
+      );
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setError(json.error ?? "Error validando la nota de crédito"); return; }
       const nc = json.data as NcValidada;

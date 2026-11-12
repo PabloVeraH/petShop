@@ -51,6 +51,31 @@ export function DevolucionModal({
   const [showSuccess, setShowSuccess] = useState(false);
   const [numeroNc, setNumeroNc] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  // Dueño de la NC (migración 093): toda NC es de un cliente y solo él la usa.
+  // Si la venta no tenía cliente, el cajero lo busca por RUT aquí.
+  const [rutDueno, setRutDueno] = useState("");
+  const [dueno, setDueno] = useState<{ id: string; nombre: string } | null>(null);
+  const [buscandoDueno, setBuscandoDueno] = useState(false);
+  const [errorDueno, setErrorDueno] = useState("");
+  const clienteNc = clienteId ?? dueno?.id ?? null;
+
+  async function buscarDueno() {
+    if (!rutDueno.trim()) return;
+    setBuscandoDueno(true);
+    setErrorDueno("");
+    setDueno(null);
+    try {
+      const res = await fetch(`/api/clientes?rut=${encodeURIComponent(rutDueno.trim())}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setErrorDueno(data?.error ?? "No se pudo buscar el cliente"); return; }
+      if (!data) { setErrorDueno("No hay un cliente con ese RUT: regístrelo primero"); return; }
+      setDueno({ id: data.id, nombre: data.nombre });
+    } catch {
+      setErrorDueno("No se pudo buscar el cliente");
+    } finally {
+      setBuscandoDueno(false);
+    }
+  }
 
   const { mutate: crearNC, isPending } = useMutation({
     mutationFn: async () => {
@@ -73,6 +98,8 @@ export function DevolucionModal({
           tipoReembolso,
           metodoReembolso: tipoReembolso === "reembolso_directo" ? metodoReembolso : null,
           motivo: motivo || null,
+          // Solo si la venta no tenía cliente: si lo tiene, la NC es suya.
+          ...(clienteId ? {} : { clienteId: dueno?.id }),
         }),
       });
 
@@ -90,7 +117,7 @@ export function DevolucionModal({
       queryClient.invalidateQueries({ queryKey: ["venta", ventaId], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["notas-credito", ventaId], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["saldo", clienteId], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["saldo", clienteNc], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
@@ -120,6 +147,9 @@ export function DevolucionModal({
     setShowSuccess(false);
     setNumeroNc("");
     setErrorMsg("");
+    setRutDueno("");
+    setDueno(null);
+    setErrorDueno("");
     onClose();
   };
 
@@ -360,6 +390,38 @@ export function DevolucionModal({
                 </div>
               </div>
 
+              {!clienteId && (
+                <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3" data-testid="dueno-nc">
+                  <label htmlFor="rut-dueno" className="text-sm font-medium">Cliente de la nota de crédito (obligatorio):</label>
+                  <p className="text-xs text-gray-600">La venta no tiene cliente. La NC queda a nombre de este cliente y solo él podrá usarla.</p>
+                  {dueno ? (
+                    <p className="text-sm">
+                      <span className="font-medium">{dueno.nombre}</span>{" "}
+                      <button type="button" className="text-xs text-blue-700 underline" onClick={() => setDueno(null)}>
+                        Cambiar
+                      </button>
+                    </p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        id="rut-dueno"
+                        type="text"
+                        placeholder="RUT del cliente"
+                        value={rutDueno}
+                        onChange={(e) => { setRutDueno(e.target.value); setErrorDueno(""); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); buscarDueno(); } }}
+                        className="flex-1 rounded-md border border-input px-3 py-2 text-sm"
+                        disabled={isPending}
+                      />
+                      <Button type="button" variant="outline" onClick={buscarDueno} disabled={buscandoDueno || !rutDueno.trim()}>
+                        {buscandoDueno ? "..." : "Buscar"}
+                      </Button>
+                    </div>
+                  )}
+                  {errorDueno && <p className="text-xs text-red-600">{errorDueno}</p>}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="text-sm font-medium">Motivo (opcional):</label>
                 <input
@@ -390,7 +452,7 @@ export function DevolucionModal({
                 </Button>
                 <Button
                   onClick={() => crearNC()}
-                  disabled={isPending || motivoError}
+                  disabled={isPending || motivoError || !clienteNc}
                   className="flex-1"
                 >
                   {isPending ? "Procesando..." : "Confirmar devolución"}
