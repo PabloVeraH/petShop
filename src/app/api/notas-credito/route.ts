@@ -18,7 +18,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   if (numeroNc) {
     let ncQuery = supabase
       .from("notas_credito")
-      .select("id, numero_nc, monto_total, fecha_vencimiento, estado")
+      .select("id, store_id, venta_id, numero_nc, monto_total, fecha_vencimiento, estado, tipo_reembolso")
       .eq("numero_nc", numeroNc);
 
     if (!systemAdmin) ncQuery = ncQuery.eq("store_id", store_id);
@@ -26,6 +26,14 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     const { data: nc } = await ncQuery.single();
 
     if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
+    // Reembolso directo: el dinero ya se devolvió al cliente; usarla como pago
+    // lo cobraría dos veces (decisión D7, docs/plan_pago_mixto.md).
+    if (nc.tipo_reembolso !== "saldo_a_favor") {
+      return NextResponse.json(
+        { error: "Esta nota de crédito ya se reembolsó directamente al cliente y no se puede usar como pago" },
+        { status: 409 }
+      );
+    }
     if (nc.estado !== "activa") {
       return NextResponse.json(
         { error: nc.estado === "usada" ? "NC ya fue utilizada" : "NC inactiva" },
@@ -35,7 +43,44 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
       return NextResponse.json({ error: "NC vencida" }, { status: 410 });
     }
-    return NextResponse.json({ data: nc });
+
+    // Monto que la NC todavía puede pagar (D8): la NC sumó su monto al saldo a
+    // favor del cliente de la venta de origen, y usarla descuenta ese saldo.
+    // Si parte ya se gastó como saldo a favor, solo queda lo que resta. Sin
+    // cliente de origen no hay saldo asociado: vale su monto completo.
+    let montoDisponible = Number(nc.monto_total);
+    const { data: ventaOrigen } = await supabase
+      .from("ventas")
+      .select("cliente_id")
+      .eq("id", nc.venta_id)
+      .eq("store_id", nc.store_id)
+      .maybeSingle();
+    if (ventaOrigen?.cliente_id) {
+      const { data: saldo } = await supabase
+        .from("saldos_a_favor")
+        .select("saldo_disponible")
+        .eq("cliente_id", ventaOrigen.cliente_id)
+        .eq("store_id", nc.store_id)
+        .maybeSingle();
+      montoDisponible = Math.min(montoDisponible, Math.max(0, Number(saldo?.saldo_disponible ?? 0)));
+    }
+    if (montoDisponible <= 0) {
+      return NextResponse.json(
+        { error: "El saldo de esta nota de crédito ya fue utilizado como saldo a favor" },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json({
+      data: {
+        id: nc.id,
+        numero_nc: nc.numero_nc,
+        monto_total: nc.monto_total,
+        monto_disponible: Math.floor(montoDisponible),
+        fecha_vencimiento: nc.fecha_vencimiento,
+        estado: nc.estado,
+      },
+    });
   }
 
   const ventaId = req.nextUrl.searchParams.get("ventaId");

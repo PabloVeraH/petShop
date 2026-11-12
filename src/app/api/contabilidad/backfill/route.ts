@@ -2,7 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createServiceClient } from "@/lib/supabase";
-import { crearAsiento, lineasVenta, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra, lineasPagoProveedor, lineasLiquidacionCanal } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaPagos, lineasVentaCOGS, lineasNotaCredito, lineasNotaCreditoCOGS, lineasCompra, lineasPagoProveedor, lineasLiquidacionCanal } from "@/lib/contabilidad/generador-asientos";
 import { extraerIva } from "@/lib/tax";
 import { getAdminStatus, requireStoreAdmin } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
@@ -69,6 +69,17 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
       if (total === 0) {
         errores.push(`VENTA (ingreso):${venta.numero_comprobante} — monto cero`);
       } else {
+        // Una línea de cobro por pago (pago mixto), igual que el asiento
+        // original. Si los pagos no suman el total (o no hay), se asume un
+        // solo pago por el total con ventas.metodo_pago, como antes.
+        const { data: pagosVenta } = await supabase
+          .from("pagos")
+          .select("metodo, monto")
+          .eq("venta_id", venta.id)
+          .eq("store_id", store_id);
+        const pagos = (pagosVenta ?? []).map((p) => ({ metodo: p.metodo as string, monto: Math.round(Number(p.monto)) }));
+        const pagosCuadran = pagos.length > 0 && pagos.reduce((s, p) => s + p.monto, 0) === total;
+
         const id = await crearAsiento({
           storeId: store_id,
           fecha: fechaNegocioDeTimestamp(venta.created_at),
@@ -76,7 +87,11 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
           referenciaId: venta.id,
           referenciaNomero: venta.numero_comprobante,
           descripcion: `Venta ${venta.metodo_pago}${ventaCliente?.nombre ? ` a ${ventaCliente.nombre}` : ""}`,
-          lineas: lineasVenta({ metodoPago: venta.metodo_pago, montoNeto, iva, total }),
+          lineas: lineasVentaPagos({
+            pagos: pagosCuadran ? pagos : [{ metodo: venta.metodo_pago, monto: total }],
+            montoNeto,
+            iva,
+          }),
           creadoPor: "backfill",
         });
 

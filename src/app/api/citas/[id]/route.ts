@@ -4,8 +4,13 @@ import { getStoreId } from "@/lib/auth";
 import { CitaAccionSchema } from "@/lib/validation";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { extraerIva } from "@/lib/tax";
-import { crearAsiento, lineasVentaServicio, lineasVentaServicioConNc } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaPagos } from "@/lib/contabilidad/generador-asientos";
 import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
+import {
+  normalizarPagos, validarPagos, pagosParaRpc, estadoHttpErrorPago,
+  type PagoInput, type PagoLegado,
+} from "@/lib/ventas/pagos";
+import { prevalidarNotaCredito } from "@/lib/ventas/prevalidar-nc";
 
 // GET /api/citas/[id] — detalle con joins. Abierto a la tienda.
 export const GET = withErrorLogging(async (_req: NextRequest,
@@ -147,12 +152,12 @@ async function completarCita(
   supabase: ReturnType<typeof createServiceClient>,
   ctx: NonNullable<Awaited<ReturnType<typeof getStoreId>>>,
   id: string,
-  body: { metodoPago?: string; numeroTransaccion?: string; pagoNc?: { nota_credito_id: string; numero_nc: string; monto: number } },
+  body: PagoLegado & { pagos?: PagoInput[] },
   req: NextRequest
 ) {
   const { data: existing } = await supabase
     .from("citas")
-    .select("id, estado, precio")
+    .select("id, estado, precio, cliente_id")
     .eq("id", id)
     .eq("store_id", ctx.storeId)
     .single();
@@ -199,42 +204,32 @@ async function completarCita(
     return NextResponse.json(data);
   }
 
-  // ── Cita con precio: el cobro es obligatorio. Sin metodoPago no hay cómo
-  //    registrar el pago (método único, resto de una NC o NC total).
-  const { metodoPago, numeroTransaccion, pagoNc } = body;
-  if (!metodoPago) {
+  // ── Cita con precio: el cobro es obligatorio (pagos[] o el formato
+  //    anterior: método único, resto de una NC o NC total).
+  if (!body.pagos && !body.metodoPago) {
     return NextResponse.json({ error: "Debes indicar un método de pago para completar esta cita" }, { status: 400 });
   }
 
   const total = Number(existing.precio);
   const impuesto = extraerIva(total); // AGENTS.md §23.3 — solo esta fórmula
 
-  // Pre-validación de la NC antes de abrir la transacción — mismo bloque y
-  // mismos códigos que postVenta() (plan §4 paso 3).
-  if (pagoNc) {
-    const { data: nc } = await supabase
-      .from("notas_credito")
-      .select("id, monto_total, fecha_vencimiento, estado")
-      .eq("id", pagoNc.nota_credito_id)
-      .eq("store_id", ctx.storeId)
-      .single();
+  // Hallazgo de revisión: el monto de NC no puede exceder lo que realmente se
+  // está cobrando (el total de la cita) — evita consumir crédito de más. Con
+  // pagos[] lo cubre la suma exacta; validar_pagos lo repite en la RPC.
+  if (body.pagoNc && body.pagoNc.monto > total) {
+    return NextResponse.json({ error: "El monto de la NC no puede exceder el total a cobrar" }, { status: 400 });
+  }
 
-    if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
-    if (nc.estado !== "activa") return NextResponse.json({ error: "NC ya fue utilizada o está inactiva" }, { status: 409 });
-    if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
-      return NextResponse.json({ error: "NC vencida" }, { status: 410 });
-    }
-    if (pagoNc.monto > Number(nc.monto_total)) {
-      return NextResponse.json({ error: "Monto NC no coincide" }, { status: 400 });
-    }
-    // Hallazgo de revisión: el monto de NC no puede exceder lo que realmente
-    // se está cobrando (el total de la cita), no solo el monto_total de la
-    // propia NC — evita consumir crédito de más. completar_cita_tx repite
-    // este chequeo (PS007) como defensa en profundidad si se llega a esta
-    // rama sin pasar por acá.
-    if (pagoNc.monto > total) {
-      return NextResponse.json({ error: "El monto de la NC no puede exceder el total a cobrar" }, { status: 400 });
-    }
+  // Mismas reglas que POST /api/ventas: lista única validada contra el precio
+  // de la cita (servidor), nunca contra un total enviado por el cliente.
+  const pagos = normalizarPagos(body, total);
+  const errorPagos = validarPagos(pagos, total, existing.cliente_id);
+  if (errorPagos) return NextResponse.json({ error: errorPagos }, { status: 400 });
+
+  const pagoNc = pagos.find((p) => p.metodo === "nota_credito");
+  if (pagoNc) {
+    const nc = await prevalidarNotaCredito(supabase, ctx.storeId, pagoNc.notaCreditoId as string, pagoNc.monto);
+    if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
   }
 
   // Niveles de fidelización — mismo fetch + default que postVenta().
@@ -253,12 +248,14 @@ async function completarCita(
   const { data: result, error: txError } = await supabase.rpc("completar_cita_tx", {
     p_cita_id: id,
     p_store_id: ctx.storeId,
-    p_metodo_pago: metodoPago,
-    p_numero_transaccion: numeroTransaccion ?? null,
+    // Parámetros antiguos de pago en NULL: la RPC usa p_pagos (093).
+    p_metodo_pago: null,
+    p_numero_transaccion: null,
     p_impuesto: impuesto,
-    p_pago_nc: pagoNc ?? null,
+    p_pago_nc: null,
     p_fidelizacion_niveles: fidelizacionNiveles,
     p_completado_por: ctx.userId,
+    p_pagos: pagosParaRpc(pagos),
   });
 
   if (txError) {
@@ -273,22 +270,19 @@ async function completarCita(
       // ocurrir (el camino legado filtra arriba), defensa en profundidad.
       return NextResponse.json({ error: txError.message }, { status: 400 });
     }
-    if (txError.code === "PS006") {
-      // NC reclamada por otra operación concurrente entre la pre-validación
-      // de arriba y el RPC — reclamo atómico de completar_cita_tx (409, no
-      // 500: es un conflicto real, no un error inesperado del servidor).
-      return NextResponse.json({ error: txError.message }, { status: 409 });
-    }
-    if (txError.code === "PS007") {
-      // Monto de NC excede el total — la pre-validación de arriba ya lo
-      // filtra; esto es la defensa en profundidad del RPC.
-      return NextResponse.json({ error: txError.message }, { status: 400 });
+    // Errores del cobro (validar_pagos / aplicar_pagos, migración 093): NC
+    // reclamada por otra operación concurrente (PV003, 409 — conflicto real,
+    // no error del servidor), suma inválida (PV001), saldo insuficiente, etc.
+    const estadoPago = estadoHttpErrorPago(txError.code);
+    if (estadoPago) {
+      return NextResponse.json({ error: txError.message }, { status: estadoPago });
     }
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 
   const { cita, venta } = result as { cita: { id: string; venta_id?: string }; venta: Record<string, unknown> };
-  const metodoPagoVenta = pagoNc ? (pagoNc.monto >= total ? "nota_credito" : "mixto") : metodoPago;
+  // Etiqueta decidida por la RPC (validar_pagos): método único o 'mixto'.
+  const metodoPagoVenta = venta.metodo_pago as string;
 
   const { ipAddress, userAgent } = getRequestMetadata(req);
   logAudit({
@@ -306,8 +300,8 @@ async function completarCita(
   // Asiento contable post-response con after() (mismo patrón que postVenta:
   // un fire-and-forget puro puede congelarse en serverless y perder el asiento,
   // ticket Trello 6a77e779358cdccca29dc3e3): acredita VENTAS_SERVICIOS. NO incluye COGS (servicio sin
-  // costo de inventario). Sin pagoNc usa lineasVentaServicio; con NC,
-  // lineasVentaServicioConNc reacredita Saldos a Favor por el monto de la NC.
+  // costo de inventario). Una línea de cobro por pago: el crédito interno (NC,
+  // saldo a favor) debita Saldos a Favor, nunca Caja/Banco.
   const fechaVenta = venta.created_at ? fechaNegocioDeTimestamp(venta.created_at as string) : hoyNegocioISO();
   const montoNeto = total - impuesto;
   after(async () => {
@@ -320,16 +314,7 @@ async function completarCita(
         referenciaId: venta.id as string,
         referenciaNomero: venta.numero_comprobante as string,
         descripcion: `Cobro cita (servicio)${metodoPagoVenta !== "nota_credito" && metodoPagoVenta !== "mixto" ? ` ${metodoPagoVenta}` : ""}`,
-        lineas: pagoNc
-          ? lineasVentaServicioConNc({
-              montoNeto,
-              iva: impuesto,
-              total,
-              montoNc: pagoNc.monto,
-              montoResto: Math.round(total - pagoNc.monto),
-              metodoPagoResto: metodoPago,
-            })
-          : lineasVentaServicio({ metodoPago, montoNeto, iva: impuesto, total }),
+        lineas: lineasVentaPagos({ pagos, montoNeto, iva: impuesto, cuentaIngreso: "VENTAS_SERVICIOS" }),
         usuarioId: ctx.userId ?? undefined,
       });
       if (!asiento) console.error(`[contabilidad] Asiento de cobro de cita NO CREADO para cita ${id} (venta ${venta.id})`);

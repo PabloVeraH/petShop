@@ -480,6 +480,9 @@ function setupMock(params: {
   incomeEntries: Array<{ referencia_id: string }>;
   cogsByVenta: Record<string, Array<{ id: string }>>;
   ventaItems: Array<Record<string, unknown>>;
+  // Pagos por venta (pago mixto, 093). Sin esta clave, ninguna venta tiene
+  // pagos y el backfill usa ventas.metodo_pago, como antes.
+  pagosByVenta?: Record<string, Array<{ metodo: string; monto: number }>>;
 }) {
   let callCount = 0;
 
@@ -531,6 +534,17 @@ function setupMock(params: {
           c.then = jest.fn((resolve: (v: unknown) => void) => resolve({ data: params.ventaItems, error: null }));
           return c;
         });
+        return c;
+      }
+
+      if (table === "pagos") {
+        const c = chain();
+        let ventaId = "";
+        c.eq = jest.fn((field: string, value: unknown) => {
+          if (field === "venta_id") ventaId = String(value);
+          return c;
+        });
+        c.then = jest.fn((resolve: (v: unknown) => void) => resolve({ data: params.pagosByVenta?.[ventaId] ?? [], error: null }));
         return c;
       }
 
@@ -817,5 +831,46 @@ describe("backfill de pagos a proveedor y liquidaciones de canal (I-BF)", () => 
       "LIQUIDACION_CANAL:rappi 2026-09-01/2026-09-15 — error al crear asiento contable",
       "LIQUIDACION_CANAL:otro 2026-09-01/2026-09-15 — error al crear asiento contable",
     ]);
+  });
+});
+
+// I-805 — pago mixto (093): el asiento reconstruido tiene una línea de cobro
+// por pago, igual que el original; si los pagos no suman el total, se usa
+// ventas.metodo_pago por el total, como antes.
+describe("POST /api/contabilidad/backfill — pago mixto", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: STORE_ID, userId: "u1" });
+    (crearAsiento as jest.Mock).mockResolvedValue("asiento-uuid");
+    mockAuthFn.mockResolvedValue({ sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID } } });
+  });
+
+  it("I-805: venta mixta → Caja y Banco por su monto; pagos que no cuadran → un solo cobro por el total", async () => {
+    setupMock({
+      ventas: [
+        { id: "v1", created_at: "2026-06-01T10:00:00Z", total: 17000, metodo_pago: "mixto", numero_comprobante: "A" },
+        { id: "v2", created_at: "2026-06-01T11:00:00Z", total: 9000, metodo_pago: "debito", numero_comprobante: "B" },
+      ],
+      incomeEntries: [],
+      cogsByVenta: { v1: [{ id: "c1" }], v2: [{ id: "c2" }] },
+      ventaItems: [],
+      pagosByVenta: {
+        v1: [{ metodo: "efectivo", monto: 5000 }, { metodo: "debito", monto: 12000 }],
+        v2: [{ metodo: "efectivo", monto: 4000 }], // no suma 9000 (dato antiguo)
+      },
+    });
+
+    const res = await POST(backfillReq());
+    expect(res.status).toBe(200);
+
+    const ingreso = (ref: string) => (crearAsiento as jest.Mock).mock.calls
+      .map((c) => c[0])
+      .find((a) => a.referenciaId === ref && a.tipoMovimiento === "VENTA" && !a.descripcion.startsWith("COGS"));
+    const cobros = (ref: string) => ingreso(ref).lineas
+      .filter((l: { debito: number }) => l.debito > 0)
+      .map((l: { cuentaCodigo: string; debito: number }) => [l.cuentaCodigo, l.debito]);
+
+    expect(cobros("v1")).toEqual([["110101", 5000], ["110201", 12000]]);
+    expect(cobros("v2")).toEqual([["110201", 9000]]);
   });
 });

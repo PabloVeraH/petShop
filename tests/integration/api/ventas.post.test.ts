@@ -94,6 +94,8 @@ const DB_VENTA = {
   total: 20000,
   numero_comprobante: "20260525-ABC12345",
   created_at: new Date().toISOString(),
+  // La RPC devuelve la fila completa; metodo_pago lo decide validar_pagos (093).
+  metodo_pago: "efectivo",
 };
 
 function setupHappyPath() {
@@ -430,7 +432,7 @@ describe("POST /api/ventas — flujo exitoso", () => {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           single: jest.fn().mockResolvedValue({
-            data: { id: NC_ID, monto_total: NC_TOTAL, fecha_vencimiento: null, estado: "activa" },
+            data: { id: NC_ID, numero_nc: "NC-0001", monto_total: NC_TOTAL, fecha_vencimiento: null, estado: "activa", tipo_reembolso: "saldo_a_favor" },
             error: null,
           }),
         };
@@ -814,10 +816,11 @@ describe("POST /api/ventas — procedencia", () => {
   // inventario.patch.test.ts para el fix de salida de stock, ticket Trello
   // 6a5f9a8c29a2a067617111f7; este I-54 nunca estuvo registrado en
   // spec-registry.md — ver AGENTS.md §2.3)
-  it("I-441: procedencia se incluye junto con metodo_pago y total en el RPC", async () => {
+  // Desde la 093 el método viaja en p_pagos (el formato legado se normaliza).
+  it("I-441: procedencia se incluye junto con los pagos y el total en el RPC", async () => {
     await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "efectivo", procedencia: "whatsapp" }));
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
-      p_metodo_pago: "efectivo",
+      p_pagos: [{ metodo: "efectivo", monto: 20000, numero_transaccion: null, nota_credito_id: null }],
       p_procedencia: "whatsapp",
       p_total: 20000,
     }));

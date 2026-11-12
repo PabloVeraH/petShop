@@ -2590,3 +2590,49 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | IGP-08 | REGRESIÓN: editar carga el post aunque no sea borrador; PATCH sin `borrador` | Instagram editor | component |
 | IGP-09 | REGRESIÓN: "Guardar como Borrador" manda `borrador: true`; errores visibles | Instagram editor | component |
 | I-REC-13 | REGRESIÓN: el HTML del recibo escapa nombres de cliente, producto, tienda, vendedor y método de pago (antes se interpolaban crudos) | GET /api/recibos/[ventaId] | integration |
+| U-236 | Pago mixto: acepta 1, 2 y 3 medios con suma exacta | validarPagos (src/lib/ventas/pagos.ts) | unit |
+| U-237 | Pago mixto: suma menor o mayor al total se rechaza (sin tolerancia ni vuelto) | validarPagos | unit |
+| U-238 | Pago mixto: negativos, decimales y $0 junto a otros pagos se rechazan; $0 solo como pago único de una venta de $0 | validarPagos | unit |
+| U-239 | Pago mixto: débito/crédito/transferencia exigen número de transacción por fila | validarPagos | unit |
+| U-240 | Pago mixto: NC exige notaCreditoId; notaCreditoId solo en NC; máx. 1 NC y 1 saldo; nunca NC + saldo (D8) | validarPagos | unit |
+| U-241 | Pago mixto: saldo a favor exige cliente; más de 5 medios o lista vacía se rechazan | validarPagos | unit |
+| U-242 | Pago mixto: métodos plataforma, mixto y saldo_favor no se aceptan como pago | validarPagos | unit |
+| U-243 | normalizarPagos: formato legado (un método, NC parcial, NC total) → pagos[] | normalizarPagos | unit |
+| U-244 | normalizarPagos usa pagos[] tal cual; pagosParaRpc pasa a snake_case sin TRX vacío | normalizarPagos / pagosParaRpc | unit |
+| U-245 | calcularMontoBoleta (Res. Ex. SII 176/2020): tarjeta no se boletea; efectivo, transferencia, NC y saldo sí | calcularMontoBoleta | unit |
+| U-246 | desgloseBoleta agrupa por método y omite tarjetas | desgloseBoleta | unit |
+| U-247 | VentaCreateSchema acepta pagos[] sin metodoPago y el formato legado | VentaCreateSchema | unit |
+| U-248 | VentaCreateSchema rechaza pagos[] junto con metodoPago, pagoNc o numeroTransaccion | VentaCreateSchema | unit |
+| U-249 | VentaCreateSchema: sin pagos ni metodoPago → error; legado endurecido (mixto, saldo_favor, plataforma, NC sin pagoNc) | VentaCreateSchema | unit |
+| U-250 | VentaCreateSchema aplica reglas de forma de pagos[] y rechaza pagos[] en canales externos | VentaCreateSchema | unit |
+| U-251 | CitaAccionSchema completar: pagos[], legado o nada (cita sin precio); nunca ambos | CitaAccionSchema | unit |
+| U-252 | lineasVentaPagos: efectivo + débito → Caja y Banco por su monto; balanceado | generador-asientos | unit |
+| U-253 | lineasVentaPagos: NC + efectivo + crédito → una línea por pago; saldo a favor → Saldos a Favor | generador-asientos | unit |
+| U-254 | lineasAnulacionVentaPagos es el inverso exacto de lineasVentaPagos, línea a línea | generador-asientos | unit |
+| U-255 | lineasVentaPagos de una cita acredita VENTAS_SERVICIOS | generador-asientos | unit |
+| U-256 | PROPIEDAD (fast-check): cualquier partición en 1..5 pagos → Σ debe = Σ haber = total, también en el reverso | generador-asientos | unit |
+| I-787 | POST /api/ventas pago mixto: efectivo + débito → p_pagos exactos y asiento con Caja y Banco por su monto | POST /api/ventas | integration |
+| I-788 | POST /api/ventas pago mixto: sin sesión → 401 sin RPC | POST /api/ventas | integration |
+| I-789 | POST /api/ventas pago mixto: la suma se valida contra el total del servidor; distinta → 400 sin RPC | POST /api/ventas | integration |
+| I-790 | POST /api/ventas pago mixto: store_id malicioso en el body se ignora | POST /api/ventas | integration |
+| I-791 | POST /api/ventas pago mixto: NC de otra tienda (IDOR) → 404, búsqueda filtrada por tienda, sin RPC | POST /api/ventas | integration |
+| I-792 | POST /api/ventas: NC con reembolso directo → 409 sin RPC (D7) | POST /api/ventas | integration |
+| I-793 | POST /api/ventas: saldo a favor sin cliente → 400; con cliente → viaja en p_pagos | POST /api/ventas | integration |
+| I-794 | POST /api/ventas: errores PV001…PV007 de la RPC se mapean a HTTP (saldo insuficiente no es stock) | POST /api/ventas | integration |
+| I-795 | POST /api/ventas: pagos[] + metodoPago, más de 5 medios o NC + saldo → 400 sin RPC | POST /api/ventas | integration |
+| I-796 | POST /api/ventas: pagos[] en canal externo → 400 | POST /api/ventas | integration |
+| I-797 | POST /api/ventas: legado endurecido (mixto, saldo_favor, plataforma, NC sin pagoNc) → 400 | POST /api/ventas | integration |
+| I-798 | POST /api/ventas: el correo lleva el desglose real de pagos (NC con su número) | POST /api/ventas | integration |
+| I-799 | POST /api/ventas pago mixto: reintento idempotente no repite asiento ni correo | POST /api/ventas | integration |
+| I-800 | REGRESIÓN: anular venta mixta efectivo + débito revierte ambos pagos (antes solo el primero, .find) | anular-venta | integration |
+| I-801 | Anulación: pagos que no suman el total o canal externo → reverso de un solo método | anular-venta | integration |
+| I-802 | GET /api/notas-credito?numero_nc: NC con reembolso directo → 409 (D7) | GET /api/notas-credito | integration |
+| I-803 | GET /api/notas-credito?numero_nc: monto_disponible = mín(NC, saldo del cliente de origen); sin saldo → 409 (D8) | GET /api/notas-credito | integration |
+| I-804 | GET /api/notas-credito?numero_nc: no expone store_id ni venta_id | GET /api/notas-credito | integration |
+| I-805 | Backfill contable: venta mixta → una línea de cobro por pago; pagos que no cuadran → un cobro por el total | POST /api/contabilidad/backfill | integration |
+| I-CITA-78 | Cita con pagos[] efectivo + saldo a favor → p_pagos y asiento con una línea por pago | PATCH /api/citas/[id] | integration |
+| I-CITA-79 | Cita: pagos[] que no suman el precio → 400 sin RPC | PATCH /api/citas/[id] | integration |
+| I-CITA-80 | Cita: saldo a favor sin cliente → 400; pagos[] + metodoPago → 400 | PATCH /api/citas/[id] | integration |
+| I-CITA-81 | Cita: NC con reembolso directo → 409 sin RPC (D7) | PATCH /api/citas/[id] | integration |
+| I-CITA-82 | Cita: saldo insuficiente de la RPC (PV006) → 409 | PATCH /api/citas/[id] | integration |
+| PMX-SQL-01…15 | RPC real (Postgres local, `bash tests/sql/run.sh`): pagos mixtos, suma exacta, forma, NC (reembolso directo, vencida, usada, otra tienda, saldo gastado), saldo a favor (descuento, insuficiente, sin cliente, otra tienda), anulación reacredita, parámetros legados, idempotencia, venta $0, citas | migración 093 | sql |

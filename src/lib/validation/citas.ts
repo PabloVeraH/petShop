@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { UUIDSchema } from "./primitives";
+import { PagosSchema, refinarPagosOLegado } from "./ventas";
 
 const HORA_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/; // mismo regex que servicios.ts — no se centraliza, mismo precedente de inventario.ts/servicios.ts
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,8 +71,11 @@ export const CitaAccionSchema = z.discriminatedUnion("accion", [
   // legado sin precio (§3g), donde no se envía nada de esto. La ruta API
   // decide en runtime si son obligatorios según si la cita tiene precio —
   // Zod valida forma, no la regla de negocio condicional al registro.
+  // Pago mixto: `pagos` (1..5 medios) o el formato anterior, nunca ambos
+  // (mismas reglas que VentaCreateSchema).
   z.object({
     accion: z.literal("completar"),
+    pagos: PagosSchema.optional(),
     metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia"]).optional(),
     numeroTransaccion: z.string().optional(),
     pagoNc: z.object({
@@ -79,15 +83,7 @@ export const CitaAccionSchema = z.discriminatedUnion("accion", [
       numero_nc: z.string(),
       monto: z.number().positive(),
     }).optional(),
-  }).superRefine((val, ctx) => {
-    if (["debito", "credito", "transferencia"].includes(val.metodoPago ?? "") && !val.numeroTransaccion?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
-        path: ["numeroTransaccion"],
-      });
-    }
-  }),
+  }).superRefine((val, ctx) => refinarPagosOLegado(val, ctx, true)),
   z.object({ accion: z.literal("no_show") }),
 ]);
 

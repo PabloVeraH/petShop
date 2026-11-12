@@ -156,20 +156,20 @@ suite del módulo en verde, commit. IDs de test: grep a `docs/spec-registry.md`
 y `tests/` antes de asignar (§2.3 de AGENTS.md).
 
 - [x] **F0 — Plan y rama.** Este archivo; rama `feat/pago-mixto`.
-- [ ] **F1 — Dominio + validación.** `src/lib/ventas/pagos.ts`;
+- [x] **F1 — Dominio + validación.** `src/lib/ventas/pagos.ts`;
       `VentaCreateSchema.pagos` y `CitaAccionSchema.pagos` con reglas; tests
       unitarios (incl. legado endurecido).
-- [ ] **F2 — Migración 093.** Funciones internas + `crear_venta_tx` +
+- [x] **F2 — Migración 093.** Funciones internas + `crear_venta_tx` +
       `completar_cita_tx` + columna `stores.umbral_identificacion_comprador`;
       tipos manuales; guardas SEC en verde.
-- [ ] **F3 — Contabilidad.** Builders por pagos + tests de balance;
+- [x] **F3 — Contabilidad.** Builders por pagos + tests de balance;
       `anular-venta.ts`; backfill.
-- [ ] **F4 — API ventas.** `normalizarPagos`, pre-validación NC (D7),
+- [x] **F4 — API ventas.** `normalizarPagos`, pre-validación NC (D7),
       mapeo de ERRCODE, asiento, correo, auditoría; tests de integración
       (feliz 1/2/3 medios, 401, IDOR NC, `store_id` malicioso, suma inválida,
       TRX, NC reembolso directo, saldo sin cliente, canal + pagos, idempotencia).
-- [ ] **F5 — API citas.** Mismo contrato; tests.
-- [ ] **F6 — NC por código (D7).** `GET /api/notas-credito?numero_nc=` rechaza
+- [x] **F5 — API citas.** Mismo contrato; tests.
+- [x] **F6 — NC por código (D7).** `GET /api/notas-credito?numero_nc=` rechaza
       reembolso directo; test.
 - [ ] **F7 — UI POS.** `SelectorPagos`, `ModalPago`, store, `page.tsx`
       (banner boleta), `api.ts`; tests de componente (render, agregar/quitar,
@@ -203,3 +203,18 @@ y `tests/` antes de asignar (§2.3 de AGENTS.md).
 ## 7. Estado / notas de sesión
 
 - 2026-11-12: rama creada, plan escrito. Línea base registrada (§6).
+- 2026-11-12: F1–F6 hechas (backend). Notas para retomar:
+  - Pruebas SQL contra la RPC real: `bash tests/sql/run.sh` (Docker,
+    `postgres:18-alpine`, nunca Supabase). 15 casos + concurrencia verificada
+    a mano (misma NC en dos sesiones → la segunda falla PV003).
+  - Venta de $0 (100 % descuento, I-50): se acepta un pago único de $0; con
+    varios pagos, $0 se rechaza (TS y SQL).
+  - Los builders `lineasVenta`, `lineasVentaConNc`, `lineasVentaServicio(ConNc)`
+    y `lineasAnulacionVentaConNc` se reemplazaron por `lineasVentaPagos` /
+    `lineasAnulacionVentaPagos`; sus tests se portaron con adaptadores
+    locales (mismas aserciones).
+  - `GET /api/notas-credito?numero_nc` devuelve `monto_disponible`
+    (mín. entre la NC y el saldo del cliente de origen, D8): la UI debe
+    proponer ese monto, no `monto_total`.
+  - Anulación y backfill: si los pagos no suman el total (dato antiguo), se
+    usa el asiento de un solo método por el total, como antes.
