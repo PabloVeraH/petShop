@@ -407,8 +407,8 @@ Vuelta atrás: Vercel → Deployments → *Instant Rollback* al deploy anterior
 
 | Tienda | Rama | Dominio | Versión | Última migración | Supabase | Notas |
 |---|---|---|---|---|---|---|
-| (demo) | `main` | demo.ammapet.cl | — | 093 (088–092 aplicadas 2026-10-22; 093 pago mixto 2026-11-12, verificada con pruebas revertidas; 085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
-| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | 093 (`000_baseline` hasta 086 + 087 manual 2026-10-13 + 088–091 en SQL Editor 2026-10-16 + 092 y 093 en SQL Editor 2026-11-12 tras `093_pago_mixto_preflight.sql` sin hallazgos; registradas en `supabase_migrations.schema_migrations`; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Vercel y tienda creados 2026-10-12 |
+| (demo) | `main` | demo.ammapet.cl | — | 094 (094 notas de venta 2026-11-12; 088–092 aplicadas 2026-10-22; 093 pago mixto 2026-11-12, verificada con pruebas revertidas; 085 sin aplicar) | `wnxrdbnvreofrrmhcybc` | Clerk dev |
+| mascotaspetshop | `tienda/mascotasPetShop` | mascotaspetshop.ammapet.cl | — | 094 (094 notas de venta 2026-11-12; `000_baseline` hasta 086 + 087 manual 2026-10-13 + 088–091 en SQL Editor 2026-10-16 + 092 y 093 en SQL Editor 2026-11-12 tras `093_pago_mixto_preflight.sql` sin hallazgos; registradas en `supabase_migrations.schema_migrations`; 085 sin aplicar) | `ldgkcygdyszvrrmiekiy` | Baseline aplicado 2026-10-11. Clerk: app secundaria. Vercel y tienda creados 2026-10-12 |
 
 ---
 
