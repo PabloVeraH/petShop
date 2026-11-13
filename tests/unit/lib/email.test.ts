@@ -148,6 +148,42 @@ describe("buildBoletaEmailHTML — Subtotal (U-122/U-123)", () => {
     expect(html).toContain("TOTAL: $18.000");
     expect(15126 + 2874).toBe(18000);
   });
+
+  // Decisión D12 (docs/pago_complementario.md §6.0): la tienda no emite boletas
+  // desde el sistema; el correo al cliente no puede llamarlas así.
+  it("U-262: el cuerpo dice 'Comprobante de venta' y 'No válido como documento tributario', sin 'boleta'", () => {
+    const html = buildBoletaEmailHTML(baseBoleta());
+    expect(html).toContain("Comprobante de venta <strong>20260717-TEST</strong>");
+    expect(html).toContain("No válido como documento tributario");
+    expect(html).not.toMatch(/boleta/i);
+  });
+
+  it("U-263: formas de pago con etiquetaMetodo; el n° de transacción sigue escapado", () => {
+    const html = buildBoletaEmailHTML(
+      baseBoleta({
+        pagos: [
+          { metodo: "saldo_a_favor", monto: 6900 },
+          { metodo: "credito", monto: 5000, numero_transaccion: "<b>1</b>" },
+        ],
+      })
+    );
+    expect(html).toContain("Saldo a favor");
+    expect(html).toContain("Crédito #&lt;b&gt;1&lt;/b&gt;");
+    expect(html).not.toContain("saldo_a_favor");
+    expect(html).not.toContain("<b>1</b>");
+  });
+
+  it("U-264: sendBoletaEmail envía asunto 'Comprobante de venta …' y adjunto comprobante-*.pdf, sin 'Boleta'", async () => {
+    const { sendBoletaEmail } = await import("@/lib/email");
+    const mockSend = jest.fn().mockResolvedValue({ error: null });
+    _setResendInstance({ emails: { send: mockSend } } as never);
+
+    await expect(sendBoletaEmail({ to: "c@test.com", boleta: baseBoleta() })).resolves.toBe(true);
+    const enviado = mockSend.mock.calls[0][0];
+    expect(enviado.subject).toBe("Comprobante de venta 20260717-TEST — PetShop Test");
+    expect(enviado.attachments[0].filename).toBe("comprobante-20260717-TEST.pdf");
+    expect(JSON.stringify([enviado.subject, enviado.attachments[0].filename])).not.toMatch(/boleta/i);
+  });
 });
 describe("SEC-21: HTML de correos escapa datos de usuario", () => {
   const ataque = `<a href="https://phish.example">Paga aquí</a>`;

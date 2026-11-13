@@ -825,3 +825,113 @@ describe("SalesTicketPage — RUT de la tienda y encabezado de impresión (C-84/
     }
   });
 });
+
+// ── F9: monto a boletear y leyenda no tributaria (C-95…C-100) ─────────────────
+// Res. Ex. SII 176/2020 (docs/pago_complementario.md §4.9/§6.0): el voucher
+// Transbank solo vale como boleta por la parte con tarjeta; el resto debe
+// boletearse aparte. El aviso es para el cajero y no se imprime; el ticket
+// impreso lleva la leyenda "No válido como documento tributario".
+describe("SalesTicketPage — aviso de boleta SII (C-95…C-100)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const pago = (id: string, metodo: string, monto: number) =>
+    ({ id, metodo, monto, numero_transaccion: null, nota_credito_id: null });
+  const renderVenta = (extra: object) => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 17000)], ...extra });
+    return render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+  };
+
+  it("C-95: pago mixto efectivo + débito + transferencia → 'Emitir boleta SII por' la parte sin tarjeta, con desglose por método", async () => {
+    renderVenta({
+      canal: "pos",
+      metodo_pago: "mixto",
+      pagos: [pago("p1", "efectivo", 5000), pago("p2", "debito", 10000), pago("p3", "transferencia", 2000)],
+    });
+    const aviso = await screen.findByRole("status");
+    expect(aviso).toHaveTextContent("Emitir boleta SII por $7.000");
+    expect(aviso).toHaveTextContent("Efectivo $5.000 · Transferencia $2.000");
+    expect(aviso).not.toHaveTextContent(/Débito/);
+  });
+
+  it("C-96: pagada 100 % con tarjeta → 'El voucher Transbank cubre el total', sin 'Emitir boleta'", async () => {
+    renderVenta({ canal: "pos", metodo_pago: "credito", pagos: [pago("p1", "credito", 17000)] });
+    const aviso = await screen.findByRole("status");
+    expect(aviso).toHaveTextContent("El voucher Transbank cubre el total (no requiere boleta)");
+    expect(screen.queryByText(/Emitir boleta/)).not.toBeInTheDocument();
+  });
+
+  it("C-97: crédito interno (NC y saldo a favor) también se boletea", async () => {
+    renderVenta({ pagos: [pago("p1", "nota_credito", 4000), pago("p2", "saldo_a_favor", 3000), pago("p3", "debito", 10000)] });
+    const aviso = await screen.findByRole("status");
+    expect(aviso).toHaveTextContent("Emitir boleta SII por $7.000");
+    expect(aviso).toHaveTextContent("Nota de crédito $4.000 · Saldo a favor $3.000");
+  });
+
+  it("C-98: venta de canal externo (rappi/pedidosya/ubereats) o anulada → sin aviso de boleta", async () => {
+    for (const extra of [
+      { canal: "rappi" }, { canal: "pedidosya" }, { canal: "ubereats" }, { canal: "pos", estado: "anulada" },
+    ]) {
+      const { unmount } = renderVenta({ ...extra, pagos: [pago("p1", "efectivo", 17000)] });
+      await screen.findByText("Comprobante de venta");
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Emitir boleta|voucher Transbank/)).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("C-99: canal ausente (venta sin la columna) se trata como POS; sin filas de pagos no se muestra aviso", async () => {
+    const { unmount } = renderVenta({ pagos: [pago("p1", "efectivo", 17000)] });
+    expect(await screen.findByRole("status")).toHaveTextContent("Emitir boleta SII por $17.000");
+    unmount();
+
+    renderVenta({ canal: "pos", pagos: [] });
+    await screen.findByText("Comprobante de venta");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("C-100: el ticket impreso lleva 'No válido como documento tributario' y el aviso queda fuera de impresión", async () => {
+    renderVenta({ canal: "pos", pagos: [pago("p1", "efectivo", 17000)] });
+    const aviso = await screen.findByRole("status");
+    const leyenda = screen.getByText("No válido como documento tributario");
+    expect(leyenda.closest(".ticket-termico")).not.toBeNull();
+    expect(aviso.closest(".ticket-termico")).toBeNull();
+    expect(aviso).toHaveClass("print:hidden");
+    // El ticket no se rotula como boleta.
+    expect(document.querySelector(".ticket-termico")?.textContent).not.toMatch(/boleta/i);
+  });
+
+  it("C-101: método de pago y desglose con etiquetaMetodo, no el código crudo", async () => {
+    renderVenta({
+      canal: "pos",
+      metodo_pago: "mixto",
+      pagos: [pago("p1", "saldo_a_favor", 7000), pago("p2", "debito", 10000)],
+    });
+    await screen.findByRole("status");
+    const ticket = document.querySelector(".ticket-termico")!;
+    expect(ticket).toHaveTextContent("Mixto");
+    expect(ticket).toHaveTextContent("Saldo a favor");
+    expect(ticket).toHaveTextContent("Débito");
+    expect(ticket.textContent).not.toMatch(/saldo_a_favor|debito/);
+  });
+});
+
+// C-116 — notas internas (migración 094): visibles para el personal en el
+// detalle, nunca dentro de lo que se imprime.
+describe("SalesTicketPage — notas internas (C-116)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("C-116: muestra las notas fuera del ticket impreso (print:hidden); sin notas no muestra el bloque", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 17000)], notas: "Cliente retira mañana" });
+    const { container, unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    const bloque = await screen.findByTestId("notas-internas");
+    expect(bloque).toHaveTextContent("Cliente retira mañana");
+    expect(bloque.className).toContain("print:hidden");
+    expect(container.querySelector(".ticket-termico")).not.toHaveTextContent("Cliente retira mañana");
+    unmount();
+
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 17000)], notas: null });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText(/Comprobante de venta/);
+    expect(screen.queryByTestId("notas-internas")).not.toBeInTheDocument();
+  });
+});

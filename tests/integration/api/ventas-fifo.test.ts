@@ -169,9 +169,10 @@ describe("Checkout — venta delega stock al stored procedure crear_venta_tx", (
     }));
 
     expect(res.status).toBe(200);
+    // Desde la 093 el método viaja en p_pagos (el formato legado se normaliza).
     expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
       p_store_id:    STORE_ID,
-      p_metodo_pago: "efectivo",
+      p_pagos:       [expect.objectContaining({ metodo: "efectivo" })],
       p_items: expect.arrayContaining([
         expect.objectContaining({ producto_id: PRODUCTO_ID, cantidad: 2 }),
       ]),

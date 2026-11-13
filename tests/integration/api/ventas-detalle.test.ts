@@ -14,7 +14,7 @@ jest.mock("@/lib/supabase");
 jest.mock("@/lib/contabilidad/generador-asientos", () => ({
   crearAsiento: jest.fn().mockResolvedValue("asiento-id"),
   lineasAnulacionVentaCanal: jest.fn().mockReturnValue([]),
-  lineasAnulacionVentaConNc: jest.fn().mockReturnValue([]),
+  lineasAnulacionVentaPagos: jest.fn().mockReturnValue([]),
   lineasAnulacionCOGS: jest.fn().mockReturnValue([]),
 }));
 jest.mock("next/server", () => {
@@ -145,6 +145,51 @@ describe("GET /api/ventas/[id]", () => {
       entityType: "venta",
       entityId: mockVentaId,
     }));
+  });
+
+  // I-808 — el detalle (/sales/[id]) decide con `canal` si avisa "Emitir
+  // boleta SII": las ventas de canal externo las cobra la plataforma.
+  it("I-808: devuelve el canal de la venta (columna pedida explícitamente) y sigue filtrando por la tienda", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, numero_comprobante: "N-1", total: 1000, canal: "rappi", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null },
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? chain : { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/ventas/venta-1"), { params: Promise.resolve({ id: mockVentaId }) });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).canal).toBe("rappi");
+    expect(chain.select.mock.calls[0][0]).toMatch(/\bcanal\b/);
+    expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+  });
+
+  // I-840 — notas internas (migración 094): el detalle las pide y las devuelve.
+  it("I-840: devuelve las notas internas de la venta (columna pedida explícitamente)", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, numero_comprobante: "N-1", total: 1000, notas: "Cliente retira mañana", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null },
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? chain : { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+    });
+    const res = await GET(new NextRequest("http://localhost/api/ventas/venta-1"), { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+    expect((await res.json()).notas).toBe("Cliente retira mañana");
+    expect(chain.select.mock.calls[0][0]).toMatch(/\bnotas\b/);
+    expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
   });
 
   it("retorna 404 si venta no existe", async () => {
@@ -428,12 +473,12 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     await flushMicrotasks();
     expect(res.status).toBe(200);
 
-    expect(contabilidad.lineasAnulacionVentaConNc).toHaveBeenCalledWith({
+    // Espejo por pagos (093): la NC se reacredita a Saldos a Favor
+    // (cuentaDeMetodoPago; la cuenta exacta se prueba en contabilidad-generador).
+    expect(contabilidad.lineasAnulacionVentaPagos).toHaveBeenCalledWith({
+      pagos: [{ metodo: "nota_credito", monto: 20000 }],
       montoNeto: 17480,
       iva: 2520,
-      montoNc: 20000,
-      montoResto: 0,
-      metodoPagoResto: undefined,
     });
     expect(contabilidad.lineasAnulacionVentaCanal).not.toHaveBeenCalled();
   });
@@ -451,34 +496,79 @@ describe("PATCH /api/ventas/[id] - Anular venta", () => {
     await flushMicrotasks();
     expect(res.status).toBe(200);
 
-    expect(contabilidad.lineasAnulacionVentaConNc).toHaveBeenCalledWith({
+    expect(contabilidad.lineasAnulacionVentaPagos).toHaveBeenCalledWith({
+      pagos: [
+        { metodo: "nota_credito", monto: 12000 },
+        { metodo: "tarjeta", monto: 8000 },
+      ],
       montoNeto: 17480,
       iva: 2520,
-      montoNc: 12000,
-      montoResto: 8000,
-      metodoPagoResto: "tarjeta",
     });
     expect(contabilidad.lineasAnulacionVentaCanal).not.toHaveBeenCalled();
   });
 
-  // Contracara de I-437/I-438: una venta pagada solo en dinero (sin pagos de
-  // crédito) sigue usando el builder de canal — el lookup de pagos no cambia
-  // el comportamiento para el flujo normal.
-  it("I-438b: venta sin pagos de crédito → sigue usando lineasAnulacionVentaCanal", async () => {
+  // Contracara de I-437/I-438: una venta pagada solo en dinero también se
+  // reversa espejando su pago (desde la 093 todo el POS usa el espejo por
+  // pagos; un pago en efectivo vuelve a Caja, igual que con el builder de
+  // canal).
+  it("I-438b: venta pagada solo en efectivo → reverso espejo por pagos", async () => {
     mockPagosChain = makePagosChain([{ metodo: "efectivo", monto: 20000 }]);
 
     const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
     await flushMicrotasks();
     expect(res.status).toBe(200);
 
-    expect(contabilidad.lineasAnulacionVentaCanal).toHaveBeenCalledWith({
-      canal: "pos",
-      metodoPago: "efectivo",
+    expect(contabilidad.lineasAnulacionVentaPagos).toHaveBeenCalledWith({
+      pagos: [{ metodo: "efectivo", monto: 20000 }],
       montoNeto: 17480,
       iva: 2520,
-      total: 20000,
     });
-    expect(contabilidad.lineasAnulacionVentaConNc).not.toHaveBeenCalled();
+    expect(contabilidad.lineasAnulacionVentaCanal).not.toHaveBeenCalled();
+  });
+
+  // I-800 — REGRESIÓN (pago mixto): con dos pagos en dinero, el reverso usaba
+  // solo el primero (.find) y el segundo quedaba sin reversar. Ahora se
+  // espeja CADA pago.
+  it("I-800: venta mixta efectivo + débito → el reverso incluye ambos pagos", async () => {
+    mockPagosChain = makePagosChain([
+      { metodo: "efectivo", monto: 5000 },
+      { metodo: "debito", monto: 15000 },
+    ]);
+
+    const res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+
+    expect(contabilidad.lineasAnulacionVentaPagos).toHaveBeenCalledWith({
+      pagos: [
+        { metodo: "efectivo", monto: 5000 },
+        { metodo: "debito", monto: 15000 },
+      ],
+      montoNeto: 17480,
+      iva: 2520,
+    });
+  });
+
+  // I-801 — datos antiguos: si los pagos no suman el total (p. ej. pagos
+  // sueltos de /api/pagos), el espejo quedaría descuadrado y crearAsiento lo
+  // rechazaría; se usa el reverso de un solo método, como antes. Canal externo:
+  // siempre la CxC del canal.
+  it("I-801: pagos que no suman el total, o canal externo → reverso de un solo método", async () => {
+    mockPagosChain = makePagosChain([{ metodo: "efectivo", monto: 12000 }]);
+    let res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+    expect(contabilidad.lineasAnulacionVentaPagos).not.toHaveBeenCalled();
+    expect(contabilidad.lineasAnulacionVentaCanal).toHaveBeenCalledTimes(1);
+
+    jest.clearAllMocks();
+    mockRpc.mockResolvedValue(mockAnularVentaTxSuccess({ canal: "rappi", metodo_pago: "plataforma" }));
+    mockPagosChain = makePagosChain([{ metodo: "plataforma", monto: 20000 }]);
+    res = await PATCH(makeReq(), { params: Promise.resolve({ id: mockVentaId }) });
+    await flushMicrotasks();
+    expect(res.status).toBe(200);
+    expect(contabilidad.lineasAnulacionVentaPagos).not.toHaveBeenCalled();
+    expect(contabilidad.lineasAnulacionVentaCanal).toHaveBeenCalledWith(expect.objectContaining({ canal: "rappi" }));
   });
 
   // REGRESIÓN: Estado de Resultado incluía venta anulada como ingreso cuando

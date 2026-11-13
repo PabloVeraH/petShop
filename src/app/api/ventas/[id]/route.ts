@@ -29,7 +29,7 @@ export const GET = withErrorLogging(async (req: NextRequest,
 
   const { data: venta, error } = await supabase
     .from("ventas")
-    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, created_at, worker_clerk_id, clientes(id, nombre, rut, telefono)")
+    .select("id, numero_comprobante, subtotal, descuento, impuesto, total, metodo_pago, estado, canal, notas, created_at, worker_clerk_id, clientes(id, nombre, rut, telefono)")
     .eq("id", id)
     .eq("store_id", store_id)
     .single();

@@ -1,11 +1,16 @@
 import {
-  lineasVenta,
+  lineasVentaPagos,
   lineasVentaCOGS,
   lineasNotaCredito,
   lineasCompra,
   lineasPagoProveedor,
   lineasCierreCOGS,
 } from "@/lib/contabilidad/generador-asientos";
+
+// Venta de un solo pago expresada con el builder por pagos (migración 093;
+// lineasVenta se eliminó). Mismos escenarios y aserciones que antes.
+const lineasVenta = (p: { metodoPago: string; montoNeto: number; iva: number; total: number }) =>
+  lineasVentaPagos({ pagos: [{ metodo: p.metodoPago, monto: p.total }], montoNeto: p.montoNeto, iva: p.iva });
 
 function totalDebito(lineas: { debito: number }[]) {
   return lineas.reduce((s, l) => s + l.debito, 0);

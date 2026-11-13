@@ -8,8 +8,10 @@ import { syncPurchaseToHub, syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { VentaCreateSchema } from "@/lib/validation";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
-import { crearAsiento, lineasVentaCanal, lineasVentaConNc, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
+import { crearAsiento, lineasVentaCanal, lineasVentaPagos, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
 import { fechaNegocioDeTimestamp, hoyNegocioCompacto, hoyNegocioISO } from "@/lib/dates";
+import { normalizarPagos, validarPagos, pagosParaRpc, estadoHttpErrorPago } from "@/lib/ventas/pagos";
+import { prevalidarNotaCredito } from "@/lib/ventas/prevalidar-nc";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   // Listado de ventas de la tienda: solo storeAdmin/systemAdmin (QA 2026-09-27). El worker no
@@ -96,17 +98,9 @@ async function postVenta(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { items, clienteId, metodoPago, descuentoPct, canal, procedencia, workerClerkId, pagoNc, notas, idempotencyKey } = parsed.data;
-  const numeroTransaccion = body.numeroTransaccion;
+  const { items, clienteId, descuentoPct, canal, procedencia, workerClerkId, notas, idempotencyKey } = parsed.data;
   const enviarEmail = body.enviarEmail === true;
   const descuento_pct = descuentoPct ?? 0;
-
-  if (["debito", "credito", "transferencia"].includes(metodoPago) && !numeroTransaccion && !pagoNc) {
-    return NextResponse.json(
-      { error: `número de transacción requerido para ${metodoPago}` },
-      { status: 400 }
-    );
-  }
 
   // Retrieve prices from productos — do not trust client-supplied prices
   const productoIds: string[] = items.map((i: { producto_id: string }) => i.producto_id);
@@ -216,23 +210,29 @@ async function postVenta(req: NextRequest) {
   const impuesto = extraerIva(total);
   const montoNetoVenta = total - impuesto;
 
-  // Validar NC antes de abrir la transacción
-  if (pagoNc) {
-    const { data: nc } = await supabase
-      .from("notas_credito")
-      .select("id, monto_total, fecha_vencimiento, estado")
-      .eq("id", pagoNc.nota_credito_id)
-      .eq("store_id", store_id)
-      .single();
+  // Pagos (pago mixto): formato nuevo o legado → una sola lista, validada contra
+  // el total que calcula el servidor. La RPC repite todas estas reglas.
+  const pagos = normalizarPagos(parsed.data, total);
+  const errorPagos = validarPagos(pagos, total, clienteId);
+  if (errorPagos) {
+    // El POS arma los montos con los precios del carrito (localStorage); si un
+    // precio u oferta cambió mientras tanto, el total del servidor es otro. No
+    // se cobra un monto distinto del real: se le dice al cajero cómo seguir.
+    const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+    const error = sumaPagos !== total
+      ? `${errorPagos}. Los precios pueden haber cambiado: quite y vuelva a agregar los productos y cobre de nuevo.`
+      : errorPagos;
+    return NextResponse.json({ error, total }, { status: 400 });
+  }
 
-    if (!nc) return NextResponse.json({ error: "Nota de crédito no encontrada" }, { status: 404 });
-    if (nc.estado !== "activa") return NextResponse.json({ error: "NC ya fue utilizada o está inactiva" }, { status: 409 });
-    if (nc.fecha_vencimiento && nc.fecha_vencimiento < hoyNegocioISO()) {
-      return NextResponse.json({ error: "NC vencida" }, { status: 410 });
-    }
-    if (pagoNc.monto > Number(nc.monto_total)) {
-      return NextResponse.json({ error: "Monto NC no coincide" }, { status: 400 });
-    }
+  // Pre-validación de la NC (mensajes claros antes de abrir la transacción).
+  // La autoridad es aplicar_pagos: reclamo atómico con FOR UPDATE.
+  const pagoNc = pagos.find((p) => p.metodo === "nota_credito");
+  let numeroNc: string | undefined;
+  if (pagoNc) {
+    const nc = await prevalidarNotaCredito(supabase, store_id, pagoNc.notaCreditoId as string, pagoNc.monto, clienteId);
+    if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
+    numeroNc = nc.numeroNc;
   }
 
   // Fetch store config (needed by RPC for consumo_alertas y fidelizacion)
@@ -261,12 +261,14 @@ async function postVenta(req: NextRequest) {
     p_descuento_pct:        descuento_pct,
     p_impuesto:             impuesto,
     p_total:                total,
-    p_metodo_pago:          metodoPago,
+    // Los parámetros antiguos de pago quedan en NULL: la RPC usa p_pagos.
+    p_metodo_pago:          null,
     p_canal:                canal,
     p_procedencia:          procedencia,
     p_numero_comprobante:   numero_comprobante,
-    p_pago_nc:              pagoNc ?? null,
-    p_numero_transaccion:   numeroTransaccion ?? null,
+    p_pago_nc:              null,
+    p_numero_transaccion:   null,
+    p_pagos:                pagosParaRpc(pagos),
     p_fidelizacion_niveles: fidelizacionNiveles,
     p_dias_aviso:           diasAviso,
     p_idempotency_key:      idempotencyKey ?? null,
@@ -281,12 +283,18 @@ async function postVenta(req: NextRequest) {
       userId: ctx.userId || "unknown",
       action: "CREATE",
       entityType: "venta",
-      newValues: { items, clienteId, workerClerkId, metodoPago, descuento: descuento_pct, numeroTransaccion },
+      newValues: { items, clienteId, workerClerkId, pagos, descuento: descuento_pct },
       ipAddress: (await getRequestMetadata(req)).ipAddress,
       userAgent: (await getRequestMetadata(req)).userAgent,
       result: "failure",
       errorMessage: txError.message,
     });
+    // Errores del cobro (validar_pagos / aplicar_pagos, migración 093). Van
+    // antes del chequeo de stock: "Saldo a favor insuficiente" no es stock.
+    const estadoPago = estadoHttpErrorPago(txError.code);
+    if (estadoPago) {
+      return NextResponse.json({ error: txError.message }, { status: estadoPago });
+    }
     // Granel (G1): el saco abierto no alcanza y el POS no confirmó abrir uno
     // nuevo → 409 con código estable para que el POS pida la confirmación.
     if (txError.message.startsWith("Saco abierto insuficiente")) {
@@ -316,20 +324,36 @@ async function postVenta(req: NextRequest) {
   // contables) — todos esos ya se dispararon (o se están disparando) para el
   // intento original.
   if (!created) {
-    return NextResponse.json(venta);
+    // Los pagos REALES de esa venta (el cajero pudo cambiar los montos antes
+    // de reintentar): el POS arma con ellos el aviso de cuánto boletear.
+    const { data: pagosVenta } = await supabase
+      .from("pagos")
+      .select("metodo, monto")
+      .eq("venta_id", venta.id as string)
+      .eq("store_id", store_id);
+    return NextResponse.json({
+      ...venta,
+      pagos: (pagosVenta ?? []).map((p) => ({ metodo: p.metodo as string, monto: Math.round(Number(p.monto)) })),
+    });
   }
 
-  const metodoPagoVenta = pagoNc
-    ? (pagoNc.monto >= total ? "nota_credito" : "mixto")
-    : metodoPago;
+  // Etiqueta decidida por la RPC (validar_pagos): método único o 'mixto'.
+  const metodoPagoVenta = venta.metodo_pago as string;
 
-  // Guardar notas internas post-RPC (el RPC crear_venta_tx no acepta el campo)
-  if (notas) {
-    await supabase
+  // Notas internas post-RPC (crear_venta_tx no acepta el campo; columna desde
+  // la migración 094). Antes el error se ignoraba y, como la columna no
+  // existía, las notas se perdían en silencio. La venta ya está cobrada: un
+  // fallo aquí no la revierte, pero queda registrado.
+  const notasLimpias = notas?.trim();
+  if (notasLimpias) {
+    const { error: notasError } = await supabase
       .from("ventas")
-      .update({ notas })
+      .update({ notas: notasLimpias })
       .eq("id", venta.id as string)
       .eq("store_id", store_id);
+    if (notasError) {
+      console.error(`[ventas] No se guardaron las notas internas de la venta ${venta.id}: ${notasError.message}`);
+    }
   }
 
   await logAudit({
@@ -412,7 +436,7 @@ async function postVenta(req: NextRequest) {
           clienteNombre: cliente.nombre,
           items: waItems,
           total,
-          metodoPago,
+          metodoPago: metodoPagoVenta,
         })
       ).catch((e) => console.error("[whatsapp] Error enviando recibo:", e));
     }
@@ -432,15 +456,11 @@ async function postVenta(req: NextRequest) {
         .select("cantidad, precio_unitario, subtotal, productos(nombre)")
         .eq("venta_id", venta.id as string);
 
-      const montoRestoEmail = pagoNc ? Math.round(total - pagoNc.monto) : 0;
-      const pagosEmail: Array<{ metodo: string; monto: number; numero_transaccion?: string }> = pagoNc
-        ? [
-            { metodo: "nota_credito", monto: pagoNc.monto, numero_transaccion: pagoNc.numero_nc },
-            ...(montoRestoEmail > 0
-              ? [{ metodo: metodoPago, monto: montoRestoEmail, numero_transaccion: numeroTransaccion ?? undefined }]
-              : []),
-          ]
-        : [{ metodo: metodoPago, monto: total, numero_transaccion: numeroTransaccion ?? undefined }];
+      const pagosEmail = pagos.map((p) => ({
+        metodo: p.metodo,
+        monto: p.monto,
+        numero_transaccion: p.metodo === "nota_credito" ? numeroNc : p.numeroTransaccion,
+      }));
 
       sendBoletaEmail({
         to: clienteParaEmail.email,
@@ -495,16 +515,11 @@ async function postVenta(req: NextRequest) {
         referenciaId: venta.id as string,
         referenciaNomero: venta.numero_comprobante as string,
         descripcion: `Venta ${metodoPagoVenta}${clienteNombre ? ` a ${clienteNombre}` : ""}${canal !== "pos" ? ` (${canal.toUpperCase()})` : ""}`,
-        lineas: pagoNc
-          ? lineasVentaConNc({
-              montoNeto,
-              iva: ivaCalc,
-              total,
-              montoNc: pagoNc.monto,
-              montoResto: Math.round(total - pagoNc.monto),
-              metodoPagoResto: metodoPago,
-            })
-          : lineasVentaCanal({ canal, metodoPago, montoNeto, iva: ivaCalc, total }),
+        // POS: una línea de cobro por pago. Canal externo: CxC del canal (sin
+        // pago mixto, lo valida el schema).
+        lineas: canal === "pos"
+          ? lineasVentaPagos({ pagos, montoNeto, iva: ivaCalc })
+          : lineasVentaCanal({ canal, metodoPago: pagos[0].metodo, montoNeto, iva: ivaCalc, total }),
         usuarioId: ctx.userId ?? undefined,
       });
       if (!asiento1) console.error(`[contabilidad] Asiento de ingreso NO CREADO para venta ${venta.id} (${venta.numero_comprobante})`);
@@ -529,5 +544,5 @@ async function postVenta(req: NextRequest) {
     }
   });
 
-  return NextResponse.json(venta);
+  return NextResponse.json({ ...venta, pagos: pagos.map(({ metodo, monto }) => ({ metodo, monto })) });
 }

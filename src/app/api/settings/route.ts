@@ -21,7 +21,7 @@ export const GET = withErrorLogging(async () => {
 
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token, email_reminder_enabled, email_reminder_dias_aviso, resend_from_email, fidelizacion_niveles, ciudad, lat, lon, direccion, license_start_date, license_end_date, license_warning_days")
+    .select("id, name, rut, address, phone, email, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, whatsapp_webhook_verify_token, email_reminder_enabled, email_reminder_dias_aviso, resend_from_email, fidelizacion_niveles, ciudad, lat, lon, direccion, umbral_identificacion_comprador, license_start_date, license_end_date, license_warning_days")
     .eq("id", store_id)
     .single();
 
@@ -72,6 +72,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
     lat,
     lon,
     direccion,
+    umbral_identificacion_comprador,
   } = parsed.data;
 
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -96,6 +97,7 @@ export const PATCH = withErrorLogging(async (req: NextRequest) => {
   if (lat !== undefined) updateData.lat = lat;
   if (lon !== undefined) updateData.lon = lon;
   if (direccion !== undefined) updateData.direccion = direccion;
+  if (umbral_identificacion_comprador !== undefined) updateData.umbral_identificacion_comprador = umbral_identificacion_comprador;
 
   const { data: originalStore } = await supabase
     .from("stores")

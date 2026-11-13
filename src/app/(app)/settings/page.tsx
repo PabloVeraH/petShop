@@ -36,6 +36,7 @@ interface StoreSettings {
   lat: number | null;
   lon: number | null;
   direccion: string | null;
+  umbral_identificacion_comprador: number | null;
 }
 
 export default function SettingsPage() {
@@ -275,6 +276,32 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+        </section>
+
+        {/* Boletas SII — aviso de 135 UF (pago mixto, plan F11) */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Boletas (SII)</h2>
+          <label htmlFor="umbral-135uf" className="block text-sm font-medium text-gray-700 mb-1">
+            Umbral de identificación del comprador (pesos)
+          </label>
+          <input
+            id="umbral-135uf"
+            type="number"
+            min={1}
+            step={1}
+            value={settings.umbral_identificacion_comprador ?? ""}
+            onChange={(e) => setSettings({
+              ...settings,
+              umbral_identificacion_comprador: e.target.value === "" ? null : Math.trunc(Number(e.target.value)),
+            })}
+            placeholder="Sin aviso"
+            className="w-48 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            135 UF en pesos (Ley 21.713). El SII lo fija cada año con el valor de la UF al 31 de diciembre anterior:
+            actualízalo en enero. Sobre este total, el POS avisa que la boleta debe identificar al comprador con nombre y RUT.
+            Vacío = sin aviso.
+          </p>
         </section>
 
         {/* Email Reminder */}

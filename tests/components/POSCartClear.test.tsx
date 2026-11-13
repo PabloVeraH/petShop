@@ -26,12 +26,9 @@ function buildStore() {
     clienteId: undefined,
     mascotaId: undefined,
     workerClerkId: "user-123",
-    metodoPago: "efectivo",
-    numeroTransaccion: undefined,
     descuento: 0,
     fidelizacionDescuento: 0,
     procedencia: "presencial",
-    pagoNc: undefined,
     notas: "",
     enviarEmailRecibo: false,
     total: () => 1000,
@@ -75,8 +72,9 @@ jest.mock("@/app/(app)/pos/components/ModalCliente", () => ({
 
 jest.mock("@/app/(app)/pos/components/ModalPago", () => ({
   __esModule: true,
-  default: ({ onConfirm }: { onConfirm: () => void }) => (
-    <button onClick={onConfirm} data-testid="confirm-pago">Confirmar Pago</button>
+  // El modal real entrega los pagos elegidos (pago mixto); aquí, uno en efectivo.
+  default: ({ onConfirm }: { onConfirm: (pagos: { metodo: string; monto: number }[]) => void }) => (
+    <button onClick={() => onConfirm([{ metodo: "efectivo", monto: 1000 }])} data-testid="confirm-pago">Confirmar Pago</button>
   ),
 }));
 

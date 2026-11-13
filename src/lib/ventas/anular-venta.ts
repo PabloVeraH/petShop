@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   crearAsiento,
   lineasAnulacionVentaCanal,
-  lineasAnulacionVentaConNc,
+  lineasAnulacionVentaPagos,
   lineasAnulacionCOGS,
 } from "@/lib/contabilidad/generador-asientos";
 import { fechaNegocioDeTimestamp } from "@/lib/dates";
@@ -82,25 +82,23 @@ export async function anularVenta(
   // 6a77e779358cdccca29dc3e3, encontrado durante esa revisión).
   after(async () => {
     try {
-      // Espejo del pago original: si la venta se pagó total o parcialmente con
-      // nota de crédito / saldo a favor, el reverso de esa porción va a Saldos
-      // a Favor (pasivo) — NUNCA a Caja|Banco, que no recibieron ese dinero
-      // (ticket Trello 6a5f9ad3fbf979e68251d40e). venta.metodo_pago guarda
-      // 'nota_credito'/'mixto' para esas ventas, pero el monto exacto del
-      // crédito solo está en pagos.
+      // Espejo de CADA pago original (pago mixto): efectivo → Caja, tarjeta y
+      // transferencia → Banco, NC / saldo a favor → Saldos a Favor (pasivo),
+      // NUNCA a Caja|Banco, que no recibieron ese dinero (ticket Trello
+      // 6a5f9ad3fbf979e68251d40e). Antes se revertía solo el primer pago no
+      // crédito (.find), y con dos medios en dinero el segundo quedaba sin
+      // reversar. Los canales externos los cobra la plataforma: su reverso va
+      // a la CxC del canal, como siempre.
       const { data: pagosVenta } = await supabase
         .from("pagos")
         .select("metodo, monto")
         .eq("venta_id", ventaId)
         .eq("store_id", storeId);
 
-      const METODOS_CREDITO = new Set(["nota_credito", "saldo_a_favor"]);
-      const montoCredito = Math.round(
-        (pagosVenta ?? [])
-          .filter((p) => METODOS_CREDITO.has(p.metodo as string))
-          .reduce((s, p) => s + Number(p.monto), 0)
-      );
-      const pagoResto = (pagosVenta ?? []).find((p) => !METODOS_CREDITO.has(p.metodo as string));
+      const pagos = (pagosVenta ?? []).map((p) => ({
+        metodo: p.metodo as string,
+        monto: Math.round(Number(p.monto)),
+      }));
 
       const asiento = await crearAsiento({
         storeId,
@@ -110,14 +108,11 @@ export async function anularVenta(
         referenciaId: ventaId,
         referenciaNomero: numeroRef,
         descripcion: `Anulación venta ${numeroRef}`,
-        lineas: montoCredito > 0
-          ? lineasAnulacionVentaConNc({
-              montoNeto,
-              iva: ivaVenta,
-              montoNc: montoCredito,
-              montoResto: Math.round(totalVenta - montoCredito),
-              metodoPagoResto: (pagoResto?.metodo as string | undefined) ?? undefined,
-            })
+        // Si los pagos no suman el total (dato antiguo, p. ej. pagos sueltos de
+        // /api/pagos), el espejo por pagos quedaría descuadrado y crearAsiento
+        // lo rechazaría: se usa el reverso de un solo método, como antes.
+        lineas: canalVenta === "pos" && pagos.length > 0 && pagos.reduce((s, p) => s + p.monto, 0) === totalVenta
+          ? lineasAnulacionVentaPagos({ pagos, montoNeto, iva: ivaVenta })
           : lineasAnulacionVentaCanal({
               canal: venta.canal ?? "pos",
               metodoPago: venta.metodo_pago ?? "efectivo",

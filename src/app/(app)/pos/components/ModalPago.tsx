@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   usePOSStore,
@@ -12,21 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { extraerIva } from "@/lib/tax";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const METODOS_PAGO = [
-  { value: "efectivo", label: "Efectivo" },
-  { value: "debito", label: "Débito" },
-  { value: "credito", label: "Crédito" },
-  { value: "transferencia", label: "Transf." },
-  { value: "nota_credito", label: "NC" },
-];
-
-const METODOS_RESTO = [
-  { value: "efectivo", label: "Efectivo" },
-  { value: "debito", label: "Débito" },
-  { value: "credito", label: "Crédito" },
-  { value: "transferencia", label: "Transf." },
-];
+import SelectorPagos, { errorFilas, filasAPagos, filasIniciales, type FilaPago } from "@/components/pagos/SelectorPagos";
+import type { PagoInput } from "@/lib/ventas/pagos";
 
 const PROCEDENCIAS = [
   { value: "presencial", label: "Presencial" },
@@ -48,41 +35,24 @@ type Worker = {
 };
 
 interface ModalPagoProps {
-  onConfirm: () => void;
+  // Recibe los pagos (1..5 medios) que eligió el cajero; la página los envía
+  // a POST /api/ventas, que los valida contra el total del servidor.
+  onConfirm: (pagos: PagoInput[]) => void;
   onCancel: () => void;
   isLoading: boolean;
+  // Aviso de 135 UF (Ley 21.713); null = la tienda no lo configuró.
+  umbralIdentificacion?: number | null;
 }
 
-export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoProps) {
+export default function ModalPago({ onConfirm, onCancel, isLoading, umbralIdentificacion = null }: ModalPagoProps) {
   const {
-    items, descuento, metodoPago, setMetodoPago,
-    numeroTransaccion, setNumeroTransaccion,
+    items, descuento, clienteId,
     setDescuento, fidelizacionDescuento,
     workerClerkId, setWorker,
     procedencia, setProcedencia,
-    pagoNc, setPayNc, clearPayNc,
     notas, setNotas,
     clienteEmail, enviarEmailRecibo, setEnviarEmailRecibo,
   } = usePOSStore();
-
-  // Garantiza un estado de pago neutro cada vez que el modal se monta — no solo
-  // cuando metodoPago está vacío. metodoPago/pagoNc ya no se persisten en
-  // localStorage (ver src/stores/pos.ts), pero esto sigue siendo necesario para:
-  // (a) blobs de localStorage guardados por una versión anterior de la app, antes
-  // de ese fix, que un usuario real puede tener todavía en el navegador; y
-  // (b) reabrir el modal tras un "Cancelar" a mitad de un pago con NC dentro de la
-  // MISMA sesión (pagoNc no se limpiaba al cancelar). Sin esto, el modal podía abrir
-  // con metodoPago="nota_credito" y el panel "Pagar diferencia con" ya visible, como
-  // si una NC ya estuviera validada, bloqueando el cambio a Efectivo/Débito/Crédito/
-  // Transferencia en la fila principal (ticket Trello 6a619fafd0aa9aa5ad06b1dd).
-  useEffect(() => {
-    if (metodoPago !== "efectivo" || pagoNc) {
-      setMetodoPago("efectivo");
-      clearPayNc();
-      setNumeroTransaccion(undefined);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const { data: workers, isLoading: workersLoading } = useQuery<Worker[]>({
     queryKey: ["workers"],
@@ -102,20 +72,12 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
   // abajo), pasa a mostrarse como descuento genérico.
   const esDescuentoFidelizacion = fidelizacionDescuento > 0 && descuento === fidelizacionDescuento;
 
-  // TRX validation
-  const [trxError, setTrxError] = useState(false);
-
-  // NC local state
-  const [ncCodigo, setNcCodigo] = useState("");
-  const [ncValidando, setNcValidando] = useState(false);
-  const [ncValidado, setNcValidado] = useState<{
-    id: string; numero_nc: string; monto_total: number; fecha_vencimiento: string;
-  } | null>(null);
-  const [ncError, setNcError] = useState<string | null>(null);
-  const modoNc = metodoPago === "nota_credito" || (!!pagoNc && metodoPago !== "nota_credito");
-
-  const montoNc = pagoNc?.monto ?? 0;
-  const montoResto = Math.round(tot - montoNc);
+  // Estado del cobro: local al modal. Cada apertura arranca neutra (un pago en
+  // efectivo por el total); nada sobrevive a un "Cancelar" o a un reload
+  // (ticket Trello 6a619fafd0aa9aa5ad06b1dd).
+  const [filas, setFilas] = useState<FilaPago[]>(() => filasIniciales(tot));
+  const [saldoDisponible, setSaldoDisponible] = useState<number | null>(null);
+  const errorPago = errorFilas(filas, tot, clienteId, saldoDisponible);
 
   const sortedWorkers = workers
     ? [
@@ -124,70 +86,12 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
       ].filter(Boolean) as Worker[]
     : [];
 
-  async function validarNc() {
-    if (!ncCodigo.trim()) return;
-    setNcValidando(true);
-    setNcError(null);
-    setNcValidado(null);
-    clearPayNc();
-    try {
-      const res = await fetch(`/api/notas-credito?numero_nc=${encodeURIComponent(ncCodigo.trim())}`);
-      const json = await res.json();
-      if (!res.ok) {
-        setNcError(json.error ?? "Error validando NC");
-        return;
-      }
-      const nc = json.data;
-      setNcValidado(nc);
-      const montoAplicar = Math.min(Number(nc.monto_total), tot);
-      setPayNc({ nota_credito_id: nc.id, numero_nc: nc.numero_nc, monto: montoAplicar });
-      if (montoAplicar >= tot) {
-        setMetodoPago("nota_credito");
-      }
-      // If partial, metodoPago remains "nota_credito" until user picks rest method
-    } finally {
-      setNcValidando(false);
-    }
-  }
-
-  function selectMethod(value: string) {
-    setTrxError(false);
-    if (value === "nota_credito") {
-      setMetodoPago("nota_credito");
-      setNumeroTransaccion(undefined);
-      setNcCodigo("");
-      setNcValidado(null);
-      setNcError(null);
-      clearPayNc();
-    } else {
-      if (pagoNc) {
-        // switching rest method in mixed payment
-        setMetodoPago(value);
-        if (value === "efectivo") setNumeroTransaccion(undefined);
-      } else {
-        setMetodoPago(value);
-        if (value === "efectivo") setNumeroTransaccion(undefined);
-        setNcCodigo("");
-        setNcValidado(null);
-        setNcError(null);
-        clearPayNc();
-      }
-    }
-  }
-
   // Notas internas siguen opcionales, pero si se escribe algo debe alcanzar
   // para trazabilidad real (ticket Trello 6a62eb3057bc5972b4ca8dcc);
   // VentaCreateSchema aplica la misma regla como defensa server-side.
   const notasError = notas.trim().length > 0 && notas.trim().length < 5;
 
-  const confirmarDisabled =
-    isLoading ||
-    !metodoPago ||
-    notasError ||
-    (!pagoNc && ["debito", "credito", "transferencia"].includes(metodoPago ?? "") && !numeroTransaccion) ||
-    (pagoNc && montoResto > 0 && ["debito", "credito", "transferencia"].includes(metodoPago ?? "") && !numeroTransaccion) ||
-    (modoNc && !pagoNc) ||
-    (!!pagoNc && montoResto > 0 && metodoPago === "nota_credito");
+  const confirmarDisabled = isLoading || notasError || errorPago !== null;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
@@ -223,132 +127,17 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
             </div>
           </div>
 
-          {/* Método de pago */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-2">
-              Método de pago
-            </label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {METODOS_PAGO.map((m) => (
-                <Button
-                  key={m.value}
-                  variant={
-                    (m.value === "nota_credito" && (modoNc || metodoPago === "nota_credito"))
-                      ? "default"
-                      : (m.value !== "nota_credito" && !pagoNc && metodoPago === m.value)
-                        ? "default"
-                        : "outline"
-                  }
-                  onClick={() => selectMethod(m.value)}
-                  size="sm"
-                  className="text-xs px-1"
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sección NC */}
-          {(metodoPago === "nota_credito" || (pagoNc && montoResto > 0)) && (
-            <div className="border rounded-lg p-3 space-y-3 bg-amber-50">
-              <p className="text-xs font-medium text-amber-800">Nota de Crédito</p>
-
-              {!pagoNc && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Código NC (ej: NC-20260508-ABCD1234)"
-                    value={ncCodigo}
-                    onChange={(e) => { setNcCodigo(e.target.value); setNcError(null); }}
-                    onKeyDown={(e) => e.key === "Enter" && validarNc()}
-                    className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={validarNc}
-                    disabled={ncValidando || !ncCodigo.trim()}
-                    className="text-xs border-amber-300"
-                  >
-                    {ncValidando ? "..." : "Validar"}
-                  </Button>
-                </div>
-              )}
-
-              {ncError && <p className="text-xs text-red-600">{ncError}</p>}
-
-              {ncValidado && pagoNc && (
-                <div className="text-xs space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">NC:</span>
-                    <span className="font-mono font-medium">{ncValidado.numero_nc}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Monto NC:</span>
-                    <span className="font-medium text-amber-700">${pagoNc.monto.toLocaleString("es-CL")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Vence:</span>
-                    <span>{new Date(ncValidado.fecha_vencimiento + "T12:00:00").toLocaleDateString("es-CL")}</span>
-                  </div>
-                  {montoResto > 0 && (
-                    <div className="flex justify-between font-medium text-red-700 border-t pt-1">
-                      <span>Diferencia a pagar:</span>
-                      <span>${montoResto.toLocaleString("es-CL")}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {pagoNc && montoResto > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-gray-700 mb-1.5">Pagar diferencia con:</p>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {METODOS_RESTO.map((m) => (
-                      <Button
-                        key={m.value}
-                        variant={metodoPago === m.value ? "default" : "outline"}
-                        onClick={() => {
-                          setMetodoPago(m.value);
-                          if (m.value === "efectivo") setNumeroTransaccion(undefined);
-                        }}
-                        size="sm"
-                        className="text-xs px-1"
-                      >
-                        {m.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Número de transacción — para débito/crédito/transferencia */}
-          {["debito", "credito", "transferencia"].includes(metodoPago ?? "") && (
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
-                {pagoNc && montoResto > 0 ? "N° transacción (diferencia)" : "Número de transacción"} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: TRX123456789"
-                required
-                value={numeroTransaccion ?? ""}
-                onChange={(e) => setNumeroTransaccion(e.target.value)}
-                onBlur={() => {
-                  if (!numeroTransaccion?.trim()) {
-                    setTrxError(true);
-                  }
-                }}
-                onFocus={() => setTrxError(false)}
-                className={`w-full rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 ${trxError ? "border-red-400 focus:ring-red-400" : "border-gray-300 focus:ring-green-500"}`}
-              />
-              {trxError && (
-                <p className="text-xs text-red-500 mt-1">Campo obligatorio para pagos con débito/crédito/transferencia</p>
-              )}
-            </div>
+          {/* Medios de pago (pago mixto) */}
+          <SelectorPagos
+            total={tot}
+            filas={filas}
+            onChange={setFilas}
+            clienteId={clienteId}
+            umbralIdentificacion={umbralIdentificacion}
+            onSaldoDisponible={setSaldoDisponible}
+          />
+          {errorPago && filas.every((f) => Number.isFinite(f.monto)) && (
+            <p className="text-xs text-red-600 -mt-3" data-testid="error-pago">{errorPago}</p>
           )}
 
           {/* Worker */}
@@ -474,7 +263,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
                   : "border-gray-200 bg-white text-gray-400"
               }`}
             >
-              {enviarEmailRecibo ? "✓" : "○"} Enviar boleta por mail al cliente
+              {enviarEmailRecibo ? "✓" : "○"} Enviar comprobante por mail al cliente
             </button>
           )}
 
@@ -484,7 +273,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading }: ModalPagoP
               Cancelar
             </Button>
             <Button
-              onClick={onConfirm}
+              onClick={() => onConfirm(filasAPagos(filas))}
               disabled={confirmarDisabled}
               className="flex-1"
             >
