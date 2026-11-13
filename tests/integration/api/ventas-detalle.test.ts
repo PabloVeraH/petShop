@@ -171,6 +171,27 @@ describe("GET /api/ventas/[id]", () => {
     expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
   });
 
+  // I-840 — notas internas (migración 094): el detalle las pide y las devuelve.
+  it("I-840: devuelve las notas internas de la venta (columna pedida explícitamente)", async () => {
+    (authModule.getStoreId as jest.Mock).mockResolvedValue({ storeId: mockStoreId, userId: "user-1" });
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: mockVentaId, numero_comprobante: "N-1", total: 1000, notas: "Cliente retira mañana", created_at: "2026-04-17T10:00:00Z", worker_clerk_id: null },
+        error: null,
+      }),
+    };
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((t: string) => (t === "ventas" ? chain : { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+    });
+    const res = await GET(new NextRequest("http://localhost/api/ventas/venta-1"), { params: Promise.resolve({ id: mockVentaId }) });
+    expect(res.status).toBe(200);
+    expect((await res.json()).notas).toBe("Cliente retira mañana");
+    expect(chain.select.mock.calls[0][0]).toMatch(/\bnotas\b/);
+    expect(chain.eq).toHaveBeenCalledWith("store_id", mockStoreId);
+  });
+
   it("retorna 404 si venta no existe", async () => {
     const ventaChain = {
       select: jest.fn().mockReturnThis(),

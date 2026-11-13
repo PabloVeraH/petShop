@@ -66,6 +66,7 @@ export interface Venta {
   total: number;
   estado: "pendiente" | "completada" | "cancelada";
   metodo_pago?: string;
+  notas?: string | null; // notas internas (migración 094)
   created_at: string;
 }
 

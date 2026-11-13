@@ -29,6 +29,7 @@ type VentaDetalle = {
   metodo_pago: string | null;
   estado: string;
   canal?: string | null;
+  notas?: string | null;
   created_at: string;
   clientes: { id: string; nombre: string; rut: string; telefono?: string } | null;
   worker: { nombre: string | null; email?: string } | null;
@@ -350,6 +351,14 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
           <p className="text-lg font-bold text-blue-700">
             ${Math.round(Number(saldoFavor.saldo_disponible)).toLocaleString("es-CL")}
           </p>
+        </div>
+      )}
+
+      {/* Notas internas (migración 094): para el personal, nunca se imprimen. */}
+      {data.notas && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 print:hidden" data-testid="notas-internas">
+          <p className="text-xs text-gray-500 font-medium">Notas internas</p>
+          <p className="text-sm text-gray-800 whitespace-pre-wrap">{data.notas}</p>
         </div>
       )}
 

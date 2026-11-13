@@ -340,13 +340,20 @@ async function postVenta(req: NextRequest) {
   // Etiqueta decidida por la RPC (validar_pagos): método único o 'mixto'.
   const metodoPagoVenta = venta.metodo_pago as string;
 
-  // Guardar notas internas post-RPC (el RPC crear_venta_tx no acepta el campo)
-  if (notas) {
-    await supabase
+  // Notas internas post-RPC (crear_venta_tx no acepta el campo; columna desde
+  // la migración 094). Antes el error se ignoraba y, como la columna no
+  // existía, las notas se perdían en silencio. La venta ya está cobrada: un
+  // fallo aquí no la revierte, pero queda registrado.
+  const notasLimpias = notas?.trim();
+  if (notasLimpias) {
+    const { error: notasError } = await supabase
       .from("ventas")
-      .update({ notas })
+      .update({ notas: notasLimpias })
       .eq("id", venta.id as string)
       .eq("store_id", store_id);
+    if (notasError) {
+      console.error(`[ventas] No se guardaron las notas internas de la venta ${venta.id}: ${notasError.message}`);
+    }
   }
 
   await logAudit({
