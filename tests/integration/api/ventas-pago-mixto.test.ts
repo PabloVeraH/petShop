@@ -24,6 +24,9 @@ let ncRow: Record<string, unknown> | null = null;
 const ncEqs: unknown[][] = [];
 let pagosDb: { metodo: string; monto: number | string }[] = [];
 const pagosEqs: unknown[][] = [];
+// UPDATE de ventas (notas internas, migración 094) y su error simulado.
+const ventasUpdates: { data: unknown; eqs: unknown[][] }[] = [];
+let ventasUpdateError: { message: string } | null = null;
 
 jest.mock("@/lib/auth", () => ({ getStoreId: () => mockGetStoreId() }));
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
@@ -45,9 +48,15 @@ function chain(table: string) {
   const c: Record<string, unknown> = {};
   const self = () => c;
   for (const m of ["select", "insert", "update", "upsert", "in", "gt", "order", "limit"]) c[m] = jest.fn(self);
+  let esUpdate = false;
+  c.update = jest.fn((data: unknown) => {
+    if (table === "ventas") { esUpdate = true; ventasUpdates.push({ data, eqs: [] }); }
+    return c;
+  });
   c.eq = jest.fn((...args: unknown[]) => {
     if (table === "notas_credito") ncEqs.push(args);
     if (table === "pagos") pagosEqs.push(args);
+    if (table === "ventas" && esUpdate) ventasUpdates[ventasUpdates.length - 1].eqs.push(args);
     return c;
   });
   c.single = jest.fn(async () => {
@@ -59,6 +68,7 @@ function chain(table: string) {
   // Lecturas sin .single(): productos (precio) y venta_items.
   c.then = (resolve: (v: unknown) => void) => {
     if (table === "pagos") return resolve({ data: pagosDb, error: null });
+    if (table === "ventas" && esUpdate) return resolve({ data: null, error: ventasUpdateError });
     if (table === "productos") {
       return resolve({ data: [{ id: PRODUCTO_ID, nombre: "Saco", precio: 8500, precio_oferta: null, en_oferta: false, stock: 10, costo: 4000 }], error: null });
     }
@@ -94,6 +104,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   ncEqs.length = 0;
   pagosEqs.length = 0;
+  ventasUpdates.length = 0;
+  ventasUpdateError = null;
   pagosDb = [];
   ncRow = NC_OK;
   mockGetStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
@@ -310,6 +322,41 @@ describe("POST /api/ventas — dueño de la NC (093)", () => {
     res = await post({ items: ITEMS, clienteId: CLIENTE_ID, pagos: pagosNc });
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/no tiene cliente asignado/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+// I-838 — notas internas (migración 094): antes el UPDATE fallaba en silencio
+// (la columna no existía y la ruta ignoraba el error).
+describe("POST /api/ventas — notas internas", () => {
+  const PAGO = [{ metodo: "efectivo", monto: 17000 }];
+
+  it("I-838: guarda las notas recortadas, filtrando por venta y tienda; vacías o en blanco no escriben", async () => {
+    let res = await post({ items: ITEMS, pagos: PAGO, notas: "  Cliente pidió factura  " });
+    expect(res.status).toBe(200);
+    expect(ventasUpdates).toEqual([{ data: { notas: "Cliente pidió factura" }, eqs: [["id", VENTA.id], ["store_id", STORE_ID]] }]);
+
+    ventasUpdates.length = 0;
+    res = await post({ items: ITEMS, pagos: PAGO, notas: "   " });
+    expect(res.status).toBe(200);
+    expect(ventasUpdates).toHaveLength(0);
+  });
+
+  it("I-839: si guardar las notas falla, la venta (ya cobrada) responde 200 y el error queda en el log", async () => {
+    ventasUpdateError = { message: "column \"notas\" does not exist" };
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post({ items: ITEMS, pagos: PAGO, notas: "Nota de prueba" });
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("No se guardaron las notas internas"));
+    spy.mockRestore();
+  });
+});
+
+describe("POST /api/ventas — medios sin repetir", () => {
+  it("I-841: dos pagos con el mismo medio → 400 sin llegar a la RPC (aunque la UI lo impida, la API es el control real)", async () => {
+    const res = await post({ items: ITEMS, pagos: [{ metodo: "efectivo", monto: 5000 }, { metodo: "efectivo", monto: 12000 }] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/No se puede repetir el medio de pago/);
     expect(mockRpc).not.toHaveBeenCalled();
   });
 });

@@ -149,8 +149,14 @@ export default function SelectorPagos({
     });
   }
 
+  // Un medio de pago no se repite entre filas (dos pagos en efectivo son uno
+  // solo). La fila nueva propone el primer medio en dinero que quede libre; NC
+  // y saldo a favor se eligen a mano porque requieren validación o cliente.
+  const usados = new Set(filas.map((f) => f.metodo));
+  const medioLibre = (["efectivo", "debito", "credito", "transferencia"] as MetodoPago[]).find((m) => !usados.has(m));
+
   function agregar() {
-    onChange([...filas, nuevaFila("efectivo", Math.max(resto, 0))]);
+    if (medioLibre) onChange([...filas, nuevaFila(medioLibre, Math.max(resto, 0))]);
   }
 
   return (
@@ -161,9 +167,12 @@ export default function SelectorPagos({
         const otraNc = filas.some((f) => f.id !== fila.id && f.metodo === "nota_credito");
         const otroSaldo = filas.some((f) => f.id !== fila.id && f.metodo === "saldo_a_favor");
         const disponible = (m: MetodoPago) => {
+          // Ya elegido en otra fila: no se repite.
+          if (filas.some((f) => f.id !== fila.id && f.metodo === m)) return false;
           // NC y saldo son del cliente: sin cliente en la venta no se pueden usar.
-          if (m === "nota_credito") return !!clienteId && !otraNc && !otroSaldo;
-          if (m === "saldo_a_favor") return !!clienteId && !otroSaldo && !otraNc;
+          // Y nunca juntos (son el mismo dinero, D8).
+          if (m === "nota_credito") return !!clienteId && !otroSaldo;
+          if (m === "saldo_a_favor") return !!clienteId && !otraNc;
           return true;
         };
         return (
@@ -237,7 +246,7 @@ export default function SelectorPagos({
       })}
 
       <div className="flex items-center justify-between text-sm">
-        {filas.length < MAX_PAGOS && resto > 0 ? (
+        {filas.length < MAX_PAGOS && resto > 0 && medioLibre ? (
           <Button type="button" variant="outline" size="sm" onClick={agregar}>
             + Agregar medio de pago
           </Button>

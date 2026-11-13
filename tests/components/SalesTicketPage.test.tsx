@@ -914,3 +914,24 @@ describe("SalesTicketPage — aviso de boleta SII (C-95…C-100)", () => {
     expect(ticket.textContent).not.toMatch(/saldo_a_favor|debito/);
   });
 });
+
+// C-116 — notas internas (migración 094): visibles para el personal en el
+// detalle, nunca dentro de lo que se imprime.
+describe("SalesTicketPage — notas internas (C-116)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("C-116: muestra las notas fuera del ticket impreso (print:hidden); sin notas no muestra el bloque", async () => {
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 17000)], notas: "Cliente retira mañana" });
+    const { container, unmount } = render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    const bloque = await screen.findByTestId("notas-internas");
+    expect(bloque).toHaveTextContent("Cliente retira mañana");
+    expect(bloque.className).toContain("print:hidden");
+    expect(container.querySelector(".ticket-termico")).not.toHaveTextContent("Cliente retira mañana");
+    unmount();
+
+    mockFetch({ ...VENTA_BASE, items: [makeItem("i1", "Producto", 1, 17000)], notas: null });
+    render(<TicketPage params={Promise.resolve({ id: VENTA_ID })} />, { wrapper: makeWrapper() });
+    await screen.findByText(/Comprobante de venta/);
+    expect(screen.queryByTestId("notas-internas")).not.toBeInTheDocument();
+  });
+});
