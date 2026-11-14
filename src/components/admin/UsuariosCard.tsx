@@ -286,7 +286,9 @@ function CreateUserForm({ storeId, role, onSuccess }: CreateUserFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          storeId: formData.role === "systemAdmin" ? undefined : storeId,
+          // También para systemAdmin: sin store_id el usuario no aparece en la
+          // lista de la tienda (misma familia que 2a699a7; el rol ya es global).
+          storeId,
         }),
       });
       const data = await res.json();
