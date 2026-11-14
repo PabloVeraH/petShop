@@ -212,11 +212,13 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-481 | storeAdmin intentando crear systemAdmin → 403 | POST /api/admin/users/create | integration |
 | I-482 | systemAdmin crea usuario para una tienda arbitraria (storeId del body honrado — a diferencia de storeAdmin) → 200 | POST /api/admin/users/create | integration |
 | I-483 | Aislamiento de tenant: storeAdmin con storeId de otra tienda en el body → se ignora, el usuario se crea en la tienda del admin autenticado (no IDOR) | POST /api/admin/users/create | integration |
-| I-484 | systemAdmin crea rol de tienda sin storeId → 400 "storeId requerido para roles de tienda", nunca llega a Clerk | POST /api/admin/users/create | integration |
+| I-484 | systemAdmin crea rol de tienda sin storeId → 400 "storeId requerido", nunca llega a Clerk | POST /api/admin/users/create | integration |
 | I-485 | REGRESIÓN (ticket Trello 6a76cc3f6fc812dda0a2ce43): fallo del RPC crear_nota_credito_tx por restitución de stock (SQLSTATE 42703 "record "v_item" has no field "item"", corregido en migración 070) → 500 con el mensaje del RPC propagado al frontend para que el modal lo muestre | POST /api/notas-credito | integration |
 | I-509 | REGRESIÓN (ticket Trello 6a77e9d5cc6b547f60e1799b): el ajuste de fidelización por devolución (total_historico Y frecuencia_compras) vive dentro del RPC atómico crear_nota_credito_tx — la ruta es un wrapper delgado: una sola llamada RPC y CERO consultas a fidelizacion. Mover esa lógica a JS (SELECT+UPDATE secuenciales) rompería la atomicidad (mismo anti-patrón de §23.6) | POST /api/notas-credito | integration |
 | I-486 | REGRESIÓN (ticket 6a76c861779de90209ed8ba3): email existente en Clerk sin usuario recuperable → además del 409 claro, se loguea vía logError (errorCode CLERK_EMAIL_TAKEN_UNRESOLVABLE, severity WARNING, email en contexto) para revisión técnica del desface | POST /api/admin/users/create | integration |
 | I-487 | REGRESIÓN (revisión del ticket 6a76c861779de90209ed8ba3, mismo defecto en otro punto del archivo): error de Clerk sin longMessage ni message (fallback defensivo) → 422 con mensaje genérico "Error al crear el usuario", sin nombrar Clerk | POST /api/admin/users/create | integration |
+| I-842 | REGRESIÓN (mascotaspetshop, 2026-11-13): crear un systemAdmin desde /admin guardaba la cuenta sin store_id (ni Clerk ni clerk_users) y no aparecía en el listado filtrado por tienda; ahora el alta escribe storeId en publicMetadata y store_id en clerk_users (2a699a7 solo cubrió el PATCH) | POST /api/admin/users/create | integration |
+| I-843 | systemAdmin sin storeId en el body → 400 "storeId requerido", nunca llega a Clerk (todo alta exige tienda, cierra I-842 en la API) | POST /api/admin/users/create | integration |
 | I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
 | I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
@@ -2722,6 +2724,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-839 | POST /api/ventas: si guardar las notas falla, la venta responde 200 y el error queda en el log (antes se ignoraba) | POST /api/ventas | integration |
 | I-840 | GET /api/ventas/[id] devuelve las notas internas (columna pedida explícitamente), filtrando por tienda | GET /api/ventas/[id] | integration |
 | C-116 | Detalle de venta: notas internas visibles fuera del ticket impreso; sin notas no hay bloque | SalesTicketPage | component |
+| C-117 | REGRESIÓN (mascotaspetshop, 2026-11-13): el alta de un systemAdmin envía el storeId de la página (antes undefined, y la cuenta no aparecía en el listado) | UsuariosCard | component |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
 | U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |
 | SEL-12 | SelectorPagos: un medio elegido en una fila queda deshabilitado en las demás, en ambos sentidos | SelectorPagos | component |

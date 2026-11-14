@@ -31,7 +31,7 @@ async function createClerkUser(
   firstName: string,
   lastName: string,
   nombre: string,
-  storeId: string | undefined,
+  storeId: string,
   userId: string,
   role: string,
   rut: string | undefined,
@@ -75,8 +75,16 @@ async function createClerkUser(
   }
 
   if (role === "systemAdmin") {
+    // Un systemAdmin también se crea con la tienda de la página: sin store_id
+    // queda fuera de la lista filtrada por tienda (misma familia que 2a699a7,
+    // que solo cubrió la promoción vía PATCH).
     await client.users.updateUserMetadata(clerkUser.id, {
-      publicMetadata: { systemAdmin: true },
+      publicMetadata: {
+        systemAdmin: true,
+        storeAdmin: false,
+        storeWorker: false,
+        storeId,
+      },
     });
 
     const supabase = createServiceClient();
@@ -86,6 +94,9 @@ async function createClerkUser(
         email,
         nombre,
         system_admin: true,
+        store_admin: false,
+        store_worker: false,
+        store_id: storeId,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "clerk_id" }
@@ -185,8 +196,10 @@ export const POST = withErrorLogging(async (req: NextRequest) => {
 
   const { email, password, firstName, lastName, storeId, role, rut, meta_ventas } = parsed.data;
 
-  if (role !== "systemAdmin" && !storeId) {
-    return NextResponse.json({ error: "storeId requerido para roles de tienda" }, { status: 400 });
+  // Todo rol exige tienda, también systemAdmin: sin store_id la cuenta no
+  // aparece en el listado por tienda y getStoreId() le devuelve null (I-843).
+  if (!storeId) {
+    return NextResponse.json({ error: "storeId requerido" }, { status: 400 });
   }
 
   const nombre = `${firstName} ${lastName}`.trim();
