@@ -347,3 +347,36 @@ describe("UsuariosCard — eliminar usuario (C-94)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo bloquear el usuario; no se eliminó");
   });
 });
+
+// C-117 — REGRESIÓN (mascotaspetshop, 2026-11-13): el formulario mandaba
+// storeId: undefined al crear un systemAdmin, así que la cuenta quedaba sin
+// tienda y nunca aparecía en el listado de usuarios. La UI prueba lo que
+// envía; la regla la impone el servidor (I-842).
+describe("UsuariosCard — alta de systemAdmin (C-117)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/api/admin/users?storeId=")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(DEFAULT_USERS) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
+    });
+  });
+
+  it("C-117: al crear un systemAdmin el body lleva el storeId de la página", async () => {
+    render(<UsuariosCard store={{ id: "store-1" }} role="systemAdmin" />, { wrapper: makeWrapper() });
+    fireEvent.click(screen.getByText("+ Crear usuario"));
+
+    fireEvent.change(await screen.findByPlaceholderText("Email"), { target: { value: "nuevo.admin@test.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Contraseña"), { target: { value: "ClaveSegura123!" } });
+    fireEvent.change(screen.getByPlaceholderText("Nombre"), { target: { value: "Nuevo" } });
+    fireEvent.change(screen.getByPlaceholderText("Apellido"), { target: { value: "Admin" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "systemAdmin" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear usuario" }));
+
+    const creates = () => mockFetch.mock.calls.filter(([u]) => String(u).includes("/api/admin/users/create"));
+    await waitFor(() => expect(creates()).toHaveLength(1));
+    expect(JSON.parse(creates()[0][1].body)).toMatchObject({ role: "systemAdmin", storeId: "store-1" });
+  });
+});

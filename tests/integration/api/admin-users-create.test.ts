@@ -1,5 +1,5 @@
 /**
- * Tests I-476 a I-486: POST /api/admin/users/create
+ * Tests I-476 a I-486 (+ I-842, I-843): POST /api/admin/users/create
  * Creación de usuario administrador/worker vía Clerk.
  *
  * REGRESIÓN (ticket 6a76c8c5946f3e4288a6176d): Clerk rechaza con
@@ -389,7 +389,60 @@ describe("POST /api/admin/users/create (systemAdmin)", () => {
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe("storeId requerido para roles de tienda");
+    expect(body.error).toBe("storeId requerido");
     expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  // I-843 — cierre de I-842 en la API: la UI ya manda siempre la tienda, pero
+  // una llamada directa sin storeId volvía a crear un systemAdmin sin tienda.
+  it("I-843: systemAdmin sin storeId → 400, no llega a Clerk", async () => {
+    systemAdminAuth();
+    mockFrom.mockReturnValue(systemAdminChain());
+    const mockCreateUser = jest.fn();
+    mockClerkClient.mockResolvedValue({ users: { createUser: mockCreateUser } });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ role: "systemAdmin" }), // sin storeId
+    }));
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("storeId requerido");
+    expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  // I-842 — REGRESIÓN (mascotaspetshop, 2026-11-13): crear un systemAdmin
+  // desde /admin guardaba la cuenta sin store_id (Clerk ni BD), y la lista de
+  // usuarios filtra por tienda: la cuenta existía y podía entrar, pero no
+  // aparecía nunca. 2a699a7 había cubierto solo la promoción vía PATCH.
+  it("I-842: REGRESIÓN — systemAdmin nuevo guarda store_id en Clerk y en clerk_users", async () => {
+    systemAdminAuth();
+    const chain = systemAdminChain();
+    mockFrom.mockReturnValue(chain);
+    const mockUpdateUserMetadata = jest.fn().mockResolvedValue({});
+    mockClerkClient.mockResolvedValue({
+      users: {
+        createUser: jest.fn().mockResolvedValue({ id: "clerk_sys_nuevo" }),
+        updateUserMetadata: mockUpdateUserMetadata,
+      },
+    });
+
+    const { POST } = await import("@/app/api/admin/users/create/route");
+    const res = await POST(new NextRequest("http://localhost/api/admin/users/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: validBody({ role: "systemAdmin", storeId: STORE_ID }),
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateUserMetadata).toHaveBeenCalledWith("clerk_sys_nuevo", {
+      publicMetadata: { systemAdmin: true, storeAdmin: false, storeWorker: false, storeId: STORE_ID },
+    });
+    expect(chain.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ store_id: STORE_ID, system_admin: true }),
+      { onConflict: "clerk_id" }
+    );
   });
 });
