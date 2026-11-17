@@ -161,13 +161,15 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
                   <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>
                 )}
               </div>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setCreandoCliente(true)}
-                className="mt-1 text-xs font-medium text-green-600 hover:underline"
+                className="mt-2 w-full border-green-300 text-green-700 hover:bg-green-50"
               >
                 + Nuevo cliente
-              </button>
+              </Button>
             </>
           ) : (
             <div className="flex items-center justify-between bg-green-50 rounded px-3 py-2">
