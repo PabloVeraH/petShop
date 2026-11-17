@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import type { Cliente, Encargado, Mascota, Servicio, SlotDisponible } from "@/types";
 import { autoFormatRUT, formatRUTMiles, pareceRUT } from "./rut-format";
 import { hoyLocal } from "./date-utils";
+import { ClienteCreateForm } from "../../customers/components/ModalClienteCreate";
 
 interface ClientesResponse {
   data: Cliente[];
@@ -22,6 +23,10 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
   const fechaInicialValida = fechaInicial && fechaInicial >= hoy ? fechaInicial : hoy;
   const [searchCliente, setSearchCliente] = useState("");
   const [clienteId, setClienteId] = useState("");
+  // El nombre se guarda al elegir: un cliente recién creado no está en la
+  // lista de resultados de la búsqueda.
+  const [clienteNombre, setClienteNombre] = useState("");
+  const [creandoCliente, setCreandoCliente] = useState(false);
   const [mascotaId, setMascotaId] = useState("");
   const [servicioId, setServicioId] = useState("");
   const [encargadoId, setEncargadoId] = useState("");
@@ -115,7 +120,23 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
       <div className="space-y-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Cliente *</label>
-          {!clienteId ? (
+          {!clienteId && creandoCliente ? (
+            <div className="rounded border border-green-200 bg-green-50 p-3">
+              <p className="text-xs font-semibold text-green-700 mb-2">Nuevo cliente</p>
+              <ClienteCreateForm
+                rutInicial={pareceRUT(searchCliente) ? formatRUTMiles(searchCliente) : ""}
+                nombreInicial={pareceRUT(searchCliente) ? "" : searchCliente}
+                onCancel={() => setCreandoCliente(false)}
+                onCreated={(c) => {
+                  setClienteId(c.id);
+                  setClienteNombre(c.nombre);
+                  setCreandoCliente(false);
+                  queryClient.invalidateQueries({ queryKey: ["clientes-cita"] });
+                  queryClient.invalidateQueries({ queryKey: ["clientes"] });
+                }}
+              />
+            </div>
+          ) : !clienteId ? (
             <>
               <Input
                 placeholder="Buscar por nombre o RUT..."
@@ -129,7 +150,7 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
                 {clientes.map((c) => (
                   <button
                     key={c.id}
-                    onClick={() => setClienteId(c.id)}
+                    onClick={() => { setClienteId(c.id); setClienteNombre(c.nombre); }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-green-50 border-b last:border-0"
                   >
                     <span className="font-medium">{c.nombre}</span>
@@ -140,11 +161,20 @@ export function NuevaCitaForm({ onClose, fechaInicial }: { onClose: () => void; 
                   <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>
                 )}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreandoCliente(true)}
+                className="mt-2 w-full border-green-300 text-green-700 hover:bg-green-50"
+              >
+                + Nuevo cliente
+              </Button>
             </>
           ) : (
             <div className="flex items-center justify-between bg-green-50 rounded px-3 py-2">
               <span className="text-sm font-medium text-green-800">
-                {clientes.find((c) => c.id === clienteId)?.nombre ?? "Cliente seleccionado"}
+                {clienteNombre || "Cliente seleccionado"}
               </span>
               <button
                 onClick={() => { setClienteId(""); setMascotaId(""); }}
