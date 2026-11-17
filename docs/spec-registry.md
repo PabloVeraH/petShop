@@ -1641,6 +1641,17 @@ reports (vencimientos).
 |----|-------------|-------|------|
 | NCF-09 | min y precarga del date picker usan la fecha local aunque UTC ya sea el día siguiente (guardia: el frontend ya era correcto; test frágil bajo TZ=UTC real — ver nota arriba) | NuevaCitaForm | component |
 
+## Alta de cliente desde "Nueva cita" (NCF-10 a NCF-13)
+
+"+ Nuevo cliente" abre en línea el formulario de `/customers` (`ClienteCreateForm`, extraído de `ModalClienteCreate`) sin un modal sobre otro. El backend no cambia: `POST /api/clientes` asigna la tienda desde la sesión (cubierto en `clientes.post.test.ts`).
+
+| ID | Descripción | Archivo | Tipo |
+|----|-------------|---------|------|
+| NCF-10 | Crear cliente envía POST /api/clientes (rut, nombre) y el id nuevo es el `cliente_id` de la cita | NuevaCitaForm | component |
+| NCF-11 | El texto de la búsqueda prellena el alta (nombre o RUT) | NuevaCitaForm | component |
+| NCF-12 | Error de la API en el alta se muestra y no deja cliente seleccionado | NuevaCitaForm | component |
+| NCF-13 | RUT inválido no llega a la API; Cancelar vuelve a la búsqueda | NuevaCitaForm | component |
+
 ## Completar cita → venta generada (verificación + regresión) — ticket 6a716208e49a7be4739d1c73 (I-CITA-77, DET-05, DET-06)
 
 Hallazgo reportado el 2026-08-04: completar una cita (PATCH /api/citas/{id}

@@ -239,6 +239,88 @@ describe("NuevaCitaForm (NCF-XX)", () => {
     expect(screen.getByText("Agendar cita") as HTMLButtonElement).toBeDisabled();
   });
 
+  // NCF-10…13 — alta de cliente en línea desde "Nueva cita" (sin abrir un
+  // modal sobre otro). La tienda la asigna el servidor (POST /api/clientes
+  // usa getStoreId; ver tests/integration/api/clientes.post.test.ts): la UI
+  // solo envía rut/nombre/email/teléfono.
+  describe("alta de cliente en línea", () => {
+    const NUEVO = { id: "cli-nuevo", nombre: "Ana Pérez", rut: "11.111.111-1" };
+
+    function mockAlta(post: () => Promise<unknown>) {
+      mockFetch.mockImplementation((url: string, opts?: RequestInit) => {
+        if (url === "/api/clientes" && opts?.method === "POST") return post();
+        return mockFetchDefaultImpl(url);
+      });
+    }
+
+    const altaRequests = () =>
+      mockFetch.mock.calls.filter(([u, o]) => u === "/api/clientes" && o?.method === "POST");
+
+    it("NCF-10: crear cliente envía POST /api/clientes y lo deja seleccionado para la cita", async () => {
+      mockAlta(() => Promise.resolve({ ok: true, json: async () => NUEVO }));
+      render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+
+      fireEvent.click(screen.getByText("+ Nuevo cliente"));
+      fireEvent.change(campoTrasLabel("RUT *"), { target: { value: "11.111.111-1" } });
+      fireEvent.change(campoTrasLabel("Nombre *"), { target: { value: "Ana Pérez" } });
+      fireEvent.click(screen.getByText("Guardar"));
+
+      await waitFor(() => expect(screen.getByText("Cambiar")).toBeInTheDocument());
+      expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+      expect(altaRequests()).toHaveLength(1);
+      expect(JSON.parse(altaRequests()[0][1].body as string)).toMatchObject({ rut: "11.111.111-1", nombre: "Ana Pérez" });
+
+      // El id nuevo es el que viaja al agendar.
+      await seleccionarServicio(SERVICIO_ID, /Peluquería \(60 min\)/);
+      await seleccionarEncargado(ENCARGADO_ID, "Peluquero 1");
+      await waitFor(() => expect(screen.getByText("10:00")).toBeInTheDocument());
+      fireEvent.click(screen.getByText("10:00"));
+      fireEvent.click(screen.getByText("Agendar cita"));
+      await waitFor(() =>
+        expect(mockFetch).toHaveBeenCalledWith(
+          "/api/citas",
+          expect.objectContaining({ body: expect.stringContaining(`"cliente_id":"${NUEVO.id}"`) })
+        )
+      );
+    });
+
+    it("NCF-11: lo escrito en la búsqueda prellena el alta (nombre o RUT)", () => {
+      render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+      fireEvent.change(screen.getByPlaceholderText("Buscar por nombre o RUT..."), { target: { value: "Ana Pérez" } });
+      fireEvent.click(screen.getByText("+ Nuevo cliente"));
+      expect((campoTrasLabel("Nombre *") as HTMLInputElement).value).toBe("Ana Pérez");
+      expect((campoTrasLabel("RUT *") as HTMLInputElement).value).toBe("");
+    });
+
+    it("NCF-12: si la API rechaza el alta, el error se muestra y no queda cliente seleccionado", async () => {
+      mockAlta(() => Promise.resolve({ ok: false, json: async () => ({ error: "Ya existe un cliente con ese RUT" }) }));
+      render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+
+      fireEvent.click(screen.getByText("+ Nuevo cliente"));
+      fireEvent.change(campoTrasLabel("RUT *"), { target: { value: "11.111.111-1" } });
+      fireEvent.change(campoTrasLabel("Nombre *"), { target: { value: "Ana Pérez" } });
+      fireEvent.click(screen.getByText("Guardar"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Ya existe un cliente con ese RUT");
+      expect(screen.queryByText("Cambiar")).not.toBeInTheDocument();
+    });
+
+    it("NCF-13: RUT inválido no llega a la API; Cancelar vuelve a la búsqueda", () => {
+      render(<NuevaCitaForm onClose={jest.fn()} />, { wrapper: makeWrapper() });
+
+      fireEvent.click(screen.getByText("+ Nuevo cliente"));
+      fireEvent.change(campoTrasLabel("RUT *"), { target: { value: "11.111.111-2" } });
+      fireEvent.change(campoTrasLabel("Nombre *"), { target: { value: "Ana Pérez" } });
+      fireEvent.click(screen.getByText("Guardar"));
+
+      expect(screen.getByText("RUT inválido")).toBeInTheDocument();
+      expect(altaRequests()).toHaveLength(0);
+
+      fireEvent.click(screen.getAllByText("Cancelar")[0]);
+      expect(screen.getByPlaceholderText("Buscar por nombre o RUT...")).toBeInTheDocument();
+    });
+  });
+
   // NCF-09 — REGRESIÓN (ticket 6a7161b4c5a35c889231c8a0): el min del date
   // picker y la precarga usan hoyLocal() (fecha local del navegador). Si
   // alguien lo "refactoriza" a `toISOString().split("T")[0]` (UTC), en la
