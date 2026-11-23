@@ -18,6 +18,9 @@ export interface Producto {
   // Granel (migración 077): gramos del saco abierto; null/ausente = no hay
   // saco abierto. Lo agregan GET /api/productos y GET /api/inventario.
   saco_abierto_gramos?: number | null;
+  // Migración 095: unidades en lotes vencidos (incluidas en `stock`). Lo
+  // agrega GET /api/productos; el POS solo las vende si la tienda lo permite.
+  stock_vencido?: number;
 }
 
 export interface Cliente {

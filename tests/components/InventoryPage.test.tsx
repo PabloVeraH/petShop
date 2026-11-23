@@ -1191,3 +1191,46 @@ describe("InventoryPage — historial de movimientos (IV-21)", () => {
     expect(screen.getByText("apertura_saco")).toHaveClass("text-gray-500");
   });
 });
+
+// VENC-C-11…12 — REGRESIÓN (mascotaspetshop, 2026-11-23): en un producto con
+// lotes, "Fecha vencimiento" aparecía vacía (el trigger la calcula solo con
+// lotes vigentes) y escribirla no cambiaba el lote, así que la venta seguía
+// bloqueada. Ahora el formulario manda a editar el lote.
+describe("InventoryPage — vencimiento de productos con lotes", () => {
+  function setupConLotes(lotes: unknown[]) {
+    (global.fetch as jest.Mock).mockImplementation((url: RequestInfo | URL) => {
+      const u = url.toString();
+      if (u.includes("/api/inventario")) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([PRODUCTO]) } as Response);
+      if (u.startsWith("/api/lotes?producto_id=p1")) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ lotes }) } as Response);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) } as Response);
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+  });
+
+  it("VENC-C-11: con lotes, el campo de fecha se reemplaza por el aviso y el botón abre el panel de Lotes", async () => {
+    setupConLotes([{ id: "l1", producto_id: "p1", cantidad_actual: 1, fecha_vencimiento: "2026-10-31", activo: true }]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+
+    expect(await screen.findByText("Este producto usa lotes: la fecha de vencimiento se edita en cada lote.")).toBeInTheDocument();
+    expect(screen.queryByText("Fecha vencimiento (opcional)")).not.toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith("/api/lotes?producto_id=p1", undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar vencimiento en Lotes" }));
+    expect(await screen.findByTestId("lotes-panel")).toBeInTheDocument();
+    expect(screen.queryByText(`Editar: ${PRODUCTO.nombre}`)).not.toBeInTheDocument();
+  });
+
+  it("VENC-C-12: sin lotes, el formulario sigue mostrando 'Fecha vencimiento (opcional)'", async () => {
+    setupConLotes([]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/lotes?producto_id=p1", undefined));
+    expect(screen.getByText("Fecha vencimiento (opcional)")).toBeInTheDocument();
+    expect(screen.queryByText(/Este producto usa lotes/)).not.toBeInTheDocument();
+  });
+});

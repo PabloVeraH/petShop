@@ -5,6 +5,7 @@ import { getStoreId } from "@/lib/auth";
 import { syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { ProductoCreateSchema } from "@/lib/validation";
+import { hoyNegocioISO } from "@/lib/dates";
 import { z } from "zod";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
@@ -33,9 +34,28 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const { data, error } = await query.limit(50);
   if (error) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
+  // Lotes vencidos (migración 095): productos.stock los incluye, pero la venta
+  // solo los usa si la tienda activó "Vender productos vencidos". El POS avisa
+  // y limita la cantidad con stock_vencido (unidades en lotes vencidos).
+  const vencidoPorProducto = new Map<string, number>();
+  if ((data ?? []).length > 0) {
+    const { data: lotesVencidos, error: lotesError } = await supabase
+      .from("lotes_producto")
+      .select("producto_id, cantidad_actual")
+      .eq("store_id", store_id)
+      .eq("activo", true)
+      .gt("cantidad_actual", 0)
+      .lt("fecha_vencimiento", hoyNegocioISO())
+      .in("producto_id", (data ?? []).map((p) => p.id));
+    if (lotesError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    for (const l of lotesVencidos ?? []) {
+      vencidoPorProducto.set(l.producto_id, (vencidoPorProducto.get(l.producto_id) ?? 0) + Number(l.cantidad_actual));
+    }
+  }
+
   // Granel (§4.6): el POS necesita los gramos del saco abierto para decidir
   // si una venta exige abrir un saco nuevo (G1) y para mostrar "N sacos + X kg".
-  const productos = data ?? [];
+  const productos = (data ?? []).map((p) => ({ ...p, stock_vencido: vencidoPorProducto.get(p.id) ?? 0 }));
   const granelIds = productos.filter((p) => Number(p.precio_venta_kg) > 0).map((p) => p.id);
   if (granelIds.length === 0) return NextResponse.json(productos);
 

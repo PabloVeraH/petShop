@@ -2741,3 +2741,16 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEL-12 | SelectorPagos: un medio elegido en una fila queda deshabilitado en las demás, en ambos sentidos | SelectorPagos | component |
 | SEL-13 | SelectorPagos: "Agregar" propone el primer medio libre; sin medios libres no aparece | SelectorPagos | component |
 | I-841 | POST /api/ventas: dos pagos con el mismo medio → 400 sin RPC | POST /api/ventas | integration |
+| VENC-SQL-01…02 | Migración 095: stores.vender_vencidos NOT NULL default false; una sola firma de deducir_stock_fifo | migración 095 | sql |
+| VENC-SQL-03 | REGRESIÓN (mascotaspetshop, BOKATO 2026-11-23): stock 1 en lote vencido con la opción desactivada → no vende; mensaje con producto, vigentes y vencidos; sin escritura (aunque otra tienda la tenga activa) | migración 095 | sql |
+| VENC-SQL-04…05 | Descuento manual (4 argumentos) y canales externos nunca usan lotes vencidos, aunque la opción esté activa | migración 095 | sql |
+| VENC-SQL-06…09 | Opción activa + POS: vende del lote vencido (trazado en venta_item_lotes), consume primero los vigentes, error con disponible total si no alcanza; al desactivarla vuelve a bloquear | migración 095 | sql |
+| VENC-I-01 | GET /api/tienda/nombre expone vender_vencidos (solo true es true) | GET /api/tienda/nombre | integration |
+| VENC-I-02…04 | GET /api/productos: stock_vencido por producto (tienda de la sesión, lotes activos, fecha de Chile); error de lotes → 500; sin productos no consulta lotes | GET /api/productos | integration |
+| VENC-I-05…07 | REGRESIÓN BOKATO: POST /api/ventas devuelve el mensaje de stock de la BD (antes genérico); en el POS con lotes vencidos agrega cómo resolverlo; en canal externo no sugiere Configuración | POST /api/ventas | integration |
+| VENC-I-08…11 | PATCH /api/settings vender_vencidos: el admin la activa/desactiva en su tienda (store_id del body ignorado) con auditoría; worker 403 y sin sesión 401; no booleano → 400; GET la incluye | /api/settings | integration |
+| VENC-C-01…02 | POS, opción desactivada: tarjeta "N en lote vencido · no se puede vender" bloqueada; con pistola, mensaje claro | SearchProductos | component |
+| VENC-C-03…04 | POS: opción activa → aviso "se venderá de un lote vencido"; desactivada con vigentes → límite = vigentes | SearchProductos | component |
+| VENC-C-05…07 | POS: última unidad (stock 1, mínimo 1) se vende con aviso "Última unidad"; "Stock bajo" al quedar en el mínimo; sin avisos con stock holgado | SearchProductos | component |
+| VENC-C-08…10 | /settings: interruptor "Vender productos vencidos" refleja el valor, envía PATCH con true/false; un 403 se muestra | SettingsPage | component |
+| VENC-C-11…12 | REGRESIÓN: editar un producto con lotes reemplaza "Fecha vencimiento" por el aviso y abre Lotes; sin lotes, el campo sigue | InventoryPage | component |

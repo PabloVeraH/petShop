@@ -306,6 +306,15 @@ async function postVenta(req: NextRequest) {
     if (txError.message.startsWith("Cantidad inválida") || txError.message.startsWith("Producto no habilitado para granel")) {
       return NextResponse.json({ error: txError.message }, { status: 400 });
     }
+    // Mensaje de la BD (migración 095): nombra el producto y separa vigentes de
+    // vencidos. Antes se reemplazaba por uno genérico y el cajero no sabía que
+    // el "Stock: 1" que veía estaba en un lote vencido.
+    if (txError.message.startsWith("Stock insuficiente")) {
+      const ayuda = canal === "pos" && txError.message.includes("en lotes vencidos")
+        ? ". La tienda no permite vender productos vencidos: un administrador puede corregir la fecha del lote (Inventario → Lotes), darlo de baja o activar «Vender productos vencidos» en Configuración."
+        : "";
+      return NextResponse.json({ error: txError.message + ayuda }, { status: 422 });
+    }
     const isStockError = txError.message.toLowerCase().includes("stock") || txError.message.toLowerCase().includes("insuficiente");
     if (isStockError) {
       return NextResponse.json({ error: "Stock insuficiente para completar la venta." }, { status: 422 });

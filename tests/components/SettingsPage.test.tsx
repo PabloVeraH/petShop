@@ -394,3 +394,62 @@ describe("SettingsPage — umbral de identificación del comprador (C-115)", () 
     await waitFor(() => expect(ultimoPatch()).toMatchObject({ umbral_identificacion_comprador: null }));
   });
 });
+
+// VENC-C-08…10 — "Vender productos vencidos" (migración 095). Que solo el admin
+// la vea es conveniencia de UX (GET /api/settings ya responde 403 al worker);
+// el control real es requireStoreAdmin en PATCH /api/settings (VENC-I-09).
+describe("SettingsPage — vender productos vencidos", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: true, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+    umbral_identificacion_comprador: null, vender_vencidos: false,
+  };
+  const patches = () => (global.fetch as jest.Mock).mock.calls.filter(([, init]) => init?.method === "PATCH");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth = { userId: "admin-1", sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } } };
+  });
+
+  it("VENC-C-08: muestra la opción desactivada; activarla y guardar envía PATCH /api/settings con vender_vencidos true", async () => {
+    await renderPage(base);
+    const sw = await screen.findByRole("switch", { name: "Vender productos vencidos" });
+    expect(sw).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(sw);
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    const [url, init] = patches()[0];
+    expect(url).toBe("/api/settings");
+    expect(JSON.parse(init.body)).toMatchObject({ vender_vencidos: true });
+  });
+
+  it("VENC-C-09: activada → se muestra activada y desactivarla envía false", async () => {
+    await renderPage({ ...base, vender_vencidos: true });
+    const sw = await screen.findByRole("switch", { name: "Vender productos vencidos" });
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(sw);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(JSON.parse(patches()[0][1].body)).toMatchObject({ vender_vencidos: false });
+  });
+
+  it("VENC-C-10: si el servidor rechaza el guardado (403), el error se muestra en pantalla", async () => {
+    (global.fetch as jest.Mock).mockImplementation((_url: string, init?: RequestInit) =>
+      Promise.resolve(init?.method === "PATCH"
+        ? { ok: false, status: 403, json: () => Promise.resolve({ error: "Forbidden" }) }
+        : { ok: true, json: () => Promise.resolve(base) })
+    );
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+
+    fireEvent.click(await screen.findByRole("switch", { name: "Vender productos vencidos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+  });
+});

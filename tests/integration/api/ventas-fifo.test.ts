@@ -195,6 +195,48 @@ describe("Checkout — venta delega stock al stored procedure crear_venta_tx", (
     expect(res.status).toBe(422);
   });
 
+  // VENC-I-05 — REGRESIÓN BOKATO (2026-11-23): la BD rechazaba por un lote
+  // vencido y la ruta respondía "Stock insuficiente para completar la venta.",
+  // sin decir qué producto ni por qué. Ahora llega el mensaje real + cómo seguir.
+  it("VENC-I-05: lote vencido en el POS → 422 con el mensaje de la BD y cómo resolverlo", async () => {
+    const msg = 'Stock insuficiente para "BOKATO GOLD 20KG": vigentes 0, en lotes vencidos 1, solicitado 1';
+    mockRpc.mockResolvedValue({ data: null, error: { message: msg } });
+
+    const res = await VentaPost(makeVentaRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 1 }], metodoPago: "efectivo", canal: "pos", procedencia: "presencial",
+    }));
+
+    expect(res.status).toBe(422);
+    const { error } = await res.json();
+    expect(error.startsWith(msg)).toBe(true);
+    expect(error).toContain("Inventario → Lotes");
+    expect(error).toContain("«Vender productos vencidos» en Configuración");
+  });
+
+  it("VENC-I-06: falta de stock sin lotes vencidos → 422 con el mensaje exacto de la BD, sin la ayuda de vencidos", async () => {
+    const msg = 'Stock insuficiente para "Saco 10 kg": disponible 1, solicitado 2';
+    mockRpc.mockResolvedValue({ data: null, error: { message: msg } });
+
+    const res = await VentaPost(makeVentaRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 2 }], metodoPago: "efectivo", canal: "pos", procedencia: "presencial",
+    }));
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: msg });
+  });
+
+  it("VENC-I-07: canal externo con lote vencido → 422 sin sugerir la opción de Configuración (no aplica a canales)", async () => {
+    const msg = 'Stock insuficiente para "BOKATO GOLD 20KG": vigentes 0, en lotes vencidos 1, solicitado 1';
+    mockRpc.mockResolvedValue({ data: null, error: { message: msg } });
+
+    const res = await VentaPost(makeVentaRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 1 }], metodoPago: "efectivo", canal: "rappi", procedencia: "presencial",
+    }));
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: msg });
+  });
+
   it("pasa items con precio calculado desde BD (no del body)", async () => {
     const res = await VentaPost(makeVentaRequest({
       items:       [{ producto_id: PRODUCTO_ID, cantidad: 2, precio_unitario: 1 }],

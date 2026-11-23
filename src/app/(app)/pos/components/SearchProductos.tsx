@@ -8,6 +8,7 @@ import { ImageOff } from "lucide-react";
 import type { Producto } from "@/types";
 import { usePOSStore } from "@/stores/pos";
 import { getProductos, accionSaco } from "../api";
+import { fetchJson } from "@/lib/api-client";
 import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estadoSacos, formatoSacos, textoResiduoSacos } from "@/lib/granel";
@@ -46,10 +47,32 @@ export default function SearchProductos() {
   // vencer el Retry-After.
   useReintentoTrasLimite(productosError, refetch);
 
+  // "Vender productos vencidos" (migración 095, /settings). Misma query que la
+  // página del POS y el layout: comparten caché. Mientras carga, se asume
+  // desactivado (lo más restrictivo); la BD vuelve a decidir al cobrar.
+  const { data: tienda } = useQuery<{ vender_vencidos?: boolean }>({
+    queryKey: ["store-name"],
+    queryFn: () => fetchJson("/api/tienda/nombre"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const venderVencidos = tienda?.vender_vencidos === true;
+
   // Unidades vendibles por unidad: para granel, solo los sacos cerrados (el
   // abierto se vende por gramos). La BD aplica la misma regla (I5, 077).
+  // Las unidades en lotes vencidos solo cuentan si la tienda permite venderlas
+  // (crear_venta_tx, 095).
   function unidadesVendibles(prod: Producto): number {
-    return (prod.precio_venta_kg ?? 0) > 0 ? estadoSacos(prod).cerrados : prod.stock;
+    if ((prod.precio_venta_kg ?? 0) > 0) return estadoSacos(prod).cerrados;
+    return venderVencidos ? prod.stock : Math.max(0, prod.stock - (prod.stock_vencido ?? 0));
+  }
+
+  function mostrarAviso(mensaje: string) {
+    setStockWarning(mensaje);
+    if (stockWarningTimerRef.current) clearTimeout(stockWarningTimerRef.current);
+    stockWarningTimerRef.current = setTimeout(() => {
+      setStockWarning(null);
+      stockWarningTimerRef.current = null;
+    }, 3000);
   }
 
   function addProductoToCart(prod: Producto) {
@@ -57,16 +80,15 @@ export default function SearchProductos() {
     if (!precioFinal) return;
 
     // Guard sobrestock: verificar cantidad ya en carrito vs stock disponible
+    const esGranel = (prod.precio_venta_kg ?? 0) > 0;
+    const vencidas = esGranel ? 0 : prod.stock_vencido ?? 0;
     const maxUnidades = unidadesVendibles(prod);
     const inCartItem = items.find((i) => i.producto_id === prod.id && !i.es_granel);
     const inCartQty = inCartItem?.cantidad ?? 0;
     if (inCartQty >= maxUnidades) {
-      setStockWarning(`Stock máximo alcanzado: ${maxUnidades} unidad${maxUnidades !== 1 ? "es" : ""} disponible${maxUnidades !== 1 ? "s" : ""}`);
-      if (stockWarningTimerRef.current) clearTimeout(stockWarningTimerRef.current);
-      stockWarningTimerRef.current = setTimeout(() => {
-        setStockWarning(null);
-        stockWarningTimerRef.current = null;
-      }, 3000);
+      mostrarAviso(vencidas > 0 && !venderVencidos
+        ? `${prod.nombre}: ${vencidas} en lote vencido. La tienda no permite vender productos vencidos`
+        : `Stock máximo alcanzado: ${maxUnidades} unidad${maxUnidades !== 1 ? "es" : ""} disponible${maxUnidades !== 1 ? "s" : ""}`);
       return;
     }
 
@@ -82,6 +104,21 @@ export default function SearchProductos() {
       en_oferta: prod.en_oferta,
       stock: maxUnidades,
     });
+
+    // Avisos que NO bloquean la venta. Granel tiene su propio estado de sacos.
+    if (esGranel) return;
+    const cantidad = inCartQty + 1;
+    const avisos: string[] = [];
+    if (venderVencidos && cantidad > prod.stock - vencidas) {
+      avisos.push(`${prod.nombre}: se venderá de un lote vencido`);
+    }
+    const quedan = prod.stock - cantidad;
+    if (cantidad >= maxUnidades) {
+      avisos.push(`Última unidad disponible de ${prod.nombre}`);
+    } else if (quedan <= prod.stock_minimo) {
+      avisos.push(`Stock bajo: quedarán ${quedan} de ${prod.nombre} (mínimo ${prod.stock_minimo})`);
+    }
+    if (avisos.length > 0) mostrarAviso(avisos.join(" · "));
   }
 
   // G1: si los gramos pedidos (más los granel de este producto ya en el
@@ -322,7 +359,8 @@ export default function SearchProductos() {
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
           const sinPrecio = !precioFinal;
           const inCartQty = items.find((i) => i.producto_id === prod.id && !i.es_granel)?.cantidad ?? 0;
-          const sinStock = !tieneGranel && inCartQty >= prod.stock;
+          const sinStock = !tieneGranel && inCartQty >= unidadesVendibles(prod);
+          const vencidas = tieneGranel ? 0 : prod.stock_vencido ?? 0;
           const sacos = tieneGranel ? estadoSacos(prod) : null;
           const errorSaco = sacoError?.productoId === prod.id ? sacoError.mensaje : null;
           const pidiendoApertura = confirmarApertura?.productoId === prod.id;
@@ -396,6 +434,11 @@ export default function SearchProductos() {
                         {sacos ? formatoSacos(sacos.cerrados, sacos.gramosAbiertos) : `Stock: ${prod.stock}`}
                       </Badge>
                     </div>
+                    {vencidas > 0 && (
+                      <span className="block mt-1 text-[11px] text-red-600 text-right">
+                        {vencidas} en lote vencido · {venderVencidos ? "se vende con aviso" : "no se puede vender"}
+                      </span>
+                    )}
                     {sacos && sacos.residuo > 0 && (
                       <span
                         className="block mt-1 text-[11px] text-amber-700 text-right break-words"
