@@ -220,3 +220,45 @@ describe("POST /api/productos/[id]/saco", () => {
     expect(mockLogAudit).toHaveBeenCalledWith(expect.objectContaining({ result: "failure", errorMessage: "deadlock detected" }));
   });
 });
+
+// VSA-I-01…04 — varios sacos abiertos (migración 096). La semántica en BD
+// (stock, saco de otro producto/tienda, conteo) la prueban VSA-SQL-01…13.
+describe("POST /api/productos/[id]/saco — varios sacos abiertos (096)", () => {
+  const OTRO_SACO = "123e4567-e89b-12d3-a456-426614174031";
+
+  it("VSA-I-01: abrir con permitir_otro lo pasa a la RPC; sin él la llamada no cambia (compatibilidad)", async () => {
+    expect((await post({ accion: "abrir", nota: "Mesón 2", permitir_otro: true })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("abrir_saco", {
+      p_store_id: STORE_ID, p_producto_id: PRODUCTO_ID, p_user_id: "worker-1", p_nota: "Mesón 2", p_permitir_otro: true,
+    });
+    expect((await post({ accion: "abrir" })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("abrir_saco", {
+      p_store_id: STORE_ID, p_producto_id: PRODUCTO_ID, p_user_id: "worker-1", p_nota: null,
+    });
+  });
+
+  it("VSA-I-02: merma y deshacer pasan el saco elegido; el tenant sale de la sesión (store_id del body se ignora)", async () => {
+    expect((await post({ accion: "merma", motivo: "Saco húmedo", saco_id: OTRO_SACO, store_id: OTRA_STORE })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("cerrar_saco_merma", expect.objectContaining({ p_store_id: STORE_ID, p_saco_id: OTRO_SACO }));
+
+    mockAuth.mockResolvedValue(SESION_ADMIN);
+    expect((await post({ accion: "deshacer", saco_id: OTRO_SACO })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("deshacer_apertura_saco", expect.objectContaining({ p_store_id: STORE_ID, p_saco_id: OTRO_SACO }));
+  });
+
+  it("VSA-I-03: saco_id no UUID o permitir_otro no booleano → 400 sin RPC; deshacer sigue siendo solo admin", async () => {
+    expect((await post({ accion: "merma", motivo: "Saco húmedo", saco_id: "x" })).status).toBe(400);
+    expect((await post({ accion: "abrir", permitir_otro: "si" })).status).toBe(400);
+    expect((await post({ accion: "deshacer", saco_id: OTRO_SACO })).status).toBe(403);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VSA-I-04: 'Varios sacos abiertos' y 'Saco no disponible' de la BD → 409 con el mensaje", async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: "Varios sacos abiertos (2) de este producto: indique cuál se da de baja" } });
+    const res = await post({ accion: "merma", motivo: "Saco húmedo" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("Varios sacos abiertos (2) de este producto: indique cuál se da de baja");
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: "Saco no disponible: el saco elegido ya no está abierto" } });
+    expect((await post({ accion: "merma", motivo: "Saco húmedo", saco_id: OTRO_SACO })).status).toBe(409);
+  });
+});

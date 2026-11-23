@@ -6,6 +6,7 @@ import { syncProductsToHub } from "@/lib/hub-sync";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { ProductoCreateSchema } from "@/lib/validation";
 import { hoyNegocioISO } from "@/lib/dates";
+import { agruparSacosAbiertos } from "@/lib/granel";
 import { z } from "zod";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
@@ -59,18 +60,22 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const granelIds = productos.filter((p) => Number(p.precio_venta_kg) > 0).map((p) => p.id);
   if (granelIds.length === 0) return NextResponse.json(productos);
 
+  // Desde la 096 puede haber varios sacos abiertos por producto: se devuelven
+  // todos (el cajero elige de cuál vende) y saco_abierto_gramos es la suma.
   const { data: sacos, error: sacosError } = await supabase
     .from("sacos_abiertos")
-    .select("producto_id, gramos_restantes")
+    .select("id, producto_id, gramos_restantes, nota, abierto_at")
     .eq("store_id", store_id)
     .in("producto_id", granelIds)
     .is("cerrado_at", null);
   if (sacosError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
-  const gramosPorProducto = new Map((sacos ?? []).map((s) => [s.producto_id, Number(s.gramos_restantes)]));
-  return NextResponse.json(productos.map((p) =>
-    granelIds.includes(p.id) ? { ...p, saco_abierto_gramos: gramosPorProducto.get(p.id) ?? null } : p
-  ));
+  const porProducto = agruparSacosAbiertos(sacos ?? []);
+  return NextResponse.json(productos.map((p) => {
+    if (!granelIds.includes(p.id)) return p;
+    const abiertos = porProducto.get(p.id);
+    return { ...p, saco_abierto_gramos: abiertos?.gramos ?? null, sacos_abiertos: abiertos?.sacos ?? [] };
+  }));
 }, { endpoint: "GET /api/productos" });
 
 export const POST = withErrorLogging(async (req: NextRequest) => {

@@ -1097,6 +1097,48 @@ describe("POST /api/ventas — precio granel (I-60/I-61)", () => {
     expect(body.error).toMatch(/Saco abierto insuficiente/);
   });
 
+  // VSA-I-05…07 — varios sacos abiertos (migración 096). La BD decide (VSA-SQL-04/06).
+  it("VSA-I-05: el saco elegido viaja en la línea granel; sin elegir, la línea no lleva saco_id", async () => {
+    const SACO = "123e4567-e89b-12d3-a456-4266141740aa";
+    await POST(makeRequest({
+      items: [
+        { producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500, saco_id: SACO },
+        { producto_id: PRODUCTO_ID, cantidad: 0.2, es_granel: true, gramos: 200 },
+      ],
+      metodoPago: "efectivo",
+    }));
+    const pItems = mockRpc.mock.calls[0][1].p_items;
+    expect(pItems[0].saco_id).toBe(SACO);
+    expect(pItems[1]).not.toHaveProperty("saco_id");
+  });
+
+  it("VSA-I-06: saco_id que no es UUID → 400 sin llegar a la RPC", async () => {
+    const res = await POST(makeRequest({
+      items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500, saco_id: "mesón-1" }],
+      metodoPago: "efectivo",
+    }));
+    expect(res.status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VSA-I-07: 'Varios sacos abiertos' o 'Saco no disponible' de la BD → 409 ELEGIR_SACO con el motivo", async () => {
+    for (const message of [
+      "Varios sacos abiertos (2) de este producto: indique de cuál se vende",
+      "Saco no disponible: el saco elegido ya no está abierto",
+    ]) {
+      setupGranel(); // el mock de productos sirve un solo request
+      mockRpc.mockResolvedValue({ data: null, error: { message } });
+      const res = await POST(makeRequest({
+        items: [{ producto_id: PRODUCTO_ID, cantidad: 0.5, es_granel: true, gramos: 500 }],
+        metodoPago: "efectivo",
+      }));
+      expect(res.status).toBe(409);
+      const body = await res.json();
+      expect(body.code).toBe("ELEGIR_SACO");
+      expect(body.error.startsWith(message)).toBe(true);
+    }
+  });
+
   // I-590 — G5: COGS proporcional. 500 g de un saco de 15 000 g con costo
   // $30.000 por saco → $1.000 (antes: 0,5 × $30.000 = $15.000).
   it("I-590: COGS de granel = gramos / peso_gramos × costo del saco", async () => {

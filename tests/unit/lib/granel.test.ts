@@ -4,7 +4,7 @@
  * Misma fórmula que fraccion_gramos() de migrations/077; la BD es la fuente
  * de verdad (verificada con stock_canales_fase1b_verificacion.sql).
  */
-import { estadoSacos, formatoSacos, textoResiduoSacos } from "@/lib/granel";
+import { estadoSacos, formatoSacos, textoResiduoSacos, agruparSacosAbiertos, etiquetaSaco } from "@/lib/granel";
 
 describe("estadoSacos", () => {
   it("U-164: 9,967 con 14 500 g abiertos de un saco de 15 000 g → 9 cerrados", () => {
@@ -65,3 +65,41 @@ describe("textoResiduoSacos (U-219)", () => {
   });
 });
 
+
+// VSA-U-01…03 — varios sacos abiertos (migración 096).
+describe("granel con varios sacos abiertos", () => {
+  it("VSA-U-01: la fracción se redondea saco por saco (como fraccion_saco_abierto en la BD)", () => {
+    // 2 × round(1/3, 3) = 0,666 (por saco) ≠ round(2/3, 3) = 0,667 (sobre la suma)
+    const prod = {
+      stock: 3.666, peso_gramos: 3000, saco_abierto_gramos: 2000,
+      sacos_abiertos: [
+        { id: "a", gramos_restantes: 1000, nota: null, abierto_at: "2026-11-23T10:00:00Z" },
+        { id: "b", gramos_restantes: 1000, nota: null, abierto_at: "2026-11-23T11:00:00Z" },
+      ],
+    };
+    expect(estadoSacos(prod)).toEqual({ peso: 3000, gramosAbiertos: 2000, cerrados: 3, residuo: 0 });
+  });
+
+  it("VSA-U-02: agruparSacosAbiertos suma por producto y ordena del más antiguo al más nuevo", () => {
+    const m = agruparSacosAbiertos([
+      { id: "b", producto_id: "p1", gramos_restantes: 500, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+      { id: "x", producto_id: "p2", gramos_restantes: 100, nota: null, abierto_at: "2026-11-23T09:00:00Z" },
+      { id: "a", producto_id: "p1", gramos_restantes: 1500, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+    ]);
+    expect(m.get("p1")).toEqual({
+      gramos: 2000,
+      sacos: [
+        { id: "a", gramos_restantes: 1500, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+        { id: "b", gramos_restantes: 500, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+      ],
+    });
+    expect(m.get("p2")?.gramos).toBe(100);
+    expect(m.has("p3")).toBe(false);
+  });
+
+  it("VSA-U-03: etiquetaSaco usa el nombre o, sin él, el orden de apertura", () => {
+    const base = { id: "a", gramos_restantes: 12500, abierto_at: "" };
+    expect(etiquetaSaco({ ...base, nota: "Mesón 2" }, 0)).toBe("Mesón 2 · 12,5 kg");
+    expect(etiquetaSaco({ ...base, nota: "  " }, 1)).toBe("Saco 2 · 12,5 kg");
+  });
+});

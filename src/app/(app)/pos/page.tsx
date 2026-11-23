@@ -88,6 +88,7 @@ export default function POSPage() {
           es_granel: i.es_granel,
           gramos: i.gramos,
           abrir_saco: i.abrir_saco,
+          saco_id: i.saco_id,
         })),
         clienteId,
         workerClerkId,

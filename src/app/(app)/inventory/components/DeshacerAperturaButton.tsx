@@ -6,8 +6,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 // cerrados (y a su lote). La página solo lo muestra a admin (conveniencia de
 // UX); el control real es el servidor: POST /api/productos/[id]/saco con
 // accion "deshacer" exige storeAdmin/systemAdmin, y la BD rechaza sacos con
-// ventas o con gramos que ya cambiaron.
-export function DeshacerAperturaButton({ productoId }: { productoId: string }) {
+// ventas o con gramos que ya cambiaron. Con varios sacos abiertos (096) la BD
+// deshace la apertura más reciente; el texto lo dice.
+export function DeshacerAperturaButton({ productoId, varios = false }: { productoId: string; varios?: boolean }) {
   const queryClient = useQueryClient();
   const { mutate, isPending, error } = useMutation({
     mutationFn: async () => {
@@ -35,7 +36,7 @@ export function DeshacerAperturaButton({ productoId }: { productoId: string }) {
         disabled={isPending}
         className="text-[11px] text-amber-700 hover:underline px-1 disabled:opacity-50"
       >
-        {isPending ? "Deshaciendo..." : "Deshacer apertura"}
+        {isPending ? "Deshaciendo..." : varios ? "Deshacer última apertura" : "Deshacer apertura"}
       </button>
       {error && <span role="alert" className="text-[10px] text-red-500 px-1 max-w-[180px] whitespace-normal">{error.message}</span>}
     </span>

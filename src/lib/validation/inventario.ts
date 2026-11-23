@@ -147,6 +147,9 @@ export const ConteoFisicoSchema = z.object({
     .max(10_000_000, "Cantidad fuera de rango")
     .optional()
     .nullable(),
+  // Migración 096: saco cuyos gramos se contaron (obligatorio con 2+ abiertos;
+  // lo exige la BD).
+  saco_id: UUIDSchema.optional(),
 });
 
 // D23 — merma por vencimiento de un lote.
@@ -157,18 +160,23 @@ export const MermaLoteSchema = z.object({
 // Granel (§4.6, D18/D19) — acciones sobre el saco abierto de un producto:
 // abrir (D18, cualquier usuario de la tienda), merma del resto (G6, guarda
 // el usuario) y deshacer apertura (G2, solo storeAdmin/systemAdmin — lo
-// valida el endpoint).
+// valida el endpoint). Migración 096: varios sacos abiertos — abrir otro con
+// gramos en los abiertos exige permitir_otro (confirmación del cajero); merma
+// y deshacer pueden indicar el saco (merma lo exige con 2+ abiertos).
 export const SacoAccionSchema = z.discriminatedUnion("accion", [
   z.object({
     accion: z.literal("abrir"),
     nota: z.string().trim().max(255).optional(),
+    permitir_otro: z.boolean().optional(),
   }),
   z.object({
     accion: z.literal("merma"),
     motivo: z.string().trim().min(5, "El motivo debe tener al menos 5 caracteres").max(255),
+    saco_id: UUIDSchema.optional(),
   }),
   z.object({
     accion: z.literal("deshacer"),
+    saco_id: UUIDSchema.optional(),
   }),
 ]);
 

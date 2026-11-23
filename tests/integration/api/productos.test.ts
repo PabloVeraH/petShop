@@ -699,3 +699,44 @@ describe("PATCH /api/productos/[id] — guardias de granel (I-602/I-603)", () =>
     expect((await res.json()).error).toMatch(/peso del saco/);
   });
 });
+
+// VSA-I-08 — varios sacos abiertos (096): el POS recibe todos para elegir.
+describe("GET /api/productos — varios sacos abiertos (096)", () => {
+  const GRANEL_ID = "123e4567-e89b-12d3-a456-426614174011";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  });
+
+  it("VSA-I-08: suma los gramos y lista los sacos (más antiguo primero) de la tienda de la sesión", async () => {
+    const sacosChain: Record<string, jest.Mock> = {
+      select: jest.fn(() => sacosChain),
+      eq: jest.fn(() => sacosChain),
+      in: jest.fn(() => sacosChain),
+      is: jest.fn().mockResolvedValue({
+        data: [
+          { id: "s2", producto_id: GRANEL_ID, gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+          { id: "s1", producto_id: GRANEL_ID, gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+        ],
+        error: null,
+      }),
+    };
+    mockFrom.mockImplementation((table: string) =>
+      table === "sacos_abiertos" ? sacosChain
+        : table === "lotes_producto" ? lotesVencidosChain({ data: [], error: null })
+        : chain(Promise.resolve({ data: [{ id: GRANEL_ID, precio_venta_kg: 5000, peso_gramos: 20000, stock: 4.16 }], error: null }))
+    );
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(200);
+    const [p] = await res.json();
+    expect(p.saco_abierto_gramos).toBe(23200);
+    expect(p.sacos_abiertos).toEqual([
+      { id: "s1", gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+      { id: "s2", gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+    ]);
+    expect(sacosChain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
+  });
+});

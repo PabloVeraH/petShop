@@ -223,6 +223,19 @@ describe("POST /api/inventario/[id]/conteo", () => {
     }));
   });
 
+  // VSA-I-10 — varios sacos abiertos (096): el saco contado viaja al RPC (la BD
+  // lo exige con 2+ abiertos y valida que sea de este producto y tienda).
+  it("VSA-I-10: saco_id viaja como p_saco_id; sin él la llamada no cambia; no UUID → 400", async () => {
+    const SACO = "123e4567-e89b-12d3-a456-4266141740aa";
+    expect((await post({ stock_contado: 2, gramos_saco_abierto: 7500, saco_id: SACO, motivo: "Conteo saco" })).status).toBe(200);
+    expect(mockRpc).toHaveBeenLastCalledWith("ajustar_stock_conteo", expect.objectContaining({ p_gramos_saco_abierto: 7500, p_saco_id: SACO }));
+    expect((await post({ stock_contado: 2, gramos_saco_abierto: 7500, motivo: "Conteo saco" })).status).toBe(200);
+    expect(mockRpc.mock.calls[mockRpc.mock.calls.length - 1][1]).not.toHaveProperty("p_saco_id");
+    mockRpc.mockClear();
+    expect((await post({ stock_contado: 2, gramos_saco_abierto: 7500, saco_id: "mesón", motivo: "Conteo saco" })).status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
   // I-594 — granel (077): los gramos del saco abierto viajan al RPC y quedan
   // en la auditoría (valor anterior y nuevo).
   it("I-594: gramos_saco_abierto viaja al RPC y a la auditoría", async () => {

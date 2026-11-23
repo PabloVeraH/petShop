@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
-import type { LoteProducto } from "@/types";
-import { estadoSacos, formatoSacos } from "@/lib/granel";
+import type { LoteProducto, SacoAbiertoResumen } from "@/types";
+import { estadoSacos, formatoSacos, etiquetaSaco } from "@/lib/granel";
 
 // D22 — Ajuste por conteo físico: fija el stock al valor contado (por lote si
 // el producto tiene lotes), con motivo obligatorio. Solo se muestra a admin
@@ -13,6 +13,7 @@ import { estadoSacos, formatoSacos } from "@/lib/granel";
 // (POST /api/inventario/[id]/conteo exige storeAdmin/systemAdmin).
 // Granel (migración 077): se cuentan los sacos CERRADOS y, aparte, los gramos
 // del saco abierto (vacío = no se contaron; 0 = cierra el saco abierto).
+// Con varios sacos abiertos (096) se elige cuál se contó; la BD lo exige.
 
 interface ConteoFisicoModalProps {
   producto: {
@@ -22,6 +23,7 @@ interface ConteoFisicoModalProps {
     precio_venta_kg?: number | null;
     peso_gramos?: number | null;
     saco_abierto_gramos?: number | null;
+    sacos_abiertos?: SacoAbiertoResumen[];
   };
   onClose: () => void;
 }
@@ -39,6 +41,7 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
   const [contado, setContado] = useState("");
   const [gramos, setGramos] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [sacoId, setSacoId] = useState("");
 
   const { data: lotes = [], isLoading, isError } = useQuery({
     queryKey: ["lotes", producto.id],
@@ -59,7 +62,11 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
   const contadoValido = contado !== "" && contadoEntero && contadoNum >= 0;
   const gramosNum = Number(gramos);
   const gramosValido = gramos === "" || (Number.isInteger(gramosNum) && gramosNum >= 0);
-  const puedeEnviar = contadoValido && motivoValido && gramosValido && (!tieneLotes || !!loteId);
+  const sacosAbiertos = esGranel ? producto.sacos_abiertos ?? [] : [];
+  const varios = sacosAbiertos.length > 1;
+  const sacoSel = sacosAbiertos.find((s) => s.id === sacoId);
+  const puedeEnviar = contadoValido && motivoValido && gramosValido && (!tieneLotes || !!loteId)
+    && !(varios && gramos !== "" && !sacoSel);
 
   const { mutate: registrar, isPending, error, reset } = useMutation({
     mutationFn: async () => {
@@ -71,6 +78,7 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
           motivo: motivo.trim(),
           ...(tieneLotes ? { lote_id: loteId } : {}),
           ...(esGranel && gramos !== "" ? { gramos_saco_abierto: gramosNum } : {}),
+          ...(varios && gramos !== "" && sacoSel ? { saco_id: sacoSel.id } : {}),
         }),
       });
       const data = await res.json();
@@ -140,6 +148,25 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
                 </p>
               )}
             </div>
+            {sacos && varios && (
+              <div>
+                <label htmlFor="conteo-saco" className="block text-sm font-medium text-gray-700 mb-1">
+                  Saco abierto contado
+                </label>
+                <select
+                  id="conteo-saco"
+                  value={sacoId}
+                  onChange={(e) => { setSacoId(e.target.value); reset(); }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="">Selecciona un saco</option>
+                  {sacosAbiertos.map((s, i) => (
+                    <option key={s.id} value={s.id}>{etiquetaSaco(s, i)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Hay {sacosAbiertos.length} sacos abiertos: cuenta los gramos de uno a la vez.</p>
+              </div>
+            )}
             {sacos && (
               <div>
                 <label htmlFor="conteo-gramos" className="block text-sm font-medium text-gray-700 mb-1">
@@ -152,7 +179,7 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
                   step="1"
                   value={gramos}
                   onChange={(e) => { setGramos(e.target.value); reset(); }}
-                  placeholder={`Registrado: ${sacos.gramosAbiertos} g (vacío = sin cambio)`}
+                  placeholder={`Registrado: ${sacoSel ? sacoSel.gramos_restantes : sacos.gramosAbiertos} g (vacío = sin cambio)`}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 />
                 {!gramosValido && (

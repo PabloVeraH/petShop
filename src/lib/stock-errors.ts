@@ -25,6 +25,9 @@ const REGLAS: { prefijo: string; status: number }[] = [
   { prefijo: "Saco abierto insuficiente", status: 409 },
   { prefijo: "Saco abierto con gramos restantes", status: 409 },
   { prefijo: "No hay saco abierto", status: 409 },
+  // Varios sacos abiertos (migración 096)
+  { prefijo: "Varios sacos abiertos", status: 409 },
+  { prefijo: "Saco no disponible", status: 409 },
   { prefijo: "El saco no se puede deshacer", status: 409 },
   { prefijo: "No se puede cambiar el peso del saco", status: 409 },
   { prefijo: "Producto no habilitado para granel", status: 400 },

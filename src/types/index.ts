@@ -17,7 +17,10 @@ export interface Producto {
   imagen_url_2?: string | null;
   // Granel (migración 077): gramos del saco abierto; null/ausente = no hay
   // saco abierto. Lo agregan GET /api/productos y GET /api/inventario.
+  // Desde la 096 puede haber varios: es la SUMA, y el detalle va en
+  // sacos_abiertos (del más antiguo al más nuevo).
   saco_abierto_gramos?: number | null;
+  sacos_abiertos?: SacoAbiertoResumen[];
   // Migración 095: unidades en lotes vencidos (incluidas en `stock`). Lo
   // agrega GET /api/productos; el POS solo las vende si la tienda lo permite.
   stock_vencido?: number;
@@ -164,6 +167,9 @@ export interface SacoAbierto {
   gramos_merma: number | null;
   nota: string | null;
 }
+
+// Lo que el POS e inventario necesitan de cada saco abierto (migración 096).
+export type SacoAbiertoResumen = Pick<SacoAbierto, "id" | "gramos_restantes" | "nota" | "abierto_at">;
 
 // Trazabilidad venta ↔ saco (migración 077), análoga a VentaItemLote.
 export interface VentaItemSaco {

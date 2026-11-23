@@ -24,6 +24,7 @@ import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientos
 import { ProductoImagenesField } from "./components/ProductoImagenesField";
 import { ProductoCreateSchema } from "@/lib/validation";
 import { fetchJson } from "@/lib/api-client";
+import type { SacoAbiertoResumen } from "@/types";
 
 type Producto = {
   id: string;
@@ -45,7 +46,9 @@ type Producto = {
   imagen_url: string | null;
   imagen_url_2: string | null;
   // Granel (migración 077): gramos del saco abierto (null = sin saco abierto).
+  // Desde la 096, la suma de todos los sacos abiertos, con el detalle aparte.
   saco_abierto_gramos?: number | null;
+  sacos_abiertos?: SacoAbiertoResumen[];
 };
 
 type Categoria = {
@@ -540,7 +543,7 @@ export default function InventoryPage() {
                           <button onClick={() => setConteoDe(p)} className="text-[11px] text-emerald-700 hover:underline px-1">Conteo</button>
                           <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30, stock: p.stock, fecha_vencimiento: p.fecha_vencimiento })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
                           <button onClick={() => setConfirmDelete(p)} className="text-[11px] text-red-400 hover:underline px-1">Desact.</button>
-                          {p.saco_abierto_gramos != null && <DeshacerAperturaButton productoId={p.id} />}
+                          {p.saco_abierto_gramos != null && <DeshacerAperturaButton productoId={p.id} varios={(p.sacos_abiertos?.length ?? 0) > 1} />}
                         </div>
                       </TableCell>
                     )}
