@@ -16,9 +16,11 @@ interface ModalCobroCitaProps {
   cita: Cita;
   onClose: () => void;
   onSuccess: () => void;
+  // Configuración de la tienda (098): false = N° de transacción opcional.
+  trxObligatorio?: boolean;
 }
 
-export default function ModalCobroCita({ cita, onClose, onSuccess }: ModalCobroCitaProps) {
+export default function ModalCobroCita({ cita, onClose, onSuccess, trxObligatorio = true }: ModalCobroCitaProps) {
   const total = Number(cita.precio);
   const iva = extraerIva(total);
   const neto = total - iva;
@@ -28,7 +30,7 @@ export default function ModalCobroCita({ cita, onClose, onSuccess }: ModalCobroC
   const [cobrando, setCobrando] = useState(false);
   const [error, setError] = useState("");
 
-  const errorPago = errorFilas(filas, total, cita.cliente_id, saldoDisponible);
+  const errorPago = errorFilas(filas, total, cita.cliente_id, saldoDisponible, trxObligatorio);
   const confirmarDisabled = cobrando || errorPago !== null;
 
   async function confirmar() {
@@ -80,6 +82,7 @@ export default function ModalCobroCita({ cita, onClose, onSuccess }: ModalCobroC
             filas={filas}
             onChange={setFilas}
             clienteId={cita.cliente_id}
+            trxObligatorio={trxObligatorio}
             onSaldoDisponible={setSaldoDisponible}
           />
           {errorPago && filas.every((f) => Number.isFinite(f.monto)) && (

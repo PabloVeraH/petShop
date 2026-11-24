@@ -220,10 +220,18 @@ async function completarCita(
     return NextResponse.json({ error: "El monto de la NC no puede exceder el total a cobrar" }, { status: 400 });
   }
 
+  // Niveles de fidelización y número de transacción — mismo fetch + defaults
+  // que postVenta().
+  const { data: storeConfig } = await supabase
+    .from("stores")
+    .select("fidelizacion_niveles, numero_transaccion_obligatorio")
+    .eq("id", ctx.storeId)
+    .single();
+
   // Mismas reglas que POST /api/ventas: lista única validada contra el precio
   // de la cita (servidor), nunca contra un total enviado por el cliente.
   const pagos = normalizarPagos(body, total);
-  const errorPagos = validarPagos(pagos, total, existing.cliente_id);
+  const errorPagos = validarPagos(pagos, total, existing.cliente_id, storeConfig?.numero_transaccion_obligatorio !== false);
   if (errorPagos) return NextResponse.json({ error: errorPagos }, { status: 400 });
 
   const pagoNc = pagos.find((p) => p.metodo === "nota_credito");
@@ -232,12 +240,6 @@ async function completarCita(
     if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
   }
 
-  // Niveles de fidelización — mismo fetch + default que postVenta().
-  const { data: storeConfig } = await supabase
-    .from("stores")
-    .select("fidelizacion_niveles")
-    .eq("id", ctx.storeId)
-    .single();
   const fidelizacionNiveles = (storeConfig?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [
     { monto: 50000, descuento: 5 },
     { monto: 150000, descuento: 10 },

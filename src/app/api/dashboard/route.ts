@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { hoyNegocioISO, rangoDiaNegocio } from "@/lib/dates";
 import { withErrorLogging } from "@/lib/audit";
-import { cargarPagosPorVenta, metodosParaAgrupar, resumenBoleta, ventasConPagos } from "@/lib/reports/pagos-reporte";
+import { cargarPagosPorVenta, metodosParaAgrupar } from "@/lib/reports/pagos-reporte";
 
 export const GET = withErrorLogging(async () => {
   const ctx = await getStoreId();
@@ -117,17 +117,24 @@ export const GET = withErrorLogging(async () => {
 
   // Una venta mixta cuenta una vez para cada método real que usó (tabla
   // pagos), así "mixto" no aparece como si fuera un medio de pago.
-  const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventasHoy));
-  const metodoCounts: Record<string, number> = {};
+  const pagosPorVenta = await cargarPagosPorVenta(
+    supabase, store_id, ventasHoy.filter((v) => v.metodo_pago === "mixto").map((v) => v.id)
+  );
+  // El monto es lo cobrado (no descuenta NC), misma regla que "Métodos de pago"
+  // de GET /api/reports: es lo que cuadra con vouchers y cobros del día.
+  const metodos: Record<string, { total: number; transacciones: number }> = {};
   for (const v of ventasHoy) {
-    for (const m of new Set(metodosParaAgrupar(v, pagosPorVenta).map((p) => p.metodo))) {
-      metodoCounts[m] = (metodoCounts[m] ?? 0) + 1;
+    const pagos = metodosParaAgrupar(v, pagosPorVenta);
+    for (const p of pagos) {
+      metodos[p.metodo] ??= { total: 0, transacciones: 0 };
+      metodos[p.metodo].total += p.monto;
     }
+    for (const m of new Set(pagos.map((p) => p.metodo))) metodos[m].transacciones += 1;
   }
-  // Monto bruto cobrado hoy que debe boletearse (lo que el voucher no cubre);
-  // no descuenta NC: la boleta se emitió por lo cobrado en la venta.
-  const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventasHoy, pagosPorVenta);
-  const topMetodo = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
+  const pagosPorMetodo = Object.entries(metodos)
+    .map(([metodo, data]) => ({ metodo, ...data }))
+    .sort((a, b) => b.total - a.total);
+  const topMetodo = Object.entries(metodos).sort((a, b) => b[1].transacciones - a[1].transacciones)[0]?.[0] ?? "-";
 
   // Ventas por canal
   const canalCounts: Record<string, { total: number; transacciones: number }> = {};
@@ -168,8 +175,7 @@ export const GET = withErrorLogging(async () => {
     transacciones,
     ticketPromedio,
     topMetodo,
-    montoBoleta,
-    boletaPorMetodo,
+    pagosPorMetodo,
     topProductos,
     ultimasVentas,
     alertas,

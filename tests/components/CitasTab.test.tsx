@@ -131,6 +131,23 @@ describe("CitasTab (CTB-XX)", () => {
     expect(screen.getByText((_, el) => el?.textContent === "Peluquería · 30 min · $15.000 · Juan Pérez · 912345678")).toBeInTheDocument();
   });
 
+  it("NTX-C-04: el cobro de la cita usa la configuración de GET /api/tienda/nombre (obligatorio si no responde)", async () => {
+    for (const [tienda, esperado] of [
+      [{ ok: true, json: async () => ({ numero_transaccion_obligatorio: false }) }, "opcional"],
+      [{ ok: true, json: async () => ({ numero_transaccion_obligatorio: true }) }, "obligatorio"],
+      [{ ok: false, status: 500, json: async () => ({ error: "x" }) }, "obligatorio"],
+    ] as const) {
+      mockFetch.mockImplementation((url: string) =>
+        url === "/api/tienda/nombre" ? Promise.resolve(tienda) : mockFetchDefaultImpl(url));
+      const { unmount } = render(<CitasTab />, { wrapper: makeWrapper() });
+      fireEvent.click(await screen.findByText("Completar y cobrar"));
+      fireEvent.change(await screen.findByLabelText("Método del pago 1"), { target: { value: "debito" } });
+      await waitFor(() => expect(screen.getByLabelText("N° de transacción del pago 1"))
+        .toHaveAttribute("placeholder", `N° de transacción (${esperado})`));
+      unmount();
+    }
+  });
+
   // CTB-02 — REGRESIÓN: citas sin encargado (ej. históricas, encargado_id
   // NULL) no deben quedar en blanco, deben mostrar "Sin asignar".
   it("CTB-02: fila sin encargado (encargado_id NULL) muestra 'Sin asignar'", async () => {

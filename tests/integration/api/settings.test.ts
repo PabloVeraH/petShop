@@ -710,3 +710,79 @@ describe("PATCH /api/settings — vender productos vencidos", () => {
     expect(selectCols).toContain("vender_vencidos");
   });
 });
+
+// NTX-I-09…12 — "Nro. Transacción en ventas" (migración 098): decisión del
+// admin de la tienda; se valida en el límite y queda en la auditoría.
+describe("PATCH /api/settings — número de transacción en ventas", () => {
+  const patch = async (body: object) => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    return PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  };
+  let updates: Record<string, unknown>[];
+  let eqs: [string, unknown][];
+  let selectCols: string;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updates = [];
+    eqs = [];
+    selectCols = "";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAsAdmin();
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { updates.push(data); return c; }),
+        eq: jest.fn((col: string, val: unknown) => { eqs.push([col, val]); return c; }),
+        select: jest.fn((cols?: string) => { selectCols = cols ?? selectCols; return c; }),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID, numero_transaccion_obligatorio: false }, error: null }),
+      };
+      return c;
+    });
+  });
+
+  it("NTX-I-09: el admin la deshabilita y habilita en SU tienda (store_id del body se ignora), auditado; un PATCH que no la menciona no la toca", async () => {
+    const { logAudit } = jest.requireMock("@/lib/audit") as { logAudit: jest.Mock };
+    const OTRA = "99999999-0000-4000-8000-000000000099";
+    expect((await patch({ numero_transaccion_obligatorio: false, store_id: OTRA, id: OTRA })).status).toBe(200);
+    expect(updates[0]).toHaveProperty("numero_transaccion_obligatorio", false);
+    expect(updates[0]).not.toHaveProperty("store_id");
+    expect(updates[0]).not.toHaveProperty("id");
+    expect(eqs).toContainEqual(["id", STORE_ID]);
+    expect(eqs).not.toContainEqual(["id", OTRA]);
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: STORE_ID, action: "UPDATE", entityType: "settings", result: "success",
+    }));
+
+    expect((await patch({ numero_transaccion_obligatorio: true })).status).toBe(200);
+    expect(updates[1]).toHaveProperty("numero_transaccion_obligatorio", true);
+    expect((await patch({ name: "Otra" })).status).toBe(200);
+    expect(updates[2]).not.toHaveProperty("numero_transaccion_obligatorio");
+  });
+
+  it("NTX-I-10: storeWorker → 403 y sin sesión → 401, sin escribir", async () => {
+    mockAsWorker();
+    expect((await patch({ numero_transaccion_obligatorio: false })).status).toBe(403);
+    mockGetStoreId.mockResolvedValue(null);
+    expect((await patch({ numero_transaccion_obligatorio: false })).status).toBe(401);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("NTX-I-11: valor no booleano (\"false\", 0, null) → 400 sin escribir", async () => {
+    for (const v of ["false", 0, null]) {
+      expect([v, (await patch({ numero_transaccion_obligatorio: v })).status]).toEqual([v, 400]);
+    }
+    expect(updates).toHaveLength(0);
+  });
+
+  it("NTX-I-12: GET la incluye para que /settings muestre el estado actual", async () => {
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect((await res.json()).numero_transaccion_obligatorio).toBe(false);
+    expect(selectCols).toContain("numero_transaccion_obligatorio");
+  });
+});

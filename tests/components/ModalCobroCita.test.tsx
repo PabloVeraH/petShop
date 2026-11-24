@@ -52,10 +52,10 @@ function mockFetchDefaultImpl(url: string) {
   return Promise.resolve({ ok: true, json: async () => ({}) });
 }
 
-function renderModal() {
+function renderModal(props: { trxObligatorio?: boolean } = {}) {
   const onClose = jest.fn();
   const onSuccess = jest.fn();
-  render(<ModalCobroCita cita={CITA as never} onClose={onClose} onSuccess={onSuccess} />);
+  render(<ModalCobroCita cita={CITA as never} onClose={onClose} onSuccess={onSuccess} {...props} />);
   return { onClose, onSuccess };
 }
 
@@ -107,6 +107,24 @@ describe("ModalCobroCita (COB-XX)", () => {
 
     fireEvent.change(screen.getByLabelText("N° de transacción del pago 1"), { target: { value: "TRX-1" } });
     expect(cobrar()).toBeEnabled();
+  });
+
+  // Gate de UX: el control real es PATCH /api/citas/[id] (I-CITA-68) y la RPC.
+  it("NTX-C-02: opcional en la tienda → débito sin número se cobra y el PATCH no lo lleva", async () => {
+    renderModal({ trxObligatorio: false });
+    fireEvent.change(metodo(1), { target: { value: "debito" } });
+    expect(screen.getByLabelText("N° de transacción del pago 1")).toHaveAttribute("placeholder", "N° de transacción (opcional)");
+    fireEvent.click(cobrar());
+    await waitFor(() => expect(bodyPatch()).toEqual({ accion: "completar", pagos: [{ metodo: "debito", monto: 15000 }] }));
+  });
+
+  it("NTX-C-03: si el servidor igual lo exige (la opción cambió), el motivo se muestra y no se cierra", async () => {
+    mockFetch.mockResolvedValue({ ok: false, json: async () => ({ error: "El número de transacción es obligatorio para débito" }) });
+    const { onSuccess } = renderModal({ trxObligatorio: false });
+    fireEvent.change(metodo(1), { target: { value: "debito" } });
+    fireEvent.click(cobrar());
+    expect(await screen.findByText("El número de transacción es obligatorio para débito")).toBeInTheDocument();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   // COB-04

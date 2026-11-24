@@ -233,26 +233,32 @@ describe("POST /api/ventas — validaciones", () => {
 
   // I-300
   it("I-300: rechaza debito sin numeroTransaccion con 400", async () => {
+    setupHappyPath(); // sin numero_transaccion_obligatorio en la tienda = se exige
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "debito" }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("número de transacción");
+    expect(mockRpc).not.toHaveBeenCalledWith("crear_venta_tx", expect.anything());
   });
 
   // I-301
   it("I-301: rechaza credito sin numeroTransaccion con 400", async () => {
+    setupHappyPath(); // sin numero_transaccion_obligatorio en la tienda = se exige
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "credito" }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("número de transacción");
+    expect(mockRpc).not.toHaveBeenCalledWith("crear_venta_tx", expect.anything());
   });
 
   // I-302
   it("I-302: rechaza transferencia sin numeroTransaccion con 400", async () => {
+    setupHappyPath(); // sin numero_transaccion_obligatorio en la tienda = se exige
     const res = await POST(makeRequest({ items: [VALID_ITEM], metodoPago: "transferencia" }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("número de transacción");
+    expect(mockRpc).not.toHaveBeenCalledWith("crear_venta_tx", expect.anything());
   });
 });
 

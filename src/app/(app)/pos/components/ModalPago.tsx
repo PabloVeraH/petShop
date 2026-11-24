@@ -42,9 +42,11 @@ interface ModalPagoProps {
   isLoading: boolean;
   // Aviso de 135 UF (Ley 21.713); null = la tienda no lo configuró.
   umbralIdentificacion?: number | null;
+  // Configuración de la tienda (098): false = N° de transacción opcional.
+  trxObligatorio?: boolean;
 }
 
-export default function ModalPago({ onConfirm, onCancel, isLoading, umbralIdentificacion = null }: ModalPagoProps) {
+export default function ModalPago({ onConfirm, onCancel, isLoading, umbralIdentificacion = null, trxObligatorio = true }: ModalPagoProps) {
   const {
     items, descuento, clienteId,
     setDescuento, fidelizacionDescuento,
@@ -77,7 +79,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading, umbralIdenti
   // (ticket Trello 6a619fafd0aa9aa5ad06b1dd).
   const [filas, setFilas] = useState<FilaPago[]>(() => filasIniciales(tot));
   const [saldoDisponible, setSaldoDisponible] = useState<number | null>(null);
-  const errorPago = errorFilas(filas, tot, clienteId, saldoDisponible);
+  const errorPago = errorFilas(filas, tot, clienteId, saldoDisponible, trxObligatorio);
 
   const sortedWorkers = workers
     ? [
@@ -134,6 +136,7 @@ export default function ModalPago({ onConfirm, onCancel, isLoading, umbralIdenti
             onChange={setFilas}
             clienteId={clienteId}
             umbralIdentificacion={umbralIdentificacion}
+            trxObligatorio={trxObligatorio}
             onSaldoDisponible={setSaldoDisponible}
           />
           {errorPago && filas.every((f) => Number.isFinite(f.monto)) && (

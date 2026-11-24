@@ -10,7 +10,7 @@ import AlertasConsumo from "./AlertasConsumo";
 import SugerenciasRecompra from "./SugerenciasRecompra";
 import VentasPorCanal from "./VentasPorCanal";
 import VentasPorProcedencia from "./VentasPorProcedencia";
-import MontoBoleta from "./MontoBoleta";
+import PagosPorMetodo from "./PagosPorMetodo";
 import { formatDateOnlyEsCL, parseDateOnlyLocal } from "@/lib/dates";
 
 type StockAlerta = {
@@ -111,7 +111,7 @@ export default function AnaliticaTab() {
         <KPICard label="Método top" value={data?.topMetodo ?? "-"} />
       </div>
 
-      <MontoBoleta monto={data?.montoBoleta} porMetodo={data?.boletaPorMetodo} />
+      <PagosPorMetodo data={data?.pagosPorMetodo} />
 
       {/* Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -213,10 +213,18 @@ async function postVenta(req: NextRequest) {
   const impuesto = extraerIva(total);
   const montoNetoVenta = total - impuesto;
 
+  // Fetch store config (validación de pagos; la RPC la usa para consumo_alertas y fidelizacion)
+  const { data: storeConfig } = await supabase
+    .from("stores")
+    .select("name, email_reminder_dias_aviso, fidelizacion_niveles, numero_transaccion_obligatorio, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, rut, resend_from_email")
+    .eq("id", store_id)
+    .single();
+
   // Pagos (pago mixto): formato nuevo o legado → una sola lista, validada contra
-  // el total que calcula el servidor. La RPC repite todas estas reglas.
+  // el total que calcula el servidor. La RPC repite todas estas reglas. Sin
+  // configuración legible, el número de transacción se exige.
   const pagos = normalizarPagos(parsed.data, total);
-  const errorPagos = validarPagos(pagos, total, clienteId);
+  const errorPagos = validarPagos(pagos, total, clienteId, storeConfig?.numero_transaccion_obligatorio !== false);
   if (errorPagos) {
     // El POS arma los montos con los precios del carrito (localStorage); si un
     // precio u oferta cambió mientras tanto, el total del servidor es otro. No
@@ -237,13 +245,6 @@ async function postVenta(req: NextRequest) {
     if (!nc.ok) return NextResponse.json({ error: nc.error }, { status: nc.status });
     numeroNc = nc.numeroNc;
   }
-
-  // Fetch store config (needed by RPC for consumo_alertas y fidelizacion)
-  const { data: storeConfig } = await supabase
-    .from("stores")
-    .select("name, email_reminder_dias_aviso, fidelizacion_niveles, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, rut, resend_from_email")
-    .eq("id", store_id)
-    .single();
 
   const diasAviso = storeConfig?.email_reminder_dias_aviso ?? 5;
   const fidelizacionNiveles = (storeConfig?.fidelizacion_niveles as { monto: number; descuento: number }[] | null) ?? [

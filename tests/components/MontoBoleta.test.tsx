@@ -1,7 +1,7 @@
 /**
  * Tests C-105 a C-110: total "a boletear" (pago mixto F10) en el componente
- * MontoBoleta y en las pestañas que consumen /api/reports y /api/dashboard.
- * El cálculo vive en el servidor (I-817, I-821); aquí se prueba la presentación.
+ * MontoBoleta y en Reportes (el Dashboard ya no lo muestra, C-110).
+ * El cálculo vive en el servidor (I-817); aquí se prueba la presentación.
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -63,7 +63,8 @@ describe("ReportesTab — a boletear", () => {
 });
 
 describe("AnaliticaTab — a boletear", () => {
-  it("C-110: muestra el total a boletear de hoy que devuelve /api/dashboard", async () => {
+  // Pedido de la tienda (2026-11-24): en el Dashboard solo va "Métodos de pago hoy".
+  it("C-110: el Dashboard no muestra el total a boletear, aunque la respuesta lo trajera", async () => {
     const dashboard = {
       ventasHoy: 17000, transacciones: 1, ticketPromedio: 17000, topMetodo: "debito",
       topProductos: [], ultimasVentas: [], alertas: [], ventasPorCanal: [], ventasPorProcedencia: [],
@@ -82,8 +83,7 @@ describe("AnaliticaTab — a boletear", () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
     render(<AnaliticaTab />, { wrapper });
-    expect(await screen.findByText(ETIQUETA)).toBeInTheDocument();
-    expect(screen.getByText("$5.000")).toBeInTheDocument();
-    expect(screen.getByText("Efectivo: $5.000")).toBeInTheDocument();
+    expect(await screen.findByText("Ventas hoy")).toBeInTheDocument();
+    expect(screen.queryByText(ETIQUETA)).not.toBeInTheDocument();
   });
 });

@@ -38,6 +38,7 @@ interface StoreSettings {
   direccion: string | null;
   umbral_identificacion_comprador: number | null;
   vender_vencidos: boolean;
+  numero_transaccion_obligatorio: boolean;
 }
 
 export default function SettingsPage() {
@@ -318,13 +319,40 @@ export default function SettingsPage() {
               onClick={() => setSettings({ ...settings, vender_vencidos: !settings.vender_vencidos })}
               className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${settings.vender_vencidos ? "bg-green-500" : "bg-gray-300"}`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.vender_vencidos ? "translate-x-5" : "translate-x-0.5"}`} />
+              <span className={`absolute top-0.5 left-0 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.vender_vencidos ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>
           </div>
           <p className="text-xs text-gray-400">
             Desactivado: el POS no vende unidades de lotes vencidos y explica por qué. Activado: se venden, con
             advertencia al agregarlas, y solo después de agotar las unidades vigentes. No aplica a pedidos de canales
             externos (Rappi, PedidosYa, Uber Eats), que nunca usan lotes vencidos.
+          </p>
+        </section>
+
+        {/* Número de transacción (migración 098). Obligatorio salvo false explícito. */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <h2 id="numero-transaccion-label" className="text-lg font-semibold text-gray-700">Nro. Transacción en ventas</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {settings.numero_transaccion_obligatorio !== false ? "Habilitada" : "Deshabilitada"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={settings.numero_transaccion_obligatorio !== false}
+                aria-labelledby="numero-transaccion-label"
+                onClick={() => setSettings({ ...settings, numero_transaccion_obligatorio: settings.numero_transaccion_obligatorio === false })}
+                className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${settings.numero_transaccion_obligatorio !== false ? "bg-green-500" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 left-0 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.numero_transaccion_obligatorio !== false ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">
+            Habilitada: al cobrar con débito, crédito o transferencia (POS y citas) el número de transacción es
+            obligatorio. Deshabilitada: el campo queda opcional; si se escribe, se guarda igual. Sin el número es más
+            difícil cuadrar los vouchers y ubicar una transferencia.
           </p>
         </section>
 

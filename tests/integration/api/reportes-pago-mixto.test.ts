@@ -108,7 +108,7 @@ describe("GET /api/dashboard — pago mixto", () => {
     return GET();
   }
 
-  it("I-821: topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta", async () => {
+  it("I-821: topMetodo cuenta la mixta en cada método real, nunca 'mixto'; ya no calcula la boleta (solo Reportes)", async () => {
     // 2 mixtas efectivo+débito y 1 crédito → efectivo 2, débito 2, crédito 1
     tablas({
       ventas: [
@@ -126,17 +126,18 @@ describe("GET /api/dashboard — pago mixto", () => {
     });
     const body = await (await get()).json();
     expect(["efectivo", "debito"]).toContain(body.topMetodo);
-    expect(body.montoBoleta).toBe(10000);
-    expect(body.boletaPorMetodo).toEqual({ efectivo: 10000 });
+    expect(body).not.toHaveProperty("montoBoleta");
+    expect(body).not.toHaveProperty("boletaPorMetodo");
   });
 
-  it("I-822: la query a pagos filtra por store_id de la sesión", async () => {
+  it("I-822: la query a pagos filtra por store_id de la sesión y solo pide las ventas mixtas", async () => {
     await get();
     expect(chains.pagos).toHaveLength(1);
+    expect(chains.pagos[0].in).toHaveBeenCalledWith("venta_id", ["vm"]);
     expect(chains.pagos[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
   });
 
-  it("I-823: storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id", async () => {
+  it("I-823: storeWorker → los métodos se calculan sobre ventas filtradas por worker_clerk_id", async () => {
     mockGetStoreId.mockResolvedValue({ userId: "w1", storeId: STORE_ID });
     mockClaims = { publicMetadata: { storeId: STORE_ID } };
     await get();
@@ -147,6 +148,62 @@ describe("GET /api/dashboard — pago mixto", () => {
     mockGetStoreId.mockResolvedValue(null);
     expect((await get()).status).toBe(401);
     expect(chains.pagos).toBeUndefined();
+  });
+});
+
+// DPM-I-01…05: "Métodos de pago hoy" del Dashboard.
+describe("GET /api/dashboard — métodos de pago hoy", () => {
+  async function get() {
+    const { GET } = await import("@/app/api/dashboard/route");
+    return GET();
+  }
+
+  it("DPM-I-01: cobrado y nº de ventas por medio, ordenado por monto; la mixta se reparte y 'mixto' no aparece", async () => {
+    const body = await (await get()).json();
+    expect(body.pagosPorMetodo).toEqual([
+      { metodo: "debito", total: 12000, transacciones: 1 },
+      { metodo: "plataforma", total: 9000, transacciones: 1 },
+      { metodo: "efectivo", total: 8000, transacciones: 2 },
+      { metodo: "credito", total: 8000, transacciones: 1 },
+    ]);
+  });
+
+  it("DPM-I-02: mismas ventas → mismos montos por medio que Reportes", async () => {
+    const dash = await (await get()).json();
+    const { GET } = await import("@/app/api/reports/route");
+    const rep = await (await GET(new NextRequest("http://localhost/api/reports?periodo=30"))).json();
+    const montos = Object.fromEntries(dash.pagosPorMetodo.map((p: { metodo: string; total: number }) => [p.metodo, p.total]));
+    expect(montos).toEqual(rep.metodos);
+  });
+
+  it("DPM-I-03: una devolución baja 'Ventas hoy' pero no lo cobrado por medio", async () => {
+    tablas({
+      ventas: [{ id: "v1", total: 10000, metodo_pago: "debito", canal: "pos" }],
+      notas_credito: [{ venta_id: "v1", monto_total: 4000 }],
+    });
+    const body = await (await get()).json();
+    expect(body.ventasHoy).toBe(6000);
+    expect(body.pagosPorMetodo).toEqual([{ metodo: "debito", total: 10000, transacciones: 1 }]);
+  });
+
+  it("DPM-I-04: sin ventas → lista vacía; sin sesión → 401 sin datos", async () => {
+    tablas({});
+    expect((await (await get()).json()).pagosPorMetodo).toEqual([]);
+    mockGetStoreId.mockResolvedValue(null);
+    const res = await get();
+    expect(res.status).toBe(401);
+    expect(await res.json()).not.toHaveProperty("pagosPorMetodo");
+  });
+
+  it("DPM-I-05 (seguridad): ventas y pagos solo de la tienda de la sesión, sin anuladas; el storeWorker solo ve lo suyo", async () => {
+    mockGetStoreId.mockResolvedValue({ userId: "w1", storeId: STORE_ID });
+    mockClaims = { publicMetadata: { storeWorker: true, storeId: STORE_ID } };
+    await get();
+    const ventas = chains.ventas[0];
+    expect(ventas.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(ventas.eq).toHaveBeenCalledWith("worker_clerk_id", "w1");
+    expect(ventas.neq).toHaveBeenCalledWith("estado", "anulada");
+    expect(chains.pagos[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
   });
 });
 

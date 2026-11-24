@@ -97,7 +97,7 @@ function makeWrapper() {
   );
 }
 
-function setup(props: { umbralIdentificacion?: number | null } = {}) {
+function setup(props: { umbralIdentificacion?: number | null; trxObligatorio?: boolean } = {}) {
   const onConfirm = jest.fn();
   const onCancel  = jest.fn();
   const utils = render(
@@ -325,6 +325,22 @@ describe("ModalPago — número de transacción (MP-13 a MP-15)", () => {
     expect(screen.getByTestId("error-pago")).toHaveTextContent(/número de transacción es obligatorio/);
     fireEvent.change(screen.getByLabelText("N° de transacción del pago 1"), { target: { value: "TRX-1" } });
     expect(cobrar()).not.toBeDisabled();
+  });
+
+  // Gate de UX: el control real es POST /api/ventas (NTX-I-03) y la RPC.
+  it("NTX-C-01: opcional en la tienda → los 3 medios muestran el campo opcional, se cobra sin número y, si se escribe, se envía", () => {
+    const { onConfirm } = setup({ trxObligatorio: false });
+    for (const m of ["debito", "credito", "transferencia"]) {
+      fireEvent.change(metodo(1), { target: { value: m } });
+      expect(screen.getByLabelText("N° de transacción del pago 1")).toHaveAttribute("placeholder", "N° de transacción (opcional)");
+      expect(screen.queryByTestId("error-pago")).not.toBeInTheDocument();
+      expect(cobrar()).not.toBeDisabled();
+      fireEvent.click(cobrar());
+      expect(onConfirm).toHaveBeenLastCalledWith([{ metodo: m, monto: 10000 }]);
+    }
+    fireEvent.change(screen.getByLabelText("N° de transacción del pago 1"), { target: { value: " T5 " } });
+    fireEvent.click(cobrar());
+    expect(onConfirm).toHaveBeenLastCalledWith([{ metodo: "transferencia", monto: 10000, numeroTransaccion: "T5" }]);
   });
 });
 

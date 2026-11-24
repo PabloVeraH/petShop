@@ -27,6 +27,12 @@ const pagosEqs: unknown[][] = [];
 // UPDATE de ventas (notas internas, migración 094) y su error simulado.
 const ventasUpdates: { data: unknown; eqs: unknown[][] }[] = [];
 let ventasUpdateError: { message: string } | null = null;
+// Configuración de la tienda leída por la ruta (null = lectura fallida) y los
+// filtros y columnas con que la leyó (098).
+const STORE_CFG = { name: "PetShop", whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null };
+let storeRow: Record<string, unknown> | null = STORE_CFG;
+const storeEqs: unknown[][] = [];
+const storeSelects: string[] = [];
 
 jest.mock("@/lib/auth", () => ({ getStoreId: () => mockGetStoreId() }));
 jest.mock("@/lib/whatsapp", () => ({ sendWhatsAppText: jest.fn(), buildReceiptMessage: jest.fn() }));
@@ -53,7 +59,12 @@ function chain(table: string) {
     if (table === "ventas") { esUpdate = true; ventasUpdates.push({ data, eqs: [] }); }
     return c;
   });
+  c.select = jest.fn((cols?: string) => {
+    if (table === "stores") storeSelects.push(String(cols));
+    return c;
+  });
   c.eq = jest.fn((...args: unknown[]) => {
+    if (table === "stores") storeEqs.push(args);
     if (table === "notas_credito") ncEqs.push(args);
     if (table === "pagos") pagosEqs.push(args);
     if (table === "ventas" && esUpdate) ventasUpdates[ventasUpdates.length - 1].eqs.push(args);
@@ -61,7 +72,7 @@ function chain(table: string) {
   });
   c.single = jest.fn(async () => {
     if (table === "notas_credito") return { data: ncRow, error: null };
-    if (table === "stores") return { data: { name: "PetShop", whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null };
+    if (table === "stores") return { data: storeRow, error: storeRow ? null : { message: "boom" } };
     if (table === "clientes") return { data: { nombre: "Ana", rut: "1-9", email: "ana@example.com" }, error: null };
     return { data: null, error: null };
   });
@@ -108,6 +119,9 @@ beforeEach(() => {
   ventasUpdateError = null;
   pagosDb = [];
   ncRow = NC_OK;
+  storeRow = STORE_CFG;
+  storeEqs.length = 0;
+  storeSelects.length = 0;
   mockGetStoreId.mockResolvedValue({ userId: "user-1", storeId: STORE_ID });
   mockRpc.mockResolvedValue({ data: { venta: VENTA, created: true }, error: null });
 });
@@ -358,5 +372,74 @@ describe("POST /api/ventas — medios sin repetir", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/No se puede repetir el medio de pago/);
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+// Migración 098. La decisión sale de la BD de la tienda autenticada, nunca del body.
+describe("POST /api/ventas — número de transacción según la tienda (098)", () => {
+  const METODOS = ["debito", "credito", "transferencia"];
+
+  it("NTX-I-01: tienda con la opción deshabilitada → 200 sin número en los 3 medios (pagos[] y formato legado); la RPC recibe null", async () => {
+    storeRow = { ...STORE_CFG, numero_transaccion_obligatorio: false };
+    for (const metodo of METODOS) {
+      for (const body of [{ pagos: [{ metodo, monto: 17000 }] }, { metodoPago: metodo }]) {
+        mockRpc.mockClear();
+        const res = await post({ items: ITEMS, ...body });
+        expect([metodo, res.status]).toEqual([metodo, 200]);
+        expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+          p_store_id: STORE_ID,
+          p_pagos: [{ metodo, monto: 17000, numero_transaccion: null, nota_credito_id: null }],
+        }));
+      }
+    }
+    expect(storeSelects[0]).toContain("numero_transaccion_obligatorio");
+    expect(storeEqs[0]).toEqual(["id", STORE_ID]);
+  });
+
+  it("NTX-I-02: deshabilitada y el cajero igual lo escribe → se guarda", async () => {
+    storeRow = { ...STORE_CFG, numero_transaccion_obligatorio: false };
+    expect((await post({ items: ITEMS, pagos: [{ metodo: "credito", monto: 17000, numeroTransaccion: " T7 " }] })).status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_pagos: [{ metodo: "credito", monto: 17000, numero_transaccion: "T7", nota_credito_id: null }],
+    }));
+  });
+
+  it("NTX-I-03: habilitada, sin definir o configuración ilegible → 400 con el motivo y sin RPC", async () => {
+    for (const fila of [{ ...STORE_CFG, numero_transaccion_obligatorio: true }, STORE_CFG, null]) {
+      storeRow = fila;
+      for (const metodo of METODOS) {
+        const res = await post({ items: ITEMS, pagos: [{ metodo, monto: 17000, numeroTransaccion: "  " }] });
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toMatch(/número de transacción es obligatorio/);
+      }
+    }
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("NTX-I-04 (seguridad): el cliente no puede desactivarla desde el body (ni apuntar a otra tienda)", async () => {
+    storeRow = { ...STORE_CFG, numero_transaccion_obligatorio: true };
+    const res = await post({
+      items: ITEMS, pagos: [{ metodo: "debito", monto: 17000 }],
+      numero_transaccion_obligatorio: false, trxObligatorio: false, store_id: OTRA_TIENDA, storeId: OTRA_TIENDA,
+    });
+    expect(res.status).toBe(400);
+    expect(storeEqs).toEqual([["id", STORE_ID]]);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("NTX-I-05: deshabilitada no relaja la suma exacta ni el largo máximo del número", async () => {
+    storeRow = { ...STORE_CFG, numero_transaccion_obligatorio: false };
+    expect((await post({ items: ITEMS, pagos: [{ metodo: "debito", monto: 16999 }] })).status).toBe(400);
+    expect((await post({ items: ITEMS, pagos: [{ metodo: "debito", monto: 17000, numeroTransaccion: "9".repeat(101) }] })).status).toBe(400);
+    expect((await post({ items: ITEMS, metodoPago: "debito", numeroTransaccion: "9".repeat(101) })).status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("NTX-I-06: la RPC rechaza por la configuración (cambió entre medio) → 400 con su mensaje, no 500", async () => {
+    storeRow = { ...STORE_CFG, numero_transaccion_obligatorio: false };
+    mockRpc.mockResolvedValue({ data: null, error: { code: "PV001", message: "Pagos inválidos: falta el número de transacción del pago con debito" } });
+    const res = await post({ items: ITEMS, pagos: [{ metodo: "debito", monto: 17000 }] });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/falta el número de transacción/);
   });
 });

@@ -77,7 +77,7 @@ export const CitaAccionSchema = z.discriminatedUnion("accion", [
     accion: z.literal("completar"),
     pagos: PagosSchema.optional(),
     metodoPago: z.enum(["efectivo", "debito", "credito", "transferencia"]).optional(),
-    numeroTransaccion: z.string().optional(),
+    numeroTransaccion: z.string().max(100).optional(),
     pagoNc: z.object({
       nota_credito_id: UUIDSchema,
       numero_nc: z.string(),

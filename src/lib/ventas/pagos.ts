@@ -16,7 +16,9 @@ export const METODOS_PAGO = [
 
 export type MetodoPago = (typeof METODOS_PAGO)[number];
 
-// Exigen número de transacción (voucher Transbank o comprobante de transferencia).
+// Llevan número de transacción (voucher Transbank o comprobante de
+// transferencia). Obligatorio salvo que la tienda lo deje opcional en /settings
+// (stores.numero_transaccion_obligatorio, migración 098).
 export const METODOS_CON_TRX: ReadonlySet<string> = new Set(["debito", "credito", "transferencia"]);
 
 // Pagos con tarjeta: el voucher Transbank vale como boleta (Res. Ex. SII 176/2020).
@@ -80,8 +82,9 @@ export function normalizarPagos(
   return pagos;
 }
 
-// Reglas de forma de la lista, sin total ni cliente (las usa el schema Zod).
-// Devuelve el primer error legible o null.
+// Reglas de forma de la lista, sin total, cliente ni configuración de la tienda
+// (las usa el schema Zod, que no conoce la tienda: por eso el número de
+// transacción se valida en validarPagos). Devuelve el primer error o null.
 export function validarFormaPagos(pagos: PagoInput[]): string | null {
   if (pagos.length === 0) return "Debe indicar al menos un medio de pago";
   if (pagos.length > MAX_PAGOS) return `Máximo ${MAX_PAGOS} medios de pago por venta`;
@@ -96,9 +99,6 @@ export function validarFormaPagos(pagos: PagoInput[]): string | null {
       (p.monto === 0 && (pagos.length > 1 || METODOS_CREDITO_INTERNO.has(p.metodo)))
     ) {
       return "Cada monto debe ser un entero mayor a 0";
-    }
-    if (METODOS_CON_TRX.has(p.metodo) && !p.numeroTransaccion?.trim()) {
-      return `El número de transacción es obligatorio para ${etiquetaMetodo(p.metodo).toLowerCase()}`;
     }
     if (p.metodo === "nota_credito" && !p.notaCreditoId) return "Falta la nota de crédito del pago";
     if (p.metodo !== "nota_credito" && p.notaCreditoId) return "Solo un pago con nota de crédito puede indicar una NC";
@@ -119,9 +119,14 @@ export function validarFormaPagos(pagos: PagoInput[]): string | null {
 
 // Reglas completas que no dependen de la BD. La suma se valida contra el total
 // que calcula el servidor, nunca contra uno enviado por el cliente.
-export function validarPagos(pagos: PagoInput[], total: number, clienteId?: string | null): string | null {
+// `trxObligatorio`: configuración de la tienda leída de la BD, nunca del body.
+export function validarPagos(
+  pagos: PagoInput[], total: number, clienteId?: string | null, trxObligatorio = true
+): string | null {
   const errorForma = validarFormaPagos(pagos);
   if (errorForma) return errorForma;
+  const sinTrx = trxObligatorio && pagos.find((p) => METODOS_CON_TRX.has(p.metodo) && !p.numeroTransaccion?.trim());
+  if (sinTrx) return `El número de transacción es obligatorio para ${etiquetaMetodo(sinTrx.metodo).toLowerCase()}`;
   if (pagos.some((p) => p.metodo === "saldo_a_favor") && !clienteId) {
     return "El saldo a favor requiere un cliente asociado a la venta";
   }

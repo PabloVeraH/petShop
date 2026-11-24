@@ -183,9 +183,12 @@ describe("VentaCreateSchema — pagos[] y formato legado", () => {
     expect(VentaCreateSchema.safeParse({ items: ITEMS, metodoPago: "nota_credito" }).success).toBe(false);
   });
 
-  it("U-250: el schema aplica las reglas de forma (TRX, NC+saldo, decimales) y rechaza pagos[] en canales externos", () => {
+  // El número de transacción ya no es del schema (098): depende de la tienda
+  // y lo exigen validarPagos (NTX-U-01) y la RPC (NTX-SQL-02).
+  it("U-250: el schema aplica las reglas de forma (NC+saldo, decimales) y rechaza pagos[] en canales externos", () => {
     const parse = (pagos: unknown, extra = {}) => VentaCreateSchema.safeParse({ items: ITEMS, pagos, ...extra }).success;
-    expect(parse([{ metodo: "debito", monto: 100 }])).toBe(false);
+    expect(parse([{ metodo: "debito", monto: 100 }])).toBe(true);
+    expect(parse([{ metodo: "debito", monto: 100, numeroTransaccion: "9".repeat(101) }])).toBe(false);
     expect(parse([{ metodo: "efectivo", monto: 10.5 }])).toBe(false);
     expect(parse([
       { metodo: "nota_credito", monto: 100, notaCreditoId: NC_ID },
@@ -203,7 +206,7 @@ describe("CitaAccionSchema — completar con pagos[]", () => {
     expect(ok({ metodoPago: "efectivo" })).toBe(true);
     expect(ok({})).toBe(true);
     expect(ok({ pagos: [{ metodo: "efectivo", monto: 1000 }], metodoPago: "efectivo" })).toBe(false);
-    expect(ok({ pagos: [{ metodo: "transferencia", monto: 1000 }] })).toBe(false);
+    expect(ok({ pagos: [{ metodo: "transferencia", monto: 1000 }] })).toBe(true); // 098: lo exige la ruta
   });
 });
 
@@ -229,5 +232,37 @@ describe("validarPagos — medios sin repetir", () => {
       { metodo: "debito", monto: 2000, numeroTransaccion: "T1" },
       { metodo: "credito", monto: 10000, numeroTransaccion: "T2" },
     ], 17000)).toBeNull();
+  });
+});
+
+// Migración 098: número de transacción opcional por tienda.
+describe("validarPagos — número de transacción según la tienda (098)", () => {
+  const METODOS = ["debito", "credito", "transferencia"] as const;
+
+  it("NTX-U-01: obligatorio por defecto y con true: los 3 medios sin número (o solo espacios) se rechazan", () => {
+    for (const metodo of METODOS) {
+      for (const numeroTransaccion of [undefined, "", "  "]) {
+        expect(validarPagos([{ metodo, monto: 1000, numeroTransaccion }], 1000)).toMatch(/número de transacción es obligatorio/);
+        expect(validarPagos([{ metodo, monto: 1000, numeroTransaccion }], 1000, null, true)).toMatch(/número de transacción es obligatorio/);
+      }
+      expect(validarPagos([{ metodo, monto: 1000, numeroTransaccion: "T" }], 1000)).toBeNull();
+    }
+  });
+
+  it("NTX-U-02: opcional → se aceptan sin número (también en pago mixto) y viaja null a la RPC; con número se conserva", () => {
+    for (const metodo of METODOS) {
+      expect(validarPagos([{ metodo, monto: 1000 }], 1000, null, false)).toBeNull();
+    }
+    const mixto: PagoInput[] = [{ metodo: "efectivo", monto: 500 }, { metodo: "debito", monto: 500, numeroTransaccion: "  " }];
+    expect(validarPagos(mixto, 1000, null, false)).toBeNull();
+    expect(pagosParaRpc(mixto)[1].numero_transaccion).toBeNull();
+    expect(pagosParaRpc([{ metodo: "debito", monto: 1, numeroTransaccion: " T9 " }])[0].numero_transaccion).toBe("T9");
+  });
+
+  it("NTX-U-03: opcional no relaja ninguna otra regla (suma, NC, saldo, repetidos)", () => {
+    expect(validarPagos([{ metodo: "debito", monto: 999 }], 1000, null, false)).toMatch(/no coincide/);
+    expect(validarPagos([{ metodo: "nota_credito", monto: 1000 }], 1000, CLIENTE, false)).toMatch(/Falta la nota/);
+    expect(validarPagos([{ metodo: "saldo_a_favor", monto: 1000 }], 1000, null, false)).toMatch(/requiere un cliente/);
+    expect(validarPagos([{ metodo: "debito", monto: 500 }, { metodo: "debito", monto: 500 }], 1000, null, false)).toMatch(/No se puede repetir/);
   });
 });

@@ -50,6 +50,9 @@ export const SettingsUpdateSchema = z.object({
   // Migración 095: el POS puede vender unidades de lotes vencidos (con aviso),
   // después de agotar las vigentes. Solo admin (PATCH /api/settings lo exige).
   vender_vencidos: z.boolean().optional(),
+  // Migración 098: false = número de transacción opcional en débito, crédito y
+  // transferencia (POS y citas).
+  numero_transaccion_obligatorio: z.boolean().optional(),
 });
 
 export const AdminUserAssignSchema = z.object({

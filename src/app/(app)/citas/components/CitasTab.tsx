@@ -9,6 +9,7 @@ import { NuevaCitaForm } from "./NuevaCitaForm";
 import ModalCobroCita from "./ModalCobroCita";
 import { DetalleCita } from "./DetalleCita";
 import { hoyLocal, formatFechaHora } from "./date-utils";
+import { fetchJson } from "@/lib/api-client";
 import type { Cita, CitaEstado, Encargado, Servicio } from "@/types";
 
 const ESTADOS: { value: CitaEstado | ""; label: string }[] = [
@@ -47,6 +48,14 @@ export function CitasTab() {
   const { data: encargados = [] } = useQuery<Encargado[]>({
     queryKey: ["encargados"],
     queryFn: () => fetch("/api/encargados").then((r) => r.json()),
+  });
+
+  // Configuración de la tienda para el cobro (098). Misma query que el layout y
+  // el POS: comparten caché y /settings la invalida al guardar.
+  const { data: tienda } = useQuery<{ numero_transaccion_obligatorio?: boolean }>({
+    queryKey: ["store-name"],
+    queryFn: () => fetchJson("/api/tienda/nombre"),
+    staleTime: 5 * 60 * 1000,
   });
 
   const queryParams = new URLSearchParams();
@@ -246,6 +255,7 @@ export function CitasTab() {
       {cobrando && (
         <ModalCobroCita
           cita={cobrando}
+          trxObligatorio={tienda?.numero_transaccion_obligatorio !== false}
           onClose={() => setCobrando(null)}
           onSuccess={() => {
             setCobrando(null);

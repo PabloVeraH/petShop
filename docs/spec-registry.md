@@ -2702,8 +2702,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-818 | la query a pagos es una sola y filtra por el store_id de la sesión | reportes/dashboard (pago mixto) | integration |
 | I-819 | sin sesión → 401 sin consultar pagos | reportes/dashboard (pago mixto) | integration |
 | I-820 | período sin ventas → montoBoleta 0 y sin query a pagos | reportes/dashboard (pago mixto) | integration |
-| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta | reportes/dashboard (pago mixto) | integration |
-| I-822 | la query a pagos filtra por store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; el Dashboard ya no calcula la boleta | reportes/dashboard (pago mixto) | integration |
+| I-822 | la query a pagos filtra por store_id de la sesión y solo pide las ventas mixtas | reportes/dashboard (pago mixto) | integration |
 | I-823 | storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id | reportes/dashboard (pago mixto) | integration |
 | I-824 | sin sesión → 401 | reportes/dashboard (pago mixto) | integration |
 | I-825 | CSV con 'Detalle pagos' (escapado) y 'Monto a boletear'; venta antigua usa metodo_pago | reportes/dashboard (pago mixto) | integration |
@@ -2714,7 +2714,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-107 | sin el campo en la respuesta no se renderiza (no inventa un $0) | reportes/dashboard (pago mixto) | component |
 | C-108 | muestra el total a boletear que devuelve /api/reports | reportes/dashboard (pago mixto) | component |
 | C-109 | período sin montos a boletear → estado vacío | reportes/dashboard (pago mixto) | component |
-| C-110 | muestra el total a boletear de hoy que devuelve /api/dashboard | reportes/dashboard (pago mixto) | component |
+| C-110 | el Dashboard no muestra el total a boletear (solo Reportes) | reportes/dashboard (pago mixto) | component |
 | U-257 | REVISIÓN (M1): NC o saldo a favor por $0 se rechazan aunque la venta sea de $0 | validarPagos | unit |
 | I-833 | REVISIÓN (M2): suma distinta del total del servidor → 400 con el total real y cómo seguir | POST /api/ventas | integration |
 | I-834 | REVISIÓN (B5): la respuesta trae los pagos de la venta (los reales de la BD en un reintento idempotente) | POST /api/ventas | integration |
@@ -2767,3 +2767,13 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | VSA-C-02…05 | POS con 2 sacos: lista en la tarjeta, vender exige elegir el saco (saco_id en la línea), apertura según el saco elegido, merma exige saco, error de la API visible | SearchProductos | component |
 | VSA-C-06 | Conteo físico con 2 sacos exige elegir el saco contado y envía saco_id | ConteoFisicoModal | component |
 | ACL-SQL-01…04 | Migración 097: con los permisos por defecto de Supabase, ninguna SECURITY DEFINER es ejecutable por anon/authenticated; service_role sí; las funciones de RLS siguen; anon recibe permission denied | tests/sql/097_revocar_execute_anon.test.sql | sql |
+| NTX-SQL-01…08 | Migración 098: columna NOT NULL default true y una firma de validar_pagos; habilitada exige número en débito/crédito/transferencia (venta, legado y cita); deshabilitada los acepta (NULL) y guarda el que se escriba; no relaja suma/NC/saldo/método; NULL = exige; otra tienda no afecta | tests/sql/098_numero_transaccion_opcional.test.sql | sql |
+| NTX-U-01…03 | validarPagos con trxObligatorio: default true exige; false acepta sin número y no relaja otras reglas | src/lib/ventas/pagos.ts | unit |
+| NTX-I-01…06 | POST /api/ventas: opcional según la tienda (BD, nunca el body); habilitada/ilegible → 400 sin RPC; largo máx. 100; PV001 → 400 | POST /api/ventas | integration |
+| NTX-I-07 | Cita cobrada sin número con la opción deshabilitada (habilitada o ilegible: I-CITA-68) | PATCH /api/citas/[id] | integration |
+| NTX-I-08 | GET /api/tienda/nombre expone numero_transaccion_obligatorio (solo false es opcional) | GET /api/tienda/nombre | integration |
+| NTX-I-09…12 | PATCH/GET /api/settings numero_transaccion_obligatorio: tienda propia, auditoría, 403/401, no booleano 400 | /api/settings | integration |
+| NTX-C-01…05 | Cobro POS y cita: campo opcional, se cobra sin número y se envía si se escribe; error del servidor visible; configuración tomada de /api/tienda/nombre (si falla, obligatorio) | ModalPago, ModalCobroCita, CitasTab, POSPage | component |
+| NTX-C-06…08 | Interruptor "Nro. Transacción en ventas" en /settings: habilitado por defecto, PATCH true/false, error 403 visible | SettingsPage | component |
+| DPM-I-01…05 | GET /api/dashboard pagosPorMetodo: cobrado y nº de ventas por medio (mixta repartida, misma regla que Reportes, sin descontar NC), vacío, 401, tienda de la sesión y worker solo lo suyo | GET /api/dashboard | integration |
+| DPM-C-01…06 | "Métodos de pago hoy" en el Dashboard: renglones, total, vacío, sin campo, $0 sin NaN, error de la API | PagosPorMetodo, AnaliticaTab | component |
