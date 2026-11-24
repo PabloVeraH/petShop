@@ -150,6 +150,62 @@ describe("GET /api/dashboard — pago mixto", () => {
   });
 });
 
+// DPM-I-01…05: "Métodos de pago hoy" del Dashboard.
+describe("GET /api/dashboard — métodos de pago hoy", () => {
+  async function get() {
+    const { GET } = await import("@/app/api/dashboard/route");
+    return GET();
+  }
+
+  it("DPM-I-01: cobrado y nº de ventas por medio, ordenado por monto; la mixta se reparte y 'mixto' no aparece", async () => {
+    const body = await (await get()).json();
+    expect(body.pagosPorMetodo).toEqual([
+      { metodo: "debito", total: 12000, transacciones: 1 },
+      { metodo: "plataforma", total: 9000, transacciones: 1 },
+      { metodo: "efectivo", total: 8000, transacciones: 2 },
+      { metodo: "credito", total: 8000, transacciones: 1 },
+    ]);
+  });
+
+  it("DPM-I-02: mismas ventas → mismos montos por medio que Reportes", async () => {
+    const dash = await (await get()).json();
+    const { GET } = await import("@/app/api/reports/route");
+    const rep = await (await GET(new NextRequest("http://localhost/api/reports?periodo=30"))).json();
+    const montos = Object.fromEntries(dash.pagosPorMetodo.map((p: { metodo: string; total: number }) => [p.metodo, p.total]));
+    expect(montos).toEqual(rep.metodos);
+  });
+
+  it("DPM-I-03: una devolución baja 'Ventas hoy' pero no lo cobrado por medio", async () => {
+    tablas({
+      ventas: [{ id: "v1", total: 10000, metodo_pago: "debito", canal: "pos" }],
+      notas_credito: [{ venta_id: "v1", monto_total: 4000 }],
+    });
+    const body = await (await get()).json();
+    expect(body.ventasHoy).toBe(6000);
+    expect(body.pagosPorMetodo).toEqual([{ metodo: "debito", total: 10000, transacciones: 1 }]);
+  });
+
+  it("DPM-I-04: sin ventas → lista vacía; sin sesión → 401 sin datos", async () => {
+    tablas({});
+    expect((await (await get()).json()).pagosPorMetodo).toEqual([]);
+    mockGetStoreId.mockResolvedValue(null);
+    const res = await get();
+    expect(res.status).toBe(401);
+    expect(await res.json()).not.toHaveProperty("pagosPorMetodo");
+  });
+
+  it("DPM-I-05 (seguridad): ventas y pagos solo de la tienda de la sesión, sin anuladas; el storeWorker solo ve lo suyo", async () => {
+    mockGetStoreId.mockResolvedValue({ userId: "w1", storeId: STORE_ID });
+    mockClaims = { publicMetadata: { storeWorker: true, storeId: STORE_ID } };
+    await get();
+    const ventas = chains.ventas[0];
+    expect(ventas.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(ventas.eq).toHaveBeenCalledWith("worker_clerk_id", "w1");
+    expect(ventas.neq).toHaveBeenCalledWith("estado", "anulada");
+    expect(chains.pagos[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+});
+
 describe("GET /api/reports/export — pago mixto", () => {
   async function get() {
     const { GET } = await import("@/app/api/reports/export/route");

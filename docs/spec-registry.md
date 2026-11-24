@@ -2775,3 +2775,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | NTX-I-09…12 | PATCH/GET /api/settings numero_transaccion_obligatorio: tienda propia, auditoría, 403/401, no booleano 400 | /api/settings | integration |
 | NTX-C-01…05 | Cobro POS y cita: campo opcional, se cobra sin número y se envía si se escribe; error del servidor visible; configuración tomada de /api/tienda/nombre (si falla, obligatorio) | ModalPago, ModalCobroCita, CitasTab, POSPage | component |
 | NTX-C-06…08 | Interruptor "Nro. Transacción en ventas" en /settings: habilitado por defecto, PATCH true/false, error 403 visible | SettingsPage | component |
+| DPM-I-01…05 | GET /api/dashboard pagosPorMetodo: cobrado y nº de ventas por medio (mixta repartida, misma regla que Reportes, sin descontar NC), vacío, 401, tienda de la sesión y worker solo lo suyo | GET /api/dashboard | integration |
+| DPM-C-01…06 | "Métodos de pago hoy" en el Dashboard: renglones, total, vacío, sin campo, $0 sin NaN, error de la API | PagosPorMetodo, AnaliticaTab | component |
