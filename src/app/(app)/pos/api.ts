@@ -58,6 +58,7 @@ export async function createVenta({
     gramos?: number;
     abrir_saco?: boolean;   // granel: el cajero confirmó abrir un saco nuevo (G1)
     saco_id?: string;       // granel: saco elegido con varios abiertos (096)
+    monto?: number;         // granel por valor (099)
   }[];
   clienteId?: string;
   workerClerkId?: string;

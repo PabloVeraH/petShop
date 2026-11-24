@@ -511,3 +511,49 @@ describe("SettingsPage — Nro. Transacción en ventas (098)", () => {
     expect(await screen.findByText("Forbidden")).toBeInTheDocument();
   });
 });
+
+// Gate de UX: el control real es requireStoreAdmin en PATCH /api/settings (VGV-I-10).
+describe("SettingsPage — venta a granel (099)", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: true, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+    umbral_identificacion_comprador: null, vender_vencidos: false, numero_transaccion_obligatorio: true,
+  };
+  const patches = () => (global.fetch as jest.Mock).mock.calls.filter(([, init]) => init?.method === "PATCH");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth = { userId: "admin-1", sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } } };
+  });
+
+  it("VGV-C-09: sin el dato viene 'Por gramos'; elegir 'Por valor' y guardar envía PATCH con 'valor'", async () => {
+    await renderPage(base);
+    expect(await screen.findByRole("group", { name: "Venta a granel" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Por gramos" })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: "Por valor ($)" }));
+    expect(screen.getByRole("radio", { name: "Por gramos" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0][0]).toBe("/api/settings");
+    expect(JSON.parse(patches()[0][1].body)).toMatchObject({ venta_granel_por: "valor" });
+  });
+
+  it("VGV-C-10: en 'valor' se muestra así y volver a gramos envía 'gramos'; un 403 se muestra", async () => {
+    (global.fetch as jest.Mock).mockImplementation((_url: string, init?: RequestInit) =>
+      Promise.resolve(init?.method === "PATCH"
+        ? { ok: false, status: 403, json: () => Promise.resolve({ error: "Forbidden" }) }
+        : { ok: true, json: () => Promise.resolve({ ...base, venta_granel_por: "valor" }) })
+    );
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    expect(await screen.findByRole("radio", { name: "Por valor ($)" })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: "Por gramos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(JSON.parse(patches()[0][1].body)).toMatchObject({ venta_granel_por: "gramos" });
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+  });
+});

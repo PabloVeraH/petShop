@@ -70,3 +70,47 @@ export function formatoSacos(cerrados: number, gramosAbiertos: number, residuo =
   const extra = textoResiduoSacos(residuo);
   return extra ? `${base} (${extra})` : base;
 }
+
+// ── Venta por valor (migración 099, stores.venta_granel_por = 'valor') ───────
+// El cliente pide un monto; se cobra justo ese monto y se descuentan los gramos
+// más cercanos (a lo más medio gramo de diferencia). La misma función la usan
+// el POS (cuántos gramos pesar) y POST /api/ventas (autoridad).
+
+export function gramosDesdeValor(valor: number, precioKg: number): number {
+  return precioKg > 0 ? Math.round((valor * 1000) / precioKg) : 0;
+}
+
+// Reglas de una línea a granel según la tienda; `precioKg` es el de la BD.
+// Devuelve el error para el cajero o null.
+export function errorLineaGranel(
+  linea: { gramos?: number; monto?: number }, precioKg: number, porValor: boolean
+): string | null {
+  if (!porValor) {
+    return linea.monto === undefined
+      ? null
+      : "La tienda vende a granel por gramos: quite la línea y vuelva a agregarla";
+  }
+  if (linea.monto === undefined) {
+    return "La tienda vende a granel por valor: quite la línea y vuelva a agregarla";
+  }
+  const gramos = gramosDesdeValor(linea.monto, precioKg);
+  if (gramos < 1) return "El valor no alcanza para 1 gramo";
+  // El cajero pesó con otro precio (cambió mientras armaba el carrito).
+  if (gramos !== linea.gramos) {
+    return `El precio por kg cambió: ese valor ahora son ${gramos} g. Quite la línea y vuelva a agregarla`;
+  }
+  return null;
+}
+
+// Lo que se devuelve de una línea a granel: la parte de lo cobrado, por
+// acumulado. Misma fórmula que crear_nota_credito_tx (099), que es la autoridad.
+export function montoDevolucionGranel(
+  linea: { subtotal: number; cantidad: number }, yaDevuelto: number, cantidad: number, factorDescuento: number
+): number {
+  const cobrado = Number(linea.subtotal) * factorDescuento;
+  // Kilos con 3 decimales: en gramos enteros para no arrastrar error de coma flotante.
+  const total = Math.round(Number(linea.cantidad) * 1000);
+  const antes = Math.round(yaDevuelto * 1000);
+  const hasta = antes + Math.round(cantidad * 1000);
+  return total > 0 ? Math.round((cobrado * hasta) / total) - Math.round((cobrado * antes) / total) : 0;
+}

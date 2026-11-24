@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import { montoDevolucionGranel } from "@/lib/granel";
 
 interface DevolucionItem {
   id: string;
@@ -165,7 +166,16 @@ export function DevolucionModal({
     .filter(([_, data]) => data.cantidad > 0)
     .reduce((sum, [itemId, data]) => {
       const item = items.find((i) => i.id === itemId);
-      return sum + (item ? Math.round(Number(item.precio_unitario) * data.cantidad * descuentoFactor) : 0);
+      if (!item) return sum;
+      // Granel (099): la parte de lo cobrado. `item.cantidad` es lo pendiente;
+      // lo vendido sale de los gramos de la línea.
+      if (item.es_granel && item.gramos) {
+        const vendido = item.gramos / 1000;
+        return sum + montoDevolucionGranel(
+          { subtotal: item.subtotal, cantidad: vendido }, vendido - Number(item.cantidad), data.cantidad, descuentoFactor
+        );
+      }
+      return sum + Math.round(Number(item.precio_unitario) * data.cantidad * descuentoFactor);
     }, 0);
 
   const handleToggleItem = (itemId: string) => {

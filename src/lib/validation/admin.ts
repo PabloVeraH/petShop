@@ -53,6 +53,8 @@ export const SettingsUpdateSchema = z.object({
   // Migración 098: false = número de transacción opcional en débito, crédito y
   // transferencia (POS y citas).
   numero_transaccion_obligatorio: z.boolean().optional(),
+  // Migración 099: cómo se ingresa la venta a granel en el POS.
+  venta_granel_por: z.enum(["gramos", "valor"]).optional(),
 });
 
 export const AdminUserAssignSchema = z.object({

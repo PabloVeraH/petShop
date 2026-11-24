@@ -375,3 +375,91 @@ describe("SearchProductos — varios sacos abiertos (096)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Stock insuficiente: disponible 0");
   });
 });
+
+// VGV-C-01…07 — venta a granel por valor (099). Gate de UX: el control real es
+// POST /api/ventas (VGV-I-01…07).
+describe("SearchProductos — granel por valor", () => {
+  const fetchOriginal = global.fetch;
+  function tienda(modo: unknown, ok = true) {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok, status: ok ? 200 : 500, headers: new Headers(), json: async () => ({ name: "T", venta_granel_por: modo }),
+    }) as unknown as typeof fetch;
+  }
+  afterEach(() => { global.fetch = fetchOriginal; });
+
+  const CARO = { ...GRANEL, precio_venta_kg: 11000 };
+  async function abrirCampo() {
+    fireEvent.click(await screen.findByText("Vender a granel"));
+    return screen.findByPlaceholderText("Valor $");
+  }
+
+  it("VGV-C-01: escribir el valor muestra los gramos a pesar; Agregar lleva monto exacto y gramos", async () => {
+    tienda("valor");
+    renderSearch([CARO]);
+    const campo = await abrirCampo();
+    expect(screen.queryByPlaceholderText("Gramos")).not.toBeInTheDocument();
+    fireEvent.change(campo, { target: { value: "2000" } });
+    expect(screen.getByText("= 182 g")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({
+      producto_id: "g1", es_granel: true, precio: 11000, gramos: 182, cantidad: 0.182, monto: 2000, subtotal: 2000,
+    }));
+  });
+
+  it("VGV-C-02: '2.000' y '$ 2.000' se leen como 2000 (no como 2)", async () => {
+    tienda("valor");
+    renderSearch([CARO]);
+    const campo = await abrirCampo();
+    for (const texto of ["2.000", "$ 2.000", "2 000"]) {
+      fireEvent.change(campo, { target: { value: texto } });
+      expect(campo).toHaveValue("2000");
+    }
+  });
+
+  it("VGV-C-03: vacío, 0 o un valor que no alcanza para 1 g no se puede agregar (ni con Enter)", async () => {
+    tienda("valor");
+    renderSearch([CARO]);
+    const campo = await abrirCampo();
+    for (const v of ["", "0", "5"]) {
+      fireEvent.change(campo, { target: { value: v } });
+      expect(screen.getByText("Agregar")).toBeDisabled();
+      fireEvent.keyDown(campo, { key: "Enter" });
+    }
+    expect(screen.getByText("No alcanza para 1 g")).toBeInTheDocument();
+    expect(mockAddItem).not.toHaveBeenCalled();
+  });
+
+  it("VGV-C-04: si los gramos exceden el saco abierto se confirma la apertura (en gramos) y la línea conserva el monto", async () => {
+    tienda("valor");
+    renderSearch([{ ...CARO, saco_abierto_gramos: 100, stock: 9.007 }]);
+    fireEvent.change(await abrirCampo(), { target: { value: "2000" } });
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(mockAddItem).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("182 g");
+    fireEvent.click(screen.getByText("Abrir saco y agregar"));
+    expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ abrir_saco: true, gramos: 182, monto: 2000, subtotal: 2000 }));
+  });
+
+  it("VGV-C-05: un valor que supera el stock total → error, no agrega", async () => {
+    tienda("valor");
+    renderSearch([{ ...CARO, saco_abierto_gramos: 100, stock: 0.007 }]);
+    fireEvent.change(await abrirCampo(), { target: { value: "2000" } });
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Stock insuficiente");
+    expect(mockAddItem).not.toHaveBeenCalled();
+  });
+
+  it("VGV-C-06: por gramos, sin el dato o si la API falla → campo de gramos y la línea no lleva monto", async () => {
+    for (const [modo, ok] of [["gramos", true], [undefined, true], ["valor", false]] as const) {
+      mockAddItem.mockClear();
+      tienda(modo, ok);
+      const { unmount } = renderSearch([CARO]);
+      await venderGramos("182");
+      expect(screen.queryByPlaceholderText("Valor $")).not.toBeInTheDocument();
+      expect(mockAddItem).toHaveBeenCalledTimes(1);
+      expect(mockAddItem.mock.calls[0][0]).not.toHaveProperty("monto");
+      expect(mockAddItem.mock.calls[0][0]).toMatchObject({ gramos: 182, subtotal: 2002 });
+      unmount();
+    }
+  });
+});

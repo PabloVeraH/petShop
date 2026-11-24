@@ -2777,3 +2777,12 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | NTX-C-06…08 | Interruptor "Nro. Transacción en ventas" en /settings: habilitado por defecto, PATCH true/false, error 403 visible | SettingsPage | component |
 | DPM-I-01…05 | GET /api/dashboard pagosPorMetodo: cobrado y nº de ventas por medio (mixta repartida, misma regla que Reportes, sin descontar NC), vacío, 401, tienda de la sesión y worker solo lo suyo | GET /api/dashboard | integration |
 | DPM-C-01…06 | "Métodos de pago hoy" en el Dashboard: renglones, total, vacío, sin campo, $0 sin NaN, error de la API | PagosPorMetodo, AnaliticaTab | component |
+| VGV-SQL-01…08 | Migración 099: venta_granel_por NOT NULL default gramos con CHECK; línea por valor guarda monto y gramos; la NC a granel devuelve lo cobrado (completa, por partes, con descuento); por gramos y por unidad sin cambios; no excede lo vendido | tests/sql/099_venta_granel_por_valor.test.sql | sql |
+| VGV-U-01…06 | gramosDesdeValor, errorLineaGranel y montoDevolucionGranel (propiedades: ≤ medio gramo de diferencia; parciales suman la completa) | src/lib/granel.ts | unit |
+| VGV-I-01…07 | POST /api/ventas granel por valor: cobra el monto exacto; gramos deben calzar con el precio de la BD; el modo lo decide la tienda; valores inválidos → 400 sin RPC; descuento | POST /api/ventas | integration |
+| VGV-I-08 | GET /api/tienda/nombre expone venta_granel_por (todo lo que no es 'valor' es 'gramos') | GET /api/tienda/nombre | integration |
+| VGV-I-09…12 | PATCH/GET /api/settings venta_granel_por: tienda propia, auditoría, 403/401, modo desconocido 400 | /api/settings | integration |
+| VGV-C-01…06 | POS granel por valor: gramos a pesar, monto exacto, "2.000" = 2000, inválidos, apertura de saco, stock, modo gramos por defecto | SearchProductos | component |
+| VGV-C-07 | El cobro del POS envía el monto de la línea | POSPage | component |
+| VGV-C-08 | Devolución de una línea por valor muestra lo cobrado (también con descuento y parcial) | DevolucionModal | component |
+| VGV-C-09…10 | Opción "Venta a granel" en /settings: gramos por defecto, PATCH valor/gramos, error 403 visible | SettingsPage | component |

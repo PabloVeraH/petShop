@@ -10,14 +10,15 @@ import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 // el RUT de la tienda es público (va impreso en cada recibo, igual que en
 // /api/recibos/[ventaId]). Desde la 095 también `vender_vencidos` (no sensible):
 // el POS lo usa para avisar o bloquear al agregar unidades de lotes vencidos; y
-// desde la 098 `numero_transaccion_obligatorio` (cobro del POS y de citas).
+// desde la 098 `numero_transaccion_obligatorio` (cobro del POS y de citas); y
+// desde la 099 `venta_granel_por` (gramos o valor en el POS).
 export const GET = withErrorLogging(async () => {
   const ctx = await autorizarCanales({ soloAdmin: false });
   if (!ctx.ok) return ctx.response;
 
   const { data, error } = await createServiceClient()
     .from("stores")
-    .select("name, rut, umbral_identificacion_comprador, vender_vencidos, numero_transaccion_obligatorio")
+    .select("name, rut, umbral_identificacion_comprador, vender_vencidos, numero_transaccion_obligatorio, venta_granel_por")
     .eq("id", ctx.storeId)
     .single();
 
@@ -28,5 +29,6 @@ export const GET = withErrorLogging(async () => {
     umbral_identificacion_comprador: data.umbral_identificacion_comprador ?? null,
     vender_vencidos: data.vender_vencidos === true,
     numero_transaccion_obligatorio: data.numero_transaccion_obligatorio !== false,
+    venta_granel_por: data.venta_granel_por === "valor" ? "valor" : "gramos",
   });
 }, { endpoint: "GET /api/tienda/nombre" });

@@ -3,7 +3,7 @@
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -480,6 +480,36 @@ describe("DevolucionModal — granel", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/notas-credito", expect.objectContaining({ method: "POST" })));
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls.find(([u]: [string]) => u === "/api/notas-credito")[1].body);
     expect(body.items).toEqual([{ ventaItemId: "item-granel", cantidadDevuelta: 0.6, restituirStock: true }]);
+  });
+});
+
+// VGV-C-08 — granel (099): el monto que se muestra es lo cobrado, igual que
+// crear_nota_credito_tx (VGV-SQL-03/04/05), no kg × precio.
+describe("DevolucionModal — monto de una línea a granel vendida por valor", () => {
+  const linea = (pendiente: number) => ({
+    id: "item-valor", cantidad: pendiente, precio_unitario: 11000, subtotal: 2000,
+    productos: { nombre: "Alimento" }, es_granel: true, gramos: 182,
+  });
+  const avanzar = () => {
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
+  };
+
+  it("VGV-C-08: completa $2.000 (no $2.002); con 10 % $1.800; el resto tras devolver 61 g, $1.330", () => {
+    setup({ items: [linea(0.182)] });
+    avanzar();
+    expect(screen.getByText(/\$2\.000/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$2\.002/)).not.toBeInTheDocument();
+    cleanup();
+
+    setup({ items: [linea(0.182)], descuento: 10 });
+    avanzar();
+    expect(screen.getByText(/\$1\.800/)).toBeInTheDocument();
+    cleanup();
+
+    setup({ items: [linea(0.121)] });
+    avanzar();
+    expect(screen.getByText(/\$1\.330/)).toBeInTheDocument(); // 2000 − 670
   });
 });
 

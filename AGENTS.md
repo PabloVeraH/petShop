@@ -1068,6 +1068,15 @@ es una condición de carrera real (lost update) bajo requests concurrentes:
   este endpoint permitía doble gasto real (dos requests concurrentes con el
   mismo saldo) sin siquiera un piso en 0.
 
+### 23.6b Granel: lo cobrado es `venta_items.subtotal`, no gramos × precio
+
+Con `stores.venta_granel_por = 'valor'` (migración 099) se cobra justo el monto
+que pidió el cliente y los gramos se redondean, así que `gramos × precio_kg`
+puede diferir del subtotal. Toda devolución o cálculo posterior de una línea a
+granel parte del **subtotal** (`crear_nota_credito_tx`, `montoDevolucionGranel`).
+`POST /api/ventas` recalcula los gramos con el precio de la BD y rechaza si no
+calzan con `monto`, o si el modo no es el de la tienda.
+
 ### 23.7 Fechas de negocio en hora de Chile, nunca en la del servidor
 
 Vercel corre en UTC y `TZ` es una variable reservada (no configurable). Entre
