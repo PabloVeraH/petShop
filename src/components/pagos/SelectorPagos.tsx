@@ -67,7 +67,9 @@ export function filasAPagos(filas: FilaPago[]): PagoInput[] {
 // null si se puede cobrar; si no, el motivo para mostrar al cajero. Misma
 // regla que el servidor (validarPagos) + lo que solo la UI sabe: una NC sin
 // validar, o un monto mayor a lo disponible de la NC / del saldo.
-export function errorFilas(filas: FilaPago[], total: number, clienteId?: string, saldoDisponible?: number | null): string | null {
+export function errorFilas(
+  filas: FilaPago[], total: number, clienteId?: string, saldoDisponible?: number | null, trxObligatorio = true
+): string | null {
   for (const f of filas) {
     if (f.metodo === "nota_credito") {
       if (!f.nc) return "Valida la nota de crédito";
@@ -77,7 +79,7 @@ export function errorFilas(filas: FilaPago[], total: number, clienteId?: string,
       return `El saldo a favor disponible es ${pesos(saldoDisponible)}`;
     }
   }
-  return validarPagos(filasAPagos(filas), total, clienteId);
+  return validarPagos(filasAPagos(filas), total, clienteId, trxObligatorio);
 }
 
 interface SelectorPagosProps {
@@ -87,12 +89,14 @@ interface SelectorPagosProps {
   clienteId?: string;
   // Aviso de 135 UF (Ley 21.713): umbral configurado por la tienda; null = sin aviso.
   umbralIdentificacion?: number | null;
+  // Configuración de la tienda (098): false = N° de transacción opcional.
+  trxObligatorio?: boolean;
   // Notifica el saldo a favor consultado, para que el modal valide con él.
   onSaldoDisponible?: (saldo: number | null) => void;
 }
 
 export default function SelectorPagos({
-  total, filas, onChange, clienteId, umbralIdentificacion, onSaldoDisponible,
+  total, filas, onChange, clienteId, umbralIdentificacion, trxObligatorio = true, onSaldoDisponible,
 }: SelectorPagosProps) {
   const suma = filas.reduce((s, f) => s + (Number.isFinite(f.monto) ? f.monto : 0), 0);
   const resto = total - suma;
@@ -217,11 +221,11 @@ export default function SelectorPagos({
               <input
                 type="text"
                 aria-label={`N° de transacción del pago ${i + 1}`}
-                placeholder="N° de transacción (obligatorio)"
+                placeholder={`N° de transacción (${trxObligatorio ? "obligatorio" : "opcional"})`}
                 value={fila.numeroTransaccion ?? ""}
                 maxLength={100}
                 onChange={(e) => actualizar(fila.id, { numeroTransaccion: e.target.value })}
-                className={`w-full rounded border px-2 py-1.5 text-sm ${fila.numeroTransaccion?.trim() ? "border-gray-300" : "border-amber-400"}`}
+                className={`w-full rounded border px-2 py-1.5 text-sm ${!trxObligatorio || fila.numeroTransaccion?.trim() ? "border-gray-300" : "border-amber-400"}`}
               />
             )}
 

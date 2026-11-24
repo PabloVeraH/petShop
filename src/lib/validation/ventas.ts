@@ -56,13 +56,8 @@ export function refinarPagosOLegado(
       path: ["pagoNc"],
     });
   }
-  if (["debito", "credito", "transferencia"].includes(val.metodoPago) && !val.numeroTransaccion?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "El número de transacción es obligatorio para pagos con débito, crédito o transferencia",
-      path: ["numeroTransaccion"],
-    });
-  }
+  // El número de transacción obligatorio depende de la tienda (migración 098):
+  // lo valida la ruta con validarPagos, y la RPC como autoridad final.
 }
 
 export const VentaItemSchema = z.object({
@@ -108,7 +103,7 @@ export const VentaCreateSchema = z.object({
     (v) => v == null || v.trim().length === 0 || v.trim().length >= 5,
     { message: "Las notas deben tener al menos 5 caracteres" }
   ),
-  numeroTransaccion: z.string().optional(),
+  numeroTransaccion: z.string().max(100).optional(),
   canal: z.enum(["pos", "rappi", "pedidosya", "ubereats"]).default("pos"),
   procedencia: z.enum(["presencial", "instagram", "whatsapp", "facebook", "tiktok", "telefonico"]).default("presencial"),
   workerClerkId: z.string().optional(),

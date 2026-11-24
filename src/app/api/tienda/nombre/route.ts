@@ -9,14 +9,15 @@ import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 // y el storeWorker veía "PetShop" (QA 2026-09-27). Solo expone `name` y `rut`:
 // el RUT de la tienda es público (va impreso en cada recibo, igual que en
 // /api/recibos/[ventaId]). Desde la 095 también `vender_vencidos` (no sensible):
-// el POS lo usa para avisar o bloquear al agregar unidades de lotes vencidos.
+// el POS lo usa para avisar o bloquear al agregar unidades de lotes vencidos; y
+// desde la 098 `numero_transaccion_obligatorio` (cobro del POS y de citas).
 export const GET = withErrorLogging(async () => {
   const ctx = await autorizarCanales({ soloAdmin: false });
   if (!ctx.ok) return ctx.response;
 
   const { data, error } = await createServiceClient()
     .from("stores")
-    .select("name, rut, umbral_identificacion_comprador, vender_vencidos")
+    .select("name, rut, umbral_identificacion_comprador, vender_vencidos, numero_transaccion_obligatorio")
     .eq("id", ctx.storeId)
     .single();
 
@@ -26,5 +27,6 @@ export const GET = withErrorLogging(async () => {
     rut: data.rut ?? null,
     umbral_identificacion_comprador: data.umbral_identificacion_comprador ?? null,
     vender_vencidos: data.vender_vencidos === true,
+    numero_transaccion_obligatorio: data.numero_transaccion_obligatorio !== false,
   });
 }, { endpoint: "GET /api/tienda/nombre" });

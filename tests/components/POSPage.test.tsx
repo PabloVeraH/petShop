@@ -84,7 +84,8 @@ jest.mock("@tanstack/react-query", () => {
 jest.mock("@/app/(app)/pos/components/SearchProductos",   () => ({ __esModule: true, default: () => <div /> }));
 jest.mock("@/app/(app)/pos/components/Carrito",           () => ({ __esModule: true, default: () => <div data-testid="carrito" /> }));
 jest.mock("@/app/(app)/pos/components/ModalCliente",      () => ({ __esModule: true, default: () => null }));
-jest.mock("@/app/(app)/pos/components/ModalPago",         () => ({ __esModule: true, default: () => null }));
+const mockModalPago = jest.fn<null, [{ trxObligatorio?: boolean }]>(() => null);
+jest.mock("@/app/(app)/pos/components/ModalPago",         () => ({ __esModule: true, default: (p: { trxObligatorio?: boolean }) => mockModalPago(p) }));
 jest.mock("@/app/(app)/pos/components/RecomendacionesIA", () => ({ __esModule: true, default: () => null }));
 jest.mock("@/app/(app)/pos/api", () => ({ createVenta: jest.fn().mockResolvedValue({ id: "venta-123" }) }));
 
@@ -293,5 +294,26 @@ describe("POSPage — idempotencyKey por intento de cobro (PP-15/PP-16)", () => 
     expect(calls[0][0].idempotencyKey).toBeTruthy();
     expect(calls[1][0].idempotencyKey).toBeTruthy();
     expect(calls[0][0].idempotencyKey).not.toBe(calls[1][0].idempotencyKey);
+  });
+});
+
+describe("POSPage — número de transacción según la tienda (098)", () => {
+  const fetchOriginal = global.fetch;
+  afterEach(() => { global.fetch = fetchOriginal; });
+
+  it("NTX-C-05: pasa al modal la configuración de GET /api/tienda/nombre; si falla, obligatorio", async () => {
+    mockUsePOSStore.mockReturnValue(makeMockStore());
+    for (const [ok, valor, esperado] of [[true, false, false], [true, true, true], [false, undefined, true]] as const) {
+      mockModalPago.mockClear();
+      global.fetch = jest.fn().mockResolvedValue({
+        ok, status: ok ? 200 : 500, headers: new Headers(),
+        json: async () => ({ name: "T", numero_transaccion_obligatorio: valor }),
+      }) as unknown as typeof fetch;
+      const { unmount } = render(<POSPage />, { wrapper: makeWrapper() });
+      fireEvent.click(screen.getByRole("button", { name: /Cobrar/i }));
+      await waitFor(() => expect(mockModalPago.mock.lastCall?.[0].trxObligatorio).toBe(esperado));
+      expect((global.fetch as jest.Mock).mock.calls.map(([u]) => u)).toContain("/api/tienda/nombre");
+      unmount();
+    }
   });
 });

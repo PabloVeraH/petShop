@@ -2767,3 +2767,11 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | VSA-C-02…05 | POS con 2 sacos: lista en la tarjeta, vender exige elegir el saco (saco_id en la línea), apertura según el saco elegido, merma exige saco, error de la API visible | SearchProductos | component |
 | VSA-C-06 | Conteo físico con 2 sacos exige elegir el saco contado y envía saco_id | ConteoFisicoModal | component |
 | ACL-SQL-01…04 | Migración 097: con los permisos por defecto de Supabase, ninguna SECURITY DEFINER es ejecutable por anon/authenticated; service_role sí; las funciones de RLS siguen; anon recibe permission denied | tests/sql/097_revocar_execute_anon.test.sql | sql |
+| NTX-SQL-01…08 | Migración 098: columna NOT NULL default true y una firma de validar_pagos; habilitada exige número en débito/crédito/transferencia (venta, legado y cita); deshabilitada los acepta (NULL) y guarda el que se escriba; no relaja suma/NC/saldo/método; NULL = exige; otra tienda no afecta | tests/sql/098_numero_transaccion_opcional.test.sql | sql |
+| NTX-U-01…03 | validarPagos con trxObligatorio: default true exige; false acepta sin número y no relaja otras reglas | src/lib/ventas/pagos.ts | unit |
+| NTX-I-01…06 | POST /api/ventas: opcional según la tienda (BD, nunca el body); habilitada/ilegible → 400 sin RPC; largo máx. 100; PV001 → 400 | POST /api/ventas | integration |
+| NTX-I-07 | Cita cobrada sin número con la opción deshabilitada (habilitada o ilegible: I-CITA-68) | PATCH /api/citas/[id] | integration |
+| NTX-I-08 | GET /api/tienda/nombre expone numero_transaccion_obligatorio (solo false es opcional) | GET /api/tienda/nombre | integration |
+| NTX-I-09…12 | PATCH/GET /api/settings numero_transaccion_obligatorio: tienda propia, auditoría, 403/401, no booleano 400 | /api/settings | integration |
+| NTX-C-01…05 | Cobro POS y cita: campo opcional, se cobra sin número y se envía si se escribe; error del servidor visible; configuración tomada de /api/tienda/nombre (si falla, obligatorio) | ModalPago, ModalCobroCita, CitasTab, POSPage | component |
+| NTX-C-06…08 | Interruptor "Nro. Transacción en ventas" en /settings: habilitado por defecto, PATCH true/false, error 403 visible | SettingsPage | component |

@@ -453,3 +453,61 @@ describe("SettingsPage — vender productos vencidos", () => {
     expect(await screen.findByText("Forbidden")).toBeInTheDocument();
   });
 });
+
+// Gate de UX: el control real es requireStoreAdmin en PATCH /api/settings (NTX-I-10).
+describe("SettingsPage — Nro. Transacción en ventas (098)", () => {
+  const base = {
+    id: "store-1", name: "PetShop Test", rut: "76.123.456-0", address: "Calle Falsa 123",
+    phone: "", email: "tienda@test.com", whatsapp_enabled: false, whatsapp_access_token: "",
+    whatsapp_webhook_verify_token: "", email_reminder_enabled: true, email_reminder_dias_aviso: 5,
+    resend_from_email: "", fidelizacion_niveles: [], license_start_date: null, license_end_date: null,
+    license_warning_days: 30, ciudad: "", lat: null, lon: null, direccion: null,
+    umbral_identificacion_comprador: null, vender_vencidos: false, numero_transaccion_obligatorio: true,
+  };
+  const patches = () => (global.fetch as jest.Mock).mock.calls.filter(([, init]) => init?.method === "PATCH");
+  const interruptor = () => screen.findByRole("switch", { name: "Nro. Transacción en ventas" });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAuth = { userId: "admin-1", sessionClaims: { publicMetadata: { storeAdmin: true, storeId: "store-1" } } };
+  });
+
+  it("NTX-C-06: habilitada por defecto; deshabilitarla y guardar envía PATCH /api/settings con false", async () => {
+    await renderPage(base);
+    const sw = await interruptor();
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Habilitada")).toBeInTheDocument();
+    fireEvent.click(sw);
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText("Deshabilitada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(patches()[0][0]).toBe("/api/settings");
+    expect(JSON.parse(patches()[0][1].body)).toMatchObject({ numero_transaccion_obligatorio: false });
+  });
+
+  it("NTX-C-07: deshabilitada → se muestra así y habilitarla envía true; sin el dato se muestra habilitada", async () => {
+    await renderPage({ ...base, numero_transaccion_obligatorio: false });
+    const sw = await interruptor();
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(sw);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    expect(JSON.parse(patches()[0][1].body)).toMatchObject({ numero_transaccion_obligatorio: true });
+  });
+
+  it("NTX-C-08: si el servidor rechaza el guardado (403), el error se muestra en pantalla", async () => {
+    (global.fetch as jest.Mock).mockImplementation((_url: string, init?: RequestInit) =>
+      Promise.resolve(init?.method === "PATCH"
+        ? { ok: false, status: 403, json: () => Promise.resolve({ error: "Forbidden" }) }
+        : { ok: true, json: () => Promise.resolve({ ...base, numero_transaccion_obligatorio: undefined }) })
+    );
+    const SettingsPage = (await import("@/app/(app)/settings/page")).default;
+    render(React.createElement(SettingsPage), { wrapper: makeWrapper() });
+    const sw = await interruptor();
+    expect(sw).toHaveAttribute("aria-checked", "true"); // sin el dato: obligatorio
+    fireEvent.click(sw);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("Forbidden")).toBeInTheDocument();
+  });
+});

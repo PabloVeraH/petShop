@@ -39,7 +39,7 @@ export default function POSPage() {
   // Umbral de 135 UF configurado por la tienda (aviso de identificación del
   // comprador en el modal de pago). Misma query que el layout (nombre de la
   // tienda): comparten caché.
-  const { data: tienda } = useQuery<{ name: string; umbral_identificacion_comprador?: number | null }>({
+  const { data: tienda } = useQuery<{ name: string; umbral_identificacion_comprador?: number | null; numero_transaccion_obligatorio?: boolean }>({
     queryKey: ["store-name"],
     queryFn: () => fetchJson("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
@@ -210,6 +210,7 @@ export default function POSPage() {
         <ModalPago
           onConfirm={(pagos) => procesarVenta(pagos)}
           umbralIdentificacion={tienda?.umbral_identificacion_comprador ?? null}
+          trxObligatorio={tienda?.numero_transaccion_obligatorio !== false}
           onCancel={() => setShowPagoModal(false)}
           isLoading={isPending}
         />

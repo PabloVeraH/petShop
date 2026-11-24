@@ -431,10 +431,13 @@ describe("CitaAccionSchema", () => {
     expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "efectivo" }).success).toBe(true);
   });
 
-  it("U-CITA-30: completar con débito/crédito/transferencia SIN numeroTransaccion → fail", () => {
-    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "debito" }).success).toBe(false);
-    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "credito" }).success).toBe(false);
-    expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago: "transferencia" }).success).toBe(false);
+  // Desde la 098 depende de la tienda: el schema lo acepta y lo exige la ruta
+  // (I-CITA-68). El largo máximo es el de la columna (varchar 100).
+  it("U-CITA-30: completar con débito/crédito/transferencia SIN numeroTransaccion → el schema lo acepta; más de 100 caracteres no", () => {
+    for (const metodoPago of ["debito", "credito", "transferencia"]) {
+      expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago }).success).toBe(true);
+      expect(CitaAccionSchema.safeParse({ accion: "completar", metodoPago, numeroTransaccion: "9".repeat(101) }).success).toBe(false);
+    }
   });
 
   it("U-CITA-31: completar con débito + numeroTransaccion → success", () => {

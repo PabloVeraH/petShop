@@ -1108,6 +1108,10 @@ por su cuenta.
 - `Σ pagos.monto = ventas.total`, montos enteros; `$0` solo como pago único
   de una venta de `$0`. `ventas.metodo_pago` (método único o `'mixto'`) lo
   decide **solo** `validar_pagos`.
+- Número de transacción (débito, crédito, transferencia): obligatorio salvo
+  `stores.numero_transaccion_obligatorio = false` (migración 098, /settings).
+  La regla se lee de la BD en `validar_pagos` y en `validarPagos` (nunca del
+  body ni en Zod, que no conoce la tienda); configuración ilegible = se exige.
 - Cada medio de pago aparece una sola vez por venta (dos pagos en efectivo son
   uno solo): lo impide la UI y lo rechaza `validarPagos` en la API.
 - Una NC con `tipo_reembolso <> 'saldo_a_favor'` no paga nada (el dinero ya se
