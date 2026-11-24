@@ -59,7 +59,10 @@ export const NotaCreditoPostSchema = z.object({
     cantidadDevuelta: z.number().positive()
       .refine((v) => Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6, "Máximo 3 decimales"),
     restituirStock: z.boolean().optional(),
-  })).min(1),
+  })).min(1).refine(
+    (items) => new Set(items.map((i) => i.ventaItemId.toLowerCase())).size === items.length,
+    "Un producto está repetido en la devolución" // la RPC también lo rechaza (099)
+  ),
   tipoReembolso: z.enum(["reembolso_directo", "saldo_a_favor"]),
   metodoReembolso: z.string().max(100).nullable().optional(),
   // motivo sigue siendo opcional (campo vacío/null = "no se indicó motivo"),

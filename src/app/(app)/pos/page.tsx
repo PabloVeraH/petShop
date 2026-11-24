@@ -89,6 +89,7 @@ export default function POSPage() {
           gramos: i.gramos,
           abrir_saco: i.abrir_saco,
           saco_id: i.saco_id,
+          monto: i.monto,
         })),
         clienteId,
         workerClerkId,

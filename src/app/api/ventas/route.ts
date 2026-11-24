@@ -10,6 +10,7 @@ import { VentaCreateSchema } from "@/lib/validation";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 import { crearAsiento, lineasVentaCanal, lineasVentaPagos, lineasVentaCOGS } from "@/lib/contabilidad/generador-asientos";
 import { fechaNegocioDeTimestamp, hoyNegocioCompacto, hoyNegocioISO } from "@/lib/dates";
+import { errorLineaGranel } from "@/lib/granel";
 import { normalizarPagos, validarPagos, pagosParaRpc, estadoHttpErrorPago } from "@/lib/ventas/pagos";
 import { prevalidarNotaCredito } from "@/lib/ventas/prevalidar-nc";
 
@@ -165,18 +166,37 @@ async function postVenta(req: NextRequest) {
      );
    }
 
+  // Fetch store config (granel y pagos; la RPC la usa para consumo_alertas y fidelizacion)
+  const { data: storeConfig } = await supabase
+    .from("stores")
+    .select("name, email_reminder_dias_aviso, fidelizacion_niveles, numero_transaccion_obligatorio, venta_granel_por, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, rut, resend_from_email")
+    .eq("id", store_id)
+    .single();
+
+  // Granel por gramos o por valor (099): la tienda decide; sin configuración
+  // legible, por gramos. El precio por kg es el de la BD.
+  const granelPorValor = storeConfig?.venta_granel_por === "valor";
+  for (const item of items) {
+    const errorGranel = item.es_granel ? errorLineaGranel(item, precioKgMap[item.producto_id], granelPorValor) : null;
+    if (errorGranel) {
+      const nombre = productosDB.find((p) => p.id === item.producto_id)?.nombre;
+      return NextResponse.json({ error: nombre ? `${nombre}: ${errorGranel}` : errorGranel }, { status: 400 });
+    }
+  }
+
    const itemsConPrecio = items.map((item) => {
      if (item.es_granel) {
        // Granel (D20): los gramos enteros son la fuente de verdad; la
        // cantidad en kg se deriva aquí (y la BD la vuelve a fijar), no se
-       // toma del cliente. Subtotal redondeado igual que el POS.
+       // toma del cliente. Subtotal redondeado igual que el POS; por valor
+       // (099), el monto pedido, ya validado contra los gramos.
        const gramos = item.gramos as number;
        const precioKg = precioKgMap[item.producto_id];
        return {
          producto_id:     item.producto_id,
          cantidad:        gramos / 1000,
          precio_unitario: precioKg,
-         subtotal:        Math.round((gramos * precioKg) / 1000),
+         subtotal:        item.monto ?? Math.round((gramos * precioKg) / 1000),
          mascota_id:      item.mascota_id ?? null,
          es_granel:       true,
          gramos,
@@ -212,13 +232,6 @@ async function postVenta(req: NextRequest) {
   const total = Math.round(subtotal - descuentoMonto);
   const impuesto = extraerIva(total);
   const montoNetoVenta = total - impuesto;
-
-  // Fetch store config (validación de pagos; la RPC la usa para consumo_alertas y fidelizacion)
-  const { data: storeConfig } = await supabase
-    .from("stores")
-    .select("name, email_reminder_dias_aviso, fidelizacion_niveles, numero_transaccion_obligatorio, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token, rut, resend_from_email")
-    .eq("id", store_id)
-    .single();
 
   // Pagos (pago mixto): formato nuevo o legado → una sola lista, validada contra
   // el total que calcula el servidor. La RPC repite todas estas reglas. Sin

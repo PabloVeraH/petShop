@@ -68,7 +68,11 @@ export const VentaItemSchema = z.object({
   precioUnitario: z.number().positive().optional(),
   mascota_id: UUIDSchema.optional(),
   es_granel: z.boolean().optional(),
-  gramos: z.number().int().positive().optional(),
+  gramos: z.number().int().positive().max(10_000_000).optional(),
+  // Granel por valor (migración 099): monto en pesos que se cobra por la línea.
+  // La ruta exige que calce con los gramos según el precio de la BD y que la
+  // tienda venda por valor (errorLineaGranel).
+  monto: z.number().int("El valor debe ser un entero en pesos").positive("El valor debe ser mayor a 0").max(100_000_000).optional(),
   // Granel (G1): el POS confirmó abrir un saco nuevo si el abierto no alcanza.
   abrir_saco: z.boolean().optional(),
   // Granel (migración 096): saco abierto que eligió el cajero cuando hay
@@ -82,6 +86,9 @@ export const VentaItemSchema = z.object({
       message: "gramos es requerido para ventas a granel (es_granel=true)",
       path: ["gramos"],
     });
+  }
+  if (!val.es_granel && val.monto !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "El valor solo aplica a ventas a granel", path: ["monto"] });
   }
   if (!val.es_granel && !Number.isInteger(val.cantidad)) {
     ctx.addIssue({

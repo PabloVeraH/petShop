@@ -4,7 +4,8 @@
  * Misma fórmula que fraccion_gramos() de migrations/077; la BD es la fuente
  * de verdad (verificada con stock_canales_fase1b_verificacion.sql).
  */
-import { estadoSacos, formatoSacos, textoResiduoSacos, agruparSacosAbiertos, etiquetaSaco } from "@/lib/granel";
+import * as fc from "fast-check";
+import { estadoSacos, formatoSacos, textoResiduoSacos, agruparSacosAbiertos, etiquetaSaco, gramosDesdeValor, errorLineaGranel, montoDevolucionGranel } from "@/lib/granel";
 
 describe("estadoSacos", () => {
   it("U-164: 9,967 con 14 500 g abiertos de un saco de 15 000 g → 9 cerrados", () => {
@@ -101,5 +102,55 @@ describe("granel con varios sacos abiertos", () => {
     const base = { id: "a", gramos_restantes: 12500, abierto_at: "" };
     expect(etiquetaSaco({ ...base, nota: "Mesón 2" }, 0)).toBe("Mesón 2 · 12,5 kg");
     expect(etiquetaSaco({ ...base, nota: "  " }, 1)).toBe("Saco 2 · 12,5 kg");
+  });
+});
+
+// VGV-U-01…06 — venta a granel por valor (migración 099).
+describe("granel por valor (099)", () => {
+  it("VGV-U-01: gramos más cercanos al valor según el precio por kg", () => {
+    expect(gramosDesdeValor(2000, 11000)).toBe(182); // 181,8
+    expect(gramosDesdeValor(2000, 3490)).toBe(573);  // 573,07
+    expect(gramosDesdeValor(5000, 5000)).toBe(1000);
+    expect(gramosDesdeValor(5, 11000)).toBe(0);      // no alcanza para 1 g
+    expect(gramosDesdeValor(1000, 0)).toBe(0);
+  });
+
+  it("VGV-U-02 (propiedad): lo cobrado difiere a lo más medio gramo del precio de lista", () => {
+    fc.assert(fc.property(fc.integer({ min: 1, max: 10_000_000 }), fc.integer({ min: 100, max: 100_000 }), (valor, precioKg) => {
+      const g = gramosDesdeValor(valor, precioKg);
+      expect(Math.abs((g * precioKg) / 1000 - valor)).toBeLessThanOrEqual(precioKg / 2000 + 1e-6);
+    }));
+  });
+
+  it("VGV-U-03: tienda por gramos → acepta gramos y rechaza valor", () => {
+    expect(errorLineaGranel({ gramos: 500 }, 5000, false)).toBeNull();
+    expect(errorLineaGranel({ gramos: 400, monto: 2000 }, 5000, false)).toMatch(/por gramos/);
+  });
+
+  it("VGV-U-04: tienda por valor → exige monto, al menos 1 g y que los gramos calcen con el precio", () => {
+    expect(errorLineaGranel({ gramos: 182, monto: 2000 }, 11000, true)).toBeNull();
+    expect(errorLineaGranel({ gramos: 500 }, 5000, true)).toMatch(/por valor/);
+    expect(errorLineaGranel({ gramos: 1, monto: 5 }, 11000, true)).toMatch(/no alcanza para 1 gramo/);
+    expect(errorLineaGranel({ gramos: 5000, monto: 2000 }, 11000, true)).toMatch(/precio por kg cambió.*182 g/);
+  });
+
+  it("VGV-U-05: devolución = parte de lo cobrado, con descuento y por partes sin perder pesos", () => {
+    const linea = { subtotal: 2000, cantidad: 0.182 };
+    expect(montoDevolucionGranel(linea, 0, 0.182, 1)).toBe(2000); // kg × precio daría 2002
+    expect(montoDevolucionGranel(linea, 0, 0.182, 0.9)).toBe(1800);
+    expect(montoDevolucionGranel(linea, 0, 0.061, 1) + montoDevolucionGranel(linea, 0.061, 0.061, 1) + montoDevolucionGranel(linea, 0.122, 0.06, 1)).toBe(2000);
+  });
+
+  it("VGV-U-06 (propiedad): dos devoluciones parciales suman exactamente la completa", () => {
+    fc.assert(fc.property(
+      fc.integer({ min: 2, max: 50_000 }), fc.integer({ min: 1, max: 500_000 }), fc.integer({ min: 0, max: 100 }), fc.double({ min: 0, max: 1, noNaN: true }),
+      (gramos, subtotal, desc, corte) => {
+        const f = desc > 0 ? (100 - desc) / 100 : 1;
+        const g1 = Math.min(gramos - 1, Math.max(1, Math.round(gramos * corte)));
+        const linea = { subtotal, cantidad: gramos / 1000 };
+        expect(montoDevolucionGranel(linea, 0, g1 / 1000, f) + montoDevolucionGranel(linea, g1 / 1000, (gramos - g1) / 1000, f))
+          .toBe(montoDevolucionGranel(linea, 0, gramos / 1000, f));
+      }
+    ));
   });
 });

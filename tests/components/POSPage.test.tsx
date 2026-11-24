@@ -317,3 +317,21 @@ describe("POSPage — número de transacción según la tienda (098)", () => {
     }
   });
 });
+
+describe("POSPage — granel por valor (099)", () => {
+  it("VGV-C-07: el cobro envía el monto de la línea (y no lo inventa en las demás)", async () => {
+    (createVenta as jest.Mock).mockClear();
+    mockUsePOSStore.mockReturnValue(makeMockStore({
+      items: [
+        { id: "a", producto_id: "g1", nombre: "Granel", precio: 11000, cantidad: 0.182, subtotal: 2000, es_granel: true, gramos: 182, monto: 2000 },
+        { id: "b", producto_id: "p2", nombre: "Cama", precio: 5000, cantidad: 1, subtotal: 5000 },
+      ],
+    }));
+    render(<POSPage />, { wrapper: makeWrapper() });
+    expect(screen.getByRole("button", { name: /Cobrar/i })).toHaveTextContent("Cobrar $7.000");
+    await mutationMutate!();
+    const { items } = (createVenta as jest.Mock).mock.calls[0][0];
+    expect(items[0]).toMatchObject({ producto_id: "g1", es_granel: true, gramos: 182, monto: 2000 });
+    expect(items[1].monto).toBeUndefined();
+  });
+});

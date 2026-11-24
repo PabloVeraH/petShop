@@ -11,7 +11,7 @@ import { getProductos, accionSaco } from "../api";
 import { fetchJson } from "@/lib/api-client";
 import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { estadoSacos, formatoSacos, textoResiduoSacos, etiquetaSaco } from "@/lib/granel";
+import { estadoSacos, formatoSacos, textoResiduoSacos, etiquetaSaco, gramosDesdeValor } from "@/lib/granel";
 import { useReintentoTrasLimite } from "@/hooks/useReintentoTrasLimite";
 
 export default function SearchProductos() {
@@ -19,7 +19,7 @@ export default function SearchProductos() {
   const [showScanner, setShowScanner] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [granelProductoId, setGranelProductoId] = useState<string | null>(null);
-  const [gramosInput, setGramosInput] = useState<string>("");
+  const [granelInput, setGranelInput] = useState<string>("");
   const [stockWarning, setStockWarning] = useState<string | null>(null);
   // Granel: confirmación forzada de apertura (G1), merma (G6) y errores del saco.
   const [confirmarApertura, setConfirmarApertura] = useState<{ productoId: string; gramos: number } | null>(null);
@@ -56,12 +56,15 @@ export default function SearchProductos() {
   // "Vender productos vencidos" (migración 095, /settings). Misma query que la
   // página del POS y el layout: comparten caché. Mientras carga, se asume
   // desactivado (lo más restrictivo); la BD vuelve a decidir al cobrar.
-  const { data: tienda } = useQuery<{ vender_vencidos?: boolean }>({
+  const { data: tienda } = useQuery<{ vender_vencidos?: boolean; venta_granel_por?: "gramos" | "valor" }>({
     queryKey: ["store-name"],
     queryFn: () => fetchJson("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
   });
   const venderVencidos = tienda?.vender_vencidos === true;
+  // Granel por valor (migración 099): el cajero escribe el monto y se calculan
+  // los gramos. El servidor vuelve a decidir con la configuración de la tienda.
+  const granelPorValor = tienda?.venta_granel_por === "valor";
 
   // Unidades vendibles por unidad: para granel, solo los sacos cerrados (el
   // abierto se vende por gramos). La BD aplica la misma regla (I5, 077).
@@ -132,14 +135,22 @@ export default function SearchProductos() {
     return (prod.sacos_abiertos ?? []).filter((s) => s.gramos_restantes > 0);
   }
 
+  // Gramos de lo escrito en el campo (gramos, o valor convertido). 0 = inválido.
+  function gramosDelCampo(prod: Producto): number {
+    const n = parseInt(granelInput, 10);
+    if (!prod.precio_venta_kg || isNaN(n) || n <= 0) return 0;
+    return granelPorValor ? gramosDesdeValor(n, prod.precio_venta_kg) : n;
+  }
+
   // G1: si los gramos pedidos (más los granel de este producto ya en el
   // carrito, que la venta consume antes) superan el saco abierto, el cajero
   // debe confirmar la apertura de un saco nuevo. La BD vuelve a verificarlo
   // y responde 409 si la línea no trae la confirmación. Con varios sacos
   // abiertos (096) la cuenta es contra el saco elegido.
   function addGranelToCart(prod: Producto, confirmado = false) {
-    const gramos = parseInt(gramosInput, 10);
-    if (!prod.precio_venta_kg || gramos <= 0 || isNaN(gramos)) return;
+    const gramos = gramosDelCampo(prod);
+    if (!prod.precio_venta_kg || gramos < 1) return;
+    const monto = granelPorValor ? parseInt(granelInput, 10) : undefined;
 
     const { peso, gramosAbiertos, cerrados } = estadoSacos(prod);
     const abiertos = sacosConGramos(prod);
@@ -165,7 +176,8 @@ export default function SearchProductos() {
     }
 
     const kg = gramos / 1000;
-    const subtotal = Math.round(kg * prod.precio_venta_kg);
+    // Por valor se cobra justo lo que pidió el cliente.
+    const subtotal = monto ?? Math.round(kg * prod.precio_venta_kg);
 
     addItem({
       producto_id: prod.id,
@@ -176,6 +188,7 @@ export default function SearchProductos() {
       mascota_id: mascotaId,
       es_granel: true,
       gramos,                          // fuente de verdad del descuento de stock
+      ...(monto !== undefined ? { monto } : {}),
       ...(necesitaAbrir ? { abrir_saco: true } : {}),
       ...(saco ? { saco_id: saco.id } : {}),
     });
@@ -183,7 +196,7 @@ export default function SearchProductos() {
     setConfirmarApertura(null);
     setSacoError(null);
     setGranelProductoId(null);
-    setGramosInput("");
+    setGranelInput("");
   }
 
   async function ejecutarAccionSaco(prod: Producto, body: Parameters<typeof accionSaco>[1]) {
@@ -561,7 +574,7 @@ export default function SearchProductos() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setGranelProductoId(prod.id);
-                          setGramosInput("");
+                          setGranelInput("");
                           setSacoGranelId("");
                           setSacoError(null);
                         }}
@@ -611,34 +624,52 @@ export default function SearchProductos() {
                           ))}
                         </select>
                       )}
-                      <input
-                        type="number"
-                        min={1}
-                        placeholder="Gramos"
-                        value={gramosInput}
-                        onChange={(e) => setGramosInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && addGranelToCart(prod)}
-                        autoFocus
-                        className="w-24 text-sm border border-blue-300 rounded px-2 py-1"
-                      />
-                      {gramosInput && Number(gramosInput) > 0 && (
+                      {granelPorValor ? (
+                        // Texto, no number: "2.000" en un campo numérico vale 2.
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="Valor en pesos a vender"
+                          placeholder="Valor $"
+                          value={granelInput}
+                          maxLength={10}
+                          onChange={(e) => setGranelInput(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                          onKeyDown={(e) => e.key === "Enter" && addGranelToCart(prod)}
+                          autoFocus
+                          className="w-24 text-sm border border-blue-300 rounded px-2 py-1"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="Gramos"
+                          value={granelInput}
+                          onChange={(e) => setGranelInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && addGranelToCart(prod)}
+                          autoFocus
+                          className="w-24 text-sm border border-blue-300 rounded px-2 py-1"
+                        />
+                      )}
+                      {granelInput && Number(granelInput) > 0 && (
                         <span className="text-xs text-gray-600">
-                          = ${Math.round(
-                            (Number(gramosInput) / 1000) * prod.precio_venta_kg!
-                          ).toLocaleString("es-CL")}
+                          {!granelPorValor
+                            ? `= $${Math.round((Number(granelInput) / 1000) * prod.precio_venta_kg!).toLocaleString("es-CL")}`
+                            : gramosDelCampo(prod) >= 1
+                            ? `= ${gramosDelCampo(prod).toLocaleString("es-CL")} g`
+                            : "No alcanza para 1 g"}
                         </span>
                       )}
                       <button
                         type="button"
                         onClick={() => addGranelToCart(prod)}
-                        disabled={!gramosInput || Number(gramosInput) <= 0 || (varios && !sacoElegido)}
+                        disabled={gramosDelCampo(prod) < 1 || (varios && !sacoElegido)}
                         className="text-xs bg-blue-600 text-white rounded px-2 py-1 disabled:opacity-50"
                       >
                         Agregar
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setGranelProductoId(null); setGramosInput(""); }}
+                        onClick={() => { setGranelProductoId(null); setGranelInput(""); }}
                         className="text-xs text-gray-500 hover:text-gray-700"
                       >
                         Cancelar

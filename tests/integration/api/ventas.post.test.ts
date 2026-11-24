@@ -926,7 +926,7 @@ const DB_PRODUCTO_GRANEL_SYNC = {
   precio: 56000, stock: 10, activo: true,
 };
 
-function setupGranel() {
+function setupGranel(tienda: Record<string, unknown> | null = {}) {
   let productosCall = 0;
   mockFrom.mockImplementation((table: string) => {
     if (table === "productos") {
@@ -937,7 +937,7 @@ function setupGranel() {
       return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [DB_PRODUCTO_GRANEL_SYNC], error: null }) };
     }
     if (table === "stores") {
-      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null }, error: null }) };
+      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: tienda && { whatsapp_enabled: false, email_reminder_dias_aviso: 5, fidelizacion_niveles: null, ...tienda }, error: tienda ? null : { message: "boom" } }) };
     }
     return { ...mockChain, select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockResolvedValue({ data: [], error: null }), single: jest.fn().mockResolvedValue({ data: null, error: null }) };
   });
@@ -1485,5 +1485,86 @@ describe("POST /api/ventas — sobrestock (I-67)", () => {
     expect(body.error).toContain("Cama Mascota Talla M");
     // El RPC NO debe haberse llamado — el rechazo ocurre antes de la transacción
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
+// VGV-I-01…07 — venta a granel por valor (migración 099): decide la tienda (BD),
+// los gramos se recalculan con el precio de la BD y se cobra justo el monto.
+describe("POST /api/ventas — granel por valor (099)", () => {
+  const POR_VALOR = { venta_granel_por: "valor" };
+  const linea = (extra: object = {}) => ({ producto_id: PRODUCTO_ID, cantidad: 0.183, es_granel: true, gramos: 183, monto: 1830, ...extra });
+  const vender = (item: object, body: object = {}) => POST(makeRequest({ items: [item], metodoPago: "efectivo", ...body }));
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupGranel(POR_VALOR);
+    mockRpc.mockResolvedValue({ data: { venta: DB_VENTA, created: true }, error: null });
+  });
+
+  it("VGV-I-01: cobra justo el valor pedido y descuenta los gramos más cercanos", async () => {
+    // $1.234 a $10.000/kg = 123,4 g → 123 g (a precio de lista serían $1.230).
+    const res = await vender(linea({ gramos: 123, cantidad: 0.123, monto: 1234 }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_store_id: STORE_ID,
+      p_total: 1234,
+      p_items: [expect.objectContaining({ es_granel: true, gramos: 123, cantidad: 0.123, precio_unitario: 10000, subtotal: 1234 })],
+      p_pagos: [expect.objectContaining({ metodo: "efectivo", monto: 1234 })],
+    }));
+  });
+
+  it("VGV-I-02 (seguridad): los gramos deben calzar con el precio de la BD; precio y subtotal del cliente se ignoran", async () => {
+    // Pide 5 kg pagando $1.830.
+    let res = await vender(linea({ gramos: 5000, cantidad: 5 }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/precio por kg cambió/);
+    expect(mockRpc).not.toHaveBeenCalled();
+
+    setupGranel(POR_VALOR);
+    res = await vender(linea({ precioUnitario: 1, precio_unitario: 1, subtotal: 1 }));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({
+      p_items: [expect.objectContaining({ precio_unitario: 10000, subtotal: 1830 })],
+    }));
+  });
+
+  it("VGV-I-03: tienda por valor y línea sin monto (POS sin recargar) → 400 sin RPC", async () => {
+    const res = await vender(linea({ monto: undefined }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/vende a granel por valor/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VGV-I-04 (seguridad): tienda por gramos, sin definir o configuración ilegible → el monto se rechaza; el body no la cambia", async () => {
+    for (const tienda of [{ venta_granel_por: "gramos" }, {}, null]) {
+      setupGranel(tienda);
+      const res = await vender(linea(), { venta_granel_por: "valor", store_id: "otra-tienda" });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/vende a granel por gramos/);
+    }
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VGV-I-05: valor inválido (0, negativo, decimal, texto, enorme o que no alcanza para 1 g) → 400 sin RPC", async () => {
+    for (const monto of [0, -100, 10.5, "1830", 100_000_001]) {
+      setupGranel(POR_VALOR);
+      expect([monto, (await vender(linea({ monto }))).status]).toEqual([monto, 400]);
+    }
+    setupGranel(POR_VALOR);
+    const res = await vender(linea({ gramos: 1, cantidad: 0.001, monto: 4 }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/no alcanza para 1 gramo/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VGV-I-06: monto en una línea que no es a granel → 400; gramos fuera de rango → 400 (no 500)", async () => {
+    expect((await vender({ producto_id: PRODUCTO_ID, cantidad: 1, monto: 1 })).status).toBe(400);
+    expect((await vender(linea({ gramos: 10_000_001 }))).status).toBe(400);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("VGV-I-07: con descuento se aplica sobre el valor; los pagos deben sumar ese total", async () => {
+    expect((await vender(linea({ gramos: 200, cantidad: 0.2, monto: 2000 }), { descuentoPct: 10 })).status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("crear_venta_tx", expect.objectContaining({ p_subtotal: 2000, p_total: 1800 }));
   });
 });

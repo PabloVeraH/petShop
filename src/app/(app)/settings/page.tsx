@@ -39,6 +39,7 @@ interface StoreSettings {
   umbral_identificacion_comprador: number | null;
   vender_vencidos: boolean;
   numero_transaccion_obligatorio: boolean;
+  venta_granel_por: "gramos" | "valor";
 }
 
 export default function SettingsPage() {
@@ -355,6 +356,30 @@ export default function SettingsPage() {
             difícil cuadrar los vouchers y ubicar una transferencia.
           </p>
         </section>
+
+        {/* Venta a granel por gramos o por valor (migración 099). */}
+        <fieldset className="bg-white rounded-lg border border-gray-200 p-6">
+          <legend className="float-left w-full mb-2 text-lg font-semibold text-gray-700">Venta a granel</legend>
+          <div className="clear-left flex flex-wrap gap-x-6 gap-y-2">
+            {([["gramos", "Por gramos"], ["valor", "Por valor ($)"]] as const).map(([modo, etiqueta]) => (
+              <label key={modo} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="venta_granel_por"
+                  value={modo}
+                  checked={(settings.venta_granel_por === "valor" ? "valor" : "gramos") === modo}
+                  onChange={() => setSettings({ ...settings, venta_granel_por: modo })}
+                  className="accent-green-600"
+                />
+                {etiqueta}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Por gramos: el cajero escribe los gramos y el POS calcula el precio. Por valor: el cajero escribe el monto que
+            pide el cliente, el POS indica cuántos gramos pesar y se cobra justo ese monto. El POS usa solo el modo elegido.
+          </p>
+        </fieldset>
 
         {/* Email Reminder */}
         <section className="bg-white rounded-lg border border-gray-200 p-6">

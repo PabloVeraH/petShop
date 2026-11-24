@@ -786,3 +786,76 @@ describe("PATCH /api/settings — número de transacción en ventas", () => {
     expect(selectCols).toContain("numero_transaccion_obligatorio");
   });
 });
+
+// VGV-I-09…12 — "Venta a granel" por gramos o por valor (migración 099).
+describe("PATCH /api/settings — venta a granel", () => {
+  const patch = async (body: object) => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    return PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  };
+  let updates: Record<string, unknown>[];
+  let eqs: [string, unknown][];
+  let selectCols: string;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    updates = [];
+    eqs = [];
+    selectCols = "";
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAsAdmin();
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { updates.push(data); return c; }),
+        eq: jest.fn((col: string, val: unknown) => { eqs.push([col, val]); return c; }),
+        select: jest.fn((cols?: string) => { selectCols = cols ?? selectCols; return c; }),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID, venta_granel_por: "valor" }, error: null }),
+      };
+      return c;
+    });
+  });
+
+  it("VGV-I-09: el admin la cambia en SU tienda (store_id del body se ignora), auditado; un PATCH que no la menciona no la toca", async () => {
+    const { logAudit } = jest.requireMock("@/lib/audit") as { logAudit: jest.Mock };
+    const OTRA = "99999999-0000-4000-8000-000000000099";
+    expect((await patch({ venta_granel_por: "valor", store_id: OTRA, id: OTRA })).status).toBe(200);
+    expect(updates[0]).toHaveProperty("venta_granel_por", "valor");
+    expect(updates[0]).not.toHaveProperty("store_id");
+    expect(eqs).toContainEqual(["id", STORE_ID]);
+    expect(eqs).not.toContainEqual(["id", OTRA]);
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: STORE_ID, action: "UPDATE", entityType: "settings", result: "success",
+    }));
+    expect((await patch({ venta_granel_por: "gramos" })).status).toBe(200);
+    expect(updates[1]).toHaveProperty("venta_granel_por", "gramos");
+    expect((await patch({ name: "Otra" })).status).toBe(200);
+    expect(updates[2]).not.toHaveProperty("venta_granel_por");
+  });
+
+  it("VGV-I-10: storeWorker → 403 y sin sesión → 401, sin escribir", async () => {
+    mockAsWorker();
+    expect((await patch({ venta_granel_por: "valor" })).status).toBe(403);
+    mockGetStoreId.mockResolvedValue(null);
+    expect((await patch({ venta_granel_por: "valor" })).status).toBe(401);
+    expect(updates).toHaveLength(0);
+  });
+
+  it("VGV-I-11: modo desconocido → 400 sin escribir", async () => {
+    for (const v of ["kilos", "", true, null, 1]) {
+      expect([v, (await patch({ venta_granel_por: v })).status]).toEqual([v, 400]);
+    }
+    expect(updates).toHaveLength(0);
+  });
+
+  it("VGV-I-12: GET la incluye para que /settings muestre el modo actual", async () => {
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect((await res.json()).venta_granel_por).toBe("valor");
+    expect(selectCols).toContain("venta_granel_por");
+  });
+});
