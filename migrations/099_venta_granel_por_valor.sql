@@ -11,6 +11,9 @@
 --      parte de su subtotal cobrado, no kg × precio. Vendida por valor, 182 g a
 --      $11.000/kg se cobran $2.000 y antes devolvería $2.002. Las líneas por
 --      unidad y de servicio no cambian.
+--   3. crear_nota_credito_tx no devuelve más de lo vendido: rechaza la misma
+--      línea repetida y bloquea la venta (dos devoluciones simultáneas). Fallas
+--      anteriores, encontradas al revisar la función (2026-11-24).
 --
 -- crear_venta_tx no cambia: ya guarda el subtotal y los gramos que calcula el
 -- servidor (POST /api/ventas valida gramos contra monto con el precio de la BD).
@@ -70,11 +73,20 @@ DECLARE
   v_nc_items JSONB := '[]'::JSONB;
   v_nc_cliente_id UUID;
 BEGIN
-  -- 1. Validar venta: ownership por store_id, no anulada
+  -- 0. (099) Una línea repetida pasaba dos veces el control de "disponible" y
+  --    devolvía el doble.
+  IF (SELECT count(*) <> count(DISTINCT (x->>'venta_item_id')::UUID) FROM jsonb_array_elements(p_items) x) THEN
+    RAISE EXCEPTION 'Cantidad inválida: un producto está repetido en la devolución';
+  END IF;
+
+  -- 1. Validar venta: ownership por store_id, no anulada. FOR UPDATE (099):
+  --    serializa devoluciones (y la anulación) de la misma venta; sin él, dos
+  --    simultáneas veían lo mismo disponible y devolvían el doble.
   SELECT id, cliente_id, total, descuento, estado
     INTO v_venta
     FROM ventas
-   WHERE id = p_venta_id AND store_id = p_store_id;
+   WHERE id = p_venta_id AND store_id = p_store_id
+   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Venta no encontrada en esta tienda';

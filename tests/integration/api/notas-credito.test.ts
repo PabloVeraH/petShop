@@ -1060,6 +1060,25 @@ describe("POST /api/notas-credito — granel (I-596..I-598)", () => {
     mockFrom.mockImplementation(makeEmptyFrom());
   });
 
+  // VGV-I-13 — la misma línea dos veces devolvía el doble (la RPC también lo
+  // rechaza: VGV-SQL-09).
+  it("VGV-I-13 (seguridad): la misma línea repetida (aun con otra capitalización) → 400 sin RPC", async () => {
+    const id = "abcdef12-e89b-42d3-a456-426614174000";
+    const { POST } = await import("@/app/api/notas-credito/route");
+    const res = await POST(new NextRequest("http://localhost/api/notas-credito", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ventaId: "123e4567-e89b-42d3-a456-426614174999",
+        items: [{ ventaItemId: id, cantidadDevuelta: 1 }, { ventaItemId: id.toUpperCase(), cantidadDevuelta: 1 }],
+        tipoReembolso: "saldo_a_favor",
+      }),
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/repetido en la devolución/);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
   async function postNc(cantidadDevuelta: unknown) {
     const { POST } = await import("@/app/api/notas-credito/route");
     return POST(

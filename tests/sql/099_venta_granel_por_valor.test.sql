@@ -1,6 +1,6 @@
 -- Pruebas de la migración 099 (venta a granel por valor) contra las funciones
 -- reales. Solo Postgres local desechable: ver tests/sql/README.md. IDs
--- VGV-SQL-01…08 (docs/spec-registry.md). Transacción con ROLLBACK.
+-- VGV-SQL-01…10 (docs/spec-registry.md). Transacción con ROLLBACK.
 \set ON_ERROR_STOP on
 BEGIN;
 
@@ -117,6 +117,32 @@ BEGIN
     p_pago_nc => NULL, p_numero_transaccion => NULL, p_fidelizacion_niveles => '[]', p_dias_aviso => 5,
     p_idempotency_key => NULL, p_user_id => NULL, p_pagos => '[{"metodo":"efectivo","monto":8999}]')->'venta'->>'id')::uuid;
   ASSERT t.devolver(v, 2) = 5999, 'VGV-SQL-08';
+END $$;
+
+-- VGV-SQL-09 (REGRESIÓN): la misma línea repetida se rechaza y no deja nada
+-- (antes: venta de $1.000 → nota de crédito de $2.000).
+DO $$
+DECLARE
+  v uuid;
+  i uuid;
+  n int;
+BEGIN
+  v := t.venta(500, 5500);
+  SELECT id INTO i FROM venta_items WHERE venta_id = v;
+  SELECT count(*) INTO n FROM notas_credito;
+  BEGIN
+    PERFORM public.crear_nota_credito_tx('50000000-0000-0000-0000-00000000000a', 'u-test', v,
+      jsonb_build_array(jsonb_build_object('venta_item_id', i, 'cantidad_devuelta', 0.5), jsonb_build_object('venta_item_id', upper(i::text), 'cantidad_devuelta', 0.5)),
+      'NC-DUP', NULL, 'saldo_a_favor', NULL, public.hoy_negocio() + 30);
+    RAISE EXCEPTION 'VGV-SQL-09 — aceptó la línea repetida' USING ERRCODE = 'ZZ999';
+  EXCEPTION WHEN raise_exception THEN
+    ASSERT SQLERRM LIKE 'Cantidad inválida%repetido%', 'VGV-SQL-09 ' || SQLERRM;
+  END;
+  ASSERT (SELECT count(*) FROM notas_credito) = n, 'VGV-SQL-09 sin NC';
+
+  -- VGV-SQL-10: la venta se bloquea (dos devoluciones simultáneas). La carrera
+  -- real se comprobó con dos sesiones; aquí, que el bloqueo no desaparezca.
+  ASSERT (SELECT prosrc FROM pg_proc WHERE proname = 'crear_nota_credito_tx') ~ 'FROM ventas\s+WHERE id = p_venta_id AND store_id = p_store_id\s+FOR UPDATE', 'VGV-SQL-10';
 END $$;
 
 \echo 'VGV-SQL: todas las pruebas pasaron'
