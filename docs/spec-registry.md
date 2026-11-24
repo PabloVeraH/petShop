@@ -2766,3 +2766,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | VSA-C-01 | (reemplaza GR-U-17) Con gramos en el saco, "Abrí un saco nuevo" pide confirmar y nombre; envía permitir_otro; cancelar no abre | SearchProductos | component |
 | VSA-C-02…05 | POS con 2 sacos: lista en la tarjeta, vender exige elegir el saco (saco_id en la línea), apertura según el saco elegido, merma exige saco, error de la API visible | SearchProductos | component |
 | VSA-C-06 | Conteo físico con 2 sacos exige elegir el saco contado y envía saco_id | ConteoFisicoModal | component |
+| ACL-SQL-01…04 | Migración 097: con los permisos por defecto de Supabase, ninguna SECURITY DEFINER es ejecutable por anon/authenticated; service_role sí; las funciones de RLS siguen; anon recibe permission denied | tests/sql/097_revocar_execute_anon.test.sql | sql |
