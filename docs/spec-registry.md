@@ -2702,8 +2702,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-818 | la query a pagos es una sola y filtra por el store_id de la sesión | reportes/dashboard (pago mixto) | integration |
 | I-819 | sin sesión → 401 sin consultar pagos | reportes/dashboard (pago mixto) | integration |
 | I-820 | período sin ventas → montoBoleta 0 y sin query a pagos | reportes/dashboard (pago mixto) | integration |
-| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta | reportes/dashboard (pago mixto) | integration |
-| I-822 | la query a pagos filtra por store_id de la sesión | reportes/dashboard (pago mixto) | integration |
+| I-821 | topMetodo cuenta la mixta en cada método real, nunca 'mixto'; el Dashboard ya no calcula la boleta | reportes/dashboard (pago mixto) | integration |
+| I-822 | la query a pagos filtra por store_id de la sesión y solo pide las ventas mixtas | reportes/dashboard (pago mixto) | integration |
 | I-823 | storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id | reportes/dashboard (pago mixto) | integration |
 | I-824 | sin sesión → 401 | reportes/dashboard (pago mixto) | integration |
 | I-825 | CSV con 'Detalle pagos' (escapado) y 'Monto a boletear'; venta antigua usa metodo_pago | reportes/dashboard (pago mixto) | integration |
@@ -2714,7 +2714,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-107 | sin el campo en la respuesta no se renderiza (no inventa un $0) | reportes/dashboard (pago mixto) | component |
 | C-108 | muestra el total a boletear que devuelve /api/reports | reportes/dashboard (pago mixto) | component |
 | C-109 | período sin montos a boletear → estado vacío | reportes/dashboard (pago mixto) | component |
-| C-110 | muestra el total a boletear de hoy que devuelve /api/dashboard | reportes/dashboard (pago mixto) | component |
+| C-110 | el Dashboard no muestra el total a boletear (solo Reportes) | reportes/dashboard (pago mixto) | component |
 | U-257 | REVISIÓN (M1): NC o saldo a favor por $0 se rechazan aunque la venta sea de $0 | validarPagos | unit |
 | I-833 | REVISIÓN (M2): suma distinta del total del servidor → 400 con el total real y cómo seguir | POST /api/ventas | integration |
 | I-834 | REVISIÓN (B5): la respuesta trae los pagos de la venta (los reales de la BD en un reintento idempotente) | POST /api/ventas | integration |

@@ -10,7 +10,6 @@ import AlertasConsumo from "./AlertasConsumo";
 import SugerenciasRecompra from "./SugerenciasRecompra";
 import VentasPorCanal from "./VentasPorCanal";
 import VentasPorProcedencia from "./VentasPorProcedencia";
-import MontoBoleta from "./MontoBoleta";
 import PagosPorMetodo from "./PagosPorMetodo";
 import { formatDateOnlyEsCL, parseDateOnlyLocal } from "@/lib/dates";
 
@@ -112,10 +111,7 @@ export default function AnaliticaTab() {
         <KPICard label="Método top" value={data?.topMetodo ?? "-"} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <PagosPorMetodo data={data?.pagosPorMetodo} />
-        <MontoBoleta monto={data?.montoBoleta} porMetodo={data?.boletaPorMetodo} />
-      </div>
+      <PagosPorMetodo data={data?.pagosPorMetodo} />
 
       {/* Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -108,7 +108,7 @@ describe("GET /api/dashboard — pago mixto", () => {
     return GET();
   }
 
-  it("I-821: topMetodo cuenta la mixta en cada método real, nunca 'mixto'; devuelve montoBoleta", async () => {
+  it("I-821: topMetodo cuenta la mixta en cada método real, nunca 'mixto'; ya no calcula la boleta (solo Reportes)", async () => {
     // 2 mixtas efectivo+débito y 1 crédito → efectivo 2, débito 2, crédito 1
     tablas({
       ventas: [
@@ -126,17 +126,18 @@ describe("GET /api/dashboard — pago mixto", () => {
     });
     const body = await (await get()).json();
     expect(["efectivo", "debito"]).toContain(body.topMetodo);
-    expect(body.montoBoleta).toBe(10000);
-    expect(body.boletaPorMetodo).toEqual({ efectivo: 10000 });
+    expect(body).not.toHaveProperty("montoBoleta");
+    expect(body).not.toHaveProperty("boletaPorMetodo");
   });
 
-  it("I-822: la query a pagos filtra por store_id de la sesión", async () => {
+  it("I-822: la query a pagos filtra por store_id de la sesión y solo pide las ventas mixtas", async () => {
     await get();
     expect(chains.pagos).toHaveLength(1);
+    expect(chains.pagos[0].in).toHaveBeenCalledWith("venta_id", ["vm"]);
     expect(chains.pagos[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
   });
 
-  it("I-823: storeWorker → la boleta se calcula sobre ventas filtradas por worker_clerk_id", async () => {
+  it("I-823: storeWorker → los métodos se calculan sobre ventas filtradas por worker_clerk_id", async () => {
     mockGetStoreId.mockResolvedValue({ userId: "w1", storeId: STORE_ID });
     mockClaims = { publicMetadata: { storeId: STORE_ID } };
     await get();

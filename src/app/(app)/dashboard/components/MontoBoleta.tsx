@@ -1,8 +1,9 @@
 import { etiquetaMetodo } from "@/lib/ventas/pagos";
 
 // Total a boletear del período (Res. Ex. SII 176/2020): lo cobrado en el POS
-// que no cubre el voucher Transbank. Lo calcula el servidor (/api/reports,
-// /api/dashboard); aquí solo se muestra.
+// que no cubre el voucher Transbank. Lo calcula el servidor (/api/reports);
+// aquí solo se muestra. Se ve en Reportes, no en el Dashboard (pedido de la
+// tienda, 2026-11-24).
 export default function MontoBoleta({ monto, porMetodo }: { monto?: number; porMetodo?: Record<string, number> }) {
   if (monto === undefined) return null; // respuesta sin el campo: no inventar un $0
   const desglose = Object.entries(porMetodo ?? {}).filter(([, v]) => v > 0);
