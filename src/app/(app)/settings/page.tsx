@@ -37,6 +37,7 @@ interface StoreSettings {
   lon: number | null;
   direccion: string | null;
   umbral_identificacion_comprador: number | null;
+  vender_vencidos: boolean;
 }
 
 export default function SettingsPage() {
@@ -301,6 +302,29 @@ export default function SettingsPage() {
             135 UF en pesos (Ley 21.713). El SII lo fija cada año con el valor de la UF al 31 de diciembre anterior:
             actualízalo en enero. Sobre este total, el POS avisa que la boleta debe identificar al comprador con nombre y RUT.
             Vacío = sin aviso.
+          </p>
+        </section>
+
+        {/* Productos vencidos (migración 095). La página y PATCH /api/settings
+            son solo storeAdmin/systemAdmin: el control real está en el servidor. */}
+        <section className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <h2 id="vender-vencidos-label" className="text-lg font-semibold text-gray-700">Vender productos vencidos</h2>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.vender_vencidos === true}
+              aria-labelledby="vender-vencidos-label"
+              onClick={() => setSettings({ ...settings, vender_vencidos: !settings.vender_vencidos })}
+              className={`relative w-10 h-5 shrink-0 rounded-full transition-colors ${settings.vender_vencidos ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.vender_vencidos ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            Desactivado: el POS no vende unidades de lotes vencidos y explica por qué. Activado: se venden, con
+            advertencia al agregarlas, y solo después de agotar las unidades vigentes. No aplica a pedidos de canales
+            externos (Rappi, PedidosYa, Uber Eats), que nunca usan lotes vencidos.
           </p>
         </section>
 

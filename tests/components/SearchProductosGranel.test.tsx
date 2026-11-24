@@ -168,13 +168,29 @@ describe("SearchProductos — granel", () => {
     await waitFor(() => expect(mockAccionSaco).toHaveBeenCalledWith("g1", { accion: "abrir" }));
   });
 
-  // G6: con gramos en el saco abierto, primero la merma del resto.
-  it("GR-U-17: con gramos en el saco, 'Abrí un saco nuevo' pide la merma y no llama a la API", async () => {
+  // GR-U-17 / VSA-C-01 — contrato cambiado por la migración 096 (2026-11-23,
+  // pedido de la tienda: un segundo punto de venta necesita su propio saco).
+  // Antes exigía registrar la merma del resto; ahora pide confirmar y permite
+  // nombrar el saco. Sin confirmar no se llama a la API.
+  it("GR-U-17/VSA-C-01: con gramos en el saco, 'Abrí un saco nuevo' pide confirmar; al confirmar envía permitir_otro y el nombre", async () => {
     renderSearch();
     fireEvent.click(await screen.findByText("Abrí un saco nuevo"));
     expect(mockAccionSaco).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("registra la merma del resto");
-    expect(screen.getByLabelText("Motivo de la merma")).toBeInTheDocument();
+    const dialogo = screen.getByRole("alertdialog", { name: "Confirmar otro saco abierto" });
+    expect(dialogo).toHaveTextContent("Ya hay 1 saco abierto con 14.500 g");
+    expect(dialogo).toHaveTextContent("quedarán 2 abiertos");
+
+    fireEvent.change(screen.getByLabelText("Nombre del saco nuevo"), { target: { value: "  Mesón 2 " } });
+    fireEvent.click(screen.getByText("Abrir otro saco"));
+    await waitFor(() => expect(mockAccionSaco).toHaveBeenCalledWith("g1", { accion: "abrir", permitir_otro: true, nota: "Mesón 2" }));
+  });
+
+  it("VSA-C-01b: cancelar la confirmación no abre ningún saco", async () => {
+    renderSearch();
+    fireEvent.click(await screen.findByText("Abrí un saco nuevo"));
+    fireEvent.click(screen.getByText("Cancelar"));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(mockAccionSaco).not.toHaveBeenCalled();
   });
 
   it("GR-U-18: merma exige motivo (≥ 5) y envía accion 'merma' con el motivo", async () => {
@@ -285,3 +301,77 @@ describe("SearchProductos — badge granel sin desborde (GR-U-24)", () => {
   });
 });
 
+
+// VSA-C-02…05 — varios sacos abiertos del mismo producto (migración 096). La
+// elección del saco en el POS es UX: la BD rechaza una venta sin saco con 2+
+// abiertos y valida que el saco sea de este producto y tienda (VSA-SQL-04/06).
+describe("SearchProductos — varios sacos abiertos (096)", () => {
+  const DOS_SACOS = {
+    ...GRANEL,
+    peso_gramos: 20000,
+    stock: 4.16,                       // 3 cerrados + 3 200 g + 20 000 g
+    saco_abierto_gramos: 23200,
+    sacos_abiertos: [
+      { id: "s1", gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+      { id: "s2", gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+    ],
+  };
+
+  it("VSA-C-02: la tarjeta lista los sacos; vender exige elegir el saco y la línea lleva saco_id", async () => {
+    renderSearch([DOS_SACOS]);
+    expect(await screen.findByText(/2 sacos abiertos: Mesón 1 · 3,2 kg \| Saco 2 · 20 kg/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Vender a granel"));
+    fireEvent.change(screen.getByPlaceholderText("Gramos"), { target: { value: "500" } });
+    expect(screen.getByText("Agregar")).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Saco del que se vende"), { target: { value: "s2" } });
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ gramos: 500, es_granel: true, saco_id: "s2" }));
+    expect(mockAddItem.mock.calls[0][0]).not.toHaveProperty("abrir_saco");
+  });
+
+  it("VSA-C-03: la apertura se decide con los gramos del saco elegido (y solo sus líneas en el carrito)", async () => {
+    // 1 000 g ya en el carrito, pero del saco 2: no cuentan para el saco 1.
+    mockItems = [{ id: "c1", producto_id: "g1", es_granel: true, gramos: 1000, saco_id: "s2", cantidad: 1, precio: 5000, subtotal: 5000 }];
+    renderSearch([DOS_SACOS]);
+    fireEvent.click(await screen.findByText("Vender a granel"));
+    fireEvent.change(screen.getByLabelText("Saco del que se vende"), { target: { value: "s1" } });
+    fireEvent.change(screen.getByPlaceholderText("Gramos"), { target: { value: "3000" } });
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ gramos: 3000, saco_id: "s1" }));
+    expect(mockAddItem.mock.calls[0][0]).not.toHaveProperty("abrir_saco");
+
+    mockAddItem.mockClear();
+    fireEvent.click(screen.getByText("Vender a granel"));
+    fireEvent.change(screen.getByLabelText("Saco del que se vende"), { target: { value: "s1" } });
+    fireEvent.change(screen.getByPlaceholderText("Gramos"), { target: { value: "4000" } });
+    fireEvent.click(screen.getByText("Agregar"));
+    expect(mockAddItem).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog", { name: "Confirmar apertura de saco" })).toHaveTextContent("quedan 3200 g");
+    fireEvent.click(screen.getByText("Abrir saco y agregar"));
+    expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ gramos: 4000, saco_id: "s1", abrir_saco: true }));
+  });
+
+  it("VSA-C-04: la merma con varios sacos exige elegir cuál y envía su saco_id", async () => {
+    renderSearch([DOS_SACOS]);
+    fireEvent.click(await screen.findByText("Registrar merma"));
+    fireEvent.change(screen.getByLabelText("Motivo de la merma"), { target: { value: "Saco húmedo" } });
+    const confirmar = screen.getByText("Confirmar merma");
+    expect(confirmar).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Saco de la merma"), { target: { value: "s1" } });
+    expect(confirmar).toBeEnabled();
+    fireEvent.click(confirmar);
+    await waitFor(() => expect(mockAccionSaco).toHaveBeenCalledWith("g1", { accion: "merma", motivo: "Saco húmedo", saco_id: "s1" }));
+  });
+
+  it("VSA-C-05: si el servidor rechaza abrir otro saco, el error se muestra", async () => {
+    mockAccionSaco.mockRejectedValue(new Error("Stock insuficiente: disponible 0, solicitado 1"));
+    renderSearch([DOS_SACOS]);
+    fireEvent.click(await screen.findByText("Abrí un saco nuevo"));
+    expect(screen.getByRole("alertdialog", { name: "Confirmar otro saco abierto" })).toHaveTextContent("Ya hay 2 sacos abiertos con 23.200 g");
+    fireEvent.click(screen.getByText("Abrir otro saco"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Stock insuficiente: disponible 0");
+  });
+});

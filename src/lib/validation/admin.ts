@@ -47,6 +47,9 @@ export const SettingsUpdateSchema = z.object({
   // null = sin aviso. Mismo CHECK (> 0) que la columna (migración 093).
   umbral_identificacion_comprador: z.number().int("El umbral debe ser un monto entero en pesos")
     .positive("El umbral debe ser mayor a 0").max(1_000_000_000).nullable().optional(),
+  // Migración 095: el POS puede vender unidades de lotes vencidos (con aviso),
+  // después de agotar las vigentes. Solo admin (PATCH /api/settings lo exige).
+  vender_vencidos: z.boolean().optional(),
 });
 
 export const AdminUserAssignSchema = z.object({

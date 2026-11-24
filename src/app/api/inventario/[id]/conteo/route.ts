@@ -38,7 +38,7 @@ export const POST = withErrorLogging(async (req: NextRequest,
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
-  const { stock_contado, lote_id, motivo, gramos_saco_abierto } = parsed.data;
+  const { stock_contado, lote_id, motivo, gramos_saco_abierto, saco_id } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -53,6 +53,8 @@ export const POST = withErrorLogging(async (req: NextRequest,
     p_user_id:       userId,
     // Granel: gramos del saco abierto (null = no se contaron → sin cambio).
     p_gramos_saco_abierto: gramos_saco_abierto ?? null,
+    // Varios sacos abiertos (096): cuál se contó. La BD valida tienda/producto.
+    ...(saco_id ? { p_saco_id: saco_id } : {}),
   });
 
   const { ipAddress, userAgent } = getRequestMetadata(req);

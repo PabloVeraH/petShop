@@ -398,6 +398,40 @@ describe("GET /api/inventario — saco abierto de granel", () => {
     expect(sacosChain.in).toHaveBeenCalledWith("producto_id", ["g-1", "g-2"]);
     expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
   });
+
+  // VSA-I-09 — REGRESIÓN 096: con 2 sacos abiertos del mismo producto, el Map
+  // por producto se quedaba con uno solo (stock mostrado y conteo mal).
+  it("VSA-I-09: con varios sacos abiertos devuelve la suma y la lista del más antiguo al más nuevo", async () => {
+    const productosChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({
+        data: [{ id: "g-1", nombre: "Granel A", stock: 4.16, stock_minimo: 1, precio_venta_kg: 5000, peso_gramos: 20000, fecha_vencimiento: null }],
+        error: null,
+      }),
+    };
+    const sacosChain: Record<string, jest.Mock> = {};
+    sacosChain.select = jest.fn(() => sacosChain);
+    sacosChain.eq = jest.fn(() => sacosChain);
+    sacosChain.in = jest.fn(() => sacosChain);
+    sacosChain.is = jest.fn().mockResolvedValue({
+      data: [
+        { id: "s2", producto_id: "g-1", gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+        { id: "s1", producto_id: "g-1", gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+      ],
+      error: null,
+    });
+    (supabaseModule.createServiceClient as jest.Mock).mockReturnValue({
+      from: jest.fn((table: string) => (table === "sacos_abiertos" ? sacosChain : productosChain)),
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/inventario"));
+    expect(res.status).toBe(200);
+    const [g1] = await res.json();
+    expect(g1.saco_abierto_gramos).toBe(23200);
+    expect(g1.sacos_abiertos.map((s: { id: string }) => s.id)).toEqual(["s1", "s2"]);
+    expect(sacosChain.eq).toHaveBeenCalledWith("store_id", "store-1");
+  });
 });
 
 // SEC-13 — REGRESIÓN (QA 2026-09-27): el worker recibía el costo de cada

@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { z } from "zod";
 import { withErrorLogging } from "@/lib/audit";
 import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
+import { agruparSacosAbiertos } from "@/lib/granel";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   // Listado de inventario (incluye costo): solo storeAdmin/systemAdmin (QA 2026-09-27). El worker no
@@ -72,18 +73,21 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // para el conteo físico / deshacer apertura.
   const granelIds = result.filter((p) => Number(p.precio_venta_kg) > 0).map((p) => p.id);
   if (granelIds.length > 0) {
+    // Varios sacos abiertos (096): todos, y saco_abierto_gramos = suma.
     const { data: sacos, error: sacosError } = await supabase
       .from("sacos_abiertos")
-      .select("producto_id, gramos_restantes")
+      .select("id, producto_id, gramos_restantes, nota, abierto_at")
       .eq("store_id", store_id)
       .in("producto_id", granelIds)
       .is("cerrado_at", null);
     if (sacosError) return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
 
-    const gramosPorProducto = new Map((sacos ?? []).map((s) => [s.producto_id, Number(s.gramos_restantes)]));
-    result = result.map((p) =>
-      granelIds.includes(p.id) ? { ...p, saco_abierto_gramos: gramosPorProducto.get(p.id) ?? null } : p
-    );
+    const porProducto = agruparSacosAbiertos(sacos ?? []);
+    result = result.map((p) => {
+      if (!granelIds.includes(p.id)) return p;
+      const abiertos = porProducto.get(p.id);
+      return { ...p, saco_abierto_gramos: abiertos?.gramos ?? null, sacos_abiertos: abiertos?.sacos ?? [] };
+    });
   }
 
   return NextResponse.json(result);

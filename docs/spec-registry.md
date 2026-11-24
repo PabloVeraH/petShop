@@ -2741,3 +2741,28 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | SEL-12 | SelectorPagos: un medio elegido en una fila queda deshabilitado en las demás, en ambos sentidos | SelectorPagos | component |
 | SEL-13 | SelectorPagos: "Agregar" propone el primer medio libre; sin medios libres no aparece | SelectorPagos | component |
 | I-841 | POST /api/ventas: dos pagos con el mismo medio → 400 sin RPC | POST /api/ventas | integration |
+| VENC-SQL-01…02 | Migración 095: stores.vender_vencidos NOT NULL default false; una sola firma de deducir_stock_fifo | migración 095 | sql |
+| VENC-SQL-03 | REGRESIÓN (mascotaspetshop, BOKATO 2026-11-23): stock 1 en lote vencido con la opción desactivada → no vende; mensaje con producto, vigentes y vencidos; sin escritura (aunque otra tienda la tenga activa) | migración 095 | sql |
+| VENC-SQL-04…05 | Descuento manual (4 argumentos) y canales externos nunca usan lotes vencidos, aunque la opción esté activa | migración 095 | sql |
+| VENC-SQL-06…09 | Opción activa + POS: vende del lote vencido (trazado en venta_item_lotes), consume primero los vigentes, error con disponible total si no alcanza; al desactivarla vuelve a bloquear | migración 095 | sql |
+| VENC-I-01 | GET /api/tienda/nombre expone vender_vencidos (solo true es true) | GET /api/tienda/nombre | integration |
+| VENC-I-02…04 | GET /api/productos: stock_vencido por producto (tienda de la sesión, lotes activos, fecha de Chile); error de lotes → 500; sin productos no consulta lotes | GET /api/productos | integration |
+| VENC-I-05…07 | REGRESIÓN BOKATO: POST /api/ventas devuelve el mensaje de stock de la BD (antes genérico); en el POS con lotes vencidos agrega cómo resolverlo; en canal externo no sugiere Configuración | POST /api/ventas | integration |
+| VENC-I-08…11 | PATCH /api/settings vender_vencidos: el admin la activa/desactiva en su tienda (store_id del body ignorado) con auditoría; worker 403 y sin sesión 401; no booleano → 400; GET la incluye | /api/settings | integration |
+| VENC-C-01…02 | POS, opción desactivada: tarjeta "N en lote vencido · no se puede vender" bloqueada; con pistola, mensaje claro | SearchProductos | component |
+| VENC-C-03…04 | POS: opción activa → aviso "se venderá de un lote vencido"; desactivada con vigentes → límite = vigentes | SearchProductos | component |
+| VENC-C-05…07 | POS: última unidad (stock 1, mínimo 1) se vende con aviso "Última unidad"; "Stock bajo" al quedar en el mínimo; sin avisos con stock holgado | SearchProductos | component |
+| VENC-C-08…10 | /settings: interruptor "Vender productos vencidos" refleja el valor, envía PATCH con true/false; un 403 se muestra | SettingsPage | component |
+| VENC-C-11…12 | REGRESIÓN: editar un producto con lotes reemplaza "Fecha vencimiento" por el aviso y abre Lotes; sin lotes, el campo sigue | InventoryPage | component |
+| VSA-SQL-01…03 | Migración 096: sin índice único; abrir otro saco con gramos exige permitir_otro; confirmado, quedan 2 abiertos con nombre, descuenta 1 cerrado y el stock total no cambia; fraccion_saco_abierto suma todos | migración 096 | sql |
+| VSA-SQL-04…06 | Venta a granel con 2 sacos: sin saco → "Varios sacos abiertos"; con saco descuenta solo ese (trazado en venta_item_sacos); saco inexistente, de otro producto o de otra tienda → "Saco no disponible", sin cambios | migración 096 | sql |
+| VSA-SQL-07…09 | Conteo y merma con 2 sacos exigen el saco y tocan solo ese; deshacer sin saco deshace la apertura más reciente | migración 096 | sql |
+| VSA-SQL-10…13 | Saco elegido insuficiente: sin confirmar se rechaza sin escritura, confirmado se agota y sigue en un saco nuevo; devolución al más antiguo; con un solo saco todo igual que antes; producto con lotes cuadra | migración 096 | sql |
+| VSA-I-01…04 | POST /api/productos/[id]/saco: permitir_otro y saco_id viajan a la RPC (solo si vienen); tenant de la sesión; no UUID/no booleano → 400; deshacer sigue solo admin; errores de varios sacos → 409 | POST /api/productos/[id]/saco | integration |
+| VSA-I-05…07 | POST /api/ventas: saco_id viaja en la línea granel; no UUID → 400 sin RPC; "Varios sacos abiertos"/"Saco no disponible" → 409 ELEGIR_SACO | POST /api/ventas | integration |
+| VSA-I-08…09 | REGRESIÓN: GET /api/productos y GET /api/inventario con 2 sacos devuelven la suma y la lista ordenada (antes el Map se quedaba con uno), filtrando por tienda | GET /api/productos, GET /api/inventario | integration |
+| VSA-I-10 | Conteo físico: saco_id viaja como p_saco_id solo si viene; no UUID → 400 | POST /api/inventario/[id]/conteo | integration |
+| VSA-U-01…03 | granel.ts: fracción redondeada saco por saco; agruparSacosAbiertos suma y ordena; etiquetaSaco con nombre u orden | granel | unit |
+| VSA-C-01 | (reemplaza GR-U-17) Con gramos en el saco, "Abrí un saco nuevo" pide confirmar y nombre; envía permitir_otro; cancelar no abre | SearchProductos | component |
+| VSA-C-02…05 | POS con 2 sacos: lista en la tarjeta, vender exige elegir el saco (saco_id en la línea), apertura según el saco elegido, merma exige saco, error de la API visible | SearchProductos | component |
+| VSA-C-06 | Conteo físico con 2 sacos exige elegir el saco contado y envía saco_id | ConteoFisicoModal | component |

@@ -236,3 +236,36 @@ describe("ConteoFisicoModal — granel", () => {
     expect(postConteo()).toBeUndefined();
   });
 });
+
+// VSA-C-06 — varios sacos abiertos (096): se elige qué saco se contó. Es UX:
+// la BD rechaza un conteo de gramos sin saco con 2+ abiertos (VSA-SQL-07).
+describe("ConteoFisicoModal — varios sacos abiertos", () => {
+  const GRANEL = {
+    id: "g1", nombre: "Granel", stock: 4.16, precio_venta_kg: 5000, peso_gramos: 20000, saco_abierto_gramos: 23200,
+    sacos_abiertos: [
+      { id: "s1", gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+      { id: "s2", gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+    ],
+  };
+
+  it("VSA-C-06: con gramos contados exige elegir el saco y lo envía como saco_id", async () => {
+    mockFetch([]);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    render(<QueryClientProvider client={qc}><ConteoFisicoModal producto={GRANEL} onClose={jest.fn()} /></QueryClientProvider>);
+
+    await waitFor(() => expect(screen.getByLabelText("Saco abierto contado")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/Sacos cerrados contados/), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Gramos en el saco abierto"), { target: { value: "3000" } });
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo mesón" } });
+    const registrar = screen.getByRole("button", { name: "Registrar conteo" });
+    expect(registrar).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Saco abierto contado"), { target: { value: "s1" } });
+    expect(screen.getByLabelText("Gramos en el saco abierto")).toHaveAttribute("placeholder", "Registrado: 3200 g (vacío = sin cambio)");
+    fireEvent.click(registrar);
+    await waitFor(() => expect(postConteo()).toBeDefined());
+    expect(JSON.parse(postConteo()![1].body as string)).toEqual({
+      stock_contado: 3, motivo: "Conteo mesón", gramos_saco_abierto: 3000, saco_id: "s1",
+    });
+  });
+});

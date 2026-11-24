@@ -181,6 +181,9 @@ async function postVenta(req: NextRequest) {
          es_granel:       true,
          gramos,
          abrir_saco:      item.abrir_saco === true,
+         // Saco elegido por el cajero con varios abiertos (096). La BD valida
+         // que sea de este producto y tienda.
+         ...(item.saco_id ? { saco_id: item.saco_id } : {}),
        };
      }
      const precio = precioMap[item.producto_id];
@@ -303,8 +306,26 @@ async function postVenta(req: NextRequest) {
         { status: 409 }
       );
     }
+    // Varios sacos abiertos (096): falta elegir el saco, o el elegido ya se
+    // cerró (otro punto de venta lo agotó) → 409 con código para que el POS
+    // pida elegir de nuevo.
+    if (txError.message.startsWith("Varios sacos abiertos") || txError.message.startsWith("Saco no disponible")) {
+      return NextResponse.json(
+        { error: `${txError.message}. Vuelva a buscar el producto y elija el saco.`, code: "ELEGIR_SACO" },
+        { status: 409 }
+      );
+    }
     if (txError.message.startsWith("Cantidad inválida") || txError.message.startsWith("Producto no habilitado para granel")) {
       return NextResponse.json({ error: txError.message }, { status: 400 });
+    }
+    // Mensaje de la BD (migración 095): nombra el producto y separa vigentes de
+    // vencidos. Antes se reemplazaba por uno genérico y el cajero no sabía que
+    // el "Stock: 1" que veía estaba en un lote vencido.
+    if (txError.message.startsWith("Stock insuficiente")) {
+      const ayuda = canal === "pos" && txError.message.includes("en lotes vencidos")
+        ? ". La tienda no permite vender productos vencidos: un administrador puede corregir la fecha del lote (Inventario → Lotes), darlo de baja o activar «Vender productos vencidos» en Configuración."
+        : "";
+      return NextResponse.json({ error: txError.message + ayuda }, { status: 422 });
     }
     const isStockError = txError.message.toLowerCase().includes("stock") || txError.message.toLowerCase().includes("insuficiente");
     if (isStockError) {

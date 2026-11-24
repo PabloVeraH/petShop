@@ -24,6 +24,7 @@ import { OptimizadorVencimientosTab } from "./components/OptimizadorVencimientos
 import { ProductoImagenesField } from "./components/ProductoImagenesField";
 import { ProductoCreateSchema } from "@/lib/validation";
 import { fetchJson } from "@/lib/api-client";
+import type { SacoAbiertoResumen } from "@/types";
 
 type Producto = {
   id: string;
@@ -45,7 +46,9 @@ type Producto = {
   imagen_url: string | null;
   imagen_url_2: string | null;
   // Granel (migración 077): gramos del saco abierto (null = sin saco abierto).
+  // Desde la 096, la suma de todos los sacos abiertos, con el detalle aparte.
   saco_abierto_gramos?: number | null;
+  sacos_abiertos?: SacoAbiertoResumen[];
 };
 
 type Categoria = {
@@ -176,6 +179,18 @@ export default function InventoryPage() {
     queryFn: () => fetchJson<StockMovement[]>(`/api/stock-movements?productoId=${historial!.id}`),
     enabled: !!historial,
   });
+
+  // Lotes activos del producto en edición (misma key y forma que LotesPanel:
+  // comparten caché e invalidaciones). Con lotes, el vencimiento vive en el
+  // lote: productos.fecha_vencimiento lo recalcula un trigger con los lotes
+  // vigentes (queda vacío si todos vencieron) y editarlo aquí no cambia ningún
+  // lote, así que la venta seguiría bloqueada.
+  const { data: lotesEditando = [] } = useQuery<unknown[]>({
+    queryKey: ["lotes", editando?.id],
+    queryFn: () => fetchJson<{ lotes?: unknown[] }>(`/api/lotes?producto_id=${editando!.id}`).then((d) => d.lotes ?? []),
+    enabled: !!editando,
+  });
+  const editandoConLotes = !!editando && lotesEditando.length > 0;
 
   const { mutate: aplicarAjuste, isPending: guardandoAjuste, error: ajusteError, reset: resetAjusteError } = useMutation({
     mutationFn: async () => {
@@ -528,7 +543,7 @@ export default function InventoryPage() {
                           <button onClick={() => setConteoDe(p)} className="text-[11px] text-emerald-700 hover:underline px-1">Conteo</button>
                           <button onClick={() => setVerLotesDe({ id: p.id, nombre: p.nombre, dias_alerta_expira: p.dias_alerta_expira ?? 30, stock: p.stock, fecha_vencimiento: p.fecha_vencimiento })} className="text-[11px] text-purple-600 hover:underline px-1">Lotes</button>
                           <button onClick={() => setConfirmDelete(p)} className="text-[11px] text-red-400 hover:underline px-1">Desact.</button>
-                          {p.saco_abierto_gramos != null && <DeshacerAperturaButton productoId={p.id} />}
+                          {p.saco_abierto_gramos != null && <DeshacerAperturaButton productoId={p.id} varios={(p.sacos_abiertos?.length ?? 0) > 1} />}
                         </div>
                       </TableCell>
                     )}
@@ -565,7 +580,9 @@ export default function InventoryPage() {
                 { label: "Marca", key: "marca" as const, placeholder: "ProCan" },
                 { label: "Peso (gramos)", key: "peso_gramos" as const, placeholder: "15000", type: "number" },
                 { label: "Fecha vencimiento (opcional)", key: "fecha_vencimiento" as const, type: "date" },
-              ] satisfies { label: string; key: keyof ProductoForm; placeholder?: string; type?: string; required?: boolean }[]).map(({ label, key, placeholder, type, required }) => (
+              ] satisfies { label: string; key: keyof ProductoForm; placeholder?: string; type?: string; required?: boolean }[])
+                .filter(({ key }) => !(editandoConLotes && key === "fecha_vencimiento"))
+                .map(({ label, key, placeholder, type, required }) => (
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
                   <input
@@ -587,6 +604,26 @@ export default function InventoryPage() {
                   {fieldErrors[key] && <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>}
                 </div>
               ))}
+              {editandoConLotes && (
+                <div className="rounded-md border border-purple-200 bg-purple-50 p-3">
+                  <p className="text-xs text-purple-800">
+                    Este producto usa lotes: la fecha de vencimiento se edita en cada lote.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVerLotesDe({
+                        id: editando!.id, nombre: editando!.nombre, dias_alerta_expira: editando!.dias_alerta_expira ?? 30,
+                        stock: editando!.stock, fecha_vencimiento: editando!.fecha_vencimiento,
+                      });
+                      cerrarForm();
+                    }}
+                    className="mt-1 text-xs font-medium text-purple-700 hover:underline"
+                  >
+                    Editar vencimiento en Lotes
+                  </button>
+                </div>
+              )}
               {form.fecha_vencimiento && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Días de alerta</label>

@@ -624,3 +624,89 @@ describe("PATCH /api/settings — umbral de identificación del comprador (135 U
     expect(capturedUpdates).toHaveLength(0);
   });
 });
+
+// VENC-I-08…11 — "Vender productos vencidos" (migración 095): decisión del
+// admin de la tienda; se valida en el límite y queda en la auditoría.
+describe("PATCH /api/settings — vender productos vencidos", () => {
+  const patch = async (body: object) => {
+    const { PATCH } = await import("@/app/api/settings/route");
+    return PATCH(new NextRequest("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+  };
+  let capturedUpdates: Record<string, unknown>[];
+  let capturedEqs: [string, unknown][];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    capturedUpdates = [];
+    capturedEqs = [];
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAsAdmin();
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        update: jest.fn((data) => { capturedUpdates.push(data); return c; }),
+        eq: jest.fn((col: string, val: unknown) => { capturedEqs.push([col, val]); return c; }),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID, vender_vencidos: true }, error: null }),
+      };
+      return c;
+    });
+  });
+
+  it("VENC-I-08: el admin la activa y desactiva en SU tienda (store_id del body se ignora) y queda auditado; un PATCH que no la menciona no la toca", async () => {
+    const { logAudit } = jest.requireMock("@/lib/audit") as { logAudit: jest.Mock };
+    const OTRA = "99999999-0000-4000-8000-000000000099";
+
+    expect((await patch({ vender_vencidos: true, store_id: OTRA, id: OTRA })).status).toBe(200);
+    expect(capturedUpdates[0]).toHaveProperty("vender_vencidos", true);
+    expect(capturedUpdates[0]).not.toHaveProperty("store_id");
+    expect(capturedUpdates[0]).not.toHaveProperty("id");
+    expect(capturedEqs).toContainEqual(["id", STORE_ID]);
+    expect(capturedEqs).not.toContainEqual(["id", OTRA]);
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      storeId: STORE_ID, action: "UPDATE", entityType: "settings", result: "success",
+    }));
+
+    expect((await patch({ vender_vencidos: false })).status).toBe(200);
+    expect(capturedUpdates[1]).toHaveProperty("vender_vencidos", false);
+
+    expect((await patch({ name: "Otra" })).status).toBe(200);
+    expect(capturedUpdates[2]).not.toHaveProperty("vender_vencidos");
+  });
+
+  it("VENC-I-09: storeWorker → 403 y sin sesión → 401, sin escribir", async () => {
+    mockAsWorker();
+    expect((await patch({ vender_vencidos: true })).status).toBe(403);
+    mockGetStoreId.mockResolvedValue(null);
+    expect((await patch({ vender_vencidos: true })).status).toBe(401);
+    expect(capturedUpdates).toHaveLength(0);
+  });
+
+  it("VENC-I-10: valor no booleano (\"true\", 1, null) → 400 sin escribir", async () => {
+    for (const v of ["true", 1, null]) {
+      const res = await patch({ vender_vencidos: v });
+      expect([v, res.status]).toEqual([v, 400]);
+    }
+    expect(capturedUpdates).toHaveLength(0);
+  });
+
+  it("VENC-I-11: GET la incluye para que /settings muestre el estado actual", async () => {
+    let selectCols = "";
+    mockFrom.mockImplementation(() => {
+      const c: Record<string, jest.Mock> = {
+        select: jest.fn((cols: string) => { selectCols = cols; return c; }),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: STORE_ID, vender_vencidos: true }, error: null }),
+      };
+      return c;
+    });
+    const { GET } = await import("@/app/api/settings/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect((await res.json()).vender_vencidos).toBe(true);
+    expect(selectCols).toContain("vender_vencidos");
+  });
+});

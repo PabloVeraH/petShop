@@ -11,11 +11,14 @@ import type { SacoAccionResultado } from "@/types";
 
 // Granel (§4.6, D18/D19) — acciones sobre el saco abierto de un producto:
 //   abrir    D18: "Abrí un saco nuevo" (cualquier usuario de la tienda — lo
-//            usa el POS). La BD rechaza si el saco abierto aún tiene gramos
-//            (primero la merma del resto, G6). No cambia el stock total.
+//            usa el POS). Con sacos abiertos con gramos, la BD rechaza salvo
+//            permitir_otro (096: el cajero confirmó abrir otro, ej. un segundo
+//            punto de venta). No cambia el stock total.
 //   merma    G6: da de baja los gramos restantes y guarda quién la registró.
+//            Con 2+ sacos abiertos la BD exige saco_id (096).
 //   deshacer G2: solo storeAdmin/systemAdmin (validado aquí; la BD además
-//            rechaza sacos con ventas o con gramos que ya cambiaron).
+//            rechaza sacos con ventas o con gramos que ya cambiaron). Sin
+//            saco_id deshace la apertura más reciente.
 // Todas las RPC filtran por store_id: producto de otra tienda → 404.
 export const POST = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
@@ -52,6 +55,7 @@ export const POST = withErrorLogging(async (req: NextRequest,
           p_producto_id: id,
           p_user_id:     userId,
           p_nota:        input.nota ?? null,
+          ...(input.permitir_otro ? { p_permitir_otro: true } : {}),
         })
       : input.accion === "merma"
         ? await supabase.rpc("cerrar_saco_merma", {
@@ -59,11 +63,13 @@ export const POST = withErrorLogging(async (req: NextRequest,
             p_producto_id: id,
             p_motivo:      input.motivo,
             p_user_id:     userId,
+            ...(input.saco_id ? { p_saco_id: input.saco_id } : {}),
           })
         : await supabase.rpc("deshacer_apertura_saco", {
             p_store_id:    storeId,
             p_producto_id: id,
             p_user_id:     userId,
+            ...(input.saco_id ? { p_saco_id: input.saco_id } : {}),
           });
 
   const { ipAddress, userAgent } = getRequestMetadata(req);

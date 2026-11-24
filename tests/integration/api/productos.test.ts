@@ -537,9 +537,23 @@ describe("PATCH /api/productos/[id] — limpieza de imágenes en R2", () => {
 });
 
 // ── Fase 1b — granel (migración 077, §4.6) ─────────────────────────────────
+// Cadena de lotes_producto para el stock vencido (migración 095): select → eq
+// → eq → gt → lt → in (terminal).
+function lotesVencidosChain(result: { data: unknown; error: unknown }) {
+  const c: Record<string, jest.Mock> = {
+    select: jest.fn(() => c),
+    eq: jest.fn(() => c),
+    gt: jest.fn(() => c),
+    lt: jest.fn(() => c),
+    in: jest.fn().mockResolvedValue(result),
+  };
+  return c;
+}
+
 describe("GET /api/productos — saco abierto de granel (I-599/I-600)", () => {
   const GRANEL_ID = "123e4567-e89b-12d3-a456-426614174011";
   let sacosChain: Record<string, jest.Mock>;
+  let lotesChain: Record<string, jest.Mock>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -550,6 +564,7 @@ describe("GET /api/productos — saco abierto de granel (I-599/I-600)", () => {
       in: jest.fn(() => sacosChain),
       is: jest.fn().mockResolvedValue({ data: [{ producto_id: GRANEL_ID, gramos_restantes: 14500 }], error: null }),
     };
+    lotesChain = lotesVencidosChain({ data: [], error: null });
   });
 
   // I-599 — el POS recibe los gramos del saco abierto de cada granel (G1),
@@ -560,7 +575,9 @@ describe("GET /api/productos — saco abierto de granel (I-599/I-600)", () => {
       { id: PRODUCTO_ID, nombre: "Cama", precio_venta_kg: null, peso_gramos: null, stock: 3 },
     ];
     mockFrom.mockImplementation((table: string) =>
-      table === "sacos_abiertos" ? sacosChain : chain(Promise.resolve({ data: productos, error: null }))
+      table === "sacos_abiertos" ? sacosChain
+        : table === "lotes_producto" ? lotesChain
+        : chain(Promise.resolve({ data: productos, error: null }))
     );
     const { GET } = await import("@/app/api/productos/route");
     const res = await GET(req("/api/productos"));
@@ -577,12 +594,76 @@ describe("GET /api/productos — saco abierto de granel (I-599/I-600)", () => {
     mockFrom.mockImplementation((table: string) =>
       table === "sacos_abiertos"
         ? sacosChain
+        : table === "lotes_producto" ? lotesChain
         : chain(Promise.resolve({ data: [{ id: PRODUCTO_ID, precio_venta_kg: null, stock: 3 }], error: null }))
     );
     const { GET } = await import("@/app/api/productos/route");
     const res = await GET(req("/api/productos"));
     expect(res.status).toBe(200);
     expect(mockFrom).not.toHaveBeenCalledWith("sacos_abiertos");
+  });
+});
+
+describe("GET /api/productos — unidades en lotes vencidos (migración 095)", () => {
+  const OTRO_ID = "123e4567-e89b-12d3-a456-426614174012";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  });
+
+  // VENC-I-02 — REGRESIÓN BOKATO: "Stock: 1" con el único lote vencido. El POS
+  // recibe stock_vencido para avisar/limitar; la query es de la tienda de la
+  // sesión, solo lotes activos con unidades y vencidos según la fecha de Chile.
+  it("VENC-I-02: suma por producto las unidades de lotes vencidos, filtrando por tienda; sin lotes vencidos → 0", async () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-11-24T02:30:00Z")); // 23-nov 23:30 en Chile
+    const lotesChain = lotesVencidosChain({
+      data: [
+        { producto_id: PRODUCTO_ID, cantidad_actual: "1.000" },
+        { producto_id: PRODUCTO_ID, cantidad_actual: 2 },
+      ],
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) =>
+      table === "lotes_producto" ? lotesChain
+        : chain(Promise.resolve({ data: [
+          { id: PRODUCTO_ID, precio_venta_kg: null, stock: 4 },
+          { id: OTRO_ID, precio_venta_kg: null, stock: 2 },
+        ], error: null }))
+    );
+    try {
+      const { GET } = await import("@/app/api/productos/route");
+      const res = await GET(req("/api/productos"));
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.find((p: { id: string }) => p.id === PRODUCTO_ID).stock_vencido).toBe(3);
+      expect(data.find((p: { id: string }) => p.id === OTRO_ID).stock_vencido).toBe(0);
+      expect(lotesChain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+      expect(lotesChain.eq).toHaveBeenCalledWith("activo", true);
+      expect(lotesChain.gt).toHaveBeenCalledWith("cantidad_actual", 0);
+      expect(lotesChain.lt).toHaveBeenCalledWith("fecha_vencimiento", "2026-11-23");
+      expect(lotesChain.in).toHaveBeenCalledWith("producto_id", [PRODUCTO_ID, OTRO_ID]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("VENC-I-03: error al leer lotes → 500 genérico (no se devuelve un stock vendible engañoso)", async () => {
+    mockFrom.mockImplementation((table: string) =>
+      table === "lotes_producto" ? lotesVencidosChain({ data: null, error: { message: "boom" } })
+        : chain(Promise.resolve({ data: [{ id: PRODUCTO_ID, precio_venta_kg: null, stock: 1 }], error: null }))
+    );
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Error interno del servidor" });
+  });
+
+  it("VENC-I-04: sin productos no consulta lotes", async () => {
+    mockFrom.mockReturnValue(chain());
+    const { GET } = await import("@/app/api/productos/route");
+    expect((await GET(req("/api/productos"))).status).toBe(200);
+    expect(mockFrom).not.toHaveBeenCalledWith("lotes_producto");
   });
 });
 
@@ -616,5 +697,46 @@ describe("PATCH /api/productos/[id] — guardias de granel (I-602/I-603)", () =>
     const res = await PATCH(req(`/api/productos/${PRODUCTO_ID}`, "PATCH", { nombre: "Granel" }), { params: patchParams });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/peso del saco/);
+  });
+});
+
+// VSA-I-08 — varios sacos abiertos (096): el POS recibe todos para elegir.
+describe("GET /api/productos — varios sacos abiertos (096)", () => {
+  const GRANEL_ID = "123e4567-e89b-12d3-a456-426614174011";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  });
+
+  it("VSA-I-08: suma los gramos y lista los sacos (más antiguo primero) de la tienda de la sesión", async () => {
+    const sacosChain: Record<string, jest.Mock> = {
+      select: jest.fn(() => sacosChain),
+      eq: jest.fn(() => sacosChain),
+      in: jest.fn(() => sacosChain),
+      is: jest.fn().mockResolvedValue({
+        data: [
+          { id: "s2", producto_id: GRANEL_ID, gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+          { id: "s1", producto_id: GRANEL_ID, gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+        ],
+        error: null,
+      }),
+    };
+    mockFrom.mockImplementation((table: string) =>
+      table === "sacos_abiertos" ? sacosChain
+        : table === "lotes_producto" ? lotesVencidosChain({ data: [], error: null })
+        : chain(Promise.resolve({ data: [{ id: GRANEL_ID, precio_venta_kg: 5000, peso_gramos: 20000, stock: 4.16 }], error: null }))
+    );
+    const { GET } = await import("@/app/api/productos/route");
+    const res = await GET(req("/api/productos"));
+    expect(res.status).toBe(200);
+    const [p] = await res.json();
+    expect(p.saco_abierto_gramos).toBe(23200);
+    expect(p.sacos_abiertos).toEqual([
+      { id: "s1", gramos_restantes: 3200, nota: "Mesón 1", abierto_at: "2026-11-23T12:00:00Z" },
+      { id: "s2", gramos_restantes: 20000, nota: null, abierto_at: "2026-11-23T15:00:00Z" },
+    ]);
+    expect(sacosChain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(sacosChain.is).toHaveBeenCalledWith("cerrado_at", null);
   });
 });

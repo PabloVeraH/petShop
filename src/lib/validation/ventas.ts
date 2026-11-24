@@ -76,6 +76,9 @@ export const VentaItemSchema = z.object({
   gramos: z.number().int().positive().optional(),
   // Granel (G1): el POS confirmó abrir un saco nuevo si el abierto no alcanza.
   abrir_saco: z.boolean().optional(),
+  // Granel (migración 096): saco abierto que eligió el cajero cuando hay
+  // varios. La BD valida que sea de este producto y tienda y esté abierto.
+  saco_id: UUIDSchema.optional(),
 }).superRefine((val, ctx) => {
   // Granel sin gramos → backend caería silenciosamente al precio de lista
   if (val.es_granel && !val.gramos) {

@@ -7,11 +7,12 @@ import type { PagoInput } from "@/lib/ventas/pagos";
 // Reintenta en N s."), nunca se toma como resultado vacío (QA 2026-09-27).
 
 // Granel (§4.6): abrir saco (D18), merma del resto (G6) o deshacer apertura
-// (G2, solo admin — lo valida el servidor).
+// (G2, solo admin — lo valida el servidor). Migración 096: permitir_otro =
+// el cajero confirmó abrir otro saco con uno ya abierto; saco_id = cuál.
 export type AccionSaco =
-  | { accion: "abrir"; nota?: string }
-  | { accion: "merma"; motivo: string }
-  | { accion: "deshacer" };
+  | { accion: "abrir"; nota?: string; permitir_otro?: boolean }
+  | { accion: "merma"; motivo: string; saco_id?: string }
+  | { accion: "deshacer"; saco_id?: string };
 
 export async function accionSaco(productoId: string, body: AccionSaco): Promise<SacoAccionResultado> {
   return fetchJson<SacoAccionResultado>(`/api/productos/${productoId}/saco`, {
@@ -56,6 +57,7 @@ export async function createVenta({
     es_granel?: boolean;
     gramos?: number;
     abrir_saco?: boolean;   // granel: el cajero confirmó abrir un saco nuevo (G1)
+    saco_id?: string;       // granel: saco elegido con varios abiertos (096)
   }[];
   clienteId?: string;
   workerClerkId?: string;

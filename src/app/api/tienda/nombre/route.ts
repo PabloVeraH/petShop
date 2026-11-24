@@ -8,14 +8,15 @@ import { autorizarCanales } from "@/lib/canales/infrastructure/autorizacion";
 // boleta debe identificar al comprador (pago mixto, plan F11; no es sensible). GET /api/settings es solo admin (SEC-07: tokens, licencia)
 // y el storeWorker veía "PetShop" (QA 2026-09-27). Solo expone `name` y `rut`:
 // el RUT de la tienda es público (va impreso en cada recibo, igual que en
-// /api/recibos/[ventaId]).
+// /api/recibos/[ventaId]). Desde la 095 también `vender_vencidos` (no sensible):
+// el POS lo usa para avisar o bloquear al agregar unidades de lotes vencidos.
 export const GET = withErrorLogging(async () => {
   const ctx = await autorizarCanales({ soloAdmin: false });
   if (!ctx.ok) return ctx.response;
 
   const { data, error } = await createServiceClient()
     .from("stores")
-    .select("name, rut, umbral_identificacion_comprador")
+    .select("name, rut, umbral_identificacion_comprador, vender_vencidos")
     .eq("id", ctx.storeId)
     .single();
 
@@ -24,5 +25,6 @@ export const GET = withErrorLogging(async () => {
     name: data.name,
     rut: data.rut ?? null,
     umbral_identificacion_comprador: data.umbral_identificacion_comprador ?? null,
+    vender_vencidos: data.vender_vencidos === true,
   });
 }, { endpoint: "GET /api/tienda/nombre" });
