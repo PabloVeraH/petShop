@@ -249,4 +249,44 @@ describe("SearchProductos", () => {
 
     await waitFor(() => expect(screen.queryByRole("img")).not.toBeInTheDocument());
   });
+
+  // C-118 — REGRESIÓN (mascotaspetshop, 2026-11-25): cada carácter era una
+  // request a /api/productos (~80 % del tráfico del POS) y la caja recibía 429.
+  describe("búsqueda con espera (C-118)", () => {
+    const INPUT = "Buscar por nombre, SKU o código de barra...";
+
+    it("C-118: escribir varias letras seguidas busca una sola vez, con el texto final", async () => {
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+      await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith(""));
+      mockGetProductos.mockClear();
+
+      const input = screen.getByPlaceholderText(INPUT);
+      for (const v of ["a", "al", "ali", "alim"]) fireEvent.change(input, { target: { value: v } });
+      expect(mockGetProductos).not.toHaveBeenCalled();
+
+      await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith("alim"));
+      expect(mockGetProductos).toHaveBeenCalledTimes(1);
+    });
+
+    it("C-118: el escaneo (código + Enter) busca el código de inmediato y una sola vez", async () => {
+      const codigo = "7801234567890";
+      mockGetProductos.mockImplementation((s: string) =>
+        Promise.resolve(s === codigo ? [prod({ id: "p11", nombre: "Escaneado", precio: 1000, codigo_barra: codigo })] : [])
+      );
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+      await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith(""));
+      mockGetProductos.mockClear();
+
+      const input = screen.getByPlaceholderText(INPUT);
+      for (let i = 1; i <= codigo.length; i++) fireEvent.change(input, { target: { value: codigo.slice(0, i) } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      await waitFor(() => expect(mockAddItem).toHaveBeenCalledWith(expect.objectContaining({ producto_id: "p11" })));
+      expect(mockGetProductos).toHaveBeenCalledTimes(1);
+      expect(mockGetProductos).toHaveBeenCalledWith(codigo);
+      // Pasada la espera, el campo vacío reusa la lista ya cargada: sin requests nuevas.
+      await new Promise((r) => setTimeout(r, 400));
+      expect(mockGetProductos).toHaveBeenCalledTimes(1);
+    });
+  });
 });

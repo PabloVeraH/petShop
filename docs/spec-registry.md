@@ -2736,6 +2736,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | I-840 | GET /api/ventas/[id] devuelve las notas internas (columna pedida explícitamente), filtrando por tienda | GET /api/ventas/[id] | integration |
 | C-116 | Detalle de venta: notas internas visibles fuera del ticket impreso; sin notas no hay bloque | SalesTicketPage | component |
 | C-117 | REGRESIÓN (mascotaspetshop, 2026-11-13): el alta de un systemAdmin envía el storeId de la página (antes undefined, y la cuenta no aparecía en el listado) | UsuariosCard | component |
+| C-118 | REGRESIÓN (mascotaspetshop, 2026-11-25): la búsqueda del POS espera a que el texto deje de cambiar (una request con el texto final, no una por carácter); el escaneo busca el código de inmediato y una sola vez | SearchProductos | component |
+| U-276 | El primer 429 de cada ventana queda en error_logs (usuario o IP, ruta, conteo, límite); los siguientes no; un insert fallido no cambia el 429 | rateLimit | unit |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
 | U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |
 | SEL-12 | SelectorPagos: un medio elegido en una fila queda deshabilitado en las demás, en ambos sentidos | SelectorPagos | component |

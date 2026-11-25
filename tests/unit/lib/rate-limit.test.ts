@@ -151,12 +151,16 @@ describe("aplicarRateLimit — por usuario con sesión (U-214)", () => {
 // si la RPC no responde.
 describe("rate limit con contador compartido en la BD (U-220..U-222)", () => {
   const mockRpc = jest.fn();
+  const mockInsert = jest.fn();
+  const mockFrom = jest.fn(() => ({ insert: mockInsert }));
   const envOriginal = { ...process.env };
 
   beforeEach(() => {
     jest.resetModules();
     mockRpc.mockReset();
-    jest.doMock("@/lib/supabase", () => ({ createServiceClient: () => ({ rpc: mockRpc }) }));
+    mockInsert.mockReset().mockResolvedValue({ error: null });
+    mockFrom.mockClear();
+    jest.doMock("@/lib/supabase", () => ({ createServiceClient: () => ({ rpc: mockRpc, from: mockFrom }) }));
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "clave-de-test";
   });
@@ -196,5 +200,50 @@ describe("rate limit con contador compartido en la BD (U-220..U-222)", () => {
 
     expect(await limite(req())).toBeNull();
     expect(((await limite(req())) as Response).status).toBe(429);
+  });
+
+  // U-276 — (mascotaspetshop, 2026-11-25): los 429 no dejaban rastro propio y
+  // la retención de logs del plan gratuito impedía saber quién y cuándo.
+  it("U-276: el primer 429 de la ventana queda en error_logs con usuario, ruta y límite; los siguientes no", async () => {
+    const fin = new Date(Date.now() + 60_000).toISOString();
+    mockRpc
+      .mockResolvedValueOnce({ data: [{ conteo: 601, ventana_fin: fin }], error: null })
+      .mockResolvedValueOnce({ data: [{ conteo: 602, ventana_fin: fin }], error: null });
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+    const r = new NextRequest("http://localhost/api/productos?search=a", { headers: { "user-agent": "caja-2" } });
+
+    expect(((await aplicarRateLimit(r, "user_a")) as Response).status).toBe(429);
+    expect(((await aplicarRateLimit(r, "user_a")) as Response).status).toBe(429);
+
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith("error_logs");
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: "user_a",
+      error_code: "RATE_LIMIT_EXCEEDED",
+      severity: "WARNING",
+      endpoint: "/api/productos",
+      user_agent: "caja-2",
+      context: { limitador: "usuario", clave: "user:user_a", conteo: 601, limite: 600 },
+    }));
+  });
+
+  it("U-276: sin sesión registra la clave por IP sin user_id; si el insert falla, el 429 se responde igual", async () => {
+    mockRpc.mockResolvedValue({ data: [{ conteo: 101, ventana_fin: new Date(Date.now() + 60_000).toISOString() }], error: null });
+    mockInsert.mockRejectedValue(new Error("BD caída"));
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+
+    expect(((await aplicarRateLimit(req(), null)) as Response).status).toBe(429);
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: null,
+      context: expect.objectContaining({ limitador: "api", clave: "unknown" }),
+    }));
+  });
+
+  it("U-276: bajo el límite no se registra nada", async () => {
+    mockRpc.mockResolvedValue({ data: [{ conteo: 600, ventana_fin: new Date(Date.now() + 60_000).toISOString() }], error: null });
+    const { aplicarRateLimit } = await import("@/middleware/rateLimit");
+
+    expect(await aplicarRateLimit(req(), "user_a")).toBeNull();
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });

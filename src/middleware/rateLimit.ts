@@ -41,6 +41,27 @@ async function contarEnBd(clave: string, windowMs: number): Promise<{ count: num
   }
 }
 
+// El primer 429 de cada ventana queda en error_logs (uno por ventana, no uno
+// por request bloqueada). Sin esto, saber quién y cuándo agotó el cupo
+// dependía de la retención de logs de Vercel/Supabase (mascotaspetshop,
+// 2026-11-25). Un fallo al registrar no cambia la respuesta.
+async function registrarLimiteAgotado(req: NextRequest, nombre: string, clave: string, conteo: number, limite: number): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  try {
+    await createServiceClient().from("error_logs").insert({
+      user_id: clave.startsWith("user:") ? clave.slice("user:".length) : null,
+      error_code: "RATE_LIMIT_EXCEEDED",
+      error_message: `Rate limit "${nombre}" agotado: ${limite} requests por ventana`,
+      context: { limitador: nombre, clave, conteo, limite },
+      severity: "WARNING",
+      endpoint: req.nextUrl.pathname.slice(0, 200),
+      user_agent: req.headers.get("user-agent"),
+    });
+  } catch {
+    // sin registro; el 429 se responde igual
+  }
+}
+
 export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
   const finalConfig = { ...defaultConfig, ...config };
   // Contadores propios de cada limitador. Con un diccionario compartido, la
@@ -78,6 +99,9 @@ export function createRateLimit(config: Partial<RateLimitConfig> = {}) {
         message: `Rate limit exceeded for ${key}: ${entrada.count} requests`,
         metadata: { clave: key, count: entrada.count, limit: finalConfig.maxRequests },
       });
+      if (entrada.count === finalConfig.maxRequests + 1) {
+        await registrarLimiteAgotado(req, finalConfig.nombre, key, entrada.count, finalConfig.maxRequests);
+      }
 
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },
