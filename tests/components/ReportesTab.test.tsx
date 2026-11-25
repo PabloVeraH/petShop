@@ -1,5 +1,5 @@
 /**
- * Tests RC-01 a RC-16 y RHV-C-01 a RHV-C-09: ReportesTab — renderizado, PieChart, tooltip y export CSV
+ * Tests RC-01 a RC-16 y RHV-C-01 a RHV-C-11: ReportesTab — renderizado, PieChart, tooltip y export CSV
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
@@ -405,5 +405,59 @@ describe("ReportesTab — Hoy y vendedor", () => {
     await act(async () => { soltar30({ ok: true, json: async () => ({ ...MOCK_DATA, totalPeriodo: 999 }) }); });
     expect(screen.getByText("$111")).toBeInTheDocument();
     expect(screen.queryByText("$999")).not.toBeInTheDocument();
+  });
+});
+
+// ── Suite: indicador de carga al cambiar de filtro ───────────────────────────
+
+describe("ReportesTab — indicador de carga", () => {
+  let soltar: (v: unknown) => void;
+
+  // La primera carga responde al tiro; las siguientes quedan en vuelo.
+  async function cargadoYEnVuelo() {
+    let n = 0;
+    (global.fetch as jest.Mock).mockReset().mockImplementation((url: string) => {
+      if (url === "/api/workers") return Promise.resolve({ ok: true, json: async () => [{ clerk_id: "user_ana", nombre: "Ana", email: "a@x.cl" }] });
+      if (n++ === 0) return Promise.resolve({ ok: true, json: async () => MOCK_DATA });
+      return new Promise((r) => { soltar = r; });
+    });
+    mockUserMeta = { storeAdmin: true };
+    render(<ReportesTab />);
+    await waitForData();
+    await screen.findByRole("option", { name: "Ana" });
+  }
+  const contenido = () => screen.getByText("Total Ventas período").closest(".space-y-6")!;
+
+  it.each([
+    ["días", () => fireEvent.click(screen.getByText("Hoy"))],
+    ["canal", () => fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "pos" } })],
+    ["vendedor", () => fireEvent.change(screen.getByLabelText("Vendedor"), { target: { value: "user_ana" } })],
+  ])("RHV-C-10: al cambiar %s aparece el ícono girando sobre los datos atenuados y desaparece al llegar los nuevos", async (_f, cambiar) => {
+    await cargadoYEnVuelo();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(contenido()).not.toHaveClass("opacity-40");
+
+    cambiar();
+    const aviso = screen.getByRole("status");
+    expect(aviso).toHaveTextContent("Cargando...");
+    expect(aviso.querySelector("svg.animate-spin")).toBeInTheDocument();
+    expect(contenido()).toHaveClass("opacity-40");
+
+    await act(async () => { soltar({ ok: true, json: async () => ({ ...MOCK_DATA, totalPeriodo: 111 }) }); });
+    expect(screen.getByText("$111")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(contenido()).not.toHaveClass("opacity-40");
+  });
+
+  it("RHV-C-11: también desaparece si la carga falla, y no aparece al elegir el mismo período", async () => {
+    await cargadoYEnVuelo();
+    fireEvent.click(screen.getByText("30 días"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Hoy"));
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    await act(async () => { soltar({ ok: false, json: async () => ({ error: "Error interno" }) }); });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar los reportes");
   });
 });

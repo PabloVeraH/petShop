@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { hoyNegocioISO } from "@/lib/dates";
 import { useUser } from "@clerk/nextjs";
+import { Loader2 } from "lucide-react";
 import MontoBoleta from "./MontoBoleta";
 
 interface ReportsData {
@@ -501,10 +502,20 @@ export default function ReportesTab() {
 
       {loadError && !loading && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
 
-      {loading && <div className="text-gray-500">Cargando...</div>}
+      <div className="relative" aria-busy={loading}>
+      {/* Al cambiar de filtro los datos anteriores quedan atenuados debajo del
+          indicador hasta que llegan los nuevos. */}
+      {loading && (
+        <div role="status" className={data ? "absolute inset-x-0 top-20 z-10 flex justify-center" : "flex justify-center py-20"}>
+          <span className="flex items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 shadow-lg">
+            <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-green-600" />
+            Cargando...
+          </span>
+        </div>
+      )}
 
       {data && (
-        <div className="space-y-6">
+        <div className={`space-y-6 transition-opacity ${loading ? "opacity-40 pointer-events-none" : ""}`}>
           {/* KPIs */}
           <div className="grid grid-cols-4 gap-4">
             {[
@@ -630,6 +641,7 @@ export default function ReportesTab() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
