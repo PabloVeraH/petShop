@@ -9,8 +9,12 @@ type Supabase = ReturnType<typeof createServiceClient>;
 export type PagoReporte = { metodo: string; monto: number };
 export type VentaReporte = { id: string; total: number | string; metodo_pago?: string | null; canal?: string | null };
 
-// Una sola query (sin N+1), acotada a la tienda de la sesión: el service role
-// omite RLS, así que el filtro store_id es la única barrera (AGENTS.md §6).
+// Sin N+1: una query por cada 100 ventas (los ids viajan en la URL y la API
+// devuelve como máximo 1.000 filas; con hasta 5 pagos por venta no se corta).
+// Acotada a la tienda de la sesión: el service role omite RLS, así que el
+// filtro store_id es la única barrera (AGENTS.md §6).
+const VENTAS_POR_QUERY = 100;
+
 export async function cargarPagosPorVenta(
   supabase: Supabase,
   storeId: string,
@@ -19,12 +23,12 @@ export async function cargarPagosPorVenta(
   const porVenta = new Map<string, PagoReporte[]>();
   const ids = [...new Set(ventaIds.filter(Boolean))];
   if (ids.length === 0) return porVenta;
-  const { data } = await supabase
-    .from("pagos")
-    .select("venta_id, metodo, monto")
-    .eq("store_id", storeId)
-    .in("venta_id", ids);
-  for (const p of (data ?? []) as { venta_id: string; metodo: string; monto: number | string }[]) {
+  const lotes: string[][] = [];
+  for (let i = 0; i < ids.length; i += VENTAS_POR_QUERY) lotes.push(ids.slice(i, i + VENTAS_POR_QUERY));
+  const respuestas = await Promise.all(lotes.map((lote) =>
+    supabase.from("pagos").select("venta_id, metodo, monto").eq("store_id", storeId).in("venta_id", lote)
+  ));
+  for (const p of respuestas.flatMap((r) => r.data ?? []) as { venta_id: string; metodo: string; monto: number | string }[]) {
     if (!p.venta_id) continue;
     const lista = porVenta.get(p.venta_id) ?? [];
     lista.push({ metodo: p.metodo, monto: Number(p.monto) });

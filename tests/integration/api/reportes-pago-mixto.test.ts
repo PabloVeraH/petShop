@@ -18,7 +18,7 @@ jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from:
 type Chain = Record<string, jest.Mock>;
 function chain(data: unknown[] = []): Chain {
   const c: Chain = {};
-  for (const k of ["select", "eq", "neq", "gte", "lte", "lt", "gt", "in", "not", "order", "limit", "insert"]) {
+  for (const k of ["select", "eq", "neq", "gte", "lte", "lt", "gt", "in", "not", "order", "range", "limit", "insert"]) {
     c[k] = jest.fn().mockReturnValue(c);
   }
   c.single = jest.fn().mockResolvedValue({ data: null, error: null });

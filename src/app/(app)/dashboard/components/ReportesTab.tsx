@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import MontoBoleta from "./MontoBoleta";
 
 interface ReportsData {
-  periodo: number;
+  periodo: number | "hoy";
   totalPeriodo: number;
   totalTransacciones: number;
   ticketPromedio: number;
@@ -23,6 +23,7 @@ interface ReportsData {
 }
 
 const PERIODOS = [
+  { label: "Hoy", value: "hoy" },
   { label: "7 días", value: "7" },
   { label: "30 días", value: "30" },
   { label: "90 días", value: "90" },
@@ -51,6 +52,18 @@ const CANAL_LABELS: Record<string, { label: string; hex: string }> = {
   pedidosya: { label: "PedidosYa", hex: "#ef4444" },
   ubereats:  { label: "Uber Eats", hex: "#16a34a" },
 };
+
+interface Vendedor {
+  clerk_id: string;
+  nombre: string | null;
+  email: string;
+}
+
+const nombreVendedor = (v: Vendedor) => v.nombre?.trim() || v.email;
+
+// Para el nombre del archivo exportado: "José Pérez" → "jose-perez".
+const paraArchivo = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 function fmt(n: number) {
   return `$${Math.round(n).toLocaleString("es-CL")}`;
@@ -336,12 +349,16 @@ function DayChart({ data }: { data: [string, { total: number; transacciones: num
 export default function ReportesTab() {
   const [periodo, setPeriodo] = useState("30");
   const [canal, setCanal] = useState("");
+  const [vendedor, setVendedor] = useState("");
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [data, setData] = useState<ReportsData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<"ventas" | "inventario" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  // Ocultar el export al storeWorker es conveniencia de UX: el control real
-  // es el servidor (GET /api/reports/export → 403 si no es admin).
+  // Ocultar el export y el selector de vendedor al storeWorker es conveniencia
+  // de UX: el control real es el servidor (GET /api/reports/export y
+  // GET /api/reports?vendedor= → 403 si no es admin).
   const { user } = useUser();
   const meta = user?.publicMetadata as Record<string, unknown> | undefined;
   const isAdmin = !!(meta?.storeAdmin || meta?.systemAdmin);
@@ -349,18 +366,54 @@ export default function ReportesTab() {
   // loading vuelve a true en los handlers que cambian el filtro (no dentro del
   // efecto: setState síncrono en un efecto provoca un render en cascada).
   useEffect(() => {
+    // Una respuesta atrasada de otro filtro no debe pisar la actual.
+    let vigente = true;
     const params = new URLSearchParams({ periodo });
     if (canal) params.set("canal", canal);
+    if (vendedor) params.set("vendedor", vendedor);
     fetch(`/api/reports?${params}`)
       .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); });
-  }, [periodo, canal]);
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        if (!vigente) return;
+        setData(d);
+        setLoadError(null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!vigente) return;
+        // Sin datos: dejar los del filtro anterior los haría pasar por estos.
+        setData(null);
+        setLoadError("No se pudieron cargar los reportes. Intenta de nuevo.");
+        setLoading(false);
+      });
+    return () => { vigente = false; };
+  }, [periodo, canal, vendedor]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/workers")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setVendedores(d); })
+      .catch(() => {}); // sin lista queda "Todos los vendedores"
+  }, [isAdmin]);
 
   async function handleExport(tipo: "ventas" | "inventario") {
     setExporting(tipo);
     setExportError(null);
+    // El CSV de ventas lleva los mismos filtros que la pantalla.
+    const params = new URLSearchParams({ tipo });
+    let nombreArchivo: string = tipo;
+    if (tipo === "ventas") {
+      params.set("periodo", periodo);
+      if (canal) params.set("canal", canal);
+      if (vendedor) params.set("vendedor", vendedor);
+      const elegido = vendedores.find((v) => v.clerk_id === vendedor);
+      nombreArchivo = [tipo, periodo === "hoy" ? "hoy" : `${periodo}dias`, canal, elegido ? paraArchivo(nombreVendedor(elegido)) : ""]
+        .filter(Boolean).join("-");
+    }
     try {
-      const res = await fetch(`/api/reports/export?tipo=${tipo}`);
+      const res = await fetch(`/api/reports/export?${params}`);
       // Sin esto un 403/500 se descargaba como si fuera el CSV.
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -369,7 +422,7 @@ export default function ReportesTab() {
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${tipo}-${hoyNegocioISO()}.csv`;
+      a.download = `${nombreArchivo}-${hoyNegocioISO()}.csv`;
       a.click();
     } catch (e) {
       setExportError(`No se pudo exportar: ${e instanceof Error ? e.message : String(e)}`);
@@ -381,8 +434,9 @@ export default function ReportesTab() {
   return (
     <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <select
+            aria-label="Canal"
             value={canal}
             onChange={(e) => { setLoading(true); setCanal(e.target.value); }}
             className="border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-700 bg-white"
@@ -393,6 +447,21 @@ export default function ReportesTab() {
               </option>
             ))}
           </select>
+          {isAdmin && (
+            <select
+              aria-label="Vendedor"
+              value={vendedor}
+              onChange={(e) => { setLoading(true); setVendedor(e.target.value); }}
+              className="max-w-56 border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-700 bg-white"
+            >
+              <option value="">Todos los vendedores</option>
+              {vendedores.map((v) => (
+                <option key={v.clerk_id} value={v.clerk_id}>
+                  {nombreVendedor(v)}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="flex border border-gray-200 rounded-md overflow-hidden">
             {PERIODOS.map((p) => (
               <button
@@ -430,6 +499,8 @@ export default function ReportesTab() {
       </div>
       {exportError && <p role="alert" className="text-sm text-red-700 -mt-4 mb-4">{exportError}</p>}
 
+      {loadError && !loading && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
+
       {loading && <div className="text-gray-500">Cargando...</div>}
 
       {data && (
@@ -442,8 +513,8 @@ export default function ReportesTab() {
               { label: "Venta promedio de Venta", value: fmt(data.ticketPromedio) },
               {
                 label: "Predicción prox. 7 días",
-                value: data.prediccion7dias != null ? fmt(data.prediccion7dias) : "Datos insuficientes",
-                sub: data.prediccion7dias != null ? `~${fmt(data.promedioDiario)}/día` : "Mínimo 10 ventas requeridas",
+                value: data.prediccion7dias != null ? fmt(data.prediccion7dias) : data.periodo === "hoy" ? "No aplica" : "Datos insuficientes",
+                sub: data.prediccion7dias != null ? `~${fmt(data.promedioDiario)}/día` : data.periodo === "hoy" ? "Elige 7 días o más" : "Mínimo 10 ventas requeridas",
               },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-white rounded-lg border border-gray-200 p-4">

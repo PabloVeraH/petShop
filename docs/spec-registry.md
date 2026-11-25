@@ -2787,3 +2787,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | VGV-C-08 | Devolución de una línea por valor muestra lo cobrado (también con descuento y parcial) | DevolucionModal | component |
 | VGV-C-09…10 | Opción "Venta a granel" en /settings: gramos por defecto, PATCH valor/gramos, error 403 visible | SettingsPage | component |
 | VGV-I-13 | POST /api/notas-credito con la misma línea repetida → 400 sin RPC | POST /api/notas-credito | integration |
+| RHV-U-01…02 | inicioPeriodo: "hoy" = 00:00 de Chile (verano, invierno y de noche); N = últimos N días | src/lib/dates.ts | unit |
+| RHV-U-03 | cargarPagosPorVenta por lotes de 100 ventas, siempre con store_id | src/lib/reports/pagos-reporte.ts | unit |
+| RHV-I-01…08 | GET /api/reports: período Hoy (hora de Chile, sin predicción), filtro por vendedor solo para admin de la tienda (403 sin consultar), tienda de la sesión, inválidos 400, 401 | GET /api/reports | integration |
+| RHV-I-09…14 | GET /api/reports/export: respeta período, canal y vendedor (mismo inicio que la pantalla); anuladas incluidas; REGRESIÓN: más de 1.000 ventas salen completas; error de BD → 500; 403/400; auditoría con filtros | GET /api/reports/export | integration |
+| RHV-C-01…09 | ReportesTab: "Hoy" antes de 7 días, selector de vendedor solo admin, CSV con los filtros y su nombre de archivo, inventario sin filtros, errores visibles, respuesta atrasada no pisa la actual | ReportesTab | component |

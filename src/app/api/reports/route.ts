@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { ReportsQuerySchema } from "@/lib/validation";
 import { withErrorLogging } from "@/lib/audit";
-import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
+import { exigirStoreAdmin } from "@/lib/admin-check";
+import { fechaNegocioDeTimestamp, hoyNegocioISO, inicioPeriodo } from "@/lib/dates";
 import { cargarPagosPorVenta, metodosParaAgrupar, resumenBoleta, ventasConPagos } from "@/lib/reports/pagos-reporte";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
@@ -14,20 +15,26 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   const qParsed = ReportsQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!qParsed.success) return NextResponse.json({ error: qParsed.error.issues[0].message }, { status: 400 });
-  const { periodo, canal } = qParsed.data;
-  const desde = new Date();
-  desde.setDate(desde.getDate() - periodo);
+  const { periodo, canal, vendedor } = qParsed.data;
+  // Ver lo vendido por una persona es solo de administradores de la tienda.
+  if (vendedor) {
+    const denegado = await exigirStoreAdmin(store_id);
+    if (denegado) return denegado;
+  }
 
   let query = supabase
     .from("ventas")
     .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, procedencia, clientes(nombre)")
     .eq("store_id", store_id)
     .neq("estado", "anulada")
-    .gte("created_at", desde.toISOString())
+    .gte("created_at", inicioPeriodo(periodo))
     .order("created_at");
 
   if (canal) {
     query = query.eq("canal", canal);
+  }
+  if (vendedor) {
+    query = query.eq("worker_clerk_id", vendedor);
   }
 
   const { data: ventas } = await query;
@@ -120,8 +127,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // inflando la proyección ~3.8x cuando las ventas eran esporádicas.
   const MIN_VENTAS_PREDICCION = 10;
   const totalVentasCount = totalTransacciones;
-  const promedioDiario = totalPeriodo / periodo;
-  const prediccion7dias: number | null = totalVentasCount >= MIN_VENTAS_PREDICCION
+  // "Hoy" es un día a medias: no sirve para proyectar.
+  const promedioDiario = totalPeriodo / (periodo === "hoy" ? 1 : periodo);
+  const prediccion7dias: number | null = periodo !== "hoy" && totalVentasCount >= MIN_VENTAS_PREDICCION
     ? Math.round(promedioDiario * 7)
     : null;
 
@@ -175,7 +183,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   }
 
   return NextResponse.json({
-    periodo: Number(periodo),
+    periodo,
     totalPeriodo,
     totalTransacciones,
     ticketPromedio: totalTransacciones ? Math.round(totalPeriodo / totalTransacciones) : 0,
