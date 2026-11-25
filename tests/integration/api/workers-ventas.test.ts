@@ -8,6 +8,9 @@ const mockFrom = jest.fn();
 jest.mock("@/lib/auth", () => ({ getStoreId: mockGetStoreId }));
 jest.mock("@/lib/supabase", () => ({ createServiceClient: jest.fn(() => ({ from: mockFrom })) }));
 
+let mockClaims: Record<string, unknown> | null = null;
+jest.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ sessionClaims: mockClaims }) }));
+
 const mockVentas = [
   { id: "v1", numero_comprobante: "001", total: 50000, metodo_pago: "efectivo", estado: "completada", created_at: "2026-06-01T10:00:00Z", clientes: null },
 ];
@@ -40,6 +43,32 @@ describe("GET /api/workers/[clerkId]/ventas", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockClaims = { sub: "u1", publicMetadata: { storeAdmin: true, storeId: STORE_ID } };
+  });
+
+  // RHV-I-20…21: cualquier usuario de la tienda podía leer las ventas de otro.
+  it.each([
+    ["storeWorker", { publicMetadata: { storeWorker: true, storeId: STORE_ID } }],
+    ["storeAdmin de OTRA tienda", { publicMetadata: { storeAdmin: true, storeId: "otra" } }],
+    ["sin claims", null],
+  ])("RHV-I-20 (seguridad): %s pide las ventas de otra persona → 403 sin consultar", async (_r, claims) => {
+    mockClaims = claims;
+    makeSUT();
+    const { GET } = await import("@/app/api/workers/[clerkId]/ventas/route");
+    const res = await GET(new NextRequest("http://localhost/api/workers/c1/ventas"), { params: Promise.resolve({ clerkId: "c1" }) });
+    expect(res.status).toBe(403);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("RHV-I-21: el storeWorker sí ve las suyas, dentro de su tienda", async () => {
+    mockClaims = { publicMetadata: { storeWorker: true, storeId: STORE_ID } };
+    const ventas = makeVentasChain();
+    mockFrom.mockImplementation((t: string) => (t === "notas_credito" ? makeNCChain() : ventas));
+    const { GET } = await import("@/app/api/workers/[clerkId]/ventas/route");
+    const res = await GET(new NextRequest("http://localhost/api/workers/u1/ventas"), { params: Promise.resolve({ clerkId: "u1" }) });
+    expect(res.status).toBe(200);
+    expect(ventas.eq).toHaveBeenCalledWith("worker_clerk_id", "u1");
+    expect(ventas.eq).toHaveBeenCalledWith("store_id", STORE_ID);
   });
 
   function makeSUT(ventasData = mockVentas, ncData: Array<{ monto_total: number; venta_id: string }> = []) {

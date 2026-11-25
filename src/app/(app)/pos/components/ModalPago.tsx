@@ -26,12 +26,11 @@ const PROCEDENCIAS = [
 
 const DESCUENTOS_RAPIDOS = [5, 10, 15, 20];
 
+// GET /api/workers: a un vendedor solo le llegan clerk_id y nombre.
 type Worker = {
   clerk_id: string;
   nombre: string | null;
-  email: string;
-  ventas_mes: number;
-  ventas_hoy: number;
+  email?: string;
 };
 
 interface ModalPagoProps {

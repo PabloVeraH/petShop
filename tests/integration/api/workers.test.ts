@@ -87,6 +87,42 @@ describe("GET /api/workers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+    mockAuth.mockResolvedValue({ userId: "u1", sessionClaims: { sub: "u1", publicMetadata: { storeId: STORE_ID, storeAdmin: true } } });
+  });
+
+  // RHV-I-18…19: el storeWorker recibía ventas, meta, RUT y correo de los demás.
+  it.each([
+    ["storeWorker", { sub: "u1", publicMetadata: { storeId: STORE_ID, storeWorker: true } }],
+    ["storeAdmin de OTRA tienda", { sub: "u1", publicMetadata: { storeId: "otra", storeAdmin: true } }],
+    ["sin metadata", {}],
+    ["sin claims", null],
+  ])("RHV-I-18 (seguridad): %s solo recibe clerk_id y nombre, sin consultar ventas", async (_r, sessionClaims) => {
+    mockAuth.mockResolvedValue({ userId: "u1", sessionClaims });
+    const users = {
+      ...makeWorkerChain(),
+      data: [
+        { clerk_id: "c1", nombre: "Ana", email: "ana@x.cl", rut: "1-9", meta_ventas: 500000, store_admin: false, store_worker: true },
+        { clerk_id: "c2", nombre: null, email: "sin@x.cl", rut: null, meta_ventas: null, store_admin: true, store_worker: false },
+      ],
+    };
+    mockFrom.mockImplementation((t: string) => (t === "clerk_users" ? users : makeVentasChain([])));
+    const { GET } = await import("@/app/api/workers/route");
+    const res = await GET(new NextRequest("http://localhost/api/workers"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([{ clerk_id: "c1", nombre: "Ana" }, { clerk_id: "c2", nombre: "sin@x.cl" }]);
+    expect(mockFrom.mock.calls.map(([t]) => t)).toEqual(["clerk_users"]);
+    expect(users.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+  });
+
+  it("RHV-I-19: storeAdmin y systemAdmin siguen recibiendo ventas y meta", async () => {
+    mockFrom.mockImplementation((t: string) =>
+      t === "clerk_users" ? makeWorkerChain() : t === "notas_credito" ? makeNCChain([]) : makeVentasChain([{ id: "v1", worker_clerk_id: "c1", total: 1000 }]));
+    const { GET } = await import("@/app/api/workers/route");
+    for (const publicMetadata of [{ storeId: STORE_ID, storeAdmin: true }, { systemAdmin: true }]) {
+      mockAuth.mockResolvedValue({ userId: "u1", sessionClaims: { sub: "u1", publicMetadata } });
+      const [w] = await (await GET(new NextRequest("http://localhost/api/workers"))).json();
+      expect(w).toMatchObject({ clerk_id: "c1", email: "w1@test.com", meta_ventas: null, ventas_mes: 1000, ventas_hoy: 1000 });
+    }
   });
 
   it("I-256: retorna 401 si no autenticado", async () => {

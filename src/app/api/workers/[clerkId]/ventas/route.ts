@@ -2,6 +2,7 @@ import { getStoreId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { withErrorLogging } from "@/lib/audit";
+import { exigirStoreAdmin } from "@/lib/admin-check";
 
 export const GET = withErrorLogging(async (req: NextRequest,
   { params }: { params: Promise<{ clerkId: string }> }) => {
@@ -9,6 +10,11 @@ export const GET = withErrorLogging(async (req: NextRequest,
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { storeId } = ctx;
   const { clerkId } = await params;
+  // Cada uno ve lo suyo; las ventas de otra persona, solo un administrador.
+  if (clerkId !== ctx.userId) {
+    const denegado = await exigirStoreAdmin(storeId);
+    if (denegado) return denegado;
+  }
 
   const desde = req.nextUrl.searchParams.get("desde");
   const hasta = req.nextUrl.searchParams.get("hasta");

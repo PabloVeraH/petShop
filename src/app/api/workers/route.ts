@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { WorkerUpdateSchema } from "@/lib/validation";
-import { getAdminStatus } from "@/lib/admin-check";
+import { exigirStoreAdmin, getAdminStatus } from "@/lib/admin-check";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { hoyNegocioISO, inicioDiaNegocio, inicioMesNegocio } from "@/lib/dates";
 
@@ -22,6 +22,14 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     .order("nombre");
 
   if (error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
+
+  // El vendedor solo necesita la lista para "Asignar a vendedor" en el POS: lo
+  // vendido, la meta, el RUT y el correo de los demás son de administradores.
+  if (await exigirStoreAdmin(storeId)) {
+    return NextResponse.json(
+      (users ?? []).map((u) => ({ clerk_id: u.clerk_id, nombre: u.nombre?.trim() || u.email }))
+    );
+  }
 
   // Inicio del mes y del día en hora de Chile (setHours usaba el huso del
   // proceso, UTC en Vercel).

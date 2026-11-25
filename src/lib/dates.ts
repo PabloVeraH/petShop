@@ -136,6 +136,15 @@ export function rangoDiaNegocio(fechaISO: string): { desde: string; hasta: strin
   };
 }
 
+// Inicio (ISO UTC) del período de un reporte: "hoy" = desde las 00:00 de
+// Chile; un número = los últimos N días contados desde este momento.
+export function inicioPeriodo(periodo: "hoy" | number, ahora: Date = new Date()): string {
+  if (periodo === "hoy") return inicioDiaNegocio(hoyNegocioISO(ahora)).toISOString();
+  const desde = new Date(ahora);
+  desde.setDate(desde.getDate() - periodo);
+  return desde.toISOString();
+}
+
 // Instante (ISO UTC) en que empezó el mes en curso del negocio.
 export function inicioMesNegocio(ahora: Date = new Date()): string {
   return inicioDiaNegocio(`${hoyNegocioISO(ahora).slice(0, 7)}-01`).toISOString();

@@ -38,6 +38,17 @@ describe("pagos-reporte", () => {
     ]);
   });
 
+  it("RHV-U-03: más de 100 ventas se piden por lotes de 100, siempre con store_id, sin perder pagos", async () => {
+    const ids = Array.from({ length: 250 }, (_, i) => `v${i}`);
+    const { supabase, c } = supabaseCon([]);
+    c.in.mockImplementation((_col: string, lote: string[]) =>
+      Promise.resolve({ data: lote.map((id) => ({ venta_id: id, metodo: "efectivo", monto: 1 })), error: null }));
+    const mapa = await cargarPagosPorVenta(supabase, STORE, ids);
+    expect(c.in.mock.calls.map(([, lote]) => lote.length)).toEqual([100, 100, 50]);
+    expect(c.eq.mock.calls).toEqual([["store_id", STORE], ["store_id", STORE], ["store_id", STORE]]);
+    expect([...mapa.keys()].sort()).toEqual([...ids].sort());
+  });
+
   it("U-271: sin ventas no consulta la BD", async () => {
     const { supabase, from } = supabaseCon([]);
     const mapa = await cargarPagosPorVenta(supabase, STORE, []);

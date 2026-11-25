@@ -10,7 +10,7 @@
 import {
   formatDateOnlyEsCL, parseDateOnlyLocal, hoyNegocioISO, hoyNegocioCompacto, anioMesNegocio,
   sumarDiasISO, diasEntreISO, fechaNegocioDeTimestamp, fechaNegocioISO, inicioDiaNegocio,
-  rangoDiaNegocio, inicioMesNegocio, diaSemanaNegocio,
+  rangoDiaNegocio, inicioMesNegocio, diaSemanaNegocio, inicioPeriodo,
 } from "@/lib/dates";
 
 describe("parseDateOnlyLocal", () => {
@@ -100,5 +100,20 @@ describe("fechas del negocio (America/Santiago)", () => {
     });
     // 31-10-2026 22:00 Chile = 01-11 01:00 UTC → el mes en curso sigue siendo octubre.
     expect(inicioMesNegocio(new Date("2026-11-01T01:00:00Z"))).toBe("2026-10-01T03:00:00.000Z");
+  });
+});
+
+describe("inicioPeriodo (reportes)", () => {
+  it("RHV-U-01: hoy = 00:00 de Chile del día en curso, en verano (UTC−3) e invierno (UTC−4) y de noche", () => {
+    expect(inicioPeriodo("hoy", new Date("2026-11-24T15:00:00Z"))).toBe("2026-11-24T03:00:00.000Z");
+    expect(inicioPeriodo("hoy", new Date("2026-11-25T02:59:59Z"))).toBe("2026-11-24T03:00:00.000Z");
+    expect(inicioPeriodo("hoy", new Date("2026-11-25T03:00:00Z"))).toBe("2026-11-25T03:00:00.000Z");
+    expect(inicioPeriodo("hoy", new Date("2026-07-11T02:00:00Z"))).toBe("2026-07-10T04:00:00.000Z");
+  });
+
+  it("RHV-U-02: un número son los últimos N días y no modifica la fecha recibida", () => {
+    const ahora = new Date("2026-11-24T15:00:00Z");
+    expect(Math.round((ahora.getTime() - Date.parse(inicioPeriodo(7, ahora))) / 86_400_000)).toBe(7);
+    expect(ahora.toISOString()).toBe("2026-11-24T15:00:00.000Z");
   });
 });

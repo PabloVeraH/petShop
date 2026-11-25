@@ -184,7 +184,16 @@ export const FidelizacionQuerySchema = z.object({
   clienteId: z.string().uuid("clienteId debe ser un UUID válido"),
 });
 
+const PeriodoReporteSchema = z.union([z.literal("hoy"), z.coerce.number().int().positive().max(365)]);
+
 export const ReportsQuerySchema = z.object({
-  periodo: z.coerce.number().int().positive().max(365).default(30),
+  periodo: PeriodoReporteSchema.default(30),
   canal: z.string().optional(),
+  // clerk_id del vendedor; solo lo acepta un administrador de la tienda.
+  vendedor: z.string().trim().max(255).optional(),
+});
+
+// Export: los mismos filtros de la pantalla. Sin período no limita la fecha.
+export const ReportsExportQuerySchema = ReportsQuerySchema.extend({
+  periodo: PeriodoReporteSchema.optional(),
 });

@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { logAudit, getRequestMetadata, withErrorLogging } from "@/lib/audit";
 import { exigirStoreAdmin } from "@/lib/admin-check";
-import { hoyNegocioISO, instanteDeTimestamp, ZONA_NEGOCIO } from "@/lib/dates";
+import { ReportsExportQuerySchema } from "@/lib/validation";
+import { hoyNegocioISO, inicioPeriodo, instanteDeTimestamp, ZONA_NEGOCIO } from "@/lib/dates";
 import { calcularMontoBoleta, etiquetaMetodo } from "@/lib/ventas/pagos";
 import { cargarPagosPorVenta, esVentaPos, pagosDeVenta } from "@/lib/reports/pagos-reporte";
+import { leerPaginas } from "@/lib/reports/paginas";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -20,6 +22,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   const tipo = req.nextUrl.searchParams.get("tipo") ?? "ventas";
   const desde = req.nextUrl.searchParams.get("desde") ?? "";
   const hasta = req.nextUrl.searchParams.get("hasta") ?? "";
+  const qParsed = ReportsExportQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
+  if (!qParsed.success) return NextResponse.json({ error: qParsed.error.issues[0].message }, { status: 400 });
+  const { periodo, canal, vendedor } = qParsed.data;
 
   const esc = (v: unknown) => {
     const s = String(v ?? "");
@@ -29,19 +34,32 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   let csv = "";
 
   if (tipo === "ventas") {
-    let query = supabase
-      .from("ventas")
-      .select("id, numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, canal, estado, worker_clerk_id, clientes(nombre, rut)")
-      .eq("store_id", store_id)
-      .order("created_at", { ascending: false });
-    if (desde) query = query.gte("created_at", desde);
-    if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
-
-    const { data } = await query;
+    // El tope de fecha fija el conjunto: una venta nueva entre una página y
+    // otra las correría.
+    const desdePeriodo = periodo === undefined ? "" : inicioPeriodo(periodo);
+    const ahora = new Date().toISOString();
+    const { data, error } = await leerPaginas((desdeFila, hastaFila) => {
+      let query = supabase
+        .from("ventas")
+        .select("id, numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, canal, estado, worker_clerk_id, clientes(nombre, rut)")
+        .eq("store_id", store_id)
+        .lte("created_at", ahora);
+      if (desdePeriodo) query = query.gte("created_at", desdePeriodo);
+      if (desde) query = query.gte("created_at", desde);
+      if (hasta) query = query.lte("created_at", hasta + "T23:59:59");
+      if (canal) query = query.eq("canal", canal);
+      if (vendedor) query = query.eq("worker_clerk_id", vendedor);
+      return query
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(desdeFila, hastaFila);
+    });
+    // Un CSV vacío o a medias se confundiría con "no hubo ventas".
+    if (error || !data) return NextResponse.json({ error: "Error interno" }, { status: 500 });
 
     // Vendedor: solo el nombre (como el recibo), nunca el email. Los
     // clerk_id salen de ventas ya filtradas por store_id.
-    const workerIds = [...new Set((data ?? []).map((v) => v.worker_clerk_id).filter(Boolean))] as string[];
+    const workerIds = [...new Set(data.map((v) => v.worker_clerk_id).filter(Boolean))] as string[];
     const nombreVendedor: Record<string, string> = {};
     if (workerIds.length > 0) {
       const { data: workers } = await supabase
@@ -51,11 +69,11 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       for (const w of workers ?? []) if (w.nombre) nombreVendedor[w.clerk_id] = w.nombre;
     }
 
-    // Pagos de todas las ventas exportadas en una sola query (store_id de la sesión).
-    const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, (data ?? []).map((v) => v.id));
+    // Pagos de todas las ventas exportadas (store_id de la sesión).
+    const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, data.map((v) => v.id));
 
     csv = "Comprobante,Fecha,Vendedor,Cliente,RUT,Total,Subtotal,Descuento,IVA,Método,Estado,Detalle pagos,Monto a boletear\n";
-    for (const v of data ?? []) {
+    for (const v of data) {
       const cliente = v.clientes as unknown as { nombre: string; rut: string } | null;
       const pagos = pagosDeVenta(v, pagosPorVenta);
       csv += [
@@ -101,6 +119,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     action: "EXPORT",
     entityType: "report_export",
     changeDescription: `Exportación de ${tipo} generada`,
+    ...(tipo === "ventas" ? { newValues: { periodo: periodo ?? "todo", canal: canal || "todos", vendedor: vendedor || "todos" } } : {}),
     ipAddress,
     userAgent,
   }).catch(() => {});

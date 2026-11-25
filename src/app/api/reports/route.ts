@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { ReportsQuerySchema } from "@/lib/validation";
 import { withErrorLogging } from "@/lib/audit";
-import { fechaNegocioDeTimestamp, hoyNegocioISO } from "@/lib/dates";
+import { exigirStoreAdmin } from "@/lib/admin-check";
+import { fechaNegocioDeTimestamp, hoyNegocioISO, inicioPeriodo } from "@/lib/dates";
 import { cargarPagosPorVenta, metodosParaAgrupar, resumenBoleta, ventasConPagos } from "@/lib/reports/pagos-reporte";
+import { enLotes, leerPaginas } from "@/lib/reports/paginas";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -14,32 +16,46 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   const qParsed = ReportsQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!qParsed.success) return NextResponse.json({ error: qParsed.error.issues[0].message }, { status: 400 });
-  const { periodo, canal } = qParsed.data;
-  const desde = new Date();
-  desde.setDate(desde.getDate() - periodo);
-
-  let query = supabase
-    .from("ventas")
-    .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, procedencia, clientes(nombre)")
-    .eq("store_id", store_id)
-    .neq("estado", "anulada")
-    .gte("created_at", desde.toISOString())
-    .order("created_at");
-
-  if (canal) {
-    query = query.eq("canal", canal);
+  const { periodo, canal, vendedor } = qParsed.data;
+  // Ver lo vendido por una persona es solo de administradores de la tienda.
+  if (vendedor) {
+    const denegado = await exigirStoreAdmin(store_id);
+    if (denegado) return denegado;
   }
 
-  const { data: ventas } = await query;
+  const desde = inicioPeriodo(periodo);
+  const { data: ventas, error: errorVentas } = await leerPaginas((desdeFila, hastaFila) => {
+    let query = supabase
+      .from("ventas")
+      .select("id, total, subtotal, descuento, created_at, metodo_pago, canal, procedencia, clientes(nombre)")
+      .eq("store_id", store_id)
+      .neq("estado", "anulada")
+      .gte("created_at", desde);
+    if (canal) query = query.eq("canal", canal);
+    if (vendedor) query = query.eq("worker_clerk_id", vendedor);
+    return query.order("created_at").order("id").range(desdeFila, hastaFila);
+  });
+  // Totales en $0 o a medias se confundirían con "no hubo ventas".
+  if (errorVentas || !ventas) return NextResponse.json({ error: "Error interno" }, { status: 500 });
 
-  const { data: ventaItems } = await supabase
-    .from("venta_items")
-    .select("producto_id, cantidad, subtotal, productos(nombre)")
-    .in("venta_id", (ventas ?? []).map((v) => v.id));
+  // Líneas de esas ventas (ya filtradas por tienda). venta_items no tiene
+  // store_id: su dueño es la venta.
+  const lotesItems = await Promise.all(enLotes(ventas.map((v) => v.id)).map((ids) =>
+    leerPaginas((desdeFila, hastaFila) =>
+      supabase
+        .from("venta_items")
+        .select("producto_id, cantidad, subtotal, productos(nombre)")
+        .in("venta_id", ids)
+        .order("id")
+        .range(desdeFila, hastaFila)
+    )
+  ));
+  if (lotesItems.some((l) => l.error)) return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  const ventaItems = lotesItems.flatMap((l) => l.data ?? []);
 
   // Ventas por día
   const ventasPorDia: Record<string, { total: number; transacciones: number }> = {};
-  for (const v of ventas ?? []) {
+  for (const v of ventas) {
     const dia = fechaNegocioDeTimestamp(v.created_at);
     if (!ventasPorDia[dia]) ventasPorDia[dia] = { total: 0, transacciones: 0 };
     ventasPorDia[dia].total += Number(v.total);
@@ -55,7 +71,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // "Top Servicios" separado es trabajo futuro (plan_valorServicio.md §12),
   // no algo que este reporte de productos deba absorber mal etiquetado.
   const prodCounts: Record<string, { nombre: string; cantidad: number; revenue: number }> = {};
-  for (const item of ventaItems ?? []) {
+  for (const item of ventaItems) {
     if (!item.producto_id) continue;
     const prod = item.productos as unknown as { nombre: string } | null;
     if (!prodCounts[item.producto_id]) {
@@ -70,7 +86,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   // Top clientes
   const clienteCounts: Record<string, { nombre: string; total: number; compras: number }> = {};
-  for (const v of ventas ?? []) {
+  for (const v of ventas) {
     const cliente = v.clientes as unknown as { nombre: string } | null;
     if (!cliente) continue;
     const key = cliente.nombre;
@@ -84,18 +100,18 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   // Métodos de pago breakdown: una venta mixta se reparte entre sus métodos
   // reales (tabla pagos); el resto sigue por ventas.metodo_pago.
-  const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventas ?? []));
+  const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventas));
   const metodos: Record<string, number> = {};
-  for (const v of ventas ?? []) {
+  for (const v of ventas) {
     for (const p of metodosParaAgrupar(v, pagosPorVenta)) {
       metodos[p.metodo] = (metodos[p.metodo] ?? 0) + p.monto;
     }
   }
-  const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventas ?? [], pagosPorVenta);
+  const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventas, pagosPorVenta);
 
   // Ventas por canal breakdown
   const canales: Record<string, { total: number; transacciones: number }> = {};
-  for (const v of ventas ?? []) {
+  for (const v of ventas) {
     const c = v.canal ?? "pos";
     if (!canales[c]) canales[c] = { total: 0, transacciones: 0 };
     canales[c].total += Number(v.total);
@@ -104,15 +120,15 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
 
   // Ventas por procedencia breakdown
   const procedencias: Record<string, { total: number; transacciones: number }> = {};
-  for (const v of ventas ?? []) {
+  for (const v of ventas) {
     const p = (v as { procedencia?: string }).procedencia ?? "presencial";
     if (!procedencias[p]) procedencias[p] = { total: 0, transacciones: 0 };
     procedencias[p].total += Number(v.total);
     procedencias[p].transacciones += 1;
   }
 
-  const totalPeriodo = (ventas ?? []).reduce((s, v) => s + Number(v.total), 0);
-  const totalTransacciones = ventas?.length ?? 0;
+  const totalPeriodo = ventas.reduce((s, v) => s + Number(v.total), 0);
+  const totalTransacciones = ventas.length;
 
   // Predicción: promedio diario REAL del período (incluye días sin ventas).
   // Luego proyecta ese promedio a 7 días. Requiere mínimo 10 transacciones.
@@ -120,8 +136,9 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // inflando la proyección ~3.8x cuando las ventas eran esporádicas.
   const MIN_VENTAS_PREDICCION = 10;
   const totalVentasCount = totalTransacciones;
-  const promedioDiario = totalPeriodo / periodo;
-  const prediccion7dias: number | null = totalVentasCount >= MIN_VENTAS_PREDICCION
+  // "Hoy" es un día a medias: no sirve para proyectar.
+  const promedioDiario = totalPeriodo / (periodo === "hoy" ? 1 : periodo);
+  const prediccion7dias: number | null = periodo !== "hoy" && totalVentasCount >= MIN_VENTAS_PREDICCION
     ? Math.round(promedioDiario * 7)
     : null;
 
@@ -175,7 +192,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   }
 
   return NextResponse.json({
-    periodo: Number(periodo),
+    periodo,
     totalPeriodo,
     totalTransacciones,
     ticketPromedio: totalTransacciones ? Math.round(totalPeriodo / totalTransacciones) : 0,
