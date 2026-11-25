@@ -1,9 +1,9 @@
 /**
- * Tests RC-01 a RC-16: ReportesTab — renderizado, PieChart, tooltip y export CSV
+ * Tests RC-01 a RC-16 y RHV-C-08 a RHV-C-11: ReportesTab — renderizado, PieChart, tooltip y export CSV
  * @jest-environment jsdom
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 
@@ -261,5 +261,86 @@ describe("ReportesTab — export CSV", () => {
     expect(click).not.toHaveBeenCalled();
     expect(screen.getByText("↓ Ventas CSV")).not.toBeDisabled();
     spy.mockRestore();
+  });
+});
+
+// ── Suite: indicador de carga al cambiar de filtro ───────────────────────────
+
+describe("ReportesTab — indicador de carga", () => {
+  let soltar: (v: unknown) => void;
+
+  // La primera carga responde al tiro; las siguientes quedan en vuelo.
+  async function cargadoYEnVuelo() {
+    let n = 0;
+    (global.fetch as jest.Mock).mockReset().mockImplementation(() => {
+      if (n++ === 0) return Promise.resolve({ ok: true, json: async () => MOCK_DATA });
+      return new Promise((r) => { soltar = r; });
+    });
+    mockUserMeta = { storeAdmin: true };
+    render(<ReportesTab />);
+    await waitForData();
+  }
+  const contenido = () => screen.getByText("Total Ventas período").closest(".space-y-6")!;
+
+  it.each([
+    ["la API responde error", () => Promise.resolve({ ok: false, status: 500, json: async () => ({ error: "Error interno" }) })],
+    ["no hay red", () => Promise.reject(new Error("red"))],
+  ])("RHV-C-08: si %s al filtrar, muestra el error y no deja a la vista los datos del filtro anterior", async (_n, falla) => {
+    (global.fetch as jest.Mock).mockReset().mockImplementation((u: string) =>
+      u.includes("canal=") ? falla() : Promise.resolve({ ok: true, json: async () => MOCK_DATA }));
+    render(<ReportesTab />);
+    await waitForData();
+    fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "pos" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudieron cargar los reportes");
+    expect(screen.queryByText("$875.136")).not.toBeInTheDocument();
+    // Se recupera al volver a "Todos".
+    fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "" } });
+    await waitForData();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("RHV-C-09 (REGRESIÓN): una respuesta atrasada del filtro anterior no pisa la del actual", async () => {
+    let soltar30: (v: unknown) => void = () => {};
+    (global.fetch as jest.Mock).mockReset().mockImplementation((u: string) => u.includes("periodo=30")
+      ? new Promise((r) => { soltar30 = r; })
+      : Promise.resolve({ ok: true, json: async () => ({ ...MOCK_DATA, totalPeriodo: 111 }) }));
+    render(<ReportesTab />);
+    fireEvent.click(screen.getByText("7 días"));
+    expect(await screen.findByText("$111")).toBeInTheDocument();
+    await act(async () => { soltar30({ ok: true, json: async () => ({ ...MOCK_DATA, totalPeriodo: 999 }) }); });
+    expect(screen.getByText("$111")).toBeInTheDocument();
+    expect(screen.queryByText("$999")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["días", () => fireEvent.click(screen.getByText("7 días"))],
+    ["canal", () => fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "pos" } })],
+  ])("RHV-C-10: al cambiar %s aparece el ícono girando sobre los datos atenuados y desaparece al llegar los nuevos", async (_f, cambiar) => {
+    await cargadoYEnVuelo();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(contenido()).not.toHaveClass("opacity-40");
+
+    cambiar();
+    const aviso = screen.getByRole("status");
+    expect(aviso).toHaveTextContent("Cargando...");
+    expect(aviso.querySelector("svg.animate-spin")).toBeInTheDocument();
+    expect(contenido()).toHaveClass("opacity-40");
+
+    await act(async () => { soltar({ ok: true, json: async () => ({ ...MOCK_DATA, totalPeriodo: 111 }) }); });
+    expect(screen.getByText("$111")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(contenido()).not.toHaveClass("opacity-40");
+  });
+
+  it("RHV-C-11: también desaparece si la carga falla, y no aparece al elegir el mismo período", async () => {
+    await cargadoYEnVuelo();
+    fireEvent.click(screen.getByText("30 días"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("7 días"));
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    await act(async () => { soltar({ ok: false, json: async () => ({ error: "Error interno" }) }); });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar los reportes");
   });
 });

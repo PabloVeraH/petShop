@@ -2787,3 +2787,4 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | VGV-C-08 | Devolución de una línea por valor muestra lo cobrado (también con descuento y parcial) | DevolucionModal | component |
 | VGV-C-09…10 | Opción "Venta a granel" en /settings: gramos por defecto, PATCH valor/gramos, error 403 visible | SettingsPage | component |
 | VGV-I-13 | POST /api/notas-credito con la misma línea repetida → 400 sin RPC | POST /api/notas-credito | integration |
+| RHV-C-08…11 | ReportesTab: ícono de carga al cambiar días o canal, con los datos anteriores atenuados; desaparece al cargar o fallar; error visible; respuesta atrasada no pisa la actual (los demás RHV están en la rama de la tienda) | ReportesTab | component |

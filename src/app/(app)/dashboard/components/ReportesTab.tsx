@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { hoyNegocioISO } from "@/lib/dates";
 import { useUser } from "@clerk/nextjs";
+import { Loader2 } from "lucide-react";
 import MontoBoleta from "./MontoBoleta";
 
 interface ReportsData {
@@ -337,6 +338,7 @@ export default function ReportesTab() {
   const [periodo, setPeriodo] = useState("30");
   const [canal, setCanal] = useState("");
   const [data, setData] = useState<ReportsData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<"ventas" | "inventario" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -349,11 +351,27 @@ export default function ReportesTab() {
   // loading vuelve a true en los handlers que cambian el filtro (no dentro del
   // efecto: setState síncrono en un efecto provoca un render en cascada).
   useEffect(() => {
+    // Una respuesta atrasada de otro filtro no debe pisar la actual.
+    let vigente = true;
     const params = new URLSearchParams({ periodo });
     if (canal) params.set("canal", canal);
     fetch(`/api/reports?${params}`)
       .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); });
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        if (!vigente) return;
+        setData(d);
+        setLoadError(null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!vigente) return;
+        // Sin datos: dejar los del filtro anterior los haría pasar por estos.
+        setData(null);
+        setLoadError("No se pudieron cargar los reportes. Intenta de nuevo.");
+        setLoading(false);
+      });
+    return () => { vigente = false; };
   }, [periodo, canal]);
 
   async function handleExport(tipo: "ventas" | "inventario") {
@@ -383,6 +401,7 @@ export default function ReportesTab() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <select
+            aria-label="Canal"
             value={canal}
             onChange={(e) => { setLoading(true); setCanal(e.target.value); }}
             className="border border-gray-200 rounded-md px-2 py-1.5 text-sm text-gray-700 bg-white"
@@ -430,10 +449,22 @@ export default function ReportesTab() {
       </div>
       {exportError && <p role="alert" className="text-sm text-red-700 -mt-4 mb-4">{exportError}</p>}
 
-      {loading && <div className="text-gray-500">Cargando...</div>}
+      {loadError && !loading && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
+
+      <div className="relative" aria-busy={loading}>
+      {/* Al cambiar de filtro los datos anteriores quedan atenuados debajo del
+          indicador hasta que llegan los nuevos. */}
+      {loading && (
+        <div role="status" className={data ? "absolute inset-x-0 top-20 z-10 flex justify-center" : "flex justify-center py-20"}>
+          <span className="flex items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 shadow-lg">
+            <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-green-600" />
+            Cargando...
+          </span>
+        </div>
+      )}
 
       {data && (
-        <div className="space-y-6">
+        <div className={`space-y-6 transition-opacity ${loading ? "opacity-40 pointer-events-none" : ""}`}>
           {/* KPIs */}
           <div className="grid grid-cols-4 gap-4">
             {[
@@ -559,6 +590,7 @@ export default function ReportesTab() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
