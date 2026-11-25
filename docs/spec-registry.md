@@ -2793,3 +2793,5 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | RHV-I-09…14 | GET /api/reports/export: respeta período, canal y vendedor (mismo inicio que la pantalla); anuladas incluidas; REGRESIÓN: más de 1.000 ventas salen completas; error de BD → 500; 403/400; auditoría con filtros | GET /api/reports/export | integration |
 | RHV-C-01…09 | ReportesTab: "Hoy" antes de 7 días, selector de vendedor solo admin, CSV con los filtros y su nombre de archivo, inventario sin filtros, errores visibles, respuesta atrasada no pisa la actual | ReportesTab | component |
 | RHV-I-15…17 | GET /api/reports: REGRESIÓN más de 1.000 ventas suman completas; líneas por lotes de 100; error de BD → 500 | GET /api/reports | integration |
+| RHV-I-18…19 | GET /api/workers: quien no es admin de la tienda solo recibe clerk_id y nombre (sin ventas, meta, RUT ni correo); admin sin cambios | GET /api/workers | integration |
+| RHV-I-20…21 | GET /api/workers/[clerkId]/ventas: ventas de otra persona solo admin (403 sin consultar); cada uno ve las suyas | GET /api/workers/[clerkId]/ventas | integration |
