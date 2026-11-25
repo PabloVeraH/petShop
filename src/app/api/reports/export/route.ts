@@ -7,9 +7,7 @@ import { ReportsExportQuerySchema } from "@/lib/validation";
 import { hoyNegocioISO, inicioPeriodo, instanteDeTimestamp, ZONA_NEGOCIO } from "@/lib/dates";
 import { calcularMontoBoleta, etiquetaMetodo } from "@/lib/ventas/pagos";
 import { cargarPagosPorVenta, esVentaPos, pagosDeVenta } from "@/lib/reports/pagos-reporte";
-
-// Máximo de filas que devuelve la API de Supabase por consulta.
-const FILAS_POR_PAGINA = 1000;
+import { leerPaginas } from "@/lib/reports/paginas";
 
 export const GET = withErrorLogging(async (req: NextRequest) => {
   const ctx = await getStoreId();
@@ -36,11 +34,11 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   let csv = "";
 
   if (tipo === "ventas") {
-    // Por páginas: una sola consulta corta en silencio a las 1.000 ventas. El
-    // tope de fecha fija el conjunto (una venta nueva entre páginas las correría).
+    // El tope de fecha fija el conjunto: una venta nueva entre una página y
+    // otra las correría.
     const desdePeriodo = periodo === undefined ? "" : inicioPeriodo(periodo);
     const ahora = new Date().toISOString();
-    const pagina = (desdeFila: number) => {
+    const { data, error } = await leerPaginas((desdeFila, hastaFila) => {
       let query = supabase
         .from("ventas")
         .select("id, numero_comprobante, created_at, total, subtotal, descuento, impuesto, metodo_pago, canal, estado, worker_clerk_id, clientes(nombre, rut)")
@@ -54,19 +52,10 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
       return query
         .order("created_at", { ascending: false })
         .order("id")
-        .range(desdeFila, desdeFila + FILAS_POR_PAGINA - 1);
-    };
-
-    const primera = await pagina(0);
+        .range(desdeFila, hastaFila);
+    });
     // Un CSV vacío o a medias se confundiría con "no hubo ventas".
-    if (primera.error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
-    const data = [...(primera.data ?? [])];
-    for (let n = data.length; n === FILAS_POR_PAGINA; ) {
-      const sig = await pagina(data.length);
-      if (sig.error) return NextResponse.json({ error: "Error interno" }, { status: 500 });
-      data.push(...sig.data);
-      n = sig.data.length;
-    }
+    if (error || !data) return NextResponse.json({ error: "Error interno" }, { status: 500 });
 
     // Vendedor: solo el nombre (como el recibo), nunca el email. Los
     // clerk_id salen de ventas ya filtradas por store_id.

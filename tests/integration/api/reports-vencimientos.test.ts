@@ -48,11 +48,15 @@ describe("GET /api/reports - vencimientos section", () => {
     ventasChain.neq = jest.fn().mockReturnValue(ventasChain);
     ventasChain.gte = jest.fn().mockReturnValue(ventasChain);
     ventasChain.gt = jest.fn().mockReturnValue(ventasChain);
-    ventasChain.order = jest.fn().mockResolvedValue({ data: ventasData, error: null });
+    ventasChain.order = jest.fn().mockReturnValue(ventasChain);
+    ventasChain.range = jest.fn().mockReturnValue(ventasChain);
+    (ventasChain as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: ventasData, error: null });
 
     const itemsChain: Record<string, jest.Mock> = {};
     itemsChain.select = jest.fn().mockReturnValue(itemsChain);
-    itemsChain.in = jest.fn().mockResolvedValue({ data: [], error: null });
+    itemsChain.in = jest.fn().mockReturnValue(itemsChain);
+    itemsChain.order = jest.fn().mockReturnValue(itemsChain);
+    itemsChain.range = jest.fn().mockResolvedValue({ data: [], error: null });
 
     const productosChain: Record<string, jest.Mock> = {};
     productosChain.select = jest.fn().mockReturnValue(productosChain);
@@ -642,8 +646,10 @@ describe("GET /api/reports - vencimientos section", () => {
           chain.neq = jest.fn().mockReturnValue(chain);
           chain.gte = jest.fn().mockReturnValue(chain);
           chain.gt = jest.fn().mockReturnValue(chain);
-          chain.in = jest.fn().mockResolvedValue({ data: null, error: null });
-          chain.order = jest.fn().mockResolvedValue({ data: null, error: null });
+          chain.in = jest.fn().mockReturnValue(chain);
+          chain.order = jest.fn().mockReturnValue(chain);
+          chain.range = jest.fn().mockReturnValue(chain);
+          (chain as Record<string, unknown>).then = (resolve: (v: unknown) => unknown) => resolve({ data: null, error: null });
           chain.not = jest.fn().mockReturnValue(chain);
           return chain;
         }),

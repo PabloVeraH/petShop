@@ -1,5 +1,5 @@
 /**
- * Tests RHV-I-01 a RHV-I-14: período "Hoy" y filtro por vendedor en
+ * Tests RHV-I-01 a RHV-I-17 (18 a 21 en workers*.test.ts): período "Hoy" y filtro por vendedor en
  * GET /api/reports y GET /api/reports/export (pedido de la tienda 2026-11-24).
  */
 import { NextRequest } from "next/server";
@@ -138,6 +138,49 @@ describe("GET /api/reports — Hoy y vendedor", () => {
     expect(chains.ventas[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
     expect(chains.ventas[0].eq).not.toHaveBeenCalledWith("store_id", "otra");
     expect((await reporte(`?vendedor=${"x".repeat(256)}`)).status).toBe(400);
+  });
+});
+
+describe("GET /api/reports — más de 1.000 ventas", () => {
+  const item = (i: number): Venta => ({ id: `i${i}`, producto_id: "p1", cantidad: 1, subtotal: 1000, productos: { nombre: "Alimento" } });
+
+  it("RHV-I-15 (REGRESIÓN): los totales suman todas las ventas, no las primeras 1.000", async () => {
+    const N = 2300;
+    tablas({ ventas: Array.from({ length: N }, (_, i) => venta(i)) });
+    const body = await (await reporte("?periodo=90")).json();
+    expect(body.totalTransacciones).toBe(N);
+    expect(body.totalPeriodo).toBe(N * 1000);
+    expect(body.metodos).toEqual({ efectivo: N * 1000 });
+    expect(body.canales.pos.transacciones).toBe(N);
+    expect(chains.ventas.map((c) => c.range.mock.calls[0])).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+    for (const c of chains.ventas) {
+      expect(c.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+      expect(c.neq).toHaveBeenCalledWith("estado", "anulada");
+      expect(c.gte).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("RHV-I-16: las líneas se piden por lotes de 100 ventas, todas una vez, y cada lote se lee completo", async () => {
+    tablas({ ventas: Array.from({ length: 250 }, (_, i) => venta(i)), venta_items: Array.from({ length: 1200 }, (_, i) => item(i)) });
+    const body = await (await reporte("?periodo=30")).json();
+    const pedidos = chains.venta_items.map((c) => c.in.mock.calls[0][1] as string[]);
+    expect(Math.max(...pedidos.map((p) => p.length))).toBe(100);
+    expect(new Set(pedidos.flat())).toEqual(new Set(Array.from({ length: 250 }, (_, i) => `v${i}`)));
+    // 3 lotes × 1.200 líneas del simulador (no distingue venta): nada se corta en 1.000.
+    expect(body.topProductos).toEqual([{ nombre: "Alimento", cantidad: 3600, revenue: 3_600_000 }]);
+  });
+
+  it("RHV-I-17: si falla la lectura de ventas (cualquier página) o de sus líneas → 500, no totales a medias; sin ventas no pide líneas", async () => {
+    for (const falla of [{ ventas: 1 }, { ventas: 2 }, { venta_items: 1 }] as Record<string, number>[]) {
+      tablas({ ventas: Array.from({ length: 1500 }, (_, i) => venta(i)) }, falla);
+      const res = await reporte("?periodo=90");
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ error: "Error interno" });
+    }
+    tablas({ ventas: [] });
+    const body = await (await reporte("?periodo=hoy")).json();
+    expect(body).toMatchObject({ totalPeriodo: 0, totalTransacciones: 0, ticketPromedio: 0, topProductos: [] });
+    expect(chains.venta_items).toBeUndefined();
   });
 });
 
