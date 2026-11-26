@@ -263,6 +263,22 @@ describe("InventoryPage — lista de productos", () => {
     expect(screen.getByText("Vencido")).toBeInTheDocument();
     expect(screen.queryByText("Bajo stock")).not.toBeInTheDocument();
   });
+
+  // C-122: stock 0 dice "Sin stock" (antes "Bajo stock"), también si la fecha
+  // de vencimiento ya pasó: sin unidades no hay nada vencido.
+  it("C-122: stock 0 muestra 'Sin stock', no 'Bajo stock' ni 'Vencido'", async () => {
+    const ayer = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    setupFetch([
+      { ...PRODUCTO, id: "p5", nombre: "Agotado A", stock: 0, stock_minimo: 5 },
+      { ...PRODUCTO, id: "p6", nombre: "Agotado B", stock: 0, stock_minimo: 5, fecha_vencimiento: ayer },
+    ]);
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+
+    await waitFor(() => expect(screen.getByText("Agotado B")).toBeInTheDocument());
+    expect(screen.getAllByText("Sin stock")).toHaveLength(2);
+    expect(screen.queryByText("Bajo stock")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vencido")).not.toBeInTheDocument();
+  });
 });
 
 describe("InventoryPage — formulario de producto", () => {

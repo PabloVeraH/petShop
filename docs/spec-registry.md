@@ -2741,6 +2741,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-119 | REGRESIÓN (mascotaspetshop, 2026-11-25): invalidar ["productos"] solo vuelve a pedir la búsqueda en pantalla (antes, con refetchType "all", todas las guardadas: ~100 requests por venta); una búsqueda anterior se refresca con el stock nuevo al volver a ella | SearchProductos | component |
 | C-120 | REGRESIÓN (mascotaspetshop, 2026-11-25): el buscador de inventario pide /api/inventario una vez con el texto final, no una por letra | InventoryPage | component |
 | C-121 | Buscador del POS: un producto agotado aparece con precio, en gris y marcado "Sin stock", sin poder agregarlo (click, escaneo ni granel); escanearlo avisa "sin stock" con el precio | SearchProductos | component |
+| C-122 | Inventario: un producto con stock 0 muestra "Sin stock" en Estado (antes "Bajo stock"), con prioridad sobre "Vencido" | InventoryPage | component |
 | U-276 | El primer 429 de cada ventana queda en error_logs (usuario o IP, ruta, conteo, límite); los siguientes no; un insert fallido no cambia el 429 | rateLimit | unit |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
 | U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |

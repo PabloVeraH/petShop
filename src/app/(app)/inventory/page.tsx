@@ -511,7 +511,10 @@ export default function InventoryPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {vencStatus === 'vencido'
+                      {/* Sin unidades no hay nada vencido (la columna de vencimiento muestra "—"). */}
+                      {p.stock <= 0
+                        ? <Badge variant="destructive">Sin stock</Badge>
+                        : vencStatus === 'vencido'
                         ? <Badge variant="destructive">Vencido</Badge>
                         : enAlerta
                           ? <Badge variant="destructive">Bajo stock</Badge>
