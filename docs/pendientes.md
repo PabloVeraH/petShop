@@ -165,6 +165,48 @@ tags:
 - [ ] Performance monitoring (Web Vitals)
 - [ ] Aumentar coverage > 90% (actualmente 85% promedio)
 
+### Solicitudes a la API y rate limit (2026-11-26)
+
+Contexto: el 2026-11-25 mascotaspetshop recibió 429 "Demasiadas solicitudes".
+Causa: cada letra del buscador era una request y, tras cada venta o ajuste,
+`invalidateQueries` con `refetchType: "all"` volvía a pedir todas las
+búsquedas guardadas (~100 requests en 1–2 s). Corregido en `0cc3e32` (espera
+de 250 ms en el POS, 429 a `error_logs`) y `e87281d` (espera también en
+inventario; productos e inventario sin `"all"`). Estas mejoras quedan
+opcionales: con los arreglos, una caja hace ~100 requests / 5 min contra un
+tope de 600.
+
+- [ ] **Espera de búsqueda a 300–400 ms** — hoy 250 ms
+  (`ESPERA_BUSQUEDA_MS` en `src/hooks/useValorConEspera.ts`, la usan el POS y
+  inventario). Plane, Cal.com, Dify y NocoDB usan 500 ms; Twenty, 300 ms. El
+  escaneo con pistola no se afecta (el Enter busca el código directo).
+- [ ] **Guardar las búsquedas ~30 s en vez de 5 min** — `gcTime: 30_000` en
+  las queries `["productos", texto]` (`SearchProductos.tsx`) y
+  `["inventario", texto, ...]` (`inventory/page.tsx`). Una búsqueda que ya no
+  se ve se descarta antes y no puede acumularse en la caché (Immich usa
+  `gcTime: 0` en sus búsquedas). Protección extra por si vuelve a aparecer un
+  `refetchType: "all"` sobre esas keys.
+- [ ] **Una sola función SQL por request en el proxy (3 viajes a la BD → 1)** —
+  hoy cada request a `/api` hace, en `src/proxy.ts`, tres consultas a
+  Supabase antes de llegar al endpoint: `rate_limit_hit` (contador, migración
+  089), `stores` (licencia: `license_end_date`, `license_warning_days`) y
+  `clerk_users` (`is_disabled`). Una RPC (ej. `contexto_request(p_clave,
+  p_ventana_ms, p_store_id, p_clerk_id)`) que cuente y devuelva licencia y
+  estado del usuario en un solo viaje. Requiere migración (aplicar primero en
+  el demo y luego en cada tienda), tocar el proxy —que protege toda la app— y
+  tests del proxy: rate limit, licencia vencida con excepción de systemAdmin
+  (AGENTS.md §5.2), usuario deshabilitado, y la caída al contador en memoria
+  si la RPC falla. Ganancia: menos latencia por request y ~2/3 menos
+  consultas del proxy.
+- [ ] **Evaluar subir `RATE_LIMIT_USER_MAX`** (hoy 600 / 5 min = 120/min por
+  usuario) y dejar los topes estrictos para acciones sensibles: Cal.com usa
+  200/min para el tráfico general y Outline 1000/min. Es una variable de
+  entorno de Vercel, sin cambio de código.
+- [ ] **`authLimit` y `paymentLimit` sin uso** — definidos en
+  `src/middleware/rateLimit.ts` pero ningún código los llama (ver el
+  comentario en ese archivo). Se conservan a pedido; decidir si se conectan o
+  se eliminan.
+
 ---
 
 ## 📝 Documentación pendiente

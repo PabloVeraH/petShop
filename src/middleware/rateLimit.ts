@@ -146,6 +146,15 @@ export const apiUsuarioLimit = createRateLimit({
   maxRequests: maxRequestsDesdeEnv(process.env.RATE_LIMIT_USER_MAX, 600),
 });
 
+// authLimit y paymentLimit NO se usan (2026-11-26): aplicarRateLimit solo
+// elige webhookLimit, apiUsuarioLimit o apiGeneralLimit. Se conservan a
+// propósito, pendientes de decidir (docs/pendientes.md, "Solicitudes a la API
+// y rate limit"). Antes de conectarlos:
+// - authLimit: el login lo validan Clerk y su protección contra bots; la app
+//   no recibe los intentos de contraseña, así que no hay ruta que limitar.
+// - paymentLimit: 5 por minuto bloquearía un POS con movimiento (una caja
+//   puede cobrar más de 5 ventas por minuto). POST /api/ventas ya es
+//   idempotente con idempotencyKey.
 export const authLimit = createRateLimit({
   nombre: "auth",
   windowMs: 900000,  // 15 min
