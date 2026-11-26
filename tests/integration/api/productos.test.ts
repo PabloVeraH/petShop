@@ -44,10 +44,11 @@ function chain(terminal?: Promise<unknown>) {
     eq: jest.fn(),
     or: jest.fn(),
     gt: jest.fn(),
+    order: jest.fn(),
     limit: jest.fn().mockResolvedValue({ data: [], error: null }),
     single: mockSingle,
   };
-  ["select","insert","update","eq","or","gt"].forEach(k => c[k].mockReturnValue(c));
+  ["select","insert","update","eq","or","gt","order"].forEach(k => c[k].mockReturnValue(c));
   if (terminal) c.limit = jest.fn().mockReturnValue(terminal);
   return c;
 }
@@ -99,6 +100,27 @@ describe("GET /api/productos", () => {
     const { GET } = await import("@/app/api/productos/route");
     await GET(req("/api/productos"));
     expect(capturedSelect).toContain("codigo_barra");
+  });
+
+  // I-844: al buscar se incluyen los agotados (el POS los muestra en gris para
+  // consultar el precio), con los que tienen stock primero; sin texto, la
+  // lista sigue siendo solo con stock (precarga del POS, Instagram, predicción).
+  it("I-844: con búsqueda no filtra stock > 0 y ordena por stock desc; sin búsqueda filtra stock > 0", async () => {
+    const { GET } = await import("@/app/api/productos/route");
+
+    const conTexto = chain();
+    mockFrom.mockReturnValue(conTexto);
+    await GET(req("/api/productos?search=royal"));
+    expect(conTexto.gt).not.toHaveBeenCalledWith("stock", 0);
+    expect(conTexto.order).toHaveBeenCalledWith("stock", { ascending: false });
+    expect(conTexto.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(conTexto.eq).toHaveBeenCalledWith("activo", true);
+
+    const sinTexto = chain();
+    mockFrom.mockReturnValue(sinTexto);
+    await GET(req("/api/productos?search="));
+    expect(sinTexto.gt).toHaveBeenCalledWith("stock", 0);
+    expect(sinTexto.order).not.toHaveBeenCalled();
   });
 });
 

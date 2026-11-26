@@ -320,4 +320,61 @@ describe("SearchProductos", () => {
     await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith("lata"));
     expect(await screen.findByText("Stock: 3")).toBeInTheDocument();
   });
+  // C-121: un agotado aparece (al buscar) para consultar el precio, en gris y
+  // marcado "Sin stock", sin poder agregarlo. Gate de UX: la venta la vuelve a
+  // validar crear_venta_tx en el servidor.
+  describe("productos agotados (C-121)", () => {
+    const INPUT = "Buscar por nombre, SKU o código de barra...";
+
+    it("C-121: muestra precio y 'Sin stock', botón deshabilitado y el click no agrega", async () => {
+      mockGetProductos.mockResolvedValue([
+        prod({ id: "p20", nombre: "Agotado Premium", precio: 7990, stock: 0 }),
+      ]);
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+
+      expect(await screen.findByText("Agotado Premium")).toBeInTheDocument();
+      expect(screen.getByText("Sin stock")).toBeInTheDocument();
+      expect(screen.getByText("$7.990")).toBeInTheDocument();
+      const btn = screen.getByRole("button", { name: /Agotado Premium/i });
+      expect(btn).toBeDisabled();
+      fireEvent.click(btn);
+      expect(mockAddItem).not.toHaveBeenCalled();
+    });
+
+    it("C-121: escanear un agotado avisa 'sin stock' con el precio y no agrega", async () => {
+      const codigo = "7809999999999";
+      mockGetProductos.mockImplementation((s: string) =>
+        Promise.resolve(s === codigo ? [prod({ id: "p21", nombre: "Lata Agotada", precio: 1500, stock: 0, codigo_barra: codigo })] : [])
+      );
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+      const input = screen.getByPlaceholderText(INPUT);
+      fireEvent.change(input, { target: { value: codigo } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(await screen.findByText("Lata Agotada está sin stock (precio $1.500)")).toBeInTheDocument();
+      expect(mockAddItem).not.toHaveBeenCalled();
+      expect(screen.queryByText(/no encontrado/)).not.toBeInTheDocument();
+    });
+
+    it("C-121: granel agotado no muestra los controles de granel", async () => {
+      mockGetProductos.mockResolvedValue([
+        prod({ id: "p22", nombre: "Saco Agotado", precio: 30000, stock: 0, precio_venta_kg: 4000, peso_gramos: 10000 }),
+      ]);
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+
+      expect(await screen.findByText("Saco Agotado")).toBeInTheDocument();
+      expect(screen.getByText("Sin stock")).toBeInTheDocument();
+      expect(screen.queryByText("Vender a granel")).not.toBeInTheDocument();
+      expect(screen.queryByText("Abrí un saco nuevo")).not.toBeInTheDocument();
+    });
+
+    it("C-121: con stock no muestra 'Sin stock'", async () => {
+      mockGetProductos.mockResolvedValue([
+        prod({ id: "p23", nombre: "Con Stock", precio: 1000, stock: 4 }),
+      ]);
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+      expect(await screen.findByText("Con Stock")).toBeInTheDocument();
+      expect(screen.queryByText("Sin stock")).not.toBeInTheDocument();
+    });
+  });
 });

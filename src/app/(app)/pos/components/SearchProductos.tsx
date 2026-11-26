@@ -92,6 +92,11 @@ export default function SearchProductos() {
   function addProductoToCart(prod: Producto) {
     const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
     if (!precioFinal) return;
+    // Agotado: la búsqueda lo muestra solo para consultar el precio.
+    if (Number(prod.stock) <= 0) {
+      mostrarAviso(`${prod.nombre} está sin stock (precio $${precioFinal.toLocaleString("es-CL")})`);
+      return;
+    }
 
     // Guard sobrestock: verificar cantidad ya en carrito vs stock disponible
     const esGranel = (prod.precio_venta_kg ?? 0) > 0;
@@ -399,7 +404,9 @@ export default function SearchProductos() {
           const precioFinal = prod.en_oferta && prod.precio_oferta ? prod.precio_oferta : prod.precio;
           const sinPrecio = !precioFinal;
           const inCartQty = items.find((i) => i.producto_id === prod.id && !i.es_granel)?.cantidad ?? 0;
-          const sinStock = !tieneGranel && inCartQty >= unidadesVendibles(prod);
+          // Agotado (stock 0): visible para consultar el precio, no se vende.
+          const agotado = Number(prod.stock) <= 0;
+          const sinStock = agotado || (!tieneGranel && inCartQty >= unidadesVendibles(prod));
           const vencidas = tieneGranel ? 0 : prod.stock_vencido ?? 0;
           const sacos = tieneGranel ? estadoSacos(prod) : null;
           const errorSaco = sacoError?.productoId === prod.id ? sacoError.mensaje : null;
@@ -421,7 +428,9 @@ export default function SearchProductos() {
                 }}
                 disabled={sinPrecio || sinStock}
                 className={`text-left w-full p-4 transition-colors ${
-                  sinPrecio || sinStock
+                  agotado
+                    ? "bg-gray-100 grayscale opacity-70 cursor-not-allowed"
+                    : sinPrecio || sinStock
                     ? "opacity-60 cursor-not-allowed"
                     : vencStatus === "vencido"
                     ? "bg-red-50 hover:bg-red-100"
@@ -453,6 +462,11 @@ export default function SearchProductos() {
                       {sinPrecio && (
                         <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
                           Sin precio
+                        </span>
+                      )}
+                      {agotado && (
+                        <span className="text-xs font-bold uppercase text-white bg-gray-700 px-2 py-0.5 rounded">
+                          Sin stock
                         </span>
                       )}
                     </div>
@@ -509,7 +523,7 @@ export default function SearchProductos() {
               </button>
 
               {/* Toggle + input granel */}
-              {tieneGranel && (
+              {tieneGranel && !agotado && (
                 <div className="border-t border-blue-100 px-3 py-2 bg-blue-50 space-y-2">
                   {pidiendoApertura ? (
                     <div role="alertdialog" aria-label="Confirmar apertura de saco" className="space-y-2">

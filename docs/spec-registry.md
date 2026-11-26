@@ -219,6 +219,7 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-487 | REGRESIÓN (revisión del ticket 6a76c861779de90209ed8ba3, mismo defecto en otro punto del archivo): error de Clerk sin longMessage ni message (fallback defensivo) → 422 con mensaje genérico "Error al crear el usuario", sin nombrar Clerk | POST /api/admin/users/create | integration |
 | I-842 | REGRESIÓN (mascotaspetshop, 2026-11-13): crear un systemAdmin desde /admin guardaba la cuenta sin store_id (ni Clerk ni clerk_users) y no aparecía en el listado filtrado por tienda; ahora el alta escribe storeId en publicMetadata y store_id en clerk_users (2a699a7 solo cubrió el PATCH) | POST /api/admin/users/create | integration |
 | I-843 | systemAdmin sin storeId en el body → 400 "storeId requerido", nunca llega a Clerk (todo alta exige tienda, cierra I-842 en la API) | POST /api/admin/users/create | integration |
+| I-844 | GET /api/productos con búsqueda incluye agotados (con stock primero, orden stock desc); sin búsqueda solo stock > 0 | GET /api/productos | integration |
 | I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
 | I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
@@ -2739,6 +2740,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-118 | REGRESIÓN (mascotaspetshop, 2026-11-25): la búsqueda del POS espera a que el texto deje de cambiar (una request con el texto final, no una por carácter); el escaneo busca el código de inmediato y una sola vez | SearchProductos | component |
 | C-119 | REGRESIÓN (mascotaspetshop, 2026-11-25): invalidar ["productos"] solo vuelve a pedir la búsqueda en pantalla (antes, con refetchType "all", todas las guardadas: ~100 requests por venta); una búsqueda anterior se refresca con el stock nuevo al volver a ella | SearchProductos | component |
 | C-120 | REGRESIÓN (mascotaspetshop, 2026-11-25): el buscador de inventario pide /api/inventario una vez con el texto final, no una por letra | InventoryPage | component |
+| C-121 | Buscador del POS: un producto agotado aparece con precio, en gris y marcado "Sin stock", sin poder agregarlo (click, escaneo ni granel); escanearlo avisa "sin stock" con el precio | SearchProductos | component |
 | U-276 | El primer 429 de cada ventana queda en error_logs (usuario o IP, ruta, conteo, límite); los siguientes no; un insert fallido no cambia el 429 | rateLimit | unit |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
 | U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |

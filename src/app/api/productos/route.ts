@@ -23,13 +23,19 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     .from("productos")
     .select("id, store_id, nombre, sku, precio, stock, stock_minimo, fecha_vencimiento, dias_alerta_expira, precio_oferta, en_oferta, codigo_barra, precio_venta_kg, peso_gramos, imagen_url, imagen_url_2")
     .eq("store_id", store_id)
-    .eq("activo", true)
-    .gt("stock", 0);
+    .eq("activo", true);
 
   if (search.trim()) {
     // Sanitize to prevent PostgREST filter string manipulation
     const s = search.replace(/[()%,]/g, "");
-    query = query.or(`nombre.ilike.%${s}%,sku.ilike.%${s}%,codigo_barra.eq.${s}`);
+    // Al buscar se incluyen los agotados: el POS los muestra en gris para
+    // consultar el precio, sin dejar agregarlos (crear_venta_tx igual valida
+    // el stock). Los con stock primero, para que el límite no los deje fuera.
+    query = query
+      .or(`nombre.ilike.%${s}%,sku.ilike.%${s}%,codigo_barra.eq.${s}`)
+      .order("stock", { ascending: false });
+  } else {
+    query = query.gt("stock", 0);
   }
 
   const { data, error } = await query.limit(50);
