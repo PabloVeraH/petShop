@@ -289,4 +289,35 @@ describe("SearchProductos", () => {
       expect(mockGetProductos).toHaveBeenCalledTimes(1);
     });
   });
+
+  // C-119 — REGRESIÓN (mascotaspetshop, 2026-11-25): tras una venta o un cambio
+  // de inventario, invalidateQueries(["productos"]) con refetchType "all" volvía
+  // a pedir TODAS las búsquedas guardadas (~100 requests en un segundo). Ahora
+  // solo la que está en pantalla; las demás se piden al volver a mostrarse, con
+  // el stock nuevo. Se invalida igual que pos/page.tsx tras una venta.
+  it("C-119: invalidar productos solo vuelve a pedir la búsqueda en pantalla; una anterior se refresca al volver a ella", async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let stock = 10;
+    mockGetProductos.mockImplementation((s: string) =>
+      Promise.resolve(s ? [prod({ id: `p-${s}`, nombre: `Prod ${s}`, precio: 1000, stock })] : [])
+    );
+    render(<QueryClientProvider client={qc}><SearchProductos /></QueryClientProvider>);
+    const input = screen.getByPlaceholderText("Buscar por nombre, SKU o código de barra...");
+
+    fireEvent.change(input, { target: { value: "lata" } });
+    expect(await screen.findByText("Prod lata")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "perro" } });
+    expect(await screen.findByText("Prod perro")).toBeInTheDocument();
+    mockGetProductos.mockClear();
+
+    stock = 3;
+    await qc.invalidateQueries({ queryKey: ["productos"] });
+
+    expect(mockGetProductos).toHaveBeenCalledTimes(1);
+    expect(mockGetProductos).toHaveBeenCalledWith("perro");
+
+    fireEvent.change(input, { target: { value: "lata" } });
+    await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith("lata"));
+    expect(await screen.findByText("Stock: 3")).toBeInTheDocument();
+  });
 });

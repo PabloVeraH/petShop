@@ -25,6 +25,7 @@ import { ProductoImagenesField } from "./components/ProductoImagenesField";
 import { ProductoCreateSchema } from "@/lib/validation";
 import { fetchJson } from "@/lib/api-client";
 import type { SacoAbiertoResumen } from "@/types";
+import { useValorConEspera } from "@/hooks/useValorConEspera";
 
 type Producto = {
   id: string;
@@ -163,9 +164,12 @@ export default function InventoryPage() {
   const [soloDecimales, setSoloDecimales] = useState(false);
   const queryClient = useQueryClient();
 
+  // Busca cuando el texto deja de cambiar: antes, cada letra era una request
+  // y una entrada en la caché que las invalidaciones volvían a pedir.
+  const busqueda = useValorConEspera(search);
   const { data, isLoading, isError, error: inventarioError } = useQuery({
-    queryKey: ["inventario", search, soloAlertas, soloVencimientos],
-    queryFn: () => getInventario(search, soloAlertas, soloVencimientos),
+    queryKey: ["inventario", busqueda, soloAlertas, soloVencimientos],
+    queryFn: () => getInventario(busqueda, soloAlertas, soloVencimientos),
   });
 
   const { data: categorias = [] } = useQuery<Categoria[]>({
@@ -204,8 +208,8 @@ export default function InventoryPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       setAjuste(null); setAjusteCantidad("1"); setAjusteNotas("");
     },
   });
@@ -259,8 +263,8 @@ export default function InventoryPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       setShowForm(false); setEditando(null); setForm(EMPTY_FORM); setFormError(""); setFieldErrors({});
     },
     onError: (e: Error) => {
@@ -276,8 +280,8 @@ export default function InventoryPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       setConfirmDelete(null);
     },
   });

@@ -150,8 +150,8 @@ describe("ConteoFisicoModal", () => {
     fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Conteo mensual" } });
     fireEvent.click(screen.getByRole("button", { name: "Registrar conteo" }));
 
-    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" }));
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] }));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["lotes", "prod-1"] });
   });
 });

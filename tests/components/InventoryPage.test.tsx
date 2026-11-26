@@ -683,9 +683,10 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     focusSpy.mockRestore();
   });
 
-  // IV-04: REGRESIÓN — ajuste de stock invalida ["productos"] con refetchType "all"
-  // para que el POS (desmontado) muestre el stock actualizado al navegar.
-  it("IV-04: REGRESIÓN — ajuste de stock invalida ['productos'] con refetchType 'all'", async () => {
+  // IV-04: REGRESIÓN — ajuste de stock invalida ["inventario"] y ["productos"] para que
+  // el POS (desmontado) muestre el stock actualizado al navegar
+  // (2026-11-25: sin refetchType "all": las búsquedas fuera de pantalla quedan invalidadas y se piden al volver a mostrarse — ver C-119).
+  it("IV-04: REGRESIÓN — ajuste de stock invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     mockAsAdmin();
     setupFetch([PRODUCTO]);
 
@@ -708,22 +709,22 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Agregar" }));
 
-    // Debe invalidar ["inventario"] Y ["productos"] ambos con refetchType "all"
+    // Debe invalidar ["inventario"] Y ["productos"], sin refetchType "all"
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    // No debe llamarse SIN refetchType: "all" (esa sería la versión bugueada)
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    // Con refetchType "all" cada ajuste volvía a pedir todas las búsquedas guardadas
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
 
-  // IV-05: REGRESIÓN — editar un producto invalida ["inventario"] y ["productos"] con
-  // refetchType "all" (mismo hueco que IV-04, en el mutation handler de
+  // IV-05: REGRESIÓN — editar un producto invalida ["inventario"] y ["productos"],
+  // sin refetchType "all" (mismo hueco que IV-04, en el mutation handler de
   // guardar producto en vez del de ajuste de stock).
-  it("IV-05: REGRESIÓN — editar producto invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+  it("IV-05: REGRESIÓN — editar producto invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -743,19 +744,19 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
 
-  // IV-06: REGRESIÓN — desactivar un producto invalida ["inventario"] y ["productos"] con
-  // refetchType "all" (mismo hueco que IV-04/IV-05, en el mutation handler
+  // IV-06: REGRESIÓN — desactivar un producto invalida ["inventario"] y ["productos"],
+  // sin refetchType "all" (mismo hueco que IV-04/IV-05, en el mutation handler
   // de desactivar producto).
-  it("IV-06: REGRESIÓN — desactivar producto invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+  it("IV-06: REGRESIÓN — desactivar producto invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -775,11 +776,11 @@ describe("InventoryPage — ajuste de stock (Motivo)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Desactivar" }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
@@ -1232,5 +1233,31 @@ describe("InventoryPage — vencimiento de productos con lotes", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/lotes?producto_id=p1", undefined));
     expect(screen.getByText("Fecha vencimiento (opcional)")).toBeInTheDocument();
     expect(screen.queryByText(/Este producto usa lotes/)).not.toBeInTheDocument();
+  });
+});
+
+// C-120 — REGRESIÓN (mascotaspetshop, 2026-11-25): el buscador de inventario
+// pedía /api/inventario por cada letra (el 75 % de las requests del pico) y
+// cada letra quedaba en la caché que las invalidaciones volvían a pedir.
+describe("InventoryPage — búsqueda con espera (C-120)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAsAdmin();
+    setupFetch();
+  });
+
+  const llamadasInventario = () =>
+    (global.fetch as jest.Mock).mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith("/api/inventario?"));
+
+  it("C-120: escribir varias letras seguidas pide el inventario una sola vez, con el texto final", async () => {
+    render(<InventoryPage />, { wrapper: makeWrapper() });
+    await waitFor(() => expect(screen.getByText("Alimento Premium")).toBeInTheDocument());
+    (global.fetch as jest.Mock).mockClear();
+
+    const input = screen.getByPlaceholderText("Buscar por nombre o SKU...");
+    for (const v of ["L", "LA", "LAT", "LATA"]) fireEvent.change(input, { target: { value: v } });
+    expect(llamadasInventario()).toHaveLength(0);
+
+    await waitFor(() => expect(llamadasInventario()).toEqual(["/api/inventario?search=LATA"]));
   });
 });

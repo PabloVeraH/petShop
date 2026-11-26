@@ -135,8 +135,8 @@ export function LotesPanel({
     mutationFn: crearLote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       setShowForm(false);
       setForm(EMPTY_LOTE_FORM);
       setFormError("");
@@ -149,8 +149,8 @@ export function LotesPanel({
       actualizarLote(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       setEditando(null);
       setForm(EMPTY_LOTE_FORM);
       setFormError("");
@@ -162,8 +162,8 @@ export function LotesPanel({
     mutationFn: desactivarLote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
     },
   });
 
@@ -172,8 +172,8 @@ export function LotesPanel({
     onSuccess: () => {
       setBajaError("");
       queryClient.invalidateQueries({ queryKey: ["lotes", productoId] });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
     },
     onError: (e: Error) => setBajaError(e.message),
   });

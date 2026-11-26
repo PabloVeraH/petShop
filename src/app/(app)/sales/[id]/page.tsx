@@ -178,8 +178,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       });
       queryClient.invalidateQueries({ queryKey: ["venta", id], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: ["notas-credito", id], refetchType: "all" });
       if (data?.clientes?.id) {

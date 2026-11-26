@@ -478,9 +478,9 @@ I-406/I-407/I-408.
 | IV-01 | Producto sin costo muestra badge 'Sin costo' | InventoryPage | component |
 | IV-02 | El Motivo completo con acentos se envía íntegro en el body del ajuste de stock (no truncado) | InventoryPage | component |
 | IV-03 | REGRESIÓN: cambiar Cantidad mientras el modal de ajuste está abierto no vuelve a robar el foco del input Motivo (ModalOverlay commit 1270b13) | InventoryPage | component |
-| IV-04 | REGRESIÓN: Ajuste de stock invalida ["inventario"] y ["productos"] con refetchType "all" (inventario y POS reflejan stock actualizado sin recargar) | InventoryPage | component |
-| IV-05 | REGRESIÓN: Editar producto invalida ["inventario"] y ["productos"] con refetchType "all" | InventoryPage | component |
-| IV-06 | REGRESIÓN: Desactivar producto invalida ["inventario"] y ["productos"] con refetchType "all" | InventoryPage | component |
+| IV-04 | REGRESIÓN: Ajuste de stock invalida ["inventario"] y ["productos"] (inventario y POS reflejan stock actualizado sin recargar) (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | InventoryPage | component |
+| IV-05 | REGRESIÓN: Editar producto invalida ["inventario"] y ["productos"] (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | InventoryPage | component |
+| IV-06 | REGRESIÓN: Desactivar producto invalida ["inventario"] y ["productos"] (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | InventoryPage | component |
 | IV-07 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras entrada de stock sin recarga manual (F5) — test end-to-end de refetch | InventoryPage | component |
 | IV-08 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras editar producto sin recarga manual | InventoryPage | component |
 | IV-09 | REGRESIÓN: La tabla de inventario muestra el stock actualizado tras desactivar producto sin recarga manual | InventoryPage | component |
@@ -496,7 +496,7 @@ I-406/I-407/I-408.
 | FP-12 | Inputs opcionales NO tienen required | InventoryPage | component |
 | VT-01 | Ticket muestra "Gracias por su compra" en venta no anulada | SalesTicketPage | component |
 | VT-02 | Ticket NO muestra "Gracias por su compra" en venta anulada | SalesTicketPage | component |
-| VT-03 | Anular venta invalida queries ["venta", id], ["ventas"], ["inventario"], ["productos"], ["lotes"] y ["notas-credito", id] con refetchType "all" | SalesTicketPage | component |
+| VT-03 | Anular venta invalida queries ["venta", id], ["ventas"], ["inventario"], ["productos"], ["lotes"] y ["notas-credito", id] con refetchType "all" (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | SalesTicketPage | component |
 | VT-05 | Anulación con error del servidor muestra mensaje en banner rojo | SalesTicketPage | component |
 | VT-06 | REGRESIÓN (ticket Trello 6a61a12381bf8bf365e5a9d3): anular venta actualiza cache vía setQueryData — banner "Venta anulada" aparece sin esperar refetch | SalesTicketPage | component |
 | VT-07 | MEJORA (ticket Trello 6a62eb35759d896b8e127aa7): al anular con una NC activa con saldo a favor, la confirmación advierte el monto que será invalidado | SalesTicketPage | component |
@@ -846,7 +846,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
-| PP-05 | Completar venta invalida ["productos"] y ["ventas"] con refetchType "all" | POSPage | component |
+| PP-05 | Completar venta invalida ["productos"] y ["ventas"] con refetchType "all" (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | POSPage | component |
 | PP-06 | REGRESIÓN: el botón Cobrar computa el total con calcularTotalCarrito(items, descuento) del mismo render, coincide con la suma de subtotales menos descuento | POSPage | component |
 | PP-07 | useEffect asigna workerClerkId al userId cuando el componente monta | POSPage | component |
 | PP-08 | useEffect no asigna worker cuando userId es null (Clerk loading) | POSPage | component |
@@ -855,7 +855,7 @@ Carrito (ver sección siguiente) y colisionaba con PC-05 ya registrado ahí.
 | PP-11 | REGRESIÓN: useEffect resetea worker cuando un usuario diferente se loguea (cambio de turno) | POSPage | component |
 | PP-12 | El stock en la grilla de productos (SearchProductos real, no mockeado) se actualiza automáticamente tras una venta exitosa, sin recargar la página — investigado como reporte de bug, no reprodujo contra el código actual; test agregado como regresión permanente | POSPage | component |
 | PP-13 | clearCart se llama tras venta exitosa y botón Cobrar cambia a Carrito vacío (regresión: carrito no se limpiaba tras venta) | POSPage | component |
-| PP-14 | REGRESIÓN: Procesar venta invalida ["inventario"], ["productos"] y ["lotes"] con refetchType "all" (stock descontado debe reflejarse en inventario/lotes sin recargar) | POSPage | component |
+| PP-14 | REGRESIÓN: Procesar venta invalida ["inventario"], ["productos"] y ["lotes"] (stock descontado debe reflejarse en inventario/lotes sin recargar) (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | POSPage | component |
 | PP-15 | REGRESIÓN (ticket Trello 6a61a067a9350a401550e770): dos intentos de "Cobrar" sin reabrir el modal envían la misma idempotencyKey | POSPage | component |
 | PP-16 | reabrir el modal de cobro genera una idempotencyKey distinta a la anterior | POSPage | component |
 | PP-17 | REGRESIÓN (ticket Trello 6a76cba663fe913460f537d0): la popup del recibo tras el cobro se abre con "noopener" para que window.print() no bloquee el renderer del POS (freeze 10-60s) | POSPage | component |
@@ -895,7 +895,7 @@ fijado al estado pre-hidratación de `persist`.
 
 | ID | Requisito | Componente | Tipo |
 |----|-----------|------------|------|
-| DV-14 | Confirmar devolución invalida ["venta", id], ["ventas"], ["notas-credito", id], ["saldo", clienteId], ["inventario"], ["productos"] y ["lotes"] con refetchType "all" | DevolucionModal | component |
+| DV-14 | Confirmar devolución invalida ["venta", id], ["ventas"], ["notas-credito", id], ["saldo", clienteId], ["inventario"], ["productos"] y ["lotes"] con refetchType "all" (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | DevolucionModal | component |
 
 ## Devolución Modal Motivo (DV-15 a DV-17)
 
@@ -933,9 +933,9 @@ campo Notas del formulario de Agregar/Editar Lote.
 | LP-01 | REGRESIÓN: escribir en Notas no vuelve a robar el foco del ModalOverlay real | LotesPanel | component |
 | LP-02 | REGRESIÓN: el texto completo de Notas se envía en el body del POST /api/lotes, no truncado | LotesPanel | component |
 | LP-03 | Notas vacío se envía como null en el body del POST | LotesPanel | component |
-| LP-04 | REGRESIÓN: crear lote invalida ["inventario"] y ["productos"] con refetchType "all" (inventario y POS reflejan stock recalculado desde lotes sin recargar) | LotesPanel | component |
-| LP-05 | REGRESIÓN: editar lote invalida ["inventario"] y ["productos"] con refetchType "all" | LotesPanel | component |
-| LP-06 | REGRESIÓN: desactivar lote invalida ["inventario"] y ["productos"] con refetchType "all" | LotesPanel | component |
+| LP-04 | REGRESIÓN: crear lote invalida ["inventario"] y ["productos"] (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) (inventario y POS reflejan stock recalculado desde lotes sin recargar) | LotesPanel | component |
+| LP-05 | REGRESIÓN: editar lote invalida ["inventario"] y ["productos"] (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | LotesPanel | component |
+| LP-06 | REGRESIÓN: desactivar lote invalida ["inventario"] y ["productos"] (actualizado 2026-11-25: ["inventario"] y ["productos"] sin refetchType "all", ver C-119) | LotesPanel | component |
 
 ## ModalOverlay — foco y cierre (MO-01 a MO-06)
 
@@ -2737,6 +2737,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | C-116 | Detalle de venta: notas internas visibles fuera del ticket impreso; sin notas no hay bloque | SalesTicketPage | component |
 | C-117 | REGRESIÓN (mascotaspetshop, 2026-11-13): el alta de un systemAdmin envía el storeId de la página (antes undefined, y la cuenta no aparecía en el listado) | UsuariosCard | component |
 | C-118 | REGRESIÓN (mascotaspetshop, 2026-11-25): la búsqueda del POS espera a que el texto deje de cambiar (una request con el texto final, no una por carácter); el escaneo busca el código de inmediato y una sola vez | SearchProductos | component |
+| C-119 | REGRESIÓN (mascotaspetshop, 2026-11-25): invalidar ["productos"] solo vuelve a pedir la búsqueda en pantalla (antes, con refetchType "all", todas las guardadas: ~100 requests por venta); una búsqueda anterior se refresca con el stock nuevo al volver a ella | SearchProductos | component |
+| C-120 | REGRESIÓN (mascotaspetshop, 2026-11-25): el buscador de inventario pide /api/inventario una vez con el texto final, no una por letra | InventoryPage | component |
 | U-276 | El primer 429 de cada ventana queda en error_logs (usuario o IP, ruta, conteo, límite); los siguientes no; un insert fallido no cambia el 429 | rateLimit | unit |
 | NOT-SQL-01…02 | Migración 094: ventas.notas varchar(255) nullable; el UPDATE de la ruta la guarda | migración 094 | sql |
 | U-258 | Pago mixto: un medio de pago no se repite (dos en efectivo o dos con débito se rechazan) | validarPagos | unit |

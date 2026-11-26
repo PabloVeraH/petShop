@@ -169,10 +169,11 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     expect(body.notas).toBeNull();
   });
 
-  // LP-04: REGRESIÓN — crear un lote invalida ["inventario"] y ["productos"] con refetchType
-  // "all" (el stock del producto se recalcula desde los lotes; el inventario y el POS,
-  // desmontado, deben reflejarlo sin recargar). Mismo patrón que IV-04/CT-04.
-  it("LP-04: REGRESIÓN — crear lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+  // LP-04: REGRESIÓN — crear un lote invalida ["inventario"] y ["productos"]
+  // (el stock del producto se recalcula desde los lotes; el inventario y el POS,
+  // desmontado, deben reflejarlo sin recargar). Mismo patrón que IV-04.
+  // (2026-11-25: sin refetchType "all": las búsquedas fuera de pantalla quedan invalidadas y se piden al volver a mostrarse — ver C-119).
+  it("LP-04: REGRESIÓN — crear lote invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -191,20 +192,20 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Crear Lote/i }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
     // No debe llamarse SIN refetchType: "all" — esa sería la versión bugueada
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
 
   // LP-05: REGRESIÓN — editar un lote invalida ["inventario"] y ["productos"]
-  // con refetchType "all" (mismo patrón que LP-04, en el mutation handler de
+  // (mismo patrón que LP-04, en el mutation handler de
   // actualizarMutation en vez del de crearMutation).
-  it("LP-05: REGRESIÓN — editar lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+  it("LP-05: REGRESIÓN — editar lote invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -244,19 +245,19 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
 
   // LP-06: REGRESIÓN — desactivar un lote invalida ["inventario"] y ["productos"]
-  // con refetchType "all" (mismo patrón que LP-04, en el mutation handler de
+  // (mismo patrón que LP-04, en el mutation handler de
   // desactivarMutation).
-  it("LP-06: REGRESIÓN — desactivar lote invalida ['inventario'] y ['productos'] con refetchType 'all'", async () => {
+  it("LP-06: REGRESIÓN — desactivar lote invalida ['inventario'] y ['productos'] (sin refetchType 'all')", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const spy = jest.spyOn(qc, "invalidateQueries");
 
@@ -293,11 +294,11 @@ describe("LotesPanel — formulario de Lote (Notas)", () => {
     fireEvent.click(screen.getByText("Desactivar"));
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     spy.mockRestore();
   });
@@ -394,8 +395,8 @@ describe("LotesPanel — stock suelto a LOTE-0 y merma por vencimiento", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dar de baja (merma)" }));
 
     await waitFor(() => expect(postCall("/api/lotes/lote-v/merma")).toBeDefined());
-    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" }));
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] }));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
   });
 
   // LP-11 — el error del servidor (ej. 403 para storeWorker) se muestra.

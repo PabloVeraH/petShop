@@ -371,15 +371,15 @@ describe("SalesTicketPage — anulación de venta (VT-01 a VT-08)", () => {
     // aunque la lista esté desmontada (sin observer activo).
     expect(spy).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });
     // La anulación revierte stock → inventario/productos/lotes deben invalidarse
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["lotes"], refetchType: "all" });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["notas-credito", VENTA_ID], refetchType: "all" });
     // No debe llamarse SIN refetchType: "all" — eso sería la versión bugueada
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["ventas"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["venta", VENTA_ID] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ["notas-credito", VENTA_ID] });
 

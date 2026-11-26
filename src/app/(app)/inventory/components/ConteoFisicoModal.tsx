@@ -86,8 +86,8 @@ export function ConteoFisicoModal({ producto, onClose }: ConteoFisicoModalProps)
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       queryClient.invalidateQueries({ queryKey: ["lotes", producto.id] });
       onClose();
     },

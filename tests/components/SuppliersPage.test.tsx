@@ -289,12 +289,12 @@ describe("SuppliersPage - Payment Modal", () => {
     // también deben invalidar inventario/productos/lotes
     const inventarioInvalidations = mockInvalidateQueries.mock.calls.filter(
       ([arg]: [{ queryKey?: unknown[]; refetchType?: string }]) =>
-        arg?.queryKey?.[0] === "inventario" && arg?.refetchType === "all"
+        arg?.queryKey?.[0] === "inventario" && arg?.refetchType === undefined
     );
     expect(inventarioInvalidations.length).toBeGreaterThanOrEqual(2);
     const productosInvalidations = mockInvalidateQueries.mock.calls.filter(
       ([arg]: [{ queryKey?: unknown[]; refetchType?: string }]) =>
-        arg?.queryKey?.[0] === "productos" && arg?.refetchType === "all"
+        arg?.queryKey?.[0] === "productos" && arg?.refetchType === undefined
     );
     expect(productosInvalidations.length).toBeGreaterThanOrEqual(2);
     const lotesInvalidations = mockInvalidateQueries.mock.calls.filter(

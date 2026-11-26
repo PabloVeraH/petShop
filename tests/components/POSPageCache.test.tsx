@@ -126,14 +126,13 @@ describe("POSPage — invalidación de caché post-venta", () => {
       expect.objectContaining({ pagos: [{ metodo: "efectivo", monto: 1000 }] })
     );
 
-    // DEBE invalidar ["productos"] con refetchType "all" (alineado con ["ventas"]).
-    // Nota: un repro con SearchProductos real y refetchType "active" (el default)
-    // no reprodujo el stale-grid en jsdom — ver PP-12 en POSStockRefresh.test.tsx,
-    // que documenta lo mismo. La causa exacta en navegador real no está confirmada;
-    // "all" se mantiene como alineación defensiva con el patrón ya usado en ventas,
-    // no como corrección de una causa raíz verificada.
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
-    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"] });
+    // DEBE invalidar ["productos"], SIN refetchType "all". El "all" era una
+    // alineación defensiva con ["ventas"] sin causa raíz verificada (ver PP-12), y
+    // en mascotaspetshop (2026-11-25) cada venta volvía a pedir todas las búsquedas
+    // guardadas (~100 requests en un segundo) y agotaba el rate limit. Que el stock
+    // se actualice al volver a mostrarse lo prueba C-119.
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
 
     // DEBE llamar con refetchType: "all" — fuerza refetch aunque no haya observer activo
     expect(spy).toHaveBeenCalledWith({ queryKey: ["ventas"], refetchType: "all" });

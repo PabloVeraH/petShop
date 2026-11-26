@@ -13,8 +13,7 @@ import BarcodeScanner from "./BarcodeScanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estadoSacos, formatoSacos, textoResiduoSacos, etiquetaSaco, gramosDesdeValor } from "@/lib/granel";
 import { useReintentoTrasLimite } from "@/hooks/useReintentoTrasLimite";
-
-export const ESPERA_BUSQUEDA_MS = 250;
+import { useValorConEspera } from "@/hooks/useValorConEspera";
 
 export default function SearchProductos() {
   const [search, setSearch] = useState("");
@@ -46,16 +45,9 @@ export default function SearchProductos() {
   // Timestamp of the first character typed — used to detect pistola vs teclado
   const inputStartRef = useRef<number | null>(null);
 
-  // La lista se busca cuando el texto deja de cambiar por ESPERA_BUSQUEDA_MS.
-  // Sin la espera, cada carácter (también los de la pistola) era una request
-  // a /api/productos: ~80 % del tráfico del POS y el 429 del rate limit
-  // (mascotaspetshop, 2026-11-25). El escaneo no espera: el Enter busca el
-  // código directo (handleBarcodeEnter).
-  const [busqueda, setBusqueda] = useState("");
-  useEffect(() => {
-    const id = setTimeout(() => setBusqueda(search), ESPERA_BUSQUEDA_MS);
-    return () => clearTimeout(id);
-  }, [search]);
+  // La lista se busca cuando el texto deja de cambiar (useValorConEspera). El
+  // escaneo no espera: el Enter busca el código directo (handleBarcodeEnter).
+  const busqueda = useValorConEspera(search);
 
   const { data: productos, isLoading, isError, error: productosError, refetch } = useQuery({
     queryKey: ["productos", busqueda],

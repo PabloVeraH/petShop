@@ -38,8 +38,8 @@ describe("DeshacerAperturaButton", () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: () => Promise.resolve({ saco: {}, stock: 10 }) });
     const { spy } = renderBtn();
     fireEvent.click(screen.getByRole("button", { name: "Deshacer apertura" }));
-    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" }));
-    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["inventario"] }));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["productos"] });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["lotes"], refetchType: "all" });
   });
 

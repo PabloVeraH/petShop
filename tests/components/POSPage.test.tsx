@@ -7,7 +7,7 @@
  * PP-03  Carrito vacío → botón dice "Carrito vacío" y está deshabilitado
  * PP-04  REGRESIÓN — setWorker se llama con userId al montar
  * PP-06  Total se computa de items+descuento localmente (no vía selector separado)
- * PP-14  REGRESIÓN — procesar venta invalida inventario/lotes con refetchType "all"
+ * PP-14  REGRESIÓN — procesar venta invalida inventario/lotes (lotes con refetchType "all"; inventario sin él)
  */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -179,10 +179,11 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     expect(button).toHaveTextContent("Cobrar $13.500");
   });
 
-  // PP-14: REGRESIÓN — procesar venta invalida inventario/lotes con refetchType "all"
+  // PP-14: REGRESIÓN — procesar venta invalida inventario/lotes (lotes con refetchType
+  // "all"; inventario y productos sin él (2026-11-25: sin refetchType "all": las búsquedas fuera de pantalla quedan invalidadas y se piden al volver a mostrarse — ver C-119))
   // (mismo patrón que IV-04/CT-04: el stock se descuenta en backend pero el cache
   // de inventario/lotes debe invalidarse para que otras vistas reflejen el cambio).
-  it("PP-14: REGRESIÓN — procesar venta invalida ['inventario'] y ['lotes'] con refetchType 'all'", async () => {
+  it("PP-14: REGRESIÓN — procesar venta invalida ['inventario'] y ['lotes']", async () => {
     const store = { ...makeMockStore(), clienteEmail: "test@test.com" };
     mockUsePOSStore.mockReturnValue(store);
     mockInvalidateQueries.mockClear();
@@ -195,12 +196,12 @@ describe("POSPage — botón Cobrar reactivo (PP-01/PP-02/PP-03)", () => {
     await mutationMutate!();
 
     await waitFor(() => {
-      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["inventario"] });
     });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["lotes"], refetchType: "all" });
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["productos"], refetchType: "all" });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["productos"] });
     // Sin refetchType (versión bugueada) no debe llamarse
-    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"] });
+    expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["inventario"], refetchType: "all" });
     expect(mockInvalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["lotes"] });
   });
 

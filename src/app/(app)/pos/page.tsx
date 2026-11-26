@@ -109,9 +109,14 @@ export default function POSPage() {
       setShowPagoModal(false);
       setVentaError(null);
       setVentaExito(true);
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      // Productos e inventario: solo se vuelven a pedir las búsquedas en
+      // pantalla; las demás quedan invalidadas y se piden al volver a
+      // mostrarse. Con refetchType "all" cada venta o ajuste volvía a pedir
+      // TODAS las búsquedas guardadas (~100 requests en un segundo) y agotaba
+      // el rate limit (mascotaspetshop, 2026-11-25).
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       queryClient.invalidateQueries({ queryKey: ["ventas"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
       exitoTimerRef.current = setTimeout(() => setVentaExito(false), 3000);
       if (data?.id) {

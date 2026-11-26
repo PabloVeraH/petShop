@@ -22,8 +22,8 @@ export function DeshacerAperturaButton({ productoId, varios = false }: { product
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventario"], refetchType: "all" });
-      queryClient.invalidateQueries({ queryKey: ["productos"], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
       queryClient.invalidateQueries({ queryKey: ["lotes"], refetchType: "all" });
     },
   });
