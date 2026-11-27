@@ -5,7 +5,7 @@
  */
 
 import { computeLicenseStatus } from "@/lib/license";
-import { buildCsp, clerkProdFrontendApi } from "@/proxy";
+import { buildCsp, clerkProdFrontendApi, licenciaDeTienda, LICENCIA_TTL_MS } from "@/proxy";
 
 // Replica la lógica de routing del middleware sin depender de Clerk ni Next.js
 function buildMeta(role: "systemAdmin" | "storeAdmin" | "storeWorker" | "none") {
@@ -483,3 +483,45 @@ describe("Middleware — rutas del storeWorker (MW-33)", () => {
   });
 });
 
+
+// MW-36 — la licencia se guarda 2 min en memoria (registro 2026-11-26: el
+// proxy consultaba stores en cada request, ~1/4 del tráfico a la BD).
+describe("Middleware — licencia en memoria (MW-36)", () => {
+  const fila = { license_end_date: "2030-01-01", license_warning_days: 7 };
+  const T0 = 1_000_000;
+
+  it("MW-36: dentro de 2 min no vuelve a consultar; al vencer, sí", async () => {
+    const cargar = jest.fn().mockResolvedValue(fila);
+    expect(await licenciaDeTienda("mw36-a", cargar, T0)).toEqual(fila);
+    expect(await licenciaDeTienda("mw36-a", cargar, T0 + LICENCIA_TTL_MS - 1)).toEqual(fila);
+    expect(cargar).toHaveBeenCalledTimes(1);
+    await licenciaDeTienda("mw36-a", cargar, T0 + LICENCIA_TTL_MS);
+    expect(cargar).toHaveBeenCalledTimes(2);
+    expect(LICENCIA_TTL_MS).toBe(120_000);
+  });
+
+  it("MW-36: tienda no encontrada o error no quedan guardados (se reintenta en el request siguiente)", async () => {
+    const nula = jest.fn().mockResolvedValue(null);
+    await licenciaDeTienda("mw36-b", nula, T0);
+    await licenciaDeTienda("mw36-b", nula, T0 + 1);
+    expect(nula).toHaveBeenCalledTimes(2);
+
+    const falla = jest.fn().mockRejectedValueOnce(new Error("db")).mockResolvedValue(fila);
+    await expect(licenciaDeTienda("mw36-c", falla, T0)).rejects.toThrow("db");
+    expect(await licenciaDeTienda("mw36-c", falla, T0 + 1)).toEqual(fila);
+    expect(falla).toHaveBeenCalledTimes(2);
+  });
+
+  it("MW-36: cada tienda tiene su propia entrada", async () => {
+    const otra = { license_end_date: "2020-01-01", license_warning_days: 0 };
+    await licenciaDeTienda("mw36-d", jest.fn().mockResolvedValue(fila), T0);
+    expect(await licenciaDeTienda("mw36-e", jest.fn().mockResolvedValue(otra), T0)).toEqual(otra);
+  });
+
+  it("MW-36: se guarda la fila, no el resultado: una licencia que vence durante la caché bloquea igual", async () => {
+    const venceHoy = { license_end_date: "2026-11-27", license_warning_days: 0 };
+    const store = await licenciaDeTienda("mw36-f", jest.fn().mockResolvedValue(venceHoy), T0);
+    expect(computeLicenseStatus(store!, new Date("2026-11-27T15:00:00Z")).isAutoBlocked).toBe(false);
+    expect(computeLicenseStatus(store!, new Date("2026-11-29T15:00:00Z")).isAutoBlocked).toBe(true);
+  });
+});

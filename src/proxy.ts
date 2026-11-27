@@ -112,6 +112,27 @@ const skipLicenseCheck = createRouteMatcher([
   "/api/license/status",
 ]);
 
+// Licencia en memoria de la instancia por 2 minutos: el proxy la revisa en
+// cada request y era ~1/4 de las consultas a la BD (registro del 2026-11-26).
+// Se guarda la fila, no el resultado: el bloqueo se calcula con la fecha de
+// cada request. Un cambio de licencia tarda hasta 2 min en verse en cada
+// instancia. Una fila no encontrada o un error no se guardan.
+export const LICENCIA_TTL_MS = 2 * 60 * 1000;
+type FilaLicencia = { license_end_date: string | null; license_warning_days: number };
+const licenciaCache = new Map<string, { fila: FilaLicencia; vence: number }>();
+
+export async function licenciaDeTienda(
+  storeId: string,
+  cargar: () => Promise<FilaLicencia | null>,
+  ahora = Date.now(),
+): Promise<FilaLicencia | null> {
+  const guardada = licenciaCache.get(storeId);
+  if (guardada && guardada.vence > ahora) return guardada.fila;
+  const fila = await cargar();
+  if (fila) licenciaCache.set(storeId, { fila, vence: ahora + LICENCIA_TTL_MS });
+  return fila;
+}
+
 export default clerkMiddleware(async (auth, req) => {
   // Generar nonce criptográfico por request para CSP
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -144,12 +165,14 @@ export default clerkMiddleware(async (auth, req) => {
   // Verificar licencia para usuarios no-systemAdmin en rutas privadas
   if (!skipLicenseCheck(req) && !isSystemAdmin && storeId) {
     try {
-      const supabase = createServiceClient();
-      const { data: store } = await supabase
-        .from("stores")
-        .select("license_end_date, license_warning_days")
-        .eq("id", storeId)
-        .single();
+      const store = await licenciaDeTienda(storeId, async () => {
+        const { data } = await createServiceClient()
+          .from("stores")
+          .select("license_end_date, license_warning_days")
+          .eq("id", storeId)
+          .single();
+        return data;
+      });
 
       if (store) {
         const { isAutoBlocked } = computeLicenseStatus({
