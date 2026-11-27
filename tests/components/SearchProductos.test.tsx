@@ -62,6 +62,7 @@ function prod(overrides: Partial<Producto> & Pick<Producto, "id" | "nombre" | "p
 // ── Import component after mocks ──────────────────────────────────────────────
 
 import SearchProductos from "@/app/(app)/pos/components/SearchProductos";
+import { ESPERA_BUSQUEDA_MS } from "@/hooks/useValorConEspera";
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -268,6 +269,25 @@ describe("SearchProductos", () => {
       expect(mockGetProductos).toHaveBeenCalledTimes(1);
     });
 
+    // C-123 — registro 2026-11-26: con 250 ms, escribir una letra cada ~0,3 s
+    // buscaba casi en cada letra (f, fi, fit). Con 500 ms es una sola búsqueda.
+    it("C-123: letras separadas por 300 ms buscan una sola vez, con el texto final", async () => {
+      render(<SearchProductos />, { wrapper: makeWrapper() });
+      await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith(""), { timeout: 2000 });
+      mockGetProductos.mockClear();
+
+      const input = screen.getByPlaceholderText(INPUT);
+      for (const v of ["f", "fi", "fit"]) {
+        fireEvent.change(input, { target: { value: v } });
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      expect(mockGetProductos).not.toHaveBeenCalled();
+
+      await waitFor(() => expect(mockGetProductos).toHaveBeenCalledWith("fit"));
+      expect(mockGetProductos).toHaveBeenCalledTimes(1);
+      expect(ESPERA_BUSQUEDA_MS).toBe(500);
+    });
+
     it("C-118: el escaneo (código + Enter) busca el código de inmediato y una sola vez", async () => {
       const codigo = "7801234567890";
       mockGetProductos.mockImplementation((s: string) =>
@@ -285,7 +305,7 @@ describe("SearchProductos", () => {
       expect(mockGetProductos).toHaveBeenCalledTimes(1);
       expect(mockGetProductos).toHaveBeenCalledWith(codigo);
       // Pasada la espera, el campo vacío reusa la lista ya cargada: sin requests nuevas.
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, ESPERA_BUSQUEDA_MS + 150));
       expect(mockGetProductos).toHaveBeenCalledTimes(1);
     });
   });
