@@ -17,7 +17,7 @@ export default function TopProductos({ data }: { data: TopProd[] }) {
         {data.map((item) => (
           <tr key={item.producto_id} className="border-b last:border-0">
             <td className="py-1.5">{item.nombre}</td>
-            <td className="py-1.5 text-right font-medium">{item.cantidad}</td>
+            <td className="py-1.5 text-right font-medium">{item.cantidad.toLocaleString("es-CL", { maximumFractionDigits: 2 })}</td>
           </tr>
         ))}
       </tbody>

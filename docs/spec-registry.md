@@ -221,6 +221,7 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-843 | systemAdmin sin storeId en el body → 400 "storeId requerido", nunca llega a Clerk (todo alta exige tienda, cierra I-842 en la API) | POST /api/admin/users/create | integration |
 | I-844 | GET /api/productos con búsqueda incluye agotados (con stock primero, orden stock desc); sin búsqueda solo stock > 0 | GET /api/productos | integration |
 | I-845…847 | GET /api/reports: metodosVentas (la mixta cuenta una vez en cada método; metodos sin cambios) y topProductos[].ventas (ventas distintas, servicios fuera); con canal/vendedor las líneas se piden solo de las ventas filtradas de la tienda; storeWorker con vendedor → 403 | GET /api/reports | integration |
+| I-848 | GET /api/dashboard: Top 5 productos hoy cuenta sacos/unidades (granel = gramos / peso del saco, 2 decimales), servicios fuera, orden por esa cantidad | GET /api/dashboard | integration |
 | I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
 | I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
@@ -837,6 +838,7 @@ código desde los commits 779a68f/866c60a pero no estaban registrados aquí.
 | DA-09 | Sin ventas (0/0/$0) la UI no muestra NaN | AnaliticaTab | component |
 | DA-11 | REGRESIÓN (ticket 6a77ef3a0ed45ac54505c62a): vencimiento de producto muestra la fecha almacenada sin desfase de 1 día ("vence 01-05-2026", no "30-04-2026" por parseo UTC) | AnaliticaTab | component |
 | DA-12 | REGRESIÓN (ticket 6a77ef3a0ed45ac54505c62a): lote que vence HOY muestra "vence en 0 días" (no "-1 días" por desfase UTC en el parseo de `lotes.proximos`) | AnaliticaTab | component |
+| DA-13 | Top 5 productos hoy: cantidad con coma decimal y hasta 2 decimales (1,02); enteros sin decimales; vacío "Sin ventas hoy" | TopProductos | component |
 
 ## POS Page Cache y auto-asignación de vendedor (PP-05 a PP-11)
 

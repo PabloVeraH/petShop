@@ -74,25 +74,26 @@ export const GET = withErrorLogging(async () => {
   if (ventaIds.length > 0) {
     const { data: items } = await supabase
       .from("venta_items")
-      .select("producto_id, cantidad, productos(nombre)")
+      .select("producto_id, cantidad, es_granel, gramos, productos(nombre, peso_gramos)")
       .in("venta_id", ventaIds);
 
+    // Cantidad en sacos/unidades: una línea a granel cuenta gramos / peso del
+    // saco (60 kg de un saco de 20 kg = 3), no los kg de venta_items.cantidad.
+    // Las líneas de servicio (sin producto) quedan fuera.
     const counts: Record<string, { nombre: string; cantidad: number }> = {};
     for (const item of items ?? []) {
       const pid = item.producto_id;
-      if (!counts[pid]) {
-        const prod = item.productos as unknown as { nombre: string } | null;
-        counts[pid] = {
-          nombre: prod?.nombre ?? "",
-          cantidad: 0,
-        };
-      }
-      counts[pid].cantidad += item.cantidad;
+      if (!pid) continue;
+      const prod = item.productos as unknown as { nombre: string; peso_gramos: number | null } | null;
+      counts[pid] ??= { nombre: prod?.nombre ?? "", cantidad: 0 };
+      const peso = Number(prod?.peso_gramos);
+      // ponytail: usa el peso del saco actual; sin peso (no debería, G8) cae a kg.
+      counts[pid].cantidad += item.es_granel && peso > 0 ? Number(item.gramos) / peso : Number(item.cantidad);
     }
     topProductos = Object.entries(counts)
       .sort((a, b) => b[1].cantidad - a[1].cantidad)
       .slice(0, 5)
-      .map(([id, val]) => ({ producto_id: id, ...val }));
+      .map(([id, val]) => ({ producto_id: id, nombre: val.nombre, cantidad: Math.round(val.cantidad * 100) / 100 }));
   }
 
   // Alertas consumo scoped a la tienda (store_id directo desde migración 005)

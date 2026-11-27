@@ -269,6 +269,49 @@ describe("GET /api/dashboard", () => {
   });
 });
 
+// I-848: "Top 5 productos hoy" cuenta sacos/unidades. Una línea a granel suma
+// gramos / peso del saco (no los kg de venta_items.cantidad); los servicios
+// quedan fuera; se redondea a 2 decimales.
+describe("GET /api/dashboard — Top 5 productos con granel", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuth.mockResolvedValue({ sessionClaims: { publicMetadata: { storeAdmin: true, storeId: STORE_ID }, sub: "u1" } });
+    mockGetStoreId.mockResolvedValue({ userId: "u1", storeId: STORE_ID });
+  });
+
+  it("I-848: granel en sacos (60 kg de 20 kg = 3; 1 saco + 400 g = 1,02), servicios fuera, orden por esa cantidad", async () => {
+    const VENTAS = [{ id: "v1", total: 1, descuento: 0, metodo_pago: "efectivo", canal: "pos", procedencia: "presencial" }];
+    const SACO = { nombre: "Saco 20kg", peso_gramos: 20000 };
+    const OTRO = { nombre: "Granel B", peso_gramos: 20000 };
+    const ITEMS = [
+      { producto_id: "pA", cantidad: 1, es_granel: false, gramos: null, productos: SACO },
+      { producto_id: "pA", cantidad: 0.4, es_granel: true, gramos: 400, productos: SACO },
+      { producto_id: "pB", cantidad: 60, es_granel: true, gramos: 60000, productos: OTRO },
+      { producto_id: "pC", cantidad: 2, es_granel: false, gramos: null, productos: { nombre: "Lata", peso_gramos: 400 } },
+      { producto_id: "pD", cantidad: 0.1, es_granel: true, gramos: 100, productos: { nombre: "Tercio", peso_gramos: 300 } },
+      { producto_id: null, cantidad: 5, es_granel: false, gramos: null, productos: null },
+    ];
+    const items = chain();
+    mockFrom.mockImplementation((table: string) => {
+      const data = table === "ventas" ? VENTAS : table === "venta_items" ? ITEMS : [];
+      const c = table === "venta_items" ? items : chain();
+      c.then = jest.fn().mockImplementation((resolve: (v: unknown) => void) => resolve({ data, error: null }));
+      return c;
+    });
+
+    const { GET } = await import("@/app/api/dashboard/route");
+    const body = await (await GET()).json();
+
+    expect(items.in).toHaveBeenCalledWith("venta_id", ["v1"]);
+    expect(body.topProductos).toEqual([
+      { producto_id: "pB", nombre: "Granel B", cantidad: 3 },
+      { producto_id: "pC", nombre: "Lata", cantidad: 2 },
+      { producto_id: "pA", nombre: "Saco 20kg", cantidad: 1.02 },
+      { producto_id: "pD", nombre: "Tercio", cantidad: 0.33 },
+    ]);
+  });
+});
+
 describe("GET /api/dashboard/stock-alertas", () => {
   beforeEach(() => {
     jest.clearAllMocks();
