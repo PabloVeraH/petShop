@@ -12,9 +12,10 @@ interface ReportsData {
   totalTransacciones: number;
   ticketPromedio: number;
   ventasPorDia: [string, { total: number; transacciones: number }][];
-  topProductos: { nombre: string; cantidad: number; revenue: number }[];
+  topProductos: { nombre: string; cantidad: number; revenue: number; ventas?: number }[];
   topClientes: { nombre: string; total: number; compras: number }[];
   metodos: Record<string, number>;
+  metodosVentas?: Record<string, number>;
   montoBoleta?: number;
   boletaPorMetodo?: Record<string, number>;
   canales: Record<string, { total: number; transacciones: number }>;
@@ -70,17 +71,30 @@ function fmt(n: number) {
   return `$${Math.round(n).toLocaleString("es-CL")}`;
 }
 
+const textoVentas = (n: number) => `${n} venta${n !== 1 ? "s" : ""}`;
+
 function BarChart({ data, color = "bg-green-500" }: {
-  data: { label: string; value: number }[];
+  data: { label: string; value: number; ventas?: number }[];
   color?: string;
 }) {
+  // Se guarda qué barra está bajo el mouse, no sus números: el tooltip los lee
+  // de `data`, así un cambio de filtro muestra el valor nuevo y si la barra
+  // desaparece el tooltip se cierra.
+  const [hover, setHover] = useState<{ label: string; x: number; y: number } | null>(null);
+  const activa = hover ? data.find((d) => d.label === hover.label && d.ventas != null) : undefined;
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <div className="space-y-2">
       {data.map((d, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="text-xs text-gray-500 w-28 shrink-0 truncate text-right">{d.label}</span>
-          <div className="flex-1 bg-gray-100 rounded h-5 overflow-hidden">
+          <div
+            data-testid={`barra-${d.label}`}
+            className="flex-1 bg-gray-100 rounded h-5 overflow-hidden"
+            onMouseEnter={d.ventas != null ? (e) => setHover({ label: d.label, x: e.clientX, y: e.clientY }) : undefined}
+            onMouseMove={d.ventas != null ? (e) => setHover({ label: d.label, x: e.clientX, y: e.clientY }) : undefined}
+            onMouseLeave={() => setHover(null)}
+          >
             <div
               className={`h-full ${color} rounded transition-all`}
               style={{ width: `${(d.value / max) * 100}%` }}
@@ -89,6 +103,16 @@ function BarChart({ data, color = "bg-green-500" }: {
           <span className="text-xs text-gray-700 w-24 shrink-0">{fmt(d.value)}</span>
         </div>
       ))}
+      {hover && activa && (
+        <div
+          role="tooltip"
+          className="fixed z-50 pointer-events-none bg-gray-900 text-white rounded-lg px-3 py-2 text-xs shadow-xl"
+          style={{ left: hover.x + 14, top: hover.y - 14 }}
+        >
+          <p className="font-semibold">{activa.label}</p>
+          <p>{textoVentas(activa.ventas!)}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -549,7 +573,7 @@ export default function ReportesTab() {
             <div className="bg-white rounded-lg border border-gray-200 p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-4">Top 10 productos (por ingresos)</h2>
               <BarChart
-                data={data.topProductos.map((p) => ({ label: p.nombre, value: p.revenue }))}
+                data={data.topProductos.map((p) => ({ label: p.nombre, value: p.revenue, ventas: p.ventas }))}
                 color="bg-green-500"
               />
             </div>
@@ -557,7 +581,7 @@ export default function ReportesTab() {
             <div className="bg-white rounded-lg border border-gray-200 p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-4">Métodos de pago</h2>
               <BarChart
-                data={Object.entries(data.metodos).map(([k, v]) => ({ label: k, value: v }))}
+                data={Object.entries(data.metodos).map(([k, v]) => ({ label: k, value: v, ventas: data.metodosVentas?.[k] }))}
                 color="bg-blue-500"
               />
             </div>

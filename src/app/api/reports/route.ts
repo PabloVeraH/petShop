@@ -44,7 +44,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     leerPaginas((desdeFila, hastaFila) =>
       supabase
         .from("venta_items")
-        .select("producto_id, cantidad, subtotal, productos(nombre)")
+        .select("venta_id, producto_id, cantidad, subtotal, productos(nombre)")
         .in("venta_id", ids)
         .order("id")
         .range(desdeFila, hastaFila)
@@ -70,19 +70,23 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // "Producto" y el revenue de servicios distintos sumado junto — un reporte
   // "Top Servicios" separado es trabajo futuro (plan_valorServicio.md §12),
   // no algo que este reporte de productos deba absorber mal etiquetado.
-  const prodCounts: Record<string, { nombre: string; cantidad: number; revenue: number }> = {};
+  // `ventas`: ventas distintas que incluyen el producto (una venta con dos
+  // líneas del mismo producto, ej. dos granel, cuenta una vez).
+  const prodCounts: Record<string, { nombre: string; cantidad: number; revenue: number; ventaIds: Set<string> }> = {};
   for (const item of ventaItems) {
     if (!item.producto_id) continue;
     const prod = item.productos as unknown as { nombre: string } | null;
     if (!prodCounts[item.producto_id]) {
-      prodCounts[item.producto_id] = { nombre: prod?.nombre ?? "Producto", cantidad: 0, revenue: 0 };
+      prodCounts[item.producto_id] = { nombre: prod?.nombre ?? "Producto", cantidad: 0, revenue: 0, ventaIds: new Set() };
     }
     prodCounts[item.producto_id].cantidad += item.cantidad;
     prodCounts[item.producto_id].revenue += Number(item.subtotal);
+    prodCounts[item.producto_id].ventaIds.add(item.venta_id);
   }
   const topProductos = Object.values(prodCounts)
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map(({ ventaIds, ...p }) => ({ ...p, ventas: ventaIds.size }));
 
   // Top clientes
   const clienteCounts: Record<string, { nombre: string; total: number; compras: number }> = {};
@@ -101,11 +105,16 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
   // Métodos de pago breakdown: una venta mixta se reparte entre sus métodos
   // reales (tabla pagos); el resto sigue por ventas.metodo_pago.
   const pagosPorVenta = await cargarPagosPorVenta(supabase, store_id, ventasConPagos(ventas));
+  // metodosVentas: ventas por método; una mixta cuenta una vez en cada uno de
+  // sus métodos (misma regla que /api/dashboard).
   const metodos: Record<string, number> = {};
+  const metodosVentas: Record<string, number> = {};
   for (const v of ventas) {
-    for (const p of metodosParaAgrupar(v, pagosPorVenta)) {
+    const pagos = metodosParaAgrupar(v, pagosPorVenta);
+    for (const p of pagos) {
       metodos[p.metodo] = (metodos[p.metodo] ?? 0) + p.monto;
     }
+    for (const m of new Set(pagos.map((p) => p.metodo))) metodosVentas[m] = (metodosVentas[m] ?? 0) + 1;
   }
   const { montoBoleta, boletaPorMetodo } = resumenBoleta(ventas, pagosPorVenta);
 
@@ -200,6 +209,7 @@ export const GET = withErrorLogging(async (req: NextRequest) => {
     topProductos,
     topClientes,
     metodos,
+    metodosVentas,
     montoBoleta,
     boletaPorMetodo,
     canales,

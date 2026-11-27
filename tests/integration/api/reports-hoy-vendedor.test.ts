@@ -142,7 +142,7 @@ describe("GET /api/reports — Hoy y vendedor", () => {
 });
 
 describe("GET /api/reports — más de 1.000 ventas", () => {
-  const item = (i: number): Venta => ({ id: `i${i}`, producto_id: "p1", cantidad: 1, subtotal: 1000, productos: { nombre: "Alimento" } });
+  const item = (i: number): Venta => ({ id: `i${i}`, venta_id: `v${i % 250}`, producto_id: "p1", cantidad: 1, subtotal: 1000, productos: { nombre: "Alimento" } });
 
   it("RHV-I-15 (REGRESIÓN): los totales suman todas las ventas, no las primeras 1.000", async () => {
     const N = 2300;
@@ -167,7 +167,8 @@ describe("GET /api/reports — más de 1.000 ventas", () => {
     expect(Math.max(...pedidos.map((p) => p.length))).toBe(100);
     expect(new Set(pedidos.flat())).toEqual(new Set(Array.from({ length: 250 }, (_, i) => `v${i}`)));
     // 3 lotes × 1.200 líneas del simulador (no distingue venta): nada se corta en 1.000.
-    expect(body.topProductos).toEqual([{ nombre: "Alimento", cantidad: 3600, revenue: 3_600_000 }]);
+    // ventas: las 250 ventas distintas de las líneas, juntando todos los lotes (I-846).
+    expect(body.topProductos).toEqual([{ nombre: "Alimento", cantidad: 3600, revenue: 3_600_000, ventas: 250 }]);
   });
 
   it("RHV-I-17: si falla la lectura de ventas (cualquier página) o de sus líneas → 500, no totales a medias; sin ventas no pide líneas", async () => {

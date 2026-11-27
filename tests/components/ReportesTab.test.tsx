@@ -461,3 +461,69 @@ describe("ReportesTab — indicador de carga", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("No se pudieron cargar los reportes");
   });
 });
+
+// RC-17…20: tooltip "X ventas" en las barras de "Top 10 productos" y
+// "Métodos de pago". Respeta los filtros: lee los datos vigentes.
+describe("ReportesTab — tooltip de ventas en barras (RC-17…20)", () => {
+  const CON_VENTAS = {
+    ...MOCK_DATA,
+    topProductos: [{ nombre: "Alimento Premium", cantidad: 5, revenue: 50000, ventas: 3 }],
+    metodos: { efectivo: 500000, debito: 20000 },
+    metodosVentas: { efectivo: 9, debito: 1 },
+  };
+  const tooltip = () => screen.queryByRole("tooltip");
+
+  function rutas(porUrl: (u: string) => object) {
+    (global.fetch as jest.Mock).mockReset().mockImplementation((url: string) =>
+      Promise.resolve({ ok: true, json: async () => (url.startsWith("/api/reports?") ? porUrl(url) : []) }));
+  }
+
+  it("RC-17: pasar el mouse por la barra de un producto muestra 'N ventas'; al salir se oculta", async () => {
+    setup(CON_VENTAS);
+    await waitForData();
+    const barra = screen.getByTestId("barra-Alimento Premium");
+    fireEvent.mouseEnter(barra, { clientX: 50, clientY: 50 });
+    expect(tooltip()).toHaveTextContent("Alimento Premium");
+    expect(tooltip()).toHaveTextContent("3 ventas");
+    fireEvent.mouseLeave(barra);
+    expect(tooltip()).not.toBeInTheDocument();
+  });
+
+  it("RC-18: en Métodos de pago muestra las ventas del método, en singular con 1", async () => {
+    setup(CON_VENTAS);
+    await waitForData();
+    fireEvent.mouseEnter(screen.getByTestId("barra-efectivo"), { clientX: 50, clientY: 50 });
+    expect(tooltip()).toHaveTextContent("9 ventas");
+    fireEvent.mouseLeave(screen.getByTestId("barra-efectivo"));
+    fireEvent.mouseEnter(screen.getByTestId("barra-debito"), { clientX: 50, clientY: 50 });
+    expect(tooltip()).toHaveTextContent("1 venta");
+    expect(tooltip()).not.toHaveTextContent("1 ventas");
+  });
+
+  it("RC-19: al cambiar un filtro con el mouse encima muestra el número nuevo; si la barra desaparece, el tooltip se cierra", async () => {
+    rutas((u) => u.includes("canal=pos")
+      ? { ...CON_VENTAS, topProductos: [{ ...CON_VENTAS.topProductos[0], ventas: 1 }] }
+      : u.includes("canal=rappi")
+      ? { ...CON_VENTAS, topProductos: [], metodos: {}, metodosVentas: {} }
+      : CON_VENTAS);
+    render(<ReportesTab />);
+    await waitForData();
+    fireEvent.mouseEnter(screen.getByTestId("barra-Alimento Premium"), { clientX: 50, clientY: 50 });
+    expect(tooltip()).toHaveTextContent("3 ventas");
+
+    fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "pos" } });
+    await waitFor(() => expect(tooltip()).toHaveTextContent("1 venta"));
+
+    fireEvent.change(screen.getByLabelText("Canal"), { target: { value: "rappi" } });
+    await waitFor(() => expect(screen.queryByTestId("barra-Alimento Premium")).not.toBeInTheDocument());
+    expect(tooltip()).not.toBeInTheDocument();
+  });
+
+  it("RC-20: sin conteo en la respuesta (servidor anterior) no muestra tooltip", async () => {
+    setup(MOCK_DATA);
+    await waitForData();
+    fireEvent.mouseEnter(screen.getByTestId("barra-Alimento Premium"), { clientX: 50, clientY: 50 });
+    fireEvent.mouseEnter(screen.getByTestId("barra-efectivo"), { clientX: 50, clientY: 50 });
+    expect(tooltip()).not.toBeInTheDocument();
+  });
+});

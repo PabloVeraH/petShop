@@ -102,6 +102,59 @@ describe("GET /api/reports — pago mixto", () => {
   });
 });
 
+// I-845…847: cantidad de ventas para el tooltip de "Top 10 productos" y
+// "Métodos de pago" en Reportes. Sale del mismo conjunto de ventas filtrado
+// (período, canal, vendedor) que los montos.
+describe("GET /api/reports — cantidad de ventas por método y por producto", () => {
+  async function get(qs = "periodo=30") {
+    const { GET } = await import("@/app/api/reports/route");
+    return GET(new NextRequest(`http://localhost/api/reports?${qs}`));
+  }
+
+  it("I-845: metodosVentas cuenta ventas por método; la mixta cuenta una vez en cada uno; 'metodos' no cambia", async () => {
+    const body = await (await get()).json();
+    expect(body.metodosVentas).toEqual({ efectivo: 2, debito: 1, credito: 1, plataforma: 1 });
+    expect(body.metodosVentas.mixto).toBeUndefined();
+    expect(body.metodos).toEqual({ efectivo: 8000, debito: 12000, credito: 8000, plataforma: 9000 });
+  });
+
+  it("I-846: topProductos[].ventas = ventas distintas con el producto (dos líneas en una venta cuentan una); servicios fuera", async () => {
+    tablas({
+      ventas: VENTAS,
+      pagos: PAGOS,
+      venta_items: [
+        { venta_id: "vm", producto_id: "p1", cantidad: 0.5, subtotal: 2000, productos: { nombre: "Granel" } },
+        { venta_id: "vm", producto_id: "p1", cantidad: 0.25, subtotal: 1000, productos: { nombre: "Granel" } },
+        { venta_id: "vo", producto_id: "p1", cantidad: 1, subtotal: 4000, productos: { nombre: "Granel" } },
+        { venta_id: "vt", producto_id: "p2", cantidad: 3, subtotal: 6000, productos: { nombre: "Lata" } },
+        { venta_id: "vt", producto_id: null, cantidad: 1, subtotal: 9000, productos: null },
+      ],
+    });
+    const body = await (await get()).json();
+    expect(body.topProductos).toEqual([
+      { nombre: "Granel", cantidad: 1.75, revenue: 7000, ventas: 2 },
+      { nombre: "Lata", cantidad: 3, revenue: 6000, ventas: 1 },
+    ]);
+  });
+
+  it("I-847: con canal y vendedor, las líneas se piden solo de las ventas filtradas (de la tienda) y el conteo sale de ellas", async () => {
+    tablas({ ventas: [VENTAS[3]], pagos: [] });
+    const body = await (await get("periodo=30&canal=rappi&vendedor=user_x")).json();
+    expect(chains.ventas[0].eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(chains.ventas[0].eq).toHaveBeenCalledWith("canal", "rappi");
+    expect(chains.ventas[0].eq).toHaveBeenCalledWith("worker_clerk_id", "user_x");
+    expect(chains.venta_items[0].in).toHaveBeenCalledWith("venta_id", ["vr"]);
+    expect(body.metodosVentas).toEqual({ plataforma: 1 });
+  });
+
+  it("I-847: storeWorker filtrando por vendedor → 403 sin consultar ventas (el conteo no abre ese filtro)", async () => {
+    mockClaims = { publicMetadata: { storeWorker: true, storeId: STORE_ID } };
+    const res = await get("periodo=30&vendedor=user_x");
+    expect(res.status).toBe(403);
+    expect(chains.ventas).toBeUndefined();
+  });
+});
+
 describe("GET /api/dashboard — pago mixto", () => {
   async function get() {
     const { GET } = await import("@/app/api/dashboard/route");

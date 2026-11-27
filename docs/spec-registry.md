@@ -220,6 +220,7 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-842 | REGRESIÓN (mascotaspetshop, 2026-11-13): crear un systemAdmin desde /admin guardaba la cuenta sin store_id (ni Clerk ni clerk_users) y no aparecía en el listado filtrado por tienda; ahora el alta escribe storeId en publicMetadata y store_id en clerk_users (2a699a7 solo cubrió el PATCH) | POST /api/admin/users/create | integration |
 | I-843 | systemAdmin sin storeId en el body → 400 "storeId requerido", nunca llega a Clerk (todo alta exige tienda, cierra I-842 en la API) | POST /api/admin/users/create | integration |
 | I-844 | GET /api/productos con búsqueda incluye agotados (con stock primero, orden stock desc); sin búsqueda solo stock > 0 | GET /api/productos | integration |
+| I-845…847 | GET /api/reports: metodosVentas (la mixta cuenta una vez en cada método; metodos sin cambios) y topProductos[].ventas (ventas distintas, servicios fuera); con canal/vendedor las líneas se piden solo de las ventas filtradas de la tienda; storeWorker con vendedor → 403 | GET /api/reports | integration |
 | I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
 | I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
@@ -2581,6 +2582,7 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | RC-14 | El storeWorker no ve los botones de export CSV; storeAdmin y systemAdmin sí (conveniencia de UX; el control real es I-746). RC-01…RC-13 viven en el mismo archivo y no estaban registrados | ReportesTab | component |
 | RC-15 | "Ventas CSV" llama a /api/reports/export?tipo=ventas y descarga el archivo | ReportesTab | component |
 | RC-16 | Export rechazado (403) muestra el error en pantalla y no descarga nada (antes bajaba el error como si fuera el CSV) | ReportesTab | component |
+| RC-17…20 | Reportes: tooltip "N ventas" al pasar el mouse por las barras de Top 10 productos y Métodos de pago (singular con 1); con un filtro nuevo muestra el número vigente y se cierra si la barra desaparece; sin conteo en la respuesta no aparece | ReportesTab | component |
 | CD-11 | Editar cliente: RUT inválido no llama, autoformato, error visible, PATCH | ClienteDetalle | component |
 | CD-12 | Editar mascota: nombre duplicado rechazado sin llamar; PATCH con números | ClienteDetalle | component |
 | CD-13 | REGRESIÓN: error del PATCH de mascota se muestra una sola vez (antes en cada fila) | ClienteDetalle | component |
