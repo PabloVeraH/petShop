@@ -222,6 +222,7 @@ Foto de producto (docs/product-images.md) visible en el buscador del POS, no en 
 | I-844 | GET /api/productos con búsqueda incluye agotados (con stock primero, orden stock desc); sin búsqueda solo stock > 0 | GET /api/productos | integration |
 | I-845…847 | GET /api/reports: metodosVentas (la mixta cuenta una vez en cada método; metodos sin cambios) y topProductos[].ventas (ventas distintas, servicios fuera); con canal/vendedor las líneas se piden solo de las ventas filtradas de la tienda; storeWorker con vendedor → 403 | GET /api/reports | integration |
 | I-848 | GET /api/dashboard: Top 5 productos hoy cuenta sacos/unidades (granel = gramos / peso del saco, 2 decimales), servicios fuera, orden por esa cantidad | GET /api/dashboard | integration |
+| I-849 | GET /api/tienda/nombre: pedidos_canales = algún canal de pedidos activo de la tienda (Instagram e integración pendiente no cuentan); error al leer canal_config → true | GET /api/tienda/nombre | integration |
 | I-488 | Filtro event_type=session.removed (evento real de sign-out) → 200 con filtro aplicado | GET /api/user-sessions | integration |
 | I-489 | REGRESIÓN (ticket 6a76c9994e8b17f267f71641): event_type=session.ended (evento que nunca se registra en esta instancia) → 400 rechazado por validación | GET /api/user-sessions | integration |
 | I-NCC-01 | lineasNotaCreditoCOGS genera asiento balanceado (débito = crédito = costo) | lib/contabilidad/generador-asientos | unit |
@@ -2443,6 +2444,8 @@ corregido con `hasOwnProperty` (U-195, U-196 fallan sin el fix).
 | LQC-06 | Carga de liquidaciones falla (HTTP o red) → mensaje visible | LiquidacionesCanal | component |
 | PRC-06 | Falla de red al cargar la preparación → mensaje visible | PreparacionCanal | component |
 | PCA-03 | Ignora no-OK; se actualiza por intervalo y se detiene al desmontar | PedidosCanalesAviso | component |
+| PCA-04 | Sin canal de pedidos activo el aviso del POS no consulta pedidos (ni por intervalo); el enlace sigue | PedidosCanalesAviso | component |
+| PCA-05 | El POS pasa al aviso pedidos_canales de GET /api/tienda/nombre: true → consulta pedidos; false o error → nunca | POSPage | component |
 | CNP-01 | Cargando y estado por canal (POS siempre activo) con alertas | CanalesPage (/canales) | component |
 | CNP-02 | Navegación a configuración; Instagram activo → publicaciones | CanalesPage (/canales) | component |
 | CNP-03 | Config no-lista o falla de red → todos sin configurar, sin romper | CanalesPage (/canales) | component |

@@ -22,7 +22,7 @@ jest.mock("next/link", () => ({
 }));
 
 import PedidosCanales, { INTERVALO_MS } from "@/app/(app)/pos/components/PedidosCanales";
-import PedidosCanalesAviso from "@/app/(app)/pos/components/PedidosCanalesAviso";
+import PedidosCanalesAviso, { INTERVALO_AVISO_MS } from "@/app/(app)/pos/components/PedidosCanalesAviso";
 
 const orden = (id: string, estado: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -143,15 +143,30 @@ describe("PedidosCanales", () => {
 describe("PedidosCanalesAviso (POS)", () => {
   it("PCA-01: enlaza a /pos/pedidos y muestra cuántos pedidos hay por preparar", async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => [orden("1", "accepted"), orden("2", "accepted")] });
-    render(<PedidosCanalesAviso />);
+    render(<PedidosCanalesAviso activo />);
     expect(await screen.findByText("Pedidos de canales (2)")).toHaveAttribute("href", "/pos/pedidos");
     expect(fetchMock).toHaveBeenCalledWith("/api/canales/orders?estado=accepted");
   });
 
   it("PCA-02: sin pedidos o con error de red, el enlace sigue disponible sin contador", async () => {
     fetchMock.mockRejectedValue(new Error("offline"));
-    render(<PedidosCanalesAviso />);
+    render(<PedidosCanalesAviso activo />);
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(screen.getByText("Pedidos de canales")).toHaveAttribute("href", "/pos/pedidos");
+  });
+
+  // PCA-04: sin canal de pedidos activo no pregunta nunca (registro del
+  // 2026-11-27: el aviso era ~50% de las consultas a la BD); el enlace sigue.
+  it("PCA-04: sin canal de pedidos activo no consulta pedidos ni con el paso del tiempo; el enlace sigue disponible", async () => {
+    jest.useFakeTimers();
+    try {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => [orden("1", "accepted")] });
+      render(<PedidosCanalesAviso activo={false} />);
+      await act(async () => { jest.advanceTimersByTime(INTERVALO_AVISO_MS * 3); });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(screen.getByText("Pedidos de canales")).toHaveAttribute("href", "/pos/pedidos");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

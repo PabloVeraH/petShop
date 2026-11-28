@@ -319,6 +319,30 @@ describe("POSPage — número de transacción según la tienda (098)", () => {
   });
 });
 
+// PCA-05: el POS conecta el aviso con GET /api/tienda/nombre: solo pregunta
+// por pedidos si la tienda tiene un canal de pedidos activo.
+describe("POSPage — aviso de pedidos de canales (PCA-05)", () => {
+  const fetchOriginal = global.fetch;
+  afterEach(() => { global.fetch = fetchOriginal; });
+
+  it("PCA-05: con pedidos_canales true consulta los pedidos por preparar; con false o sin respuesta, nunca", async () => {
+    mockUsePOSStore.mockReturnValue(makeMockStore());
+    for (const [ok, valor, consulta] of [[true, true, true], [true, false, false], [false, undefined, false]] as const) {
+      const fetchMock = jest.fn().mockImplementation(async (url: string) => ({
+        ok, status: ok ? 200 : 500, headers: new Headers(),
+        json: async () => (url === "/api/tienda/nombre" ? { name: "T", pedidos_canales: valor } : []),
+      }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const { unmount } = render(<POSPage />, { wrapper: makeWrapper() });
+      await waitFor(() => expect(fetchMock.mock.calls.map(([u]) => u)).toContain("/api/tienda/nombre"));
+      const pidePedidos = () => fetchMock.mock.calls.some(([u]) => u === "/api/canales/orders?estado=accepted");
+      if (consulta) await waitFor(() => expect(pidePedidos()).toBe(true));
+      else { await new Promise((r) => setTimeout(r, 50)); expect(pidePedidos()).toBe(false); }
+      unmount();
+    }
+  });
+});
+
 describe("POSPage — granel por valor (099)", () => {
   it("VGV-C-07: el cobro envía el monto de la línea (y no lo inventa en las demás)", async () => {
     (createVenta as jest.Mock).mockClear();

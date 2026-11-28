@@ -39,7 +39,7 @@ export default function POSPage() {
   // Umbral de 135 UF configurado por la tienda (aviso de identificación del
   // comprador en el modal de pago). Misma query que el layout (nombre de la
   // tienda): comparten caché.
-  const { data: tienda } = useQuery<{ name: string; umbral_identificacion_comprador?: number | null; numero_transaccion_obligatorio?: boolean }>({
+  const { data: tienda } = useQuery<{ name: string; umbral_identificacion_comprador?: number | null; numero_transaccion_obligatorio?: boolean; pedidos_canales?: boolean }>({
     queryKey: ["store-name"],
     queryFn: () => fetchJson("/api/tienda/nombre"),
     staleTime: 5 * 60 * 1000,
@@ -138,11 +138,14 @@ export default function POSPage() {
 
   return (
     <div className="flex flex-col h-full gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* Mismas columnas que la grilla de abajo: el aviso de pedidos queda en el
+          borde derecho de la búsqueda, justo antes del carrito. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center">
+        <div className="lg:col-span-2 flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold text-gray-900">Punto de Venta</h1>
-          <PedidosCanalesAviso />
+          <PedidosCanalesAviso activo={tienda?.pedidos_canales === true} />
         </div>
+        <div className="flex justify-end gap-2 empty:hidden">
         {ventaExito && (
           <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
             ✓ Venta registrada
@@ -153,6 +156,7 @@ export default function POSPage() {
             Error: {ventaError}
           </span>
         )}
+        </div>
       </div>
 
       {pagosUltimaVenta && (

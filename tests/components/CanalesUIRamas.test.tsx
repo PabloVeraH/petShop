@@ -146,7 +146,7 @@ describe("errores de carga visibles", () => {
     jest.useFakeTimers();
     try {
       fetchMock.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
-      const { unmount } = render(<PedidosCanalesAviso />);
+      const { unmount } = render(<PedidosCanalesAviso activo />);
       await act(async () => {});
       expect(screen.getByText("Pedidos de canales")).toHaveAttribute("href", "/pos/pedidos");
 

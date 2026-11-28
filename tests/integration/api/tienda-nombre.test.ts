@@ -25,6 +25,14 @@ import { GET } from "@/app/api/tienda/nombre/route";
 const STORE_ID = "18d5dab7-0000-4000-8000-000000000001";
 const llamar = () => GET();
 
+// canal_config: select().eq().eq() y luego await.
+let mockCanales: { data: unknown[] | null; error: unknown } = { data: [], error: null };
+const canalChain: Record<string, jest.Mock> = {
+  select: jest.fn(() => canalChain),
+  eq: jest.fn(() => canalChain),
+  then: jest.fn((resolve: (v: unknown) => void) => resolve(mockCanales)),
+};
+
 describe("GET /api/tienda/nombre (I-734)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,7 +41,8 @@ describe("GET /api/tienda/nombre (I-734)", () => {
     mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: "76123456-7", umbral_identificacion_comprador: 5363275 }, error: null });
     mockEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    mockCanales = { data: [], error: null };
+    mockFrom.mockImplementation((t: string) => (t === "canal_config" ? canalChain : { select: mockSelect }));
   });
 
   // Desde el pago mixto (I-830) también expone el umbral de 135 UF, y desde la
@@ -41,7 +50,7 @@ describe("GET /api/tienda/nombre (I-734)", () => {
   it("I-734/I-744: cualquier usuario de la tienda (ej. storeWorker) recibe SOLO nombre, RUT, umbral 135 UF, vender_vencidos, numero_transaccion_obligatorio y venta_granel_por, de SU tienda", async () => {
     const res = await llamar();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ name: "PetShop La Huella", rut: "76123456-7", umbral_identificacion_comprador: 5363275, vender_vencidos: false, numero_transaccion_obligatorio: true, venta_granel_por: "gramos" });
+    expect(await res.json()).toEqual({ name: "PetShop La Huella", rut: "76123456-7", umbral_identificacion_comprador: 5363275, vender_vencidos: false, numero_transaccion_obligatorio: true, venta_granel_por: "gramos", pedidos_canales: false });
     expect(mockFrom).toHaveBeenCalledWith("stores");
     expect(mockSelect).toHaveBeenCalledWith("name, rut, umbral_identificacion_comprador, vender_vencidos, numero_transaccion_obligatorio, venta_granel_por");
     expect(mockEq).toHaveBeenCalledWith("id", STORE_ID);
@@ -49,7 +58,7 @@ describe("GET /api/tienda/nombre (I-734)", () => {
 
   it("I-744: tienda sin RUT → rut null (nunca undefined)", async () => {
     mockSingle.mockResolvedValue({ data: { name: "PetShop La Huella", rut: null }, error: null });
-    expect(await (await llamar()).json()).toEqual({ name: "PetShop La Huella", rut: null, umbral_identificacion_comprador: null, vender_vencidos: false, numero_transaccion_obligatorio: true, venta_granel_por: "gramos" });
+    expect(await (await llamar()).json()).toEqual({ name: "PetShop La Huella", rut: null, umbral_identificacion_comprador: null, vender_vencidos: false, numero_transaccion_obligatorio: true, venta_granel_por: "gramos", pedidos_canales: false });
   });
 
   it("VENC-I-01: expone vender_vencidos de la tienda (el POS avisa o bloquea con él); solo true es true", async () => {
@@ -82,6 +91,19 @@ describe("GET /api/tienda/nombre (I-734)", () => {
     mockGetStoreId.mockResolvedValue(null);
     expect((await llamar()).status).toBe(401);
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("I-849: pedidos_canales = algún canal de pedidos activo de SU tienda (Instagram y los de integración pendiente no cuentan); error al leer → true", async () => {
+    const pc = async () => (await (await llamar()).json()).pedidos_canales;
+    expect(await pc()).toBe(false);
+    expect(canalChain.eq).toHaveBeenCalledWith("store_id", STORE_ID);
+    expect(canalChain.eq).toHaveBeenCalledWith("activo", true);
+    mockCanales = { data: [{ canal_id: "instagram", activo: true }, { canal_id: "pedidosya", activo: true }], error: null };
+    expect(await pc()).toBe(false);
+    mockCanales = { data: [{ canal_id: "instagram", activo: true }, { canal_id: "rappi", activo: true }], error: null };
+    expect(await pc()).toBe(true);
+    mockCanales = { data: null, error: { message: "boom" } };
+    expect(await pc()).toBe(true);
   });
 
   it("I-734: usuario deshabilitado → 403 sin consultar", async () => {
